@@ -1,7 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import dynamic from 'next/dynamic'
+
+// Dynamically import Three.js component to avoid SSR issues
+const CandlestickBackground = dynamic(() => import('./components/CandlestickBackground'), {
+    ssr: false
+})
 
 // --- Icons ---
 const Icons = {
@@ -80,97 +86,16 @@ const Navbar = () => {
     )
 }
 
-const ParticleBackground = () => {
-    const canvasRef = useRef<HTMLCanvasElement>(null)
-
-    useEffect(() => {
-        const canvas = canvasRef.current
-        if (!canvas) return
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-        let animationFrameId: number
-
-        const resize = () => {
-            canvas.width = window.innerWidth
-            canvas.height = window.innerHeight
-        }
-        window.addEventListener('resize', resize)
-        resize()
-
-        const particles: { x: number; y: number; vx: number; vy: number; size: number; color: string }[] = []
-        for(let i=0; i<100; i++){
-            particles.push({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
-                vx: (Math.random() - 0.5) * 0.5,
-                vy: (Math.random() - 0.5) * 0.5,
-                size: Math.random() * 2,
-                color: Math.random() > 0.9 ? '#FF003C' : (Math.random() > 0.5 ? '#14F195' : '#333')
-            })
-        }
-
-        const render = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height)
-            
-            particles.forEach(p => {
-                p.x += p.vx
-                p.y += p.vy
-                
-                if(p.x < 0) p.x = canvas.width
-                if(p.x > canvas.width) p.x = 0
-                if(p.y < 0) p.y = canvas.height
-                if(p.y > canvas.height) p.y = 0
-
-                ctx.beginPath()
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-                ctx.fillStyle = p.color
-                ctx.fill()
-            })
-
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'
-            ctx.lineWidth = 0.5
-            for(let i=0; i<particles.length; i++){
-                for(let j=i+1; j<particles.length; j++){
-                    const dx = particles[i].x - particles[j].x
-                    const dy = particles[i].y - particles[j].y
-                    const dist = Math.sqrt(dx*dx + dy*dy)
-                    if(dist < 100){
-                        ctx.beginPath()
-                        ctx.moveTo(particles[i].x, particles[i].y)
-                        ctx.lineTo(particles[j].x, particles[j].y)
-                        ctx.stroke()
-                    }
-                }
-            }
-
-            animationFrameId = requestAnimationFrame(render)
-        }
-        render()
-
-        return () => {
-            window.removeEventListener('resize', resize)
-            cancelAnimationFrame(animationFrameId)
-        }
-    }, [])
-
-    return <canvas ref={canvasRef} className="absolute inset-0 z-0 opacity-40 pointer-events-none" />
-}
-
 const Hero = () => {
     return (
         <section className="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
-            <div className="perspective-grid"></div>
-            <ParticleBackground />
-            
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-900/20 blur-[120px] rounded-full pointer-events-none"></div>
-
             <div className="relative z-10 max-w-7xl mx-auto px-4 text-center">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8 }}
                 >
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-6 backdrop-blur-md">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-white/10 mb-6 backdrop-blur-md">
                         <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                         <span className="text-xs font-mono text-gray-300">SYSTEM OPERATIONAL // SOLANA NETWORK</span>
                     </div>
@@ -189,7 +114,7 @@ const Hero = () => {
                 </motion.h1>
 
                 <motion.p 
-                    className="text-xl text-gray-400 max-w-2xl mx-auto mb-10"
+                    className="text-xl text-gray-300 max-w-2xl mx-auto mb-10 bg-black/30 backdrop-blur-sm py-2 px-4 rounded-lg"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.4 }}
@@ -227,7 +152,7 @@ const Hero = () => {
 
 const RektTicker = () => {
     return (
-        <div className="w-full bg-red-900/10 border-y border-red-500/20 overflow-hidden py-3 relative z-20">
+        <div className="w-full bg-red-900/20 border-y border-red-500/30 overflow-hidden py-3 relative z-20 backdrop-blur-sm">
             <div className="flex animate-slide whitespace-nowrap gap-12 px-4">
                 {[...MOCK_REKT_FEED, ...MOCK_REKT_FEED, ...MOCK_REKT_FEED, ...MOCK_REKT_FEED].map((item, i) => (
                     <div key={i} className="flex items-center gap-2 text-sm font-mono">
@@ -255,7 +180,7 @@ const CountDown = () => {
     }, [])
 
     return (
-        <div className="absolute bottom-10 right-10 glass-panel p-4 rounded-lg hidden md:block z-20 border-l-4 border-green-400 shadow-[0_0_20px_rgba(74,222,128,0.2)]">
+        <div className="fixed bottom-10 right-10 glass-panel p-4 rounded-lg hidden md:block z-30 border-l-4 border-green-400 shadow-[0_0_20px_rgba(74,222,128,0.2)]">
             <div className="flex items-center gap-3">
                 <div className="bg-green-500/20 p-2 rounded-full text-green-400 animate-pulse">
                     <Icons.Clock />
@@ -292,31 +217,33 @@ const FeatureCard = ({ icon, title, desc, delay }: { icon: React.ReactNode; titl
 const Mechanism = () => {
     return (
         <section id="how-it-works" className="py-24 relative">
-            <div className="max-w-7xl mx-auto px-4">
-                <div className="text-center mb-16">
-                    <h2 className="text-4xl font-bold mb-4">How It Works</h2>
-                    <p className="text-gray-400">The first protocol that pays you to lose.</p>
-                </div>
-                
-                <div className="grid md:grid-cols-3 gap-8">
-                    <FeatureCard 
-                        icon={<Icons.TrendingDown />} 
-                        title="1. Track Your Entry" 
-                        desc="Our Smart Contract logs your average buy-in price on-chain. We know exactly when you're underwater."
-                        delay={0.1}
-                    />
-                    <FeatureCard 
-                        icon={<Icons.ShieldAlert />} 
-                        title="2. Calculate Drawdown" 
-                        desc="Every hour, Clockwork bots scan the ledger to find the biggest percentage losers (The Blasters)."
-                        delay={0.2}
-                    />
-                    <FeatureCard 
-                        icon={<Icons.Zap />} 
-                        title="3. Blast Rewards" 
-                        desc="Top 3 losers get paid from the pump.fun swap fee pool (80/15/5 split). Your entry resets, and you live to trade another day."
-                        delay={0.3}
-                    />
+            <div className="glass-section-bg">
+                <div className="max-w-7xl mx-auto px-4">
+                    <div className="text-center mb-16">
+                        <h2 className="text-4xl font-bold mb-4">How It Works</h2>
+                        <p className="text-gray-400">The first protocol that pays you to lose.</p>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-3 gap-8">
+                        <FeatureCard 
+                            icon={<Icons.TrendingDown />} 
+                            title="1. Track Your Entry" 
+                            desc="Our Smart Contract logs your average buy-in price on-chain. We know exactly when you're underwater."
+                            delay={0.1}
+                        />
+                        <FeatureCard 
+                            icon={<Icons.ShieldAlert />} 
+                            title="2. Calculate Drawdown" 
+                            desc="Every hour, Clockwork bots scan the ledger to find the biggest percentage losers (The Blasters)."
+                            delay={0.2}
+                        />
+                        <FeatureCard 
+                            icon={<Icons.Zap />} 
+                            title="3. Blast Rewards" 
+                            desc="Top 3 losers get paid from the pump.fun swap fee pool (80/15/5 split). Your entry resets, and you live to trade another day."
+                            delay={0.3}
+                        />
+                    </div>
                 </div>
             </div>
         </section>
@@ -332,7 +259,7 @@ const Simulator = () => {
 
      return (
          <div className="mt-8 glass-panel p-6 rounded-lg border border-purple-500/30">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Icons.Trophy /> Simulator: What if I get Rekt?</h3>
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Icons.Trophy /> Confidence Simulator: The "Win-Win" Calculator</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
                 <div>
                     <label className="block text-gray-400 mb-2">My Investment ($)</label>
@@ -368,76 +295,77 @@ const Tokenomics = () => {
     ]
 
     return (
-        <section id="tokenomics" className="py-24 bg-black/50 relative overflow-hidden">
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
-            <div className="max-w-7xl mx-auto px-4 grid md:grid-cols-2 gap-12 items-center relative z-10">
-                <div>
-                    <h2 className="text-4xl font-bold mb-8">Tokenomics</h2>
-                    <p className="text-gray-400 mb-8 text-lg">
-                        The Flywheel is simple: <strong>More Volume = Bigger Top Blasts.</strong>
-                        <br/><br/>
-                        <span className="text-white font-bold">pump.fun Swap Fees:</span>
-                    </p>
-                    <ul className="list-disc pl-5 mt-2 space-y-2 text-gray-400 mb-8">
-                        <li><span className="text-green-400">95%</span> Refills Rekt Pool (Paid to Losers)</li>
-                        <li><span className="text-purple-400">5%</span> Creator Rewards</li>
-                    </ul>
-                    <p className="text-gray-400 mb-8">
-                        This ensures the payout pool grows directly with market activity. 
-                    </p>
-                    <Simulator />
-                </div>
-                <div className="glass-panel p-8 rounded-2xl">
-                     <div className="space-y-8">
-                        {data.map((item, index) => (
-                            <div 
-                                key={index}
-                                onMouseEnter={() => item.interactive && setHoveredRekt(true)}
-                                onMouseLeave={() => item.interactive && setHoveredRekt(false)}
-                                className="relative cursor-pointer"
-                            >
-                                <div className="flex justify-between mb-2 font-mono text-sm">
-                                    <span>{item.label}</span>
-                                    <span>{item.value}% of Fees</span>
-                                </div>
-                                <div className="h-6 bg-gray-800 rounded-full overflow-hidden relative">
-                                    <motion.div 
-                                        className={`h-full ${item.color}`}
-                                        initial={{ width: 0 }}
-                                        whileInView={{ width: `${item.value}%` }}
-                                        transition={{ duration: 1, delay: index * 0.1 }}
-                                    />
-                                </div>
-                                
-                                {/* Hover Interaction for Rekt Pool */}
-                                <AnimatePresence>
-                                    {item.interactive && hoveredRekt && (
+        <section id="tokenomics" className="py-24 relative overflow-hidden">
+            <div className="glass-section-bg">
+                <div className="max-w-7xl mx-auto px-4 grid md:grid-cols-2 gap-12 items-center relative z-10">
+                    <div>
+                        <h2 className="text-4xl font-bold mb-8">Tokenomics</h2>
+                        <p className="text-gray-400 mb-8 text-lg">
+                            The Flywheel is simple: <strong>More Volume = Bigger Top Blasts.</strong>
+                            <br/><br/>
+                            <span className="text-white font-bold">pump.fun Swap Fees:</span>
+                        </p>
+                        <ul className="list-disc pl-5 mt-2 space-y-2 text-gray-400 mb-8">
+                            <li><span className="text-green-400">95%</span> Refills Rekt Pool (Paid to Losers)</li>
+                            <li><span className="text-purple-400">5%</span> Creator Rewards</li>
+                        </ul>
+                        <p className="text-gray-400 mb-8">
+                            This ensures the payout pool grows directly with market activity. 
+                        </p>
+                        <Simulator />
+                    </div>
+                    <div className="glass-panel p-8 rounded-2xl">
+                         <div className="space-y-8">
+                            {data.map((item, index) => (
+                                <div 
+                                    key={index}
+                                    onMouseEnter={() => item.interactive && setHoveredRekt(true)}
+                                    onMouseLeave={() => item.interactive && setHoveredRekt(false)}
+                                    className="relative cursor-pointer"
+                                >
+                                    <div className="flex justify-between mb-2 font-mono text-sm">
+                                        <span>{item.label}</span>
+                                        <span>{item.value}% of Fees</span>
+                                    </div>
+                                    <div className="h-6 bg-gray-800 rounded-full overflow-hidden relative">
                                         <motion.div 
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: 10 }}
-                                            className="absolute top-full left-0 w-full mt-4 bg-gray-900 p-4 rounded-lg border border-green-500/50 z-50 shadow-2xl"
-                                        >
-                                            <h4 className="text-sm font-bold text-green-400 mb-2">Hourly Payout Distribution</h4>
-                                            <div className="flex gap-2 h-16">
-                                                <div className="h-full bg-yellow-400/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: '80%'}}>
-                                                    <span>🥇 1st</span>
-                                                    <span className="text-lg">80%</span>
+                                            className={`h-full ${item.color}`}
+                                            initial={{ width: 0 }}
+                                            whileInView={{ width: `${item.value}%` }}
+                                            transition={{ duration: 1, delay: index * 0.1 }}
+                                        />
+                                    </div>
+                                    
+                                    {/* Hover Interaction for Rekt Pool */}
+                                    <AnimatePresence>
+                                        {item.interactive && hoveredRekt && (
+                                            <motion.div 
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: 10 }}
+                                                className="absolute top-full left-0 w-full mt-4 bg-gray-900 p-4 rounded-lg border border-green-500/50 z-50 shadow-2xl"
+                                            >
+                                                <h4 className="text-sm font-bold text-green-400 mb-2">Hourly Payout Distribution</h4>
+                                                <div className="flex gap-2 h-16">
+                                                    <div className="h-full bg-yellow-400/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: '80%'}}>
+                                                        <span>🥇 1st</span>
+                                                        <span className="text-lg">80%</span>
+                                                    </div>
+                                                    <div className="h-full bg-gray-300/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: '15%'}}>
+                                                        <span>🥈</span>
+                                                        <span>15%</span>
+                                                    </div>
+                                                    <div className="h-full bg-orange-400/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: '5%'}}>
+                                                        <span>🥉</span>
+                                                        <span>5%</span>
+                                                    </div>
                                                 </div>
-                                                <div className="h-full bg-gray-300/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: '15%'}}>
-                                                    <span>🥈</span>
-                                                    <span>15%</span>
-                                                </div>
-                                                <div className="h-full bg-orange-400/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: '5%'}}>
-                                                    <span>🥉</span>
-                                                    <span>5%</span>
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        ))}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -483,56 +411,91 @@ const Whitepaper = () => {
     
     const sections = [
         {
-            title: "1.0 Why Buy? The Hedge Thesis",
+            title: "1.0 The Hedge Thesis: Volatility Insurance",
             content: (
                 <>
-                    <p className="mb-4">Most coins are a PVP battle where you only win if the price goes up. <strong>Topblast is different.</strong> It acts as volatility insurance for your portfolio.</p>
+                    <p className="mb-4">Most coins are a PVP battle where you only win if the price goes up (Number Go Up technology). <strong>Topblast flips this dynamic.</strong> It acts as volatility insurance for your portfolio, creating an asymmetric bet where downside volatility can result in upside payouts.</p>
                     <p className="mb-4 text-white"><strong>The Win-Win Scenario:</strong></p>
-                    <ul className="list-disc pl-5 space-y-2">
-                        <li><strong>Scenario A (Price Pumps):</strong> You hold the token, the value increases, and you sell for profit. Standard moon mission.</li>
-                        <li><strong>Scenario B (Price Dumps):</strong> The market crashes. Paper hands sell. But you? You hold or buy the dip. Your &quot;Drawdown %&quot; increases, skyrocketing you up the <strong>Blaster Leaderboard</strong>. You win the hourly jackpot (80% of the pool) which could be 10x-100x your initial loss.</li>
+                    <ul className="list-disc pl-5 space-y-2 mb-4">
+                        <li><strong>Scenario A (Price Pumps):</strong> You hold the token, the value increases, and you sell for profit. Standard moon mission. You win.</li>
+                        <li><strong>Scenario B (Price Dumps):</strong> The market crashes. Paper hands sell in panic. But you? You hold or buy the dip. Your &quot;Drawdown %&quot; increases, skyrocketing you up the <strong>Blaster Leaderboard</strong>. You win the hourly jackpot (80% of the pool) which effectively rebates your loss, often exceeding it by 10x-100x.</li>
                     </ul>
-                    <div className="mt-4 p-4 bg-green-900/20 border border-green-500/30 rounded text-sm text-green-300">
-                        &quot;In a market of gambling, be the casino. Or at least, be the guy who gets paid to lose.&quot;
+                    <div className="mt-4 p-4 bg-green-900/20 border border-green-500/30 rounded text-sm text-green-300 italic">
+                        &quot;In a market of gambling, be the casino. If you can't be the casino, be the player who gets paid to lose.&quot;
                     </div>
                 </>
             )
         },
         {
-            title: "2.0 The Concept",
+            title: "2.0 Core Mechanics: How Loss is Monetized",
             content: (
                 <>
-                    <p className="mb-4">Topblast is a Solana token built with Rust and Anchor. It tracks every user&apos;s average buy-in price from on-chain buys and calculates their hourly drawdown (how far below that price their wallet&apos;s value sits).</p>
-                    <p><strong>The Goal:</strong> Get paid for being a top blaster. We monetize the loss.</p>
+                    <p className="mb-4">Topblast is built on Solana using Rust and Anchor. It relies on a transparent, on-chain tracking mechanism that is verifiable by anyone.</p>
+                    <h4 className="text-white font-bold mt-4 mb-2">The "Average Buy Price" Tracker</h4>
+                    <p className="mb-4">The Smart Contract tracks every wallet's entry price. When you buy more tokens, your average entry price updates. When you sell, it remains locked to your historical cost basis for that epoch.</p>
+                    <p><strong>Drawdown Calculation:</strong></p>
+                    <code className="block bg-gray-900 p-2 rounded text-xs mb-4 text-green-400 font-mono">
+                        Current Price - Average Buy Price = PnL <br/>
+                        (PnL / Average Buy Price) * 100 = Drawdown %
+                    </code>
+                    <p>The protocol ranks every holder by this percentage. The deeper you are underwater, the higher your rank. This incentivizes holding through dips and buying falling knives, stabilizing the floor price naturally.</p>
                 </>
             )
         },
         {
-            title: "3.0 The Automation",
+            title: "3.0 The Psychology of Winning (Why Buy Any Price?)",
             content: (
                 <>
-                    <p className="mb-4">Every hour, a <strong>Clockwork</strong> bot triggers the payout event.</p>
+                    <p className="mb-4">Why should you feel confident buying at the top? Or the bottom?</p>
+                    <ul className="list-disc pl-5 space-y-3">
+                        <li><strong>Buying the Top:</strong> If you buy the top and it dumps, you immediately become eligible for the Rekt Pool. The larger the dump, the higher your probability of winning the jackpot. The jackpot is funded by the trading volume that caused the volatility.</li>
+                        <li><strong>Buying the Bottom:</strong> If you catch a knife and it keeps dipping, your drawdown % increases, protecting you. If it reverses and pumps, you profit from the token appreciation.</li>
+                        <li><strong>No Fear of Bag Holding:</strong> "Bag holders" are usually the victims of DeFi. In Topblast, Bag Holders are the VIPs. The protocol is designed to reward the most loyal holders who endure the most pain.</li>
+                    </ul>
+                </>
+            )
+        },
+        {
+            title: "4.0 Automation & Security",
+            content: (
+                <>
+                    <p className="mb-4">Trust is paramount. We don't control the payouts; the code does.</p>
+                    <p className="mb-4">Every hour, a decentralized <strong>Clockwork</strong> bot triggers the payout event. This process is fully automated and permissionless:</p>
                     <ol className="list-decimal pl-5 space-y-2">
-                        <li>The bot scans the ledger for the biggest percentage loss.</li>
-                        <li>It ranks users by drawdown.</li>
-                        <li>It executes the payout transaction to the Top 3 wallets.</li>
+                        <li><strong>Snapshot:</strong> The bot scans the ledger for the current wallet states.</li>
+                        <li><strong>Ranking:</strong> It sorts wallets by the calculated Drawdown %.</li>
+                        <li><strong>Execution:</strong> It executes the payout transaction to the Top 3 wallets directly from the fee vault.</li>
+                        <li><strong>Reset:</strong> The winners' entry price is reset to the current market price (effectively "realizing" the loss rebate) so they cannot win twice consecutively without taking new risk.</li>
                     </ol>
                 </>
             )
         },
         {
-            title: "4.0 Reward Distribution",
+            title: "5.0 Tokenomics & Fee Structure",
             content: (
                 <>
-                    <p className="mb-4">The Reward Pool is refilled by <strong>pump.fun swap fees</strong> on volume.</p>
+                    <p className="mb-4">The Reward Pool is refilled by <strong>pump.fun swap fees</strong> generated from trading volume. Volatility = Yield.</p>
                     <h4 className="text-white font-bold mt-2">The Hourly Split (Top 3 Losers):</h4>
                     <ul className="list-disc pl-5 space-y-2 mb-4">
-                        <li><strong>1st Place:</strong> 80% of the hourly pool allocation.</li>
-                        <li><strong>2nd Place:</strong> 15% of the hourly pool allocation.</li>
-                        <li><strong>3rd Place:</strong> 5% of the hourly pool allocation.</li>
+                        <li><strong>🥇 1st Place:</strong> 80% of the hourly pool allocation.</li>
+                        <li><strong>🥈 2nd Place:</strong> 15% of the hourly pool allocation.</li>
+                        <li><strong>🥉 3rd Place:</strong> 5% of the hourly pool allocation.</li>
                     </ul>
                     <h4 className="text-white font-bold mt-2">Fee Allocation:</h4>
-                    <p>95% of collected fees go to the Top Blasters. 5% go to the Creator.</p>
+                    <p>95% of collected fees go directly to the Top Blasters (Community). Only 5% go to the Creator/Dev wallet for maintenance and marketing. This is a community-first protocol.</p>
+                </>
+            )
+        },
+        {
+            title: "6.0 Strategic Trading: How to Win",
+            content: (
+                <>
+                    <p className="mb-4">Advanced strategies for the professional Loser:</p>
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li><strong>The "Kamikaze" Entry:</strong> Buying heavily during a massive red candle to instantly secure a high drawdown percentage if it dips further.</li>
+                        <li><strong>The "Diamond Hand" Hold:</strong> Refusing to sell even when down 50%, knowing that the payout from the Rekt Pool could be worth more than the remaining token value.</li>
+                        <li><strong>Volume Watch:</strong> The Rekt Pool is biggest when volume is highest. High volatility days are the most profitable days to be "Wrong" on the price direction.</li>
+                    </ul>
                 </>
             )
         }
@@ -540,19 +503,21 @@ const Whitepaper = () => {
 
     return (
         <section id="whitepaper" className="py-24 relative">
-            <div className="max-w-4xl mx-auto px-4">
-                <h2 className="text-4xl font-bold mb-12 text-center">Whitepaper <span className="text-green-500 text-sm align-top">v1.1</span></h2>
-                <div className="glass-panel rounded-xl p-2 md:p-8">
-                    {sections.map((section, idx) => (
-                        <AccordionItem 
-                            key={idx}
-                            title={section.title}
-                            isOpen={openIndex === idx}
-                            onClick={() => setOpenIndex(idx === openIndex ? null : idx)}
-                        >
-                            {section.content}
-                        </AccordionItem>
-                    ))}
+            <div className="glass-section-bg">
+                <div className="max-w-4xl mx-auto px-4">
+                    <h2 className="text-4xl font-bold mb-12 text-center">Whitepaper <span className="text-green-500 text-sm align-top">v1.2</span></h2>
+                    <div className="glass-panel rounded-xl p-2 md:p-8">
+                        {sections.map((section, idx) => (
+                            <AccordionItem 
+                                key={idx}
+                                title={section.title}
+                                isOpen={openIndex === idx}
+                                onClick={() => setOpenIndex(idx === openIndex ? null : idx)}
+                            >
+                                {section.content}
+                            </AccordionItem>
+                        ))}
+                    </div>
                 </div>
             </div>
         </section>
@@ -561,7 +526,7 @@ const Whitepaper = () => {
 
 const Footer = () => {
     return (
-        <footer className="py-12 border-t border-gray-900 bg-black text-center text-gray-500 text-sm">
+        <footer className="py-12 border-t border-gray-900/50 bg-black/60 backdrop-blur-md text-center text-gray-500 text-sm relative z-10">
             <div className="flex justify-center gap-6 mb-8">
                 <a href="#" className="hover:text-white transition-colors">Twitter</a>
                 <a href="#" className="hover:text-white transition-colors">Discord</a>
@@ -576,15 +541,22 @@ const Footer = () => {
 export default function Home() {
     return (
         <div className="antialiased selection:bg-green-500 selection:text-black">
-            <Navbar />
-            <Hero />
-            <RektTicker />
+            {/* Fixed 3D Candlestick Background */}
+            <CandlestickBackground />
+            
+            {/* Scrollable Content Layer */}
+            <div className="relative z-10">
+                <Navbar />
+                <Hero />
+                <RektTicker />
+                <Mechanism />
+                <Tokenomics />
+                <Whitepaper />
+                <Footer />
+            </div>
+            
+            {/* Fixed Countdown (stays visible) */}
             <CountDown />
-            <Mechanism />
-            <Tokenomics />
-            <Whitepaper />
-            <Footer />
         </div>
     )
 }
-
