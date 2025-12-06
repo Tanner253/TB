@@ -60,7 +60,7 @@ const MAX_INITIAL_HOLDERS = 500 // Limit initial processing for faster startup
 
 /**
  * Initialize the holder service
- * Quick initialization - loads holders with estimated VWAP for fast startup
+ * Fetches real VWAPs for top holders by balance
  */
 export async function initializeHolderService(): Promise<boolean> {
   if (state.initializationInProgress) {
@@ -86,44 +86,56 @@ export async function initializeHolderService(): Promise<boolean> {
     }
     console.log(`[HolderService] Current price: $${state.currentTokenPrice}`)
 
-    // Fetch token holders (limited for faster startup)
+    // Fetch token holders
     const limit = Math.min(config.maxHoldersToProcess, MAX_INITIAL_HOLDERS)
     const rawHolders = await getTokenHolders(config.tokenMint, limit)
     console.log(`[HolderService] Found ${rawHolders.length} holders`)
 
     if (rawHolders.length === 0) {
-      console.warn('[HolderService] No holders found - check TOKEN_MINT_ADDRESS')
+      console.warn('[HolderService] No holders found')
       state.initializationInProgress = false
       return false
     }
 
-    // Quick initialization - use estimated VWAP (current price * 1.5) for instant display
-    // This assumes most holders bought at higher prices (typical for memecoins)
-    const estimatedBuyPrice = state.currentTokenPrice * 1.5
+    // Sort by balance (biggest holders first) and take top 30 for real VWAP calculation
+    const sortedHolders = [...rawHolders].sort((a, b) => b.balance - a.balance)
+    const topHolders = sortedHolders.slice(0, 30)
     
-    for (const h of rawHolders) {
-      const balance = h.balance / Math.pow(10, config.tokenDecimals)
-      const drawdownPct = ((state.currentTokenPrice - estimatedBuyPrice) / estimatedBuyPrice) * 100
-      const lossUsd = Math.max(0, (estimatedBuyPrice - state.currentTokenPrice) * balance)
-      const minLossRequired = config.poolBalanceUsd * (config.minLossThresholdPct / 100)
+    console.log(`[HolderService] Fetching real VWAPs for top ${topHolders.length} holders...`)
+
+    // Fetch real VWAPs for top holders (parallel, small batches)
+    for (let i = 0; i < topHolders.length; i += 5) {
+      const batch = topHolders.slice(i, i + 5)
       
-      holders.set(h.wallet, {
-        wallet: h.wallet,
-        balance,
-        balanceRaw: h.balance,
-        vwap: estimatedBuyPrice,
-        totalCostBasis: estimatedBuyPrice * balance,
-        totalTokensBought: balance,
-        firstBuyTimestamp: Date.now() - (24 * 60 * 60 * 1000), // Assume 1 day ago
-        lastActivityTimestamp: Date.now(),
-        buyCount: 1,
-        hasSold: false,
-        isEligible: lossUsd >= minLossRequired && balance >= config.minTokenHolding,
-        ineligibleReason: lossUsd < minLossRequired ? 'Loss below threshold' : null,
-        drawdownPct,
-        lossUsd,
-        updatedAt: Date.now(),
-      })
+      await Promise.all(
+        batch.map(async (h) => {
+          const balance = h.balance / Math.pow(10, config.tokenDecimals)
+          try {
+            const holderData = await calculateHolderData(
+              h.wallet,
+              balance,
+              h.balance,
+              state.currentTokenPrice!
+            )
+            holders.set(h.wallet, holderData)
+          } catch {
+            // Skip on error
+          }
+        })
+      )
+      
+      // Small delay between batches
+      if (i + 5 < topHolders.length) {
+        await sleep(100)
+      }
+    }
+
+    // For remaining holders, just store basic info without VWAP
+    for (const h of sortedHolders.slice(30)) {
+      const balance = h.balance / Math.pow(10, config.tokenDecimals)
+      if (balance >= config.minTokenHolding) {
+        holders.set(h.wallet, createBasicHolder(h.wallet, balance, h.balance))
+      }
     }
 
     state.lastFullRefresh = Date.now()
@@ -131,10 +143,7 @@ export async function initializeHolderService(): Promise<boolean> {
     state.initializationInProgress = false
 
     const eligible = Array.from(holders.values()).filter(h => h.isEligible).length
-    console.log(`[HolderService] ✅ Quick init complete: ${holders.size} holders, ${eligible} eligible`)
-
-    // Background: Fetch real VWAPs for top holders (non-blocking)
-    fetchRealVwapsInBackground()
+    console.log(`[HolderService] ✅ Init complete: ${holders.size} holders, ${eligible} eligible`)
 
     return true
   } catch (error: any) {
@@ -142,40 +151,6 @@ export async function initializeHolderService(): Promise<boolean> {
     state.initializationInProgress = false
     return false
   }
-}
-
-/**
- * Fetch real VWAPs in background for accuracy (non-blocking)
- */
-async function fetchRealVwapsInBackground(): Promise<void> {
-  if (!state.currentTokenPrice) return
-  
-  console.log('[HolderService] Starting background VWAP fetch...')
-  
-  // Only process top holders by balance (most likely to be eligible)
-  const sortedHolders = Array.from(holders.values())
-    .sort((a, b) => b.balance - a.balance)
-    .slice(0, 50) // Top 50 only
-  
-  for (const holder of sortedHolders) {
-    try {
-      const realData = await calculateHolderData(
-        holder.wallet,
-        holder.balance,
-        holder.balanceRaw,
-        state.currentTokenPrice!
-      )
-      holders.set(holder.wallet, realData)
-    } catch {
-      // Keep estimated data on error
-    }
-    
-    // Small delay to avoid rate limiting
-    await sleep(200)
-  }
-  
-  const eligible = Array.from(holders.values()).filter(h => h.isEligible).length
-  console.log(`[HolderService] ✅ Background VWAP complete: ${eligible} eligible`)
 }
 
 /**
