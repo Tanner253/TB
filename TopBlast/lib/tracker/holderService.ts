@@ -20,6 +20,8 @@ export interface HolderData {
   lastActivityTimestamp: number | null
   buyCount: number
   hasSold: boolean
+  hasTransferredOut: boolean // Added: track transfer out
+  lastWinCycle: number | null // Added: track winner cooldown
   isEligible: boolean
   ineligibleReason: string | null
   drawdownPct: number       // Current drawdown percentage
@@ -35,6 +37,7 @@ declare global {
     lastFullRefresh: number
     currentTokenPrice: number | null
     initializationInProgress: boolean
+    currentCycle: number // Added: track current cycle for cooldown checking
   } | undefined
 }
 
@@ -46,6 +49,7 @@ if (!global._holderServiceState) {
     lastFullRefresh: 0,
     currentTokenPrice: null,
     initializationInProgress: false,
+    currentCycle: 1,
   }
 }
 
@@ -221,6 +225,7 @@ async function calculateHolderData(
   let lastActivityTimestamp: number | null = null
   let buyCount = 0
   let hasSold = false
+  let hasTransferredOut = false
 
   // Sort transactions by timestamp (oldest first)
   const sortedTxs = [...transactions].sort((a, b) => a.timestamp - b.timestamp)
@@ -247,6 +252,8 @@ async function calculateHolderData(
       buyCount++
     } else if (tx.type === 'SELL') {
       hasSold = true
+    } else if (tx.type === 'TRANSFER_OUT') {
+      hasTransferredOut = true
     }
   }
 
@@ -258,6 +265,10 @@ async function calculateHolderData(
   // vwapSource is 'real' only if we have actual transaction data with USD values
   const vwapSource: 'real' | 'none' = (vwap !== null && totalCostBasis > 0) ? 'real' : 'none'
 
+  // Preserve lastWinCycle from existing holder data if it exists
+  const existingHolder = holders.get(wallet)
+  const lastWinCycle = existingHolder?.lastWinCycle || null
+
   // Check eligibility and calculate drawdown
   const { isEligible, reason, drawdownPct, lossUsd } = checkEligibility(
     wallet,
@@ -265,7 +276,10 @@ async function calculateHolderData(
     vwap,
     tokenPrice,
     firstBuyTimestamp,
-    hasSold
+    hasSold,
+    hasTransferredOut,
+    lastWinCycle,
+    totalTokensBought
   )
 
   return {
@@ -280,6 +294,8 @@ async function calculateHolderData(
     lastActivityTimestamp,
     buyCount,
     hasSold,
+    hasTransferredOut,
+    lastWinCycle,
     isEligible,
     ineligibleReason: reason,
     drawdownPct,
@@ -304,6 +320,8 @@ function createBasicHolder(wallet: string, balance: number, balanceRaw: number):
     lastActivityTimestamp: null,
     buyCount: 0,
     hasSold: false,
+    hasTransferredOut: false,
+    lastWinCycle: null,
     isEligible: false,
     ineligibleReason: 'Loading transaction history...',
     drawdownPct: 0,
@@ -321,16 +339,20 @@ function checkEligibility(
   vwap: number | null,
   tokenPrice: number,
   firstBuyTimestamp: number | null,
-  hasSold: boolean
+  hasSold: boolean,
+  hasTransferredOut: boolean = false,
+  lastWinCycle: number | null = null,
+  totalTokensBought: number = 0
 ): { isEligible: boolean; reason: string | null; drawdownPct: number; lossUsd: number } {
-  // Calculate drawdown
+  // Calculate drawdown using eligible balance (min of current balance and tokens actually bought)
   let drawdownPct = 0
   let lossUsd = 0
+  const eligibleBalance = totalTokensBought > 0 ? Math.min(balance, totalTokensBought) : balance
 
   if (vwap && vwap > 0) {
     drawdownPct = ((tokenPrice - vwap) / vwap) * 100
     if (tokenPrice < vwap) {
-      lossUsd = (vwap - tokenPrice) * balance
+      lossUsd = (vwap - tokenPrice) * eligibleBalance
     }
   }
 
@@ -360,6 +382,16 @@ function checkEligibility(
     return { isEligible: false, reason: 'Sold tokens', drawdownPct, lossUsd }
   }
 
+  // Check if transferred out (disqualified)
+  if (hasTransferredOut) {
+    return { isEligible: false, reason: 'Transferred out', drawdownPct, lossUsd }
+  }
+
+  // Check winner cooldown - cannot win if won in the previous cycle
+  if (lastWinCycle !== null && lastWinCycle >= state.currentCycle - 1) {
+    return { isEligible: false, reason: 'Winner cooldown', drawdownPct, lossUsd }
+  }
+
   // Must be in loss position
   if (drawdownPct >= 0) {
     return { isEligible: false, reason: 'In profit', drawdownPct, lossUsd }
@@ -385,7 +417,10 @@ export function updatePrice(newPrice: number): void {
   for (const [wallet, holder] of holders) {
     if (holder.vwap && holder.vwap > 0) {
       const drawdownPct = ((newPrice - holder.vwap) / holder.vwap) * 100
-      const lossUsd = newPrice < holder.vwap ? (holder.vwap - newPrice) * holder.balance : 0
+      const eligibleBalance = holder.totalTokensBought > 0 
+        ? Math.min(holder.balance, holder.totalTokensBought) 
+        : holder.balance
+      const lossUsd = newPrice < holder.vwap ? (holder.vwap - newPrice) * eligibleBalance : 0
       
       const { isEligible, reason } = checkEligibility(
         wallet,
@@ -393,7 +428,10 @@ export function updatePrice(newPrice: number): void {
         holder.vwap,
         newPrice,
         holder.firstBuyTimestamp,
-        holder.hasSold
+        holder.hasSold,
+        holder.hasTransferredOut,
+        holder.lastWinCycle,
+        holder.totalTokensBought
       )
       
       holder.drawdownPct = drawdownPct
@@ -437,7 +475,10 @@ export function recordBuy(wallet: string, tokenAmount: number, pricePerToken: nu
         newVwap,
         state.currentTokenPrice,
         existing.firstBuyTimestamp,
-        existing.hasSold
+        existing.hasSold,
+        existing.hasTransferredOut,
+        existing.lastWinCycle,
+        newTotalTokens
       )
       existing.isEligible = isEligible
       existing.ineligibleReason = reason
@@ -460,6 +501,8 @@ export function recordBuy(wallet: string, tokenAmount: number, pricePerToken: nu
       lastActivityTimestamp: Date.now(),
       buyCount: 1,
       hasSold: false,
+      hasTransferredOut: false,
+      lastWinCycle: null,
       isEligible: false,
       ineligibleReason: 'Hold duration not met',
       drawdownPct: 0,
@@ -475,7 +518,10 @@ export function recordBuy(wallet: string, tokenAmount: number, pricePerToken: nu
         pricePerToken,
         state.currentTokenPrice,
         newHolder.firstBuyTimestamp,
-        false
+        false,
+        false,
+        null,
+        tokenAmount
       )
       newHolder.isEligible = isEligible
       newHolder.ineligibleReason = reason
@@ -505,6 +551,93 @@ export function recordSell(wallet: string, balanceAfter: number): void {
   }
   
   console.log(`[HolderService] Sell recorded: ${wallet.slice(0, 8)}... - disqualified`)
+}
+
+/**
+ * Record a transfer out transaction (disqualifies holder)
+ */
+export function recordTransferOut(wallet: string, balanceAfter: number): void {
+  const existing = holders.get(wallet)
+  
+  if (existing) {
+    existing.hasTransferredOut = true
+    existing.isEligible = false
+    existing.ineligibleReason = 'Transferred out'
+    existing.balance = balanceAfter
+    existing.lastActivityTimestamp = Date.now()
+    existing.updatedAt = Date.now()
+  }
+  
+  console.log(`[HolderService] Transfer out recorded: ${wallet.slice(0, 8)}... - disqualified`)
+}
+
+/**
+ * Mark winners after a payout - sets cooldown so they can't win next round
+ * Does NOT reset VWAP - that only happens on successful transfer
+ */
+export function markWinnersCooldown(winnerWallets: string[], cycle: number): void {
+  for (const wallet of winnerWallets) {
+    const holder = holders.get(wallet)
+    if (holder) {
+      // Set winner cooldown - they can't win next round
+      holder.lastWinCycle = cycle
+      holder.isEligible = false
+      holder.ineligibleReason = 'Winner cooldown'
+      holder.updatedAt = Date.now()
+      
+      console.log(`[HolderService] Winner cooldown set: ${wallet.slice(0, 8)}... - cycle ${cycle}`)
+    }
+  }
+  
+  // Advance cycle
+  state.currentCycle = cycle + 1
+}
+
+/**
+ * Reset a winner's VWAP after successful payout transfer
+ * This should ONLY be called when tokens are actually transferred
+ */
+export function resetWinnerVwap(wallet: string): void {
+  const holder = holders.get(wallet)
+  const currentPrice = state.currentTokenPrice
+  
+  if (holder && currentPrice) {
+    // Reset VWAP to current price (so their loss becomes 0)
+    holder.vwap = currentPrice
+    holder.totalCostBasis = holder.balance * currentPrice
+    holder.totalTokensBought = holder.balance // Reset to current balance
+    
+    // Recalculate drawdown (should be 0% now)
+    holder.drawdownPct = 0
+    holder.lossUsd = 0
+    holder.updatedAt = Date.now()
+    
+    console.log(`[HolderService] VWAP reset for ${wallet.slice(0, 8)}... after successful transfer`)
+  }
+}
+
+/**
+ * Mark winners after a payout - resets their VWAP and sets cooldown
+ * @deprecated Use markWinnersCooldown() for cooldown only, resetWinnerVwap() for VWAP reset on successful transfer
+ */
+export function markWinners(winnerWallets: string[], cycle: number): void {
+  // For backward compatibility, just set cooldown (don't reset VWAP)
+  markWinnersCooldown(winnerWallets, cycle)
+}
+
+/**
+ * Set the current cycle number (should be called on startup from DB)
+ */
+export function setCurrentCycle(cycle: number): void {
+  state.currentCycle = cycle
+  console.log(`[HolderService] Current cycle set to ${cycle}`)
+}
+
+/**
+ * Get the current cycle number
+ */
+export function getHolderServiceCycle(): number {
+  return state.currentCycle
 }
 
 /**

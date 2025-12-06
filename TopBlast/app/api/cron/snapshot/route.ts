@@ -90,27 +90,36 @@ async function runSnapshot(_request: NextRequest) {
       balanceRaw: h.balance,
     }))
 
-    // 6. Get active disqualifications
+    // 7. Pre-filter holders to reduce API calls
     const activeDqs = await Disqualification.find()
     const dqWallets = new Set(activeDqs.map(d => d.wallet))
 
-    // 7. Calculate REAL VWAPs from on-chain transaction history
-    console.log(`[Snapshot] Fetching transaction history for VWAP calculation...`)
-    const walletAddresses = holders.map(h => h.wallet)
-    const vwapMap = await calculateBatchVwaps(walletAddresses, config.tokenMint, tokenPrice, 5)
+    const eligibleForVwap = holders.filter(h => {
+      // Skip disqualified wallets
+      if (dqWallets.has(h.wallet)) return false
+      // Skip insufficient balance
+      if (h.balance < config.minTokenHolding) return false
+      return true
+    })
 
-    // 8. Process each holder - determine eligibility based on REAL data
+    console.log(`[Snapshot] filtered down to ${eligibleForVwap.length} holders for VWAP calculation`)
+
+    // 8. Fetch DB holders in batch (for cooldown check)
+    const dbHolders = await Holder.find({ wallet: { $in: eligibleForVwap.map(h => h.wallet) } })
+    const dbHolderMap = new Map(dbHolders.map(h => [h.wallet, h]))
+
+    // 9. Calculate REAL VWAPs from on-chain transaction history
+    console.log(`[Snapshot] Fetching transaction history for VWAP calculation...`)
+    const walletAddresses = eligibleForVwap.map(h => h.wallet)
+    const vwapMap = await calculateBatchVwaps(walletAddresses, config.tokenMint, tokenPrice, 10) // Increased concurrency
+
+    // 10. Process each holder - determine eligibility based on REAL data
     const rankedHolders: RankedHolder[] = []
     let processedCount = 0
 
-    for (const holder of holders) {
+    // Process only the pre-filtered holders
+    for (const holder of eligibleForVwap) {
       processedCount++
-
-      // Skip disqualified wallets
-      if (dqWallets.has(holder.wallet)) {
-        await updateHolder(holder.wallet, holder.balance, null, false, 'Disqualified')
-        continue
-      }
 
       // Get REAL VWAP from transaction history
       const vwapData = vwapMap.get(holder.wallet)
@@ -121,15 +130,28 @@ async function runSnapshot(_request: NextRequest) {
         continue
       }
 
+      // CRITICAL: Check if this user has won before
+      // If they have a lastWinCycle set, use the DATABASE VWAP (which was reset at win time)
+      // This ensures winners start fresh - their "cost basis" becomes the price at win time
+      const dbHolder = dbHolderMap.get(holder.wallet)
+      let effectiveVwap = vwapData.vwap
+      
+      if (dbHolder?.lastWinCycle && dbHolder.vwap) {
+        // User has won before - use their reset VWAP from database
+        // This is the price at the time they won, which is their new "cost basis"
+        effectiveVwap = dbHolder.vwap
+        console.log(`[Snapshot] ${holder.wallet.slice(0, 8)}... using reset VWAP $${effectiveVwap} (won cycle ${dbHolder.lastWinCycle})`)
+      }
+
       // Sold tokens = disqualified
       if (vwapData.hasSold) {
-        await updateHolder(holder.wallet, holder.balance, vwapData.vwap, false, 'Sold tokens')
+        await updateHolder(holder.wallet, holder.balance, effectiveVwap, false, 'Sold tokens')
         continue
       }
 
-      // Check minimum balance
-      if (holder.balance < config.minTokenHolding) {
-        await updateHolder(holder.wallet, holder.balance, vwapData.vwap, false, 'Insufficient balance')
+      // Check if user has transferred out (potential wash trading/selling)
+      if (vwapData.hasTransferredOut) {
+        await updateHolder(holder.wallet, holder.balance, effectiveVwap, false, 'Transferred out')
         continue
       }
 
@@ -138,34 +160,36 @@ async function runSnapshot(_request: NextRequest) {
         const holdMs = Date.now() - vwapData.firstBuyTimestamp
         const minHoldMs = config.minHoldDurationHours * 60 * 60 * 1000
         if (holdMs < minHoldMs) {
-          await updateHolder(holder.wallet, holder.balance, vwapData.vwap, false, 'Hold duration not met')
+          await updateHolder(holder.wallet, holder.balance, effectiveVwap, false, 'Hold duration not met')
           continue
         }
       }
 
-      // Calculate drawdown (REAL: current price vs VWAP)
-      const drawdownPct = calculateDrawdown(vwapData.vwap, tokenPrice)
+      // Calculate drawdown using EFFECTIVE VWAP (reset for winners)
+      const drawdownPct = calculateDrawdown(effectiveVwap, tokenPrice)
 
       // Must be in loss position
       if (drawdownPct >= 0) {
-        await updateHolder(holder.wallet, holder.balance, vwapData.vwap, false, 'In profit')
+        await updateHolder(holder.wallet, holder.balance, effectiveVwap, false, 'In profit')
         continue
       }
 
-      // Calculate USD loss
-      const lossUsd = calculateLossUsd(vwapData.vwap, tokenPrice, holder.balance)
+      // Calculate USD loss using effective VWAP
+      // CRITICAL FIX: Use the lesser of current balance or total bought tokens
+      // This prevents "Transfer In" gaming where a user buys 1 token high, transfers 1M tokens in, and claims 1M loss
+      const eligibleBalance = Math.min(holder.balance, vwapData.totalTokensBought)
+      const lossUsd = calculateLossUsd(effectiveVwap, tokenPrice, eligibleBalance)
 
       // Check minimum loss threshold
       const minLoss = poolBal * (config.minLossThresholdPct / 100)
       if (lossUsd < minLoss) {
-        await updateHolder(holder.wallet, holder.balance, vwapData.vwap, false, 'Loss below threshold')
+        await updateHolder(holder.wallet, holder.balance, effectiveVwap, false, 'Loss below threshold')
         continue
       }
 
-      // Check winner cooldown
-      const dbHolder = await Holder.findOne({ wallet: holder.wallet })
+      // Check winner cooldown (1 cycle)
       if (dbHolder?.lastWinCycle && dbHolder.lastWinCycle >= currentCycle - 1) {
-        await updateHolder(holder.wallet, holder.balance, vwapData.vwap, false, 'Winner cooldown')
+        await updateHolder(holder.wallet, holder.balance, effectiveVwap, false, 'Winner cooldown')
         continue
       }
 
@@ -173,7 +197,7 @@ async function runSnapshot(_request: NextRequest) {
       rankedHolders.push({
         wallet: holder.wallet,
         balance: holder.balance,
-        vwap: vwapData.vwap,
+        vwap: effectiveVwap,
         currentPrice: tokenPrice,
         drawdownPct,
         lossUsd,
@@ -182,7 +206,7 @@ async function runSnapshot(_request: NextRequest) {
         ineligibleReason: null,
       })
 
-      await updateHolder(holder.wallet, holder.balance, vwapData.vwap, true, null, vwapData)
+      await updateHolder(holder.wallet, holder.balance, effectiveVwap, true, null, vwapData)
     }
 
     console.log(`[Snapshot] Processed ${processedCount} holders, ${rankedHolders.length} eligible`)

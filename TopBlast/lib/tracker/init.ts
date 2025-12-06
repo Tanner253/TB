@@ -10,7 +10,7 @@ import {
   getServiceStatus,
   updatePrice,
 } from './holderService'
-import { getTokenPrice } from '@/lib/solana/price'
+import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
 import { config } from '@/lib/config'
 
 // Global state for tracker
@@ -62,6 +62,10 @@ async function doInitialize(): Promise<void> {
   console.log(`[Tracker] Symbol: ${config.tokenSymbol}`)
 
   try {
+    // Pre-fetch SOL price for VWAP calculations
+    const solPrice = await getSolPrice()
+    console.log(`[Tracker] SOL price cached: $${solPrice}`)
+
     // Initialize holder service (loads all existing holders with VWAPs)
     console.log('[Tracker] Initializing holder service...')
     const success = await initializeHolderService()

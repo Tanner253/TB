@@ -4,6 +4,7 @@ import { Snapshot, Payout, PoolBalance, Holder, Disqualification } from '@/lib/d
 import { transferTokens } from '@/lib/solana/transfer'
 import { getTokenPrice } from '@/lib/solana/price'
 import { config } from '@/lib/config'
+import { markWinnersCooldown, resetWinnerVwap } from '@/lib/tracker/holderService'
 
 // Verify cron secret
 function verifyCronSecret(request: NextRequest): boolean {
@@ -146,20 +147,36 @@ export async function POST(request: NextRequest) {
         totalPaidUsd += amountUsd
         totalPaidTokens += amountTokens
 
-        // Add winner cooldown (1 cycle)
+        // Add winner cooldown (1 cycle) - always do this
         await Disqualification.create({
           wallet: winner.wallet,
           reason: 'winner_cooldown',
           expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
         })
 
-        // Reset winner's VWAP
+        // Update Holder's lastWinCycle (for cooldown) - always do this
         await Holder.findOneAndUpdate(
           { wallet: winner.wallet },
-          { vwap: tokenPrice, lastWinCycle: cycle, updatedAt: new Date() }
+          { lastWinCycle: cycle, updatedAt: new Date() }
         )
+
+        // ALWAYS reset VWAP when selected as winner (both demo AND production)
+        // This ensures winners start fresh and can't win again until they have new losses
+        // Game theory: After winning, your PNL resets to 0%. You can only win again
+        // if the price drops BELOW your new cost basis (current price at win time)
+        await Holder.findOneAndUpdate(
+          { wallet: winner.wallet },
+          { vwap: tokenPrice }
+        )
+        // Reset VWAP in in-memory service
+        resetWinnerVwap(winner.wallet)
+        console.log(`[Payout] Winner ${winner.wallet.slice(0, 8)}... VWAP reset to $${tokenPrice} - starts fresh`)
       }
     }
+
+    // Mark winners with cooldown in the in-memory holder service
+    const winnerWallets = winners.map((w: any) => w.wallet)
+    markWinnersCooldown(winnerWallets, cycle)
 
     // 9. Update pool balance (only if transfers executed)
     if (config.executePayouts) {

@@ -4,10 +4,10 @@
  */
 
 import { config } from '@/lib/config'
-import { getEligibleWinners, getCurrentPrice, getServiceStatus } from './holderService'
+import { getEligibleWinners, getCurrentPrice, getServiceStatus, markWinnersCooldown, resetWinnerVwap } from './holderService'
 import { formatWallet } from '@/lib/solana/holders'
 import connectDB from '@/lib/db'
-import { Payout } from '@/lib/db/models'
+import { Payout, Holder, Disqualification } from '@/lib/db/models'
 
 // Types
 export interface PayoutWinner {
@@ -147,9 +147,34 @@ export async function executePayout(): Promise<PayoutRecord> {
           amountTokens: tokenPrice ? payoutUsd / tokenPrice : 0,
           drawdownPct: winner.drawdownPct,
           lossUsd: winner.lossUsd,
-          txHash: null, // Mock - no actual transfer
+          txHash: null, // Mock - no actual transfer yet
           status: 'mock',
         })
+
+        // Update Holder's lastWinCycle for cooldown
+        await Holder.findOneAndUpdate(
+          { wallet: winner.wallet },
+          { 
+            lastWinCycle: currentCycle,
+            updatedAt: new Date()
+          }
+        )
+
+        // ALWAYS reset VWAP - for demo and production
+        // Game theory: Winner gets paid → their loss resets to 0% → they can only win
+        // again if price drops BELOW their new cost basis (current price at win time)
+        await Holder.findOneAndUpdate(
+          { wallet: winner.wallet },
+          { vwap: tokenPrice }
+        )
+
+        // Add short disqualification/cooldown
+        await Disqualification.create({
+          wallet: winner.wallet,
+          reason: 'winner_cooldown',
+          expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours
+        })
+
       } catch (error) {
         console.error('[PayoutService] DB error saving winner:', error)
       }
@@ -165,6 +190,18 @@ export async function executePayout(): Promise<PayoutRecord> {
       total_distributed_usd: Math.round(totalDistributed * 100) / 100,
       status: 'completed',
       message: `Payout completed! ${winners.length} winner(s).`,
+    }
+    
+    // Mark winners with cooldown AND reset their VWAP in the in-memory holder service
+    // This ensures: 1) They can't win next round (cooldown)
+    //               2) Their loss resets to 0% (VWAP = current price)
+    //               3) They can only win again if price drops below current price
+    const winnerWallets = winners.map(w => w.wallet)
+    markWinnersCooldown(winnerWallets, currentCycle)
+    
+    // Reset each winner's VWAP in memory
+    for (const wallet of winnerWallets) {
+      resetWinnerVwap(wallet)
     }
   }
   

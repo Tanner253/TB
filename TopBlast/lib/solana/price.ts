@@ -12,6 +12,10 @@ export interface TokenPriceData {
 let priceCache: { price: number | null; timestamp: number } = { price: null, timestamp: 0 }
 const PRICE_CACHE_TTL = 10000 // 10 seconds
 
+// SOL price cache
+let solPriceCache: { price: number | null; timestamp: number } = { price: null, timestamp: 0 }
+const SOL_PRICE_CACHE_TTL = 60000 // 60 seconds
+
 function getHeliusRpcUrl(): string {
   if (!config.heliusApiKey) {
     throw new Error('HELIUS_API_KEY is required')
@@ -180,4 +184,43 @@ export function formatTokens(amount: number): string {
     return `${(amount / 1_000).toFixed(2)}K`
   }
   return amount.toFixed(0)
+}
+
+// Get current SOL price from Jupiter
+export async function getSolPrice(): Promise<number | null> {
+  const now = Date.now()
+  
+  // Return cached price if fresh
+  if (solPriceCache.price !== null && now - solPriceCache.timestamp < SOL_PRICE_CACHE_TTL) {
+    return solPriceCache.price
+  }
+
+  try {
+    // Use Jupiter Price API for SOL
+    const response = await axios.get(
+      'https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112',
+      { timeout: 5000 }
+    )
+    
+    const solData = response.data?.data?.['So11111111111111111111111111111111111111112']
+    if (solData?.price) {
+      const price = parseFloat(solData.price)
+      solPriceCache = { price, timestamp: now }
+      return price
+    }
+    
+    return solPriceCache.price // Return stale cache on error
+  } catch (error) {
+    // Return cached price on error
+    if (solPriceCache.price !== null) {
+      return solPriceCache.price
+    }
+    // Fallback to reasonable estimate if no cache
+    return 220
+  }
+}
+
+// Get cached SOL price (non-async, for quick access)
+export function getCachedSolPrice(): number {
+  return solPriceCache.price || 220 // Default to 220 if no cache
 }

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { config } from '@/lib/config'
+import { getCachedSolPrice } from './price'
 
 // Helius API configuration
 function getHeliusUrl(): string {
@@ -170,15 +171,16 @@ export async function getWalletTransactions(
           }
         }
       }
-    } catch {
+    } catch (err: any) {
       // Transfer fetch failed, continue with swap data
+       console.log(`[Helius] Transfer fetch warning for ${wallet.slice(0,8)}: ${err.message}`)
     }
 
     return transactions
   } catch (error: any) {
-    // Don't log for every wallet - too noisy
-    if (Math.random() < 0.01) {
-      console.error(`[Helius] Error fetching transactions:`, error.message)
+    // Retry logic for main transaction fetch
+    if (limit > 1) { // Recursive retry with smaller limit/delay could be added, but for now just logging
+         console.error(`[Helius] Error fetching transactions for ${wallet}:`, error.message)
     }
     return []
   }
@@ -187,6 +189,7 @@ export async function getWalletTransactions(
 /**
  * Estimate USD value of a swap from the transaction data
  * Returns { usdValue, pricePerToken } to get accurate VWAP
+ * CRITICAL: Only return values we're confident about - bad estimates break VWAP
  */
 function estimateSwapValue(tx: any, transfer: any): { usdValue: number; pricePerToken: number } {
   const tokenAmount = transfer.tokenAmount || 0
@@ -211,7 +214,9 @@ function estimateSwapValue(tx: any, transfer: any): { usdValue: number; pricePer
     }
   }
   
-  // Method 2: Look for SOL in native transfers
+  // Method 2: Look for SOL in native transfers - use CURRENT SOL price
+  // NOTE: This is inaccurate for historical transactions, but better than hardcoded guesses
+  // For accurate historical VWAP, we'd need historical SOL prices
   if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
     let totalSol = 0
     for (const native of tx.nativeTransfers) {
@@ -222,36 +227,27 @@ function estimateSwapValue(tx: any, transfer: any): { usdValue: number; pricePer
       }
     }
     if (totalSol > 0) {
-      // Use current SOL price from CoinGecko-cached value or estimate
-      // For historical accuracy, we should fetch historical SOL price
-      // For now, estimate: older txs at lower prices, recent at higher
-      const txDate = new Date(tx.timestamp * 1000)
-      const now = new Date()
-      const daysAgo = (now.getTime() - txDate.getTime()) / (1000 * 60 * 60 * 24)
-      
-      // Rough SOL price history estimation (better than hardcoded $150)
-      // Dec 2024: ~$220, Nov 2024: ~$180, Oct 2024: ~$150, etc
-      let solPrice = 220 // Current estimate
-      if (daysAgo > 7) solPrice = 200
-      if (daysAgo > 30) solPrice = 180
-      if (daysAgo > 60) solPrice = 150
-      if (daysAgo > 90) solPrice = 130
-      if (daysAgo > 180) solPrice = 100
-      
+      // Use cached SOL price (current price)
+      // This is imperfect for historical txs but much better than random guesses
+      const solPrice = getCachedSolPrice()
       const usd = totalSol * solPrice
       return { usdValue: usd, pricePerToken: usd / tokenAmount }
     }
   }
   
-  // Method 3: Use description if available
+  // Method 3: Use description if available (Helius sometimes includes USD value)
   if (tx.description && tx.description.includes('$')) {
     const match = tx.description.match(/\$([0-9,]+\.?\d*)/);
     if (match) {
       const usd = parseFloat(match[1].replace(',', ''))
-      return { usdValue: usd, pricePerToken: usd / tokenAmount }
+      if (usd > 0) {
+        return { usdValue: usd, pricePerToken: usd / tokenAmount }
+      }
     }
   }
   
+  // If we can't determine USD value accurately, return 0
+  // The VWAP calculation will skip transactions with 0 USD value
   return { usdValue: 0, pricePerToken: 0 }
 }
 
