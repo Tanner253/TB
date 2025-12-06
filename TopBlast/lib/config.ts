@@ -1,0 +1,69 @@
+// Environment configuration - ALL DATA IS REAL
+// The only thing not implemented is actual token transfers
+
+export const config = {
+  // Token Configuration
+  tokenMint: process.env.TOKEN_MINT_ADDRESS || '',
+  tokenDecimals: parseInt(process.env.TOKEN_DECIMALS || '6'),
+  tokenSymbol: process.env.TOKEN_SYMBOL || 'TOKEN',
+
+  // Helius Configuration
+  heliusApiKey: process.env.HELIUS_API_KEY || '',
+  heliusRpcUrl: process.env.HELIUS_RPC_URL || '',
+
+  // Pool Configuration (manually funded)
+  poolBalanceUsd: parseFloat(process.env.POOL_BALANCE_USD || '500'),
+  poolBalanceTokens: parseInt(process.env.POOL_BALANCE_TOKENS || '1000000000'),
+
+  // Eligibility Thresholds
+  minTokenHolding: parseInt(process.env.MIN_TOKEN_HOLDING || '1000'), // Minimum tokens to hold
+  minHoldDurationHours: parseFloat(process.env.MIN_HOLD_DURATION_HOURS || '0'), // Hours required to hold
+  minLossThresholdPct: parseFloat(process.env.MIN_LOSS_THRESHOLD_PCT || '10'), // Loss must be >= 10% of pool
+  minPoolForPayout: parseFloat(process.env.MIN_POOL_FOR_PAYOUT || '50'),
+
+  // Payout Timing
+  payoutIntervalMinutes: parseInt(process.env.PAYOUT_INTERVAL_MINUTES || '5'), // 5 minutes for testing
+
+  // Payout Distribution
+  payoutSplit: {
+    first: 0.80,
+    second: 0.15,
+    third: 0.05,
+  },
+
+  // Processing Limits - fetch ALL holders
+  maxHoldersToProcess: parseInt(process.env.MAX_HOLDERS_TO_PROCESS || '50000'),
+
+  // Security
+  cronSecret: process.env.CRON_SECRET || '',
+
+  // Environment
+  isDev: process.env.NODE_ENV === 'development',
+  isProd: process.env.NODE_ENV === 'production',
+
+  // Payout execution (only this is "not live")
+  // When false, winners are identified and logged but no actual transfer happens
+  executePayouts: process.env.EXECUTE_PAYOUTS === 'true' && !!process.env.PAYOUT_WALLET_PRIVATE_KEY,
+}
+
+// Validate required configuration
+export function validateConfig(): { valid: boolean; errors: string[] } {
+  const errors: string[] = []
+
+  if (!config.tokenMint) {
+    errors.push('TOKEN_MINT_ADDRESS is required')
+  }
+
+  if (!config.heliusApiKey) {
+    errors.push('HELIUS_API_KEY is required')
+  }
+
+  if (!process.env.MONGODB_URI) {
+    errors.push('MONGODB_URI is required')
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  }
+}

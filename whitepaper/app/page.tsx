@@ -454,6 +454,30 @@ const Whitepaper = () => {
                 <>
                     <p className="mb-4">Not everyone qualifies for the Top Blast. These rules prevent gaming and ensure genuine &quot;bag holders&quot; are rewarded.</p>
                     
+                    {/* Threshold Summary Card */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                        <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-3 text-center">
+                            <div className="text-xs text-gray-400 uppercase">Min Balance</div>
+                            <div className="text-xl font-bold text-green-400 font-mono">100K</div>
+                            <div className="text-xs text-gray-500">$TBLAST</div>
+                        </div>
+                        <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-3 text-center">
+                            <div className="text-xs text-gray-400 uppercase">Hold Time</div>
+                            <div className="text-xl font-bold text-green-400 font-mono">1 hr</div>
+                            <div className="text-xs text-gray-500">minimum</div>
+                        </div>
+                        <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-3 text-center">
+                            <div className="text-xs text-gray-400 uppercase">Min Loss</div>
+                            <div className="text-xl font-bold text-green-400 font-mono">10%</div>
+                            <div className="text-xs text-gray-500">of pool</div>
+                        </div>
+                        <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-3 text-center">
+                            <div className="text-xs text-gray-400 uppercase">Min Pool</div>
+                            <div className="text-xl font-bold text-green-400 font-mono">$50</div>
+                            <div className="text-xs text-gray-500">for payout</div>
+                        </div>
+                    </div>
+
                     <h4 className="text-white font-bold mt-4 mb-2">✅ Requirements to Qualify</h4>
                     <div className="bg-gray-900/50 rounded-lg p-4 mb-4">
                         <ul className="space-y-3">

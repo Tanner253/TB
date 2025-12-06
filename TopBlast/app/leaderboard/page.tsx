@@ -1,0 +1,650 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useRealtimeLeaderboard, useRealtimePrice, useTimeSince, useRealtime } from '@/hooks/useRealtime'
+import { AnimatedNumber, Countdown, PriceTicker } from '@/components/ui/AnimatedNumber'
+import { LeaderboardCardSkeleton, TableRowSkeleton } from '@/components/ui/Skeleton'
+
+interface Winner {
+  rank: number
+  wallet: string
+  wallet_display: string
+  balance: string
+  balance_raw?: number
+  vwap: string
+  vwap_raw?: number
+  drawdown_pct: number
+  loss_usd: string
+  loss_usd_raw?: number
+  payout_usd: string
+  is_eligible?: boolean
+  ineligible_reason?: string | null
+  first_buy_at?: string
+  buy_count?: number
+}
+
+function getDrawdownColor(pct: number): string {
+  if (pct >= 0) return 'text-emerald-400'
+  if (pct > -10) return 'text-yellow-400'
+  if (pct > -30) return 'text-orange-400'
+  if (pct > -50) return 'text-red-400'
+  return 'text-red-500'
+}
+
+function getDrawdownGlow(pct: number): string {
+  if (pct >= 0) return ''
+  if (pct > -30) return ''
+  if (pct > -50) return 'drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]'
+  return 'drop-shadow-[0_0_12px_rgba(239,68,68,0.8)]'
+}
+
+function getRankStyle(rank: number) {
+  switch (rank) {
+    case 1:
+      return {
+        emoji: '🥇',
+        border: 'border-yellow-500/50 shadow-yellow-500/20',
+        badge: 'bg-gradient-to-r from-yellow-600 to-amber-500',
+        glow: 'shadow-[0_0_30px_rgba(234,179,8,0.3)]',
+      }
+    case 2:
+      return {
+        emoji: '🥈',
+        border: 'border-gray-400/50 shadow-gray-400/20',
+        badge: 'bg-gradient-to-r from-gray-400 to-gray-300',
+        glow: 'shadow-[0_0_20px_rgba(156,163,175,0.2)]',
+      }
+    case 3:
+      return {
+        emoji: '🥉',
+        border: 'border-orange-500/50 shadow-orange-500/20',
+        badge: 'bg-gradient-to-r from-orange-600 to-amber-600',
+        glow: 'shadow-[0_0_20px_rgba(234,88,12,0.2)]',
+      }
+    default:
+      return {
+        emoji: '🏅',
+        border: 'border-white/10',
+        badge: 'bg-white/20',
+        glow: '',
+      }
+  }
+}
+
+function formatNumber(num: number | string): string {
+  const n = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : num
+  if (isNaN(n)) return '0'
+  return n.toLocaleString('en-US', { maximumFractionDigits: 0 })
+}
+
+// Live connection indicator
+function ConnectionIndicator({ state, wsConnected }: { state: string; wsConnected?: boolean }) {
+  const isConnected = state === 'connected' || wsConnected
+
+  return (
+    <motion.div
+      className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm ${
+        isConnected
+          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+          : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+      }`}
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+    >
+      <motion.div
+        className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-amber-400'}`}
+        animate={{
+          scale: [1, 1.3, 1],
+          opacity: [1, 0.6, 1],
+        }}
+        transition={{
+          duration: 1.5,
+          repeat: Infinity,
+        }}
+      />
+      <span>{isConnected ? 'LIVE' : 'Connecting...'}</span>
+    </motion.div>
+  )
+}
+
+// Data freshness indicator
+function FreshnessIndicator({ lastUpdate }: { lastUpdate: Date | null }) {
+  const secondsAgo = useTimeSince(lastUpdate)
+  const isStale = secondsAgo > 30
+
+  if (!lastUpdate) return null
+
+  return (
+    <motion.div
+      className={`text-xs font-mono ${isStale ? 'text-amber-400' : 'text-gray-500'}`}
+      animate={isStale ? { opacity: [1, 0.5, 1] } : {}}
+      transition={{ duration: 1, repeat: isStale ? Infinity : 0 }}
+    >
+      {secondsAgo}s ago
+    </motion.div>
+  )
+}
+
+// Simple loading component
+function LoadingState() {
+  return (
+    <div className="min-h-screen bg-[#06060a] text-white flex items-center justify-center">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="text-center"
+      >
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          className="w-10 h-10 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full mx-auto mb-4"
+        />
+        <p className="text-gray-400">Loading...</p>
+      </motion.div>
+    </div>
+  )
+}
+
+export default function LeaderboardPage() {
+  const { data, loading, error, countdown, lastUpdate, refresh } = useRealtimeLeaderboard(10000)
+  const { price, marketCap, loading: priceLoading } = useRealtimePrice(5000)
+  const { connectionState, isConnected } = useRealtime({ autoReconnect: true })
+  const [refreshing, setRefreshing] = useState(false)
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await refresh()
+    setTimeout(() => setRefreshing(false), 500)
+  }, [refresh])
+
+  // Check if system is initializing
+  if (data?.status === 'initializing') {
+    return <LoadingState />
+  }
+
+  const top3 = data?.rankings?.slice(0, 3) || []
+  const poolValue = parseFloat(data?.pool_balance_usd?.replace(/[$,]/g, '') || '0')
+  const wsConnected = data?.ws_connected
+
+  // Loading state
+  if (loading && !data) {
+    return (
+      <div className="min-h-screen bg-[#06060a]">
+        <Header connectionState={connectionState} />
+        <main className="max-w-7xl mx-auto px-4 py-8">
+          <div className="grid md:grid-cols-2 gap-6 mb-10">
+            <div className="bg-gradient-to-br from-emerald-900/20 to-emerald-800/5 border border-emerald-500/20 rounded-2xl p-6 h-40 animate-pulse" />
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 h-40 animate-pulse" />
+          </div>
+          <div className="grid md:grid-cols-3 gap-6 mb-10">
+            <LeaderboardCardSkeleton />
+            <LeaderboardCardSkeleton />
+            <LeaderboardCardSkeleton />
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#06060a] flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center"
+        >
+          <div className="text-6xl mb-4">⚠️</div>
+          <h2 className="text-xl font-bold text-red-400 mb-2">{error}</h2>
+          <p className="text-gray-400 mb-6">Unable to connect to Helius RPC</p>
+          <button
+            onClick={handleRefresh}
+            className="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-lg font-medium transition-all"
+          >
+            Try Again
+          </button>
+        </motion.div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-[#06060a] text-white overflow-hidden">
+      {/* Animated background */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-cyan-500/5 to-transparent rounded-full" />
+      </div>
+
+      <Header
+        connectionState={connectionState}
+        wsConnected={wsConnected}
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+        lastUpdate={lastUpdate}
+      />
+
+      <main className="relative max-w-7xl mx-auto px-4 py-8">
+        {/* Price Ticker Bar */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-center gap-8 mb-8 py-3 px-6 bg-white/5 backdrop-blur-sm rounded-full border border-white/10 mx-auto w-fit"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-gray-400 text-sm">Token:</span>
+            <span className="text-cyan-400 font-bold">${data?.token_symbol}</span>
+          </div>
+          <div className="w-px h-5 bg-white/20" />
+          <div className="flex items-center gap-3">
+            <span className="text-gray-400 text-sm">Price:</span>
+            <PriceTicker price={price || data?.token_price_raw} size="md" />
+          </div>
+          <div className="w-px h-5 bg-white/20" />
+          <div className="flex items-center gap-3">
+            <span className="text-gray-400 text-sm">MCap:</span>
+            <span className="font-bold font-mono">
+              {marketCap ? (
+                <AnimatedNumber value={marketCap} format="currency" />
+              ) : (
+                <span className="text-gray-500">--</span>
+              )}
+            </span>
+          </div>
+          <div className="w-px h-5 bg-white/20" />
+          <div className="flex items-center gap-3">
+            <span className="text-gray-400 text-sm">Holders:</span>
+            <span className="font-bold font-mono text-white">{formatNumber(data?.total_holders || 0)}</span>
+          </div>
+        </motion.div>
+
+        {/* Main Stats */}
+        <div className="grid md:grid-cols-2 gap-6 mb-10">
+          {/* Countdown Card */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="relative bg-gradient-to-br from-emerald-900/30 to-emerald-800/10 border border-emerald-500/30 rounded-2xl p-6 overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl" />
+            <div className="relative">
+              <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium mb-4">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                  className="w-4 h-4"
+                >
+                  ⏱️
+                </motion.div>
+                NEXT PAYOUT IN
+              </div>
+              <Countdown seconds={countdown} size="xl" className="text-emerald-400" />
+              <p className="text-gray-400 text-sm mt-4">
+                Top 3 losers will be paid automatically
+              </p>
+            </div>
+          </motion.div>
+
+          {/* Pool Card */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="relative bg-gradient-to-br from-purple-900/20 to-purple-800/5 border border-purple-500/20 rounded-2xl p-6 overflow-hidden"
+          >
+            <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl" />
+            <div className="relative">
+              <div className="flex items-center gap-2 text-purple-400 text-sm font-medium mb-4">
+                <span>💰</span>
+                REWARD POOL
+              </div>
+              <div className="text-5xl font-bold text-white mb-2">
+                <AnimatedNumber value={poolValue} format="currency" showChange />
+              </div>
+              <p className="text-gray-400 text-sm">
+                {data?.pool_balance_tokens} {data?.token_symbol} tokens
+              </p>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Winners Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mb-10"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold flex items-center gap-3">
+                <span className="text-3xl">🎯</span>
+                Current Winners
+              </h2>
+              <p className="text-gray-400 text-sm mt-1">
+                These wallets will receive payouts when the timer hits zero
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <FreshnessIndicator lastUpdate={lastUpdate} />
+              <ConnectionIndicator state={connectionState} wsConnected={wsConnected} />
+            </div>
+          </div>
+
+          {top3.length > 0 ? (
+            <div className="grid md:grid-cols-3 gap-6">
+              <AnimatePresence>
+                {top3.map((winner: Winner, idx: number) => {
+                  const style = getRankStyle(idx + 1)
+                  const isEligible = winner.is_eligible !== false
+                  const payoutPct = isEligible ? (idx === 0 ? 0.80 : idx === 1 ? 0.15 : 0.05) : 0
+                  const payoutAmount = poolValue * payoutPct
+
+                  return (
+                    <motion.div
+                      key={winner.wallet}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ delay: idx * 0.1 }}
+                      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                      className={`relative bg-[#0a0a10] border ${style.border} rounded-2xl p-6 ${style.glow} overflow-hidden ${!isEligible ? 'opacity-70' : ''}`}
+                    >
+                      {/* Rank badge */}
+                      {idx === 0 && isEligible && (
+                        <div className="absolute top-0 right-0">
+                          <div className="bg-gradient-to-r from-yellow-500 to-amber-400 text-black text-xs font-bold px-3 py-1 rounded-bl-lg">
+                            BIGGEST LOSER
+                          </div>
+                        </div>
+                      )}
+                      {!isEligible && (
+                        <div className="absolute top-0 right-0">
+                          <div className="bg-gray-600 text-white text-xs font-medium px-3 py-1 rounded-bl-lg">
+                            {winner.ineligible_reason || 'Not eligible'}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <motion.span
+                            className="text-4xl"
+                            animate={{ scale: [1, 1.1, 1] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                          >
+                            {style.emoji}
+                          </motion.span>
+                          <div className={`${style.badge} w-8 h-8 rounded-full flex items-center justify-center text-black font-bold text-lg shadow-lg`}>
+                            {idx + 1}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm text-gray-400 font-mono">{winner.wallet_display}</div>
+                          {isEligible ? (
+                            <div className="text-emerald-400 font-bold text-lg">
+                              <AnimatedNumber value={payoutAmount} format="currency" />
+                            </div>
+                          ) : (
+                            <div className="text-gray-500 text-sm">No payout</div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className={`text-5xl font-bold mb-6 ${getDrawdownColor(winner.drawdown_pct)} ${getDrawdownGlow(winner.drawdown_pct)}`}>
+                        <AnimatedNumber value={winner.drawdown_pct} format="percent" decimals={2} />
+                      </div>
+
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between py-2 border-b border-white/5">
+                          <span className="text-gray-500">Loss</span>
+                          <span className="text-red-400 font-mono">{winner.loss_usd}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-white/5">
+                          <span className="text-gray-500">Balance</span>
+                          <span className="text-white font-mono">{formatNumber(winner.balance)}</span>
+                        </div>
+                        <div className="flex justify-between py-2">
+                          <span className="text-gray-500">Avg Buy</span>
+                          <span className="text-white font-mono">{winner.vwap}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )
+                })}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="bg-[#0a0a10] border border-white/10 rounded-2xl p-12 text-center"
+            >
+              <motion.div
+                className="text-6xl mb-4"
+                animate={{ y: [0, -10, 0] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                🔍
+              </motion.div>
+              <h3 className="text-xl font-bold mb-2">No Eligible Winners Yet</h3>
+              <p className="text-gray-400 mb-6">
+                Waiting for holders with verified losses above the threshold
+              </p>
+              <div className="text-sm text-gray-500 space-y-1">
+                <div>{data?.tracked_holders || 0} holders tracked</div>
+                <div>Min loss: {data?.min_loss_threshold_usd || '$50'}</div>
+              </div>
+            </motion.div>
+          )}
+        </motion.div>
+
+        {/* Full Rankings Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-[#0a0a10] border border-white/10 rounded-2xl overflow-hidden"
+        >
+          <div className="p-6 border-b border-white/10 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold">Top Losers Leaderboard</h2>
+              <p className="text-sm text-gray-400 mt-1">
+                {data?.total_losers || 0} in loss • {data?.eligible_count || 0} eligible for payout
+              </p>
+            </div>
+            <div className="flex items-center gap-4 text-sm text-gray-400">
+              <span>{data?.total_holders || 0} total holders</span>
+              <span className="w-px h-4 bg-white/20" />
+              <span>{data?.tracked_holders || 0} with VWAP</span>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-sm text-gray-400 border-b border-white/10 bg-white/5">
+                  <th className="px-6 py-4 font-medium">Rank</th>
+                  <th className="px-6 py-4 font-medium">Wallet</th>
+                  <th className="px-6 py-4 font-medium text-right">Balance</th>
+                  <th className="px-6 py-4 font-medium text-right">Avg Buy</th>
+                  <th className="px-6 py-4 font-medium text-right">Drawdown</th>
+                  <th className="px-6 py-4 font-medium text-right">Loss</th>
+                  <th className="px-6 py-4 font-medium text-center">Status</th>
+                  <th className="px-6 py-4 font-medium text-right">Payout</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.rankings || []).slice(0, 10).map((holder: Winner, idx: number) => {
+                  const isEligible = holder.is_eligible !== false
+                  const payoutPct = isEligible && idx === 0 ? 0.80 : isEligible && idx === 1 ? 0.15 : isEligible && idx === 2 ? 0.05 : 0
+                  const payoutAmount = poolValue * payoutPct
+                  const style = getRankStyle(idx + 1)
+
+                  return (
+                    <motion.tr
+                      key={holder.wallet}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.03 }}
+                      className={`border-b border-white/5 hover:bg-white/5 transition-colors ${!isEligible ? 'opacity-60' : ''}`}
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">{style.emoji}</span>
+                          {idx < 3 && isEligible && (
+                            <span className={`${style.badge} w-6 h-6 rounded-full flex items-center justify-center text-black text-xs font-bold`}>
+                              {idx + 1}
+                            </span>
+                          )}
+                          {idx >= 3 && (
+                            <span className="text-gray-500 font-mono text-sm">#{idx + 1}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="font-mono text-gray-300">{holder.wallet_display}</span>
+                      </td>
+                      <td className="px-6 py-4 text-right font-mono">
+                        {formatNumber(holder.balance)}
+                      </td>
+                      <td className="px-6 py-4 text-right font-mono text-gray-400">
+                        {holder.vwap}
+                      </td>
+                      <td className={`px-6 py-4 text-right font-bold font-mono ${getDrawdownColor(holder.drawdown_pct)}`}>
+                        {holder.drawdown_pct.toFixed(2)}%
+                      </td>
+                      <td className="px-6 py-4 text-right text-red-400 font-mono">
+                        {holder.loss_usd}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {isEligible ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-full">
+                            ✓ Eligible
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-500/20 text-gray-400 text-xs rounded-full" title={holder.ineligible_reason || 'Not eligible'}>
+                            {holder.ineligible_reason || 'Not eligible'}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {payoutPct > 0 && isEligible ? (
+                          <span className="text-emerald-400 font-bold font-mono">
+                            ${payoutAmount.toFixed(2)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-600">-</span>
+                        )}
+                      </td>
+                    </motion.tr>
+                  )
+                })}
+                {(!data?.rankings || data.rankings.length === 0) && (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                      No holders in loss position found yet
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+
+        {/* Footer */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="mt-10 text-center space-y-2"
+        >
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-sm text-emerald-400">
+            <motion.div
+              className="w-2 h-2 bg-emerald-400 rounded-full"
+              animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            />
+            Real-time tracking via Helius
+          </div>
+          <p className="text-xs text-gray-500">
+            {data?.tracked_holders || 0} holders tracked • VWAP calculated from transaction history
+          </p>
+        </motion.div>
+      </main>
+    </div>
+  )
+}
+
+// Header component
+function Header({
+  connectionState,
+  wsConnected,
+  onRefresh,
+  refreshing,
+  lastUpdate,
+}: {
+  connectionState: string
+  wsConnected?: boolean
+  onRefresh?: () => void
+  refreshing?: boolean
+  lastUpdate?: Date | null
+}) {
+  return (
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#06060a]/80 backdrop-blur-xl">
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="flex items-center gap-3 group">
+              <motion.div
+                whileHover={{ scale: 1.05, rotate: 5 }}
+                className="w-10 h-10 bg-gradient-to-br from-emerald-400 via-cyan-400 to-purple-500 rounded-xl flex items-center justify-center text-black font-bold text-xl shadow-lg shadow-emerald-500/25"
+              >
+                T
+              </motion.div>
+              <span className="text-xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                TOPBLAST
+              </span>
+            </Link>
+            <ConnectionIndicator state={connectionState} wsConnected={wsConnected} />
+          </div>
+
+          <nav className="flex items-center gap-6">
+            {onRefresh && (
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={onRefresh}
+                disabled={refreshing}
+                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm font-medium transition-all border border-white/10 disabled:opacity-50"
+              >
+                <motion.span
+                  animate={refreshing ? { rotate: 360 } : {}}
+                  transition={{ duration: 1, repeat: refreshing ? Infinity : 0, ease: 'linear' }}
+                >
+                  🔄
+                </motion.span>
+                Refresh
+              </motion.button>
+            )}
+            <Link
+              href="/history"
+              className="text-gray-400 hover:text-white text-sm font-medium transition-colors"
+            >
+              History
+            </Link>
+            <Link
+              href="/stats"
+              className="text-gray-400 hover:text-white text-sm font-medium transition-colors"
+            >
+              Stats
+            </Link>
+          </nav>
+        </div>
+      </div>
+    </header>
+  )
+}
