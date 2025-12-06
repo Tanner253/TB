@@ -1,16 +1,14 @@
 /**
  * Tracker Initialization
- * Initializes the holder service and WebSocket connection
+ * Initializes the holder service
+ * NOTE: WebSockets are disabled for Vercel serverless compatibility
  */
 
-import { startHeliusWebSocket, getWebSocketStatus } from './heliusSocket'
 import { 
   initializeHolderService, 
   isServiceInitialized, 
   getServiceStatus,
   updatePrice,
-  needsRefresh,
-  refreshHolders,
 } from './holderService'
 import { getTokenPrice } from '@/lib/solana/price'
 import { config } from '@/lib/config'
@@ -19,26 +17,27 @@ import { config } from '@/lib/config'
 declare global {
   var _trackerInitState: {
     initialized: boolean
-    priceUpdateInterval: NodeJS.Timeout | null
-    refreshInterval: NodeJS.Timeout | null
     initializationPromise: Promise<void> | null
+    lastPriceUpdate: number
   } | undefined
 }
 
 if (!global._trackerInitState) {
   global._trackerInitState = {
     initialized: false,
-    priceUpdateInterval: null,
-    refreshInterval: null,
     initializationPromise: null,
+    lastPriceUpdate: 0,
   }
 }
 
 const trackerState = global._trackerInitState
 
+// Update price every 30 seconds max
+const PRICE_UPDATE_INTERVAL = 30000
+
 /**
  * Initialize the tracker system
- * This should be called once on server start
+ * This is designed to work in serverless environments
  */
 export async function initializeTracker(): Promise<void> {
   // If already initializing, wait for it
@@ -46,8 +45,9 @@ export async function initializeTracker(): Promise<void> {
     return trackerState.initializationPromise
   }
 
-  // If already initialized, just return
+  // If already initialized, just update price if needed
   if (trackerState.initialized && isServiceInitialized()) {
+    await maybeUpdatePrice()
     return
   }
 
@@ -62,47 +62,38 @@ async function doInitialize(): Promise<void> {
   console.log(`[Tracker] Symbol: ${config.tokenSymbol}`)
 
   try {
-    // Step 1: Initialize holder service (loads all existing holders with VWAPs)
+    // Initialize holder service (loads all existing holders with VWAPs)
     console.log('[Tracker] Initializing holder service...')
     const success = await initializeHolderService()
     
     if (!success) {
       console.error('[Tracker] Failed to initialize holder service')
-      // Don't throw - try again on next request
       return
     }
 
-    // Step 2: Start WebSocket for live transaction tracking
-    console.log('[Tracker] Starting WebSocket connection...')
-    startHeliusWebSocket()
-
-    // Step 3: Start price update interval (every 10 seconds)
-    if (trackerState.priceUpdateInterval) {
-      clearInterval(trackerState.priceUpdateInterval)
-    }
-    trackerState.priceUpdateInterval = setInterval(async () => {
-      const newPrice = await getTokenPrice(config.tokenMint)
-      if (newPrice) {
-        updatePrice(newPrice)
-      }
-    }, 10000)
-
-    // Step 4: Start refresh interval (check every 5 minutes, refresh if needed)
-    if (trackerState.refreshInterval) {
-      clearInterval(trackerState.refreshInterval)
-    }
-    trackerState.refreshInterval = setInterval(async () => {
-      if (needsRefresh()) {
-        console.log('[Tracker] Running scheduled refresh...')
-        await refreshHolders()
-      }
-    }, 5 * 60 * 1000) // Check every 5 minutes
-
     trackerState.initialized = true
+    trackerState.lastPriceUpdate = Date.now()
     console.log('[Tracker] ✅ Initialization complete')
   } catch (error: any) {
     console.error('[Tracker] Initialization error:', error.message)
-    throw error
+  }
+}
+
+/**
+ * Update price if it's been more than 30 seconds
+ */
+async function maybeUpdatePrice(): Promise<void> {
+  const now = Date.now()
+  if (now - trackerState.lastPriceUpdate > PRICE_UPDATE_INTERVAL) {
+    try {
+      const newPrice = await getTokenPrice(config.tokenMint)
+      if (newPrice) {
+        updatePrice(newPrice)
+        trackerState.lastPriceUpdate = now
+      }
+    } catch (error) {
+      // Ignore price update errors
+    }
   }
 }
 
@@ -123,24 +114,13 @@ export function getTrackerStatus(): {
   eligibleCount: number
   currentPrice: number | null
 } {
-  const wsStatus = getWebSocketStatus()
   const serviceStatus = getServiceStatus()
   
   return {
     initialized: trackerState.initialized && serviceStatus.initialized,
-    wsConnected: wsStatus.connected,
+    wsConnected: false, // WebSocket disabled for serverless
     trackedCount: serviceStatus.holderCount,
     eligibleCount: serviceStatus.eligibleCount,
     currentPrice: serviceStatus.currentPrice,
   }
-}
-
-/**
- * Force a refresh of holder data
- */
-export async function forceRefresh(): Promise<boolean> {
-  if (!trackerState.initialized) {
-    return false
-  }
-  return refreshHolders()
 }

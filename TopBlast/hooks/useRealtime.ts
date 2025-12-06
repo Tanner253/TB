@@ -11,96 +11,19 @@ interface UseRealtimeOptions {
   autoReconnect?: boolean
 }
 
+/**
+ * Real-time connection hook
+ * NOTE: SSE/WebSocket disabled for serverless compatibility
+ * Uses polling via useRealtimeLeaderboard and useRealtimePrice instead
+ */
 export function useRealtime(options: UseRealtimeOptions = {}) {
-  const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected')
-  const eventSourceRef = useRef<EventSource | null>(null)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const reconnectAttempts = useRef(0)
-  const maxReconnectAttempts = 5
-
-  const connect = useCallback(() => {
-    // Don't reconnect if already connected or connecting
-    if (eventSourceRef.current?.readyState === EventSource.OPEN ||
-        eventSourceRef.current?.readyState === EventSource.CONNECTING) {
-      return
-    }
-
-    setConnectionState('connecting')
-
-    try {
-      const eventSource = new EventSource('/api/stream')
-      eventSourceRef.current = eventSource
-
-      eventSource.onopen = () => {
-        setConnectionState('connected')
-        reconnectAttempts.current = 0
-      }
-
-      eventSource.addEventListener('connected', () => {
-        setConnectionState('connected')
-      })
-
-      eventSource.addEventListener('transaction', (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          options.onTransaction?.(data)
-        } catch {}
-      })
-
-      eventSource.addEventListener('price', (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          options.onPriceUpdate?.(data.price)
-        } catch {}
-      })
-
-      eventSource.addEventListener('ping', () => {
-        // Keep-alive received, connection is healthy
-      })
-
-      eventSource.onerror = () => {
-        setConnectionState('error')
-        eventSource.close()
-        eventSourceRef.current = null
-
-        // Exponential backoff reconnect
-        if (options.autoReconnect !== false && reconnectAttempts.current < maxReconnectAttempts) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000)
-          reconnectAttempts.current++
-          
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect()
-          }, delay)
-        }
-      }
-    } catch (error) {
-      setConnectionState('error')
-      options.onError?.(error as Error)
-    }
-  }, [options])
-
-  const disconnect = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current)
-      reconnectTimeoutRef.current = null
-    }
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close()
-      eventSourceRef.current = null
-    }
-    setConnectionState('disconnected')
-  }, [])
-
-  useEffect(() => {
-    connect()
-    return () => disconnect()
-  }, []) // Only run once on mount
-
+  // Always return "connected" since we're using polling
+  // SSE/WebSocket don't work on Vercel serverless
   return {
-    connectionState,
-    connect,
-    disconnect,
-    isConnected: connectionState === 'connected',
+    connectionState: 'connected' as ConnectionState,
+    connect: () => {},
+    disconnect: () => {},
+    isConnected: true,
   }
 }
 
@@ -152,12 +75,12 @@ export function useRealtimePrice(pollInterval = 10000) {
 }
 
 // Hook for real-time leaderboard data
-export function useRealtimeLeaderboard(pollInterval = 15000) {
+export function useRealtimeLeaderboard(pollInterval = 10000) {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
-  const [countdown, setCountdown] = useState(3600)
+  const [countdown, setCountdown] = useState(300) // 5 minutes default
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -166,7 +89,9 @@ export function useRealtimeLeaderboard(pollInterval = 15000) {
       
       if (json.success) {
         setData(json.data)
-        setCountdown(json.data.seconds_remaining)
+        if (json.data.seconds_remaining !== undefined) {
+          setCountdown(json.data.seconds_remaining)
+        }
         setLastUpdate(new Date())
         setError(null)
       } else {
@@ -189,7 +114,7 @@ export function useRealtimeLeaderboard(pollInterval = 15000) {
   // Countdown timer
   useEffect(() => {
     const timer = setInterval(() => {
-      setCountdown((prev) => (prev <= 0 ? 3600 : prev - 1))
+      setCountdown((prev) => (prev <= 0 ? 300 : prev - 1)) // Reset to 5 min
     }, 1000)
     return () => clearInterval(timer)
   }, [])
