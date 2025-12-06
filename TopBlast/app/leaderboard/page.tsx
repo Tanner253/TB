@@ -127,30 +127,21 @@ function FreshnessIndicator({ lastUpdate }: { lastUpdate: Date | null }) {
   )
 }
 
-// Simple loading component
-function LoadingState() {
+// Inline loading spinner
+function InlineSpinner() {
   return (
-    <div className="min-h-screen bg-[#06060a] text-white flex items-center justify-center">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="text-center"
-      >
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-10 h-10 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full mx-auto mb-4"
-        />
-        <p className="text-gray-400">Loading...</p>
-      </motion.div>
-    </div>
+    <motion.div
+      animate={{ rotate: 360 }}
+      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+      className="w-5 h-5 border-2 border-gray-600 border-t-emerald-500 rounded-full inline-block"
+    />
   )
 }
 
 export default function LeaderboardPage() {
-  const { data, loading, error, countdown, lastUpdate, refresh } = useRealtimeLeaderboard(10000)
+  const { data, loading, error, countdown, lastUpdate, refresh } = useRealtimeLeaderboard(5000)
   const { price, marketCap, loading: priceLoading } = useRealtimePrice(5000)
-  const { connectionState, isConnected } = useRealtime({ autoReconnect: true })
+  const { connectionState } = useRealtime({ autoReconnect: true })
   const [refreshing, setRefreshing] = useState(false)
 
   const handleRefresh = useCallback(async () => {
@@ -159,57 +150,12 @@ export default function LeaderboardPage() {
     setTimeout(() => setRefreshing(false), 500)
   }, [refresh])
 
-  // Check if system is initializing
-  if (data?.status === 'initializing') {
-    return <LoadingState />
-  }
-
+  // Always show the page - use inline loading states for data
+  const isLoading = loading && !data
+  const isInitializing = data?.status === 'initializing'
   const top3 = data?.rankings?.slice(0, 3) || []
-  const poolValue = parseFloat(data?.pool_balance_usd?.replace(/[$,]/g, '') || '0')
+  const poolValue = parseFloat(data?.pool_balance_usd?.replace(/[$,]/g, '') || '500')
   const wsConnected = data?.ws_connected
-
-  // Loading state
-  if (loading && !data) {
-    return (
-      <div className="min-h-screen bg-[#06060a]">
-        <Header connectionState={connectionState} />
-        <main className="max-w-7xl mx-auto px-4 py-8">
-          <div className="grid md:grid-cols-2 gap-6 mb-10">
-            <div className="bg-gradient-to-br from-emerald-900/20 to-emerald-800/5 border border-emerald-500/20 rounded-2xl p-6 h-40 animate-pulse" />
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 h-40 animate-pulse" />
-          </div>
-          <div className="grid md:grid-cols-3 gap-6 mb-10">
-            <LeaderboardCardSkeleton />
-            <LeaderboardCardSkeleton />
-            <LeaderboardCardSkeleton />
-          </div>
-        </main>
-      </div>
-    )
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#06060a] flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center"
-        >
-          <div className="text-6xl mb-4">⚠️</div>
-          <h2 className="text-xl font-bold text-red-400 mb-2">{error}</h2>
-          <p className="text-gray-400 mb-6">Unable to connect to Helius RPC</p>
-          <button
-            onClick={handleRefresh}
-            className="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-lg font-medium transition-all"
-          >
-            Try Again
-          </button>
-        </motion.div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-[#06060a] text-white overflow-hidden">
@@ -237,12 +183,16 @@ export default function LeaderboardPage() {
         >
           <div className="flex items-center gap-3">
             <span className="text-gray-400 text-sm">Token:</span>
-            <span className="text-cyan-400 font-bold">${data?.token_symbol}</span>
+            <span className="text-cyan-400 font-bold">${data?.token_symbol || 'TOKEN'}</span>
           </div>
           <div className="w-px h-5 bg-white/20" />
           <div className="flex items-center gap-3">
             <span className="text-gray-400 text-sm">Price:</span>
-            <PriceTicker price={price || data?.token_price_raw} size="md" />
+            {price || data?.token_price_raw ? (
+              <PriceTicker price={price || data?.token_price_raw} size="md" />
+            ) : (
+              <span className="text-gray-500 font-mono">Loading...</span>
+            )}
           </div>
           <div className="w-px h-5 bg-white/20" />
           <div className="flex items-center gap-3">
@@ -258,7 +208,9 @@ export default function LeaderboardPage() {
           <div className="w-px h-5 bg-white/20" />
           <div className="flex items-center gap-3">
             <span className="text-gray-400 text-sm">Holders:</span>
-            <span className="font-bold font-mono text-white">{formatNumber(data?.total_holders || 0)}</span>
+            <span className="font-bold font-mono text-white">
+              {data?.total_holders ? formatNumber(data.total_holders) : <InlineSpinner />}
+            </span>
           </div>
         </motion.div>
 
@@ -423,21 +375,37 @@ export default function LeaderboardPage() {
               animate={{ opacity: 1 }}
               className="bg-[#0a0a10] border border-white/10 rounded-2xl p-12 text-center"
             >
-              <motion.div
-                className="text-6xl mb-4"
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                🔍
-              </motion.div>
-              <h3 className="text-xl font-bold mb-2">No Eligible Winners Yet</h3>
-              <p className="text-gray-400 mb-6">
-                Waiting for holders with verified losses above the threshold
-              </p>
-              <div className="text-sm text-gray-500 space-y-1">
-                <div>{data?.tracked_holders || 0} holders tracked</div>
-                <div>Min loss: {data?.min_loss_threshold_usd || '$50'}</div>
-              </div>
+              {isLoading || isInitializing ? (
+                <>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    className="w-12 h-12 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full mx-auto mb-4"
+                  />
+                  <h3 className="text-xl font-bold mb-2">Loading Winners</h3>
+                  <p className="text-gray-400">
+                    Calculating VWAPs from blockchain data...
+                  </p>
+                </>
+              ) : (
+                <>
+                  <motion.div
+                    className="text-6xl mb-4"
+                    animate={{ y: [0, -10, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    🔍
+                  </motion.div>
+                  <h3 className="text-xl font-bold mb-2">No Eligible Winners Yet</h3>
+                  <p className="text-gray-400 mb-6">
+                    Waiting for holders with verified losses above the threshold
+                  </p>
+                  <div className="text-sm text-gray-500 space-y-1">
+                    <div>{data?.tracked_holders || 0} holders tracked</div>
+                    <div>Min loss: {data?.min_loss_threshold_usd || '$50'}</div>
+                  </div>
+                </>
+              )}
             </motion.div>
           )}
         </motion.div>

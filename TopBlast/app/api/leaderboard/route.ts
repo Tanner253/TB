@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check and execute payout if due
-    const payoutResult = checkAndExecutePayout()
+    const payoutResult = await checkAndExecutePayout()
     if (payoutResult) {
       console.log(`[Leaderboard] Payout executed: cycle ${payoutResult.cycle}, status: ${payoutResult.status}`)
     }
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
     const nextPayout = getNextPayoutTime()
     const secondsRemaining = getSecondsUntilPayout()
     const currentCycle = getCurrentCycle()
-    const lastPayout = getLastPayout()
+    const lastPayout = await getLastPayout()
 
     return NextResponse.json({
       success: true,

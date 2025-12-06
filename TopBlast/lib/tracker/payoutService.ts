@@ -1,11 +1,13 @@
 /**
  * Payout Service - Manages payout cycles and history
- * NOTE: This is a mock implementation - no actual token transfers
+ * Saves to MongoDB for persistence across serverless invocations
  */
 
 import { config } from '@/lib/config'
 import { getEligibleWinners, getCurrentPrice, getServiceStatus } from './holderService'
 import { formatWallet } from '@/lib/solana/holders'
+import connectDB from '@/lib/db'
+import { Payout } from '@/lib/db/models'
 
 // Types
 export interface PayoutWinner {
@@ -30,19 +32,17 @@ export interface PayoutRecord {
   message: string
 }
 
-// Global state for payout history
+// Global state for timing (reset each cold start, but that's OK)
 declare global {
-  var _payoutServiceState: {
-    history: PayoutRecord[]
+  var _payoutTimingState: {
     currentCycle: number
     lastPayoutTime: number | null
     nextPayoutTime: number
   } | undefined
 }
 
-// Initialize global state
-const payoutState = global._payoutServiceState || (global._payoutServiceState = {
-  history: [],
+// Initialize timing state
+const timingState = global._payoutTimingState || (global._payoutTimingState = {
   currentCycle: 1,
   lastPayoutTime: null,
   nextPayoutTime: getNextPayoutTimestamp(),
@@ -60,55 +60,63 @@ function getNextPayoutTimestamp(): number {
  * Check if it's time for a payout
  */
 export function isPayoutDue(): boolean {
-  return Date.now() >= payoutState.nextPayoutTime
+  return Date.now() >= timingState.nextPayoutTime
 }
 
 /**
  * Get seconds until next payout
  */
 export function getSecondsUntilPayout(): number {
-  return Math.max(0, Math.floor((payoutState.nextPayoutTime - Date.now()) / 1000))
+  return Math.max(0, Math.floor((timingState.nextPayoutTime - Date.now()) / 1000))
 }
 
 /**
  * Get next payout time as Date
  */
 export function getNextPayoutTime(): Date {
-  return new Date(payoutState.nextPayoutTime)
+  return new Date(timingState.nextPayoutTime)
 }
 
 /**
- * Execute a payout cycle (mock - no actual transfers)
+ * Execute a payout cycle and save to database
  */
-export function executePayout(): PayoutRecord {
+export async function executePayout(): Promise<PayoutRecord> {
   const now = Date.now()
   const tokenPrice = getCurrentPrice()
   const poolBalance = config.poolBalanceUsd
   const minLossRequired = poolBalance * (config.minLossThresholdPct / 100)
   
-  // Get eligible winners (those meeting ALL criteria including min loss)
-  const eligibleWinners = getEligibleWinners()
+  // Get current cycle from database
+  let currentCycle = timingState.currentCycle
+  try {
+    await connectDB()
+    const lastPayout = await Payout.findOne().sort({ cycle: -1 }).lean()
+    if (lastPayout) {
+      currentCycle = lastPayout.cycle + 1
+    }
+  } catch (error) {
+    console.error('[PayoutService] DB error getting cycle:', error)
+  }
   
-  // Filter to only those with loss >= 10% of pool
+  // Get eligible winners
+  const eligibleWinners = getEligibleWinners()
   const qualifiedWinners = eligibleWinners.filter(w => w.lossUsd >= minLossRequired)
   
   let record: PayoutRecord
   
   if (qualifiedWinners.length === 0) {
-    // No eligible winners
     record = {
-      id: `payout_${payoutState.currentCycle}_${now}`,
-      cycle: payoutState.currentCycle,
+      id: `payout_${currentCycle}_${now}`,
+      cycle: currentCycle,
       timestamp: now,
       pool_balance_usd: poolBalance,
       token_price: tokenPrice || 0,
       winners: [],
       total_distributed_usd: 0,
       status: 'no_winners',
-      message: `No eligible winners. Minimum loss required: $${minLossRequired.toFixed(2)} (10% of pool)`,
+      message: `No eligible winners. Min loss: $${minLossRequired.toFixed(2)}`,
     }
   } else {
-    // Calculate payouts for top 3
     const winners: PayoutWinner[] = []
     const payoutSplits = [config.payoutSplit.first, config.payoutSplit.second, config.payoutSplit.third]
     let totalDistributed = 0
@@ -128,36 +136,47 @@ export function executePayout(): PayoutRecord {
         payout_usd: Math.round(payoutUsd * 100) / 100,
         payout_pct: payoutPct * 100,
       })
+      
+      // Save to database
+      try {
+        await Payout.create({
+          cycle: currentCycle,
+          rank: i + 1,
+          wallet: winner.wallet,
+          amount: payoutUsd,
+          amountTokens: tokenPrice ? payoutUsd / tokenPrice : 0,
+          drawdownPct: winner.drawdownPct,
+          lossUsd: winner.lossUsd,
+          txHash: null, // Mock - no actual transfer
+          status: 'mock',
+        })
+      } catch (error) {
+        console.error('[PayoutService] DB error saving winner:', error)
+      }
     }
     
     record = {
-      id: `payout_${payoutState.currentCycle}_${now}`,
-      cycle: payoutState.currentCycle,
+      id: `payout_${currentCycle}_${now}`,
+      cycle: currentCycle,
       timestamp: now,
       pool_balance_usd: poolBalance,
       token_price: tokenPrice || 0,
       winners,
       total_distributed_usd: Math.round(totalDistributed * 100) / 100,
       status: 'completed',
-      message: `Payout completed! ${winners.length} winner(s) received rewards.`,
+      message: `Payout completed! ${winners.length} winner(s).`,
     }
   }
   
-  // Add to history (keep last 100)
-  payoutState.history.unshift(record)
-  if (payoutState.history.length > 100) {
-    payoutState.history = payoutState.history.slice(0, 100)
-  }
+  // Update timing state
+  timingState.currentCycle = currentCycle + 1
+  timingState.lastPayoutTime = now
+  timingState.nextPayoutTime = getNextPayoutTimestamp()
   
-  // Update state for next cycle
-  payoutState.currentCycle++
-  payoutState.lastPayoutTime = now
-  payoutState.nextPayoutTime = getNextPayoutTimestamp()
-  
-  console.log(`[PayoutService] Cycle ${record.cycle} completed: ${record.status}`)
+  console.log(`[PayoutService] Cycle ${record.cycle}: ${record.status}`)
   if (record.winners.length > 0) {
     record.winners.forEach(w => {
-      console.log(`  - #${w.rank} ${w.wallet_display}: ${w.drawdown_pct}% drawdown, $${w.payout_usd} payout`)
+      console.log(`  #${w.rank} ${w.wallet_display}: ${w.drawdown_pct}% → $${w.payout_usd}`)
     })
   }
   
@@ -167,16 +186,14 @@ export function executePayout(): PayoutRecord {
 /**
  * Check and execute payout if due
  */
-export function checkAndExecutePayout(): PayoutRecord | null {
+export async function checkAndExecutePayout(): Promise<PayoutRecord | null> {
   if (!isPayoutDue()) {
     return null
   }
   
-  // Only execute if service is initialized
   const status = getServiceStatus()
   if (!status.initialized) {
-    // Reschedule for next interval
-    payoutState.nextPayoutTime = getNextPayoutTimestamp()
+    timingState.nextPayoutTime = getNextPayoutTimestamp()
     return null
   }
   
@@ -184,42 +201,114 @@ export function checkAndExecutePayout(): PayoutRecord | null {
 }
 
 /**
- * Get payout history
+ * Get payout history from database
  */
-export function getPayoutHistory(limit: number = 20): PayoutRecord[] {
-  return payoutState.history.slice(0, limit)
+export async function getPayoutHistory(limit: number = 20): Promise<PayoutRecord[]> {
+  try {
+    await connectDB()
+    
+    // Get payouts grouped by cycle
+    const payouts = await Payout.find()
+      .sort({ cycle: -1, rank: 1 })
+      .limit(limit * 3) // Get more to account for multiple winners per cycle
+      .lean()
+    
+    // Group by cycle
+    const cycleMap = new Map<number, PayoutRecord>()
+    
+    for (const p of payouts) {
+      if (!cycleMap.has(p.cycle)) {
+        cycleMap.set(p.cycle, {
+          id: `payout_${p.cycle}`,
+          cycle: p.cycle,
+          timestamp: new Date(p.createdAt).getTime(),
+          pool_balance_usd: config.poolBalanceUsd,
+          token_price: 0,
+          winners: [],
+          total_distributed_usd: 0,
+          status: 'completed',
+          message: '',
+        })
+      }
+      
+      const record = cycleMap.get(p.cycle)!
+      record.winners.push({
+        rank: p.rank,
+        wallet: p.wallet,
+        wallet_display: formatWallet(p.wallet),
+        drawdown_pct: p.drawdownPct,
+        loss_usd: p.lossUsd,
+        payout_usd: p.amount,
+        payout_pct: p.rank === 1 ? 80 : p.rank === 2 ? 15 : 5,
+      })
+      record.total_distributed_usd += p.amount
+    }
+    
+    // Convert to array and sort
+    const records = Array.from(cycleMap.values())
+      .sort((a, b) => b.cycle - a.cycle)
+      .slice(0, limit)
+    
+    // Update messages
+    for (const r of records) {
+      r.message = `${r.winners.length} winner(s) received rewards`
+      r.total_distributed_usd = Math.round(r.total_distributed_usd * 100) / 100
+    }
+    
+    return records
+  } catch (error) {
+    console.error('[PayoutService] Error fetching history:', error)
+    return []
+  }
 }
 
 /**
  * Get current cycle number
  */
 export function getCurrentCycle(): number {
-  return payoutState.currentCycle
+  return timingState.currentCycle
 }
 
 /**
- * Get last payout record
+ * Get last payout record from database
  */
-export function getLastPayout(): PayoutRecord | null {
-  return payoutState.history[0] || null
+export async function getLastPayout(): Promise<PayoutRecord | null> {
+  const history = await getPayoutHistory(1)
+  return history[0] || null
 }
 
 /**
- * Get payout stats
+ * Get payout stats from database
  */
-export function getPayoutStats() {
-  const completedPayouts = payoutState.history.filter(p => p.status === 'completed')
-  const totalDistributed = completedPayouts.reduce((sum, p) => sum + p.total_distributed_usd, 0)
-  const totalWinners = completedPayouts.reduce((sum, p) => sum + p.winners.length, 0)
-  
-  return {
-    total_cycles: payoutState.history.length,
-    completed_payouts: completedPayouts.length,
-    total_distributed_usd: totalDistributed,
-    total_winners: totalWinners,
-    current_cycle: payoutState.currentCycle,
-    last_payout_time: payoutState.lastPayoutTime,
-    next_payout_time: payoutState.nextPayoutTime,
+export async function getPayoutStats() {
+  try {
+    await connectDB()
+    
+    const totalPayouts = await Payout.countDocuments()
+    const uniqueCycles = await Payout.distinct('cycle')
+    const totalDistributed = await Payout.aggregate([
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ])
+    
+    return {
+      total_cycles: uniqueCycles.length,
+      completed_payouts: uniqueCycles.length,
+      total_distributed_usd: totalDistributed[0]?.total || 0,
+      total_winners: totalPayouts,
+      current_cycle: timingState.currentCycle,
+      last_payout_time: timingState.lastPayoutTime,
+      next_payout_time: timingState.nextPayoutTime,
+    }
+  } catch (error) {
+    console.error('[PayoutService] Error fetching stats:', error)
+    return {
+      total_cycles: 0,
+      completed_payouts: 0,
+      total_distributed_usd: 0,
+      total_winners: 0,
+      current_cycle: timingState.currentCycle,
+      last_payout_time: timingState.lastPayoutTime,
+      next_payout_time: timingState.nextPayoutTime,
+    }
   }
 }
-

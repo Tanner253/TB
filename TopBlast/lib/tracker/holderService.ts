@@ -60,16 +60,15 @@ const MAX_INITIAL_HOLDERS = 500 // Limit initial processing for faster startup
 
 /**
  * Initialize the holder service
- * Fetches real VWAPs for top holders by balance
+ * Returns immediately with basic data, fetches VWAPs in background
  */
 export async function initializeHolderService(): Promise<boolean> {
-  if (state.initializationInProgress) {
-    console.log('[HolderService] Initialization already in progress')
-    return false
+  if (state.serviceInitialized) {
+    return true
   }
 
-  if (state.serviceInitialized) {
-    console.log('[HolderService] Already initialized')
+  if (state.initializationInProgress) {
+    // Already initializing - that's fine, return true so API can serve partial data
     return true
   }
 
@@ -97,60 +96,70 @@ export async function initializeHolderService(): Promise<boolean> {
       return false
     }
 
-    // Sort by balance (biggest holders first) and take top 30 for real VWAP calculation
-    const sortedHolders = [...rawHolders].sort((a, b) => b.balance - a.balance)
-    const topHolders = sortedHolders.slice(0, 30)
-    
-    console.log(`[HolderService] Fetching real VWAPs for top ${topHolders.length} holders...`)
-
-    // Fetch real VWAPs for top holders (parallel, small batches)
-    for (let i = 0; i < topHolders.length; i += 5) {
-      const batch = topHolders.slice(i, i + 5)
-      
-      await Promise.all(
-        batch.map(async (h) => {
-          const balance = h.balance / Math.pow(10, config.tokenDecimals)
-          try {
-            const holderData = await calculateHolderData(
-              h.wallet,
-              balance,
-              h.balance,
-              state.currentTokenPrice!
-            )
-            holders.set(h.wallet, holderData)
-          } catch {
-            // Skip on error
-          }
-        })
-      )
-      
-      // Small delay between batches
-      if (i + 5 < topHolders.length) {
-        await sleep(100)
-      }
-    }
-
-    // For remaining holders, just store basic info without VWAP
-    for (const h of sortedHolders.slice(30)) {
+    // Immediately add all holders with basic data (no VWAP yet)
+    for (const h of rawHolders) {
       const balance = h.balance / Math.pow(10, config.tokenDecimals)
-      if (balance >= config.minTokenHolding) {
-        holders.set(h.wallet, createBasicHolder(h.wallet, balance, h.balance))
-      }
+      holders.set(h.wallet, createBasicHolder(h.wallet, balance, h.balance))
     }
 
-    state.lastFullRefresh = Date.now()
+    // Mark as initialized so API can return data
     state.serviceInitialized = true
+    console.log(`[HolderService] ✅ Quick init: ${holders.size} holders loaded`)
+
+    // Fetch real VWAPs in background (non-blocking)
+    fetchVwapsInBackground(rawHolders)
+
     state.initializationInProgress = false
-
-    const eligible = Array.from(holders.values()).filter(h => h.isEligible).length
-    console.log(`[HolderService] ✅ Init complete: ${holders.size} holders, ${eligible} eligible`)
-
     return true
   } catch (error: any) {
     console.error('[HolderService] Initialization error:', error.message)
     state.initializationInProgress = false
     return false
   }
+}
+
+/**
+ * Fetch VWAPs in background without blocking
+ */
+async function fetchVwapsInBackground(rawHolders: Array<{ wallet: string; balance: number }>): Promise<void> {
+  if (!state.currentTokenPrice) return
+  
+  console.log(`[HolderService] Background: fetching VWAPs for ${rawHolders.length} holders...`)
+  
+  const BATCH_SIZE = 10
+  let processed = 0
+  
+  for (let i = 0; i < rawHolders.length; i += BATCH_SIZE) {
+    const batch = rawHolders.slice(i, i + BATCH_SIZE)
+    
+    await Promise.all(
+      batch.map(async (h) => {
+        try {
+          const balance = h.balance / Math.pow(10, config.tokenDecimals)
+          const holderData = await calculateHolderData(
+            h.wallet,
+            balance,
+            h.balance,
+            state.currentTokenPrice!
+          )
+          holders.set(h.wallet, holderData)
+        } catch {
+          // Keep basic data on error
+        }
+      })
+    )
+    
+    processed += batch.length
+    if (processed % 50 === 0) {
+      console.log(`[HolderService] Background: ${processed}/${rawHolders.length} VWAPs`)
+    }
+    
+    await sleep(50) // Small delay
+  }
+  
+  state.lastFullRefresh = Date.now()
+  const eligible = Array.from(holders.values()).filter(h => h.isEligible).length
+  console.log(`[HolderService] ✅ Background complete: ${eligible} eligible`)
 }
 
 /**
