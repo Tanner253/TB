@@ -2,11 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/snapshot",
-      "schedule": "55 * * * *"
-    },
-    {
-      "path": "/api/cron/payout",
-      "schedule": "0 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
