@@ -11,6 +11,7 @@ import {
   getEligibleCount,
   getCurrentPrice,
   getServiceStatus,
+  getHoldersWithRealVwapCount,
 } from '@/lib/tracker/holderService'
 import {
   checkAndExecutePayout,
@@ -115,6 +116,7 @@ export async function GET(request: NextRequest) {
     const totalHolderCount = getTrackedHolderCount()
 
     // Format rankings for response - show top losers with eligibility status
+    // Note: Only holders with vwapSource === 'real' are returned by getRankedLosers()
     const rankings = rankedLosers.slice(0, limit).map((holder, idx) => ({
       rank: idx + 1,
       wallet: holder.wallet,
@@ -123,6 +125,7 @@ export async function GET(request: NextRequest) {
       balance_raw: holder.balance,
       vwap: holder.vwap ? formatPrice(holder.vwap) : 'N/A',
       vwap_raw: holder.vwap,
+      vwap_source: holder.vwapSource, // 'real' = from actual transaction data
       drawdown_pct: Math.round(holder.drawdownPct * 100) / 100,
       loss_usd: formatUsd(holder.lossUsd),
       loss_usd_raw: holder.lossUsd,
@@ -160,6 +163,7 @@ export async function GET(request: NextRequest) {
         token_mint: config.tokenMint,
         total_holders: totalHolderCount,
         tracked_holders: getTrackedHolderCount(),
+        holders_with_real_vwap: getHoldersWithRealVwapCount(),
         eligible_count: getEligibleCount(),
         total_losers: rankedLosers.length,
         min_loss_threshold_usd: formatUsd(minLoss),

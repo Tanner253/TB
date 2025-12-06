@@ -79,15 +79,16 @@ export async function getWalletTransactions(
 
   try {
     // Use Helius Enhanced Transactions API for SWAP transactions
+    // Timeout at 8s to fail fast on slow wallets
     const response = await axios.get(
       `https://api.helius.xyz/v0/addresses/${wallet}/transactions`,
       {
         params: {
           'api-key': apiKey,
           type: 'SWAP',
-          limit: Math.min(limit, 100),
+          limit: Math.min(limit, 50), // Reduced limit for faster response
         },
-        timeout: 15000,
+        timeout: 8000,
       }
     )
 
@@ -99,31 +100,33 @@ export async function getWalletTransactions(
         for (const transfer of tx.tokenTransfers) {
           // User received the token (this is a BUY)
           if (transfer.mint === mint && transfer.toUserAccount === wallet) {
-            const usdValue = estimateSwapValue(tx, transfer)
+            const { usdValue, pricePerToken } = estimateSwapValue(tx, transfer)
             transactions.push({
               signature: tx.signature,
               timestamp: tx.timestamp * 1000, // Convert to ms
               type: 'BUY',
               tokenAmount: transfer.tokenAmount || 0,
               usdValue,
+              pricePerToken,
             })
           }
           // User sent the token (this is a SELL)
           if (transfer.mint === mint && transfer.fromUserAccount === wallet) {
-            const usdValue = estimateSwapValue(tx, transfer)
+            const { usdValue, pricePerToken } = estimateSwapValue(tx, transfer)
             transactions.push({
               signature: tx.signature,
               timestamp: tx.timestamp * 1000,
               type: 'SELL',
               tokenAmount: transfer.tokenAmount || 0,
               usdValue,
+              pricePerToken,
             })
           }
         }
       }
     }
 
-    // Also check for direct transfers (non-swap)
+    // Also check for direct transfers (non-swap) - shorter timeout
     try {
       const transferResponse = await axios.get(
         `https://api.helius.xyz/v0/addresses/${wallet}/transactions`,
@@ -131,9 +134,9 @@ export async function getWalletTransactions(
           params: {
             'api-key': apiKey,
             type: 'TRANSFER',
-            limit: Math.min(limit, 100),
+            limit: 20, // Only need recent transfers
           },
-          timeout: 15000,
+          timeout: 5000, // Fast timeout
         }
       )
 
@@ -149,6 +152,7 @@ export async function getWalletTransactions(
                   type: 'TRANSFER_IN',
                   tokenAmount: transfer.tokenAmount || 0,
                   usdValue: 0,
+                  pricePerToken: 0,
                 })
               }
               // Sent transfer
@@ -159,6 +163,7 @@ export async function getWalletTransactions(
                   type: 'TRANSFER_OUT',
                   tokenAmount: transfer.tokenAmount || 0,
                   usdValue: 0,
+                  pricePerToken: 0,
                 })
               }
             }
@@ -181,35 +186,60 @@ export async function getWalletTransactions(
 
 /**
  * Estimate USD value of a swap from the transaction data
+ * Returns { usdValue, pricePerToken } to get accurate VWAP
  */
-function estimateSwapValue(tx: any, transfer: any): number {
-  // Method 1: Look for SOL in native transfers
-  if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
-    let totalSol = 0
-    for (const native of tx.nativeTransfers) {
-      if (native.amount > 0) {
-        totalSol += native.amount / 1e9
+function estimateSwapValue(tx: any, transfer: any): { usdValue: number; pricePerToken: number } {
+  const tokenAmount = transfer.tokenAmount || 0
+  if (tokenAmount === 0) return { usdValue: 0, pricePerToken: 0 }
+  
+  // Method 1: Look for stablecoin transfers (most accurate)
+  if (tx.tokenTransfers) {
+    for (const t of tx.tokenTransfers) {
+      // Skip the token we're tracking
+      if (t.mint === transfer.mint) continue
+      
+      // USDC mint
+      if (t.mint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' && t.tokenAmount > 0) {
+        const usd = t.tokenAmount
+        return { usdValue: usd, pricePerToken: usd / tokenAmount }
       }
-    }
-    if (totalSol > 0) {
-      // Get SOL price at time of transaction (estimate: use $150 as baseline)
-      // In production, you'd want to fetch historical SOL price
-      const solPrice = 150
-      return totalSol * solPrice
+      // USDT mint
+      if (t.mint === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB' && t.tokenAmount > 0) {
+        const usd = t.tokenAmount
+        return { usdValue: usd, pricePerToken: usd / tokenAmount }
+      }
     }
   }
   
-  // Method 2: Look for stablecoin transfers
-  if (tx.tokenTransfers) {
-    for (const t of tx.tokenTransfers) {
-      // USDC mint
-      if (t.mint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v') {
-        return t.tokenAmount || 0
+  // Method 2: Look for SOL in native transfers
+  if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
+    let totalSol = 0
+    for (const native of tx.nativeTransfers) {
+      // Take the largest SOL transfer as the swap value
+      const solAmount = Math.abs(native.amount) / 1e9
+      if (solAmount > totalSol && solAmount > 0.001) { // Ignore tiny amounts (fees)
+        totalSol = solAmount
       }
-      // USDT mint
-      if (t.mint === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB') {
-        return t.tokenAmount || 0
-      }
+    }
+    if (totalSol > 0) {
+      // Use current SOL price from CoinGecko-cached value or estimate
+      // For historical accuracy, we should fetch historical SOL price
+      // For now, estimate: older txs at lower prices, recent at higher
+      const txDate = new Date(tx.timestamp * 1000)
+      const now = new Date()
+      const daysAgo = (now.getTime() - txDate.getTime()) / (1000 * 60 * 60 * 24)
+      
+      // Rough SOL price history estimation (better than hardcoded $150)
+      // Dec 2024: ~$220, Nov 2024: ~$180, Oct 2024: ~$150, etc
+      let solPrice = 220 // Current estimate
+      if (daysAgo > 7) solPrice = 200
+      if (daysAgo > 30) solPrice = 180
+      if (daysAgo > 60) solPrice = 150
+      if (daysAgo > 90) solPrice = 130
+      if (daysAgo > 180) solPrice = 100
+      
+      const usd = totalSol * solPrice
+      return { usdValue: usd, pricePerToken: usd / tokenAmount }
     }
   }
   
@@ -217,11 +247,12 @@ function estimateSwapValue(tx: any, transfer: any): number {
   if (tx.description && tx.description.includes('$')) {
     const match = tx.description.match(/\$([0-9,]+\.?\d*)/);
     if (match) {
-      return parseFloat(match[1].replace(',', ''))
+      const usd = parseFloat(match[1].replace(',', ''))
+      return { usdValue: usd, pricePerToken: usd / tokenAmount }
     }
   }
   
-  return 0
+  return { usdValue: 0, pricePerToken: 0 }
 }
 
 export interface ParsedTransaction {
@@ -230,6 +261,7 @@ export interface ParsedTransaction {
   type: 'BUY' | 'SELL' | 'TRANSFER_IN' | 'TRANSFER_OUT'
   tokenAmount: number
   usdValue: number
+  pricePerToken: number // The actual price paid per token
 }
 
 /**

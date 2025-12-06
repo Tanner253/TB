@@ -13,6 +13,7 @@ export interface HolderData {
   balance: number           // Human-readable balance
   balanceRaw: number        // Raw balance with decimals
   vwap: number | null       // Volume-weighted average price
+  vwapSource: 'real' | 'none' // Whether VWAP is from real transaction data
   totalCostBasis: number    // Total USD spent
   totalTokensBought: number // Total tokens bought
   firstBuyTimestamp: number | null
@@ -52,11 +53,12 @@ if (!global._holderServiceState) {
 const state = global._holderServiceState
 const holders = state.holders
 
-// Constants
+// Constants - OPTIMIZED FOR SPEED
 const FULL_REFRESH_INTERVAL = 10 * 60 * 1000 // 10 minutes between refreshes
-const VWAP_BATCH_SIZE = 20 // Process 20 wallets at a time
-const VWAP_BATCH_DELAY = 300 // 300ms between batches
-const MAX_INITIAL_HOLDERS = 500 // Limit initial processing for faster startup
+const VWAP_BATCH_SIZE = 30 // Process 30 wallets at a time (more parallel)
+const VWAP_BATCH_DELAY = 50 // 50ms between batches (faster)
+const MAX_INITIAL_HOLDERS = 200 // Process top 200 holders first (sorted by balance)
+const PRIORITY_HOLDER_COUNT = 50 // Process top 50 holders FIRST for instant results
 
 /**
  * Initialize the holder service
@@ -96,18 +98,21 @@ export async function initializeHolderService(): Promise<boolean> {
       return false
     }
 
+    // Sort by balance descending - process biggest holders first (most likely to have big losses)
+    const sortedHolders = [...rawHolders].sort((a, b) => b.balance - a.balance)
+    
     // Immediately add all holders with basic data (no VWAP yet)
-    for (const h of rawHolders) {
+    for (const h of sortedHolders) {
       const balance = h.balance / Math.pow(10, config.tokenDecimals)
       holders.set(h.wallet, createBasicHolder(h.wallet, balance, h.balance))
     }
 
     // Mark as initialized so API can return data
     state.serviceInitialized = true
-    console.log(`[HolderService] ✅ Quick init: ${holders.size} holders loaded`)
+    console.log(`[HolderService] ✅ Quick init: ${holders.size} holders loaded (sorted by balance)`)
 
-    // Fetch real VWAPs in background (non-blocking)
-    fetchVwapsInBackground(rawHolders)
+    // Fetch real VWAPs in background - priority holders first
+    fetchVwapsInBackground(sortedHolders)
 
     state.initializationInProgress = false
     return true
@@ -120,17 +125,21 @@ export async function initializeHolderService(): Promise<boolean> {
 
 /**
  * Fetch VWAPs in background without blocking
+ * Processes PRIORITY holders first (top by balance) with no delay
  */
-async function fetchVwapsInBackground(rawHolders: Array<{ wallet: string; balance: number }>): Promise<void> {
+async function fetchVwapsInBackground(sortedHolders: Array<{ wallet: string; balance: number }>): Promise<void> {
   if (!state.currentTokenPrice) return
   
-  console.log(`[HolderService] Background: fetching VWAPs for ${rawHolders.length} holders...`)
+  console.log(`[HolderService] Background: fetching VWAPs for ${sortedHolders.length} holders...`)
   
-  const BATCH_SIZE = 10
-  let processed = 0
+  // PHASE 1: Priority holders (top 50) - fast, no delay between batches
+  const priorityHolders = sortedHolders.slice(0, PRIORITY_HOLDER_COUNT)
+  const remainingHolders = sortedHolders.slice(PRIORITY_HOLDER_COUNT)
   
-  for (let i = 0; i < rawHolders.length; i += BATCH_SIZE) {
-    const batch = rawHolders.slice(i, i + BATCH_SIZE)
+  console.log(`[HolderService] PRIORITY: Processing top ${priorityHolders.length} holders first...`)
+  
+  for (let i = 0; i < priorityHolders.length; i += VWAP_BATCH_SIZE) {
+    const batch = priorityHolders.slice(i, i + VWAP_BATCH_SIZE)
     
     await Promise.all(
       batch.map(async (h) => {
@@ -148,18 +157,50 @@ async function fetchVwapsInBackground(rawHolders: Array<{ wallet: string; balanc
         }
       })
     )
+    // NO delay for priority holders - go as fast as possible
+  }
+  
+  const priorityEligible = Array.from(holders.values()).filter(h => h.isEligible).length
+  const priorityWithVwap = Array.from(holders.values()).filter(h => h.vwapSource === 'real').length
+  console.log(`[HolderService] ✅ PRIORITY complete: ${priorityWithVwap} with VWAP, ${priorityEligible} eligible`)
+  
+  // PHASE 2: Remaining holders - with small delays to not overwhelm API
+  if (remainingHolders.length > 0) {
+    console.log(`[HolderService] Processing remaining ${remainingHolders.length} holders...`)
     
-    processed += batch.length
-    if (processed % 50 === 0) {
-      console.log(`[HolderService] Background: ${processed}/${rawHolders.length} VWAPs`)
+    for (let i = 0; i < remainingHolders.length; i += VWAP_BATCH_SIZE) {
+      const batch = remainingHolders.slice(i, i + VWAP_BATCH_SIZE)
+      
+      await Promise.all(
+        batch.map(async (h) => {
+          try {
+            const balance = h.balance / Math.pow(10, config.tokenDecimals)
+            const holderData = await calculateHolderData(
+              h.wallet,
+              balance,
+              h.balance,
+              state.currentTokenPrice!
+            )
+            holders.set(h.wallet, holderData)
+          } catch {
+            // Keep basic data on error
+          }
+        })
+      )
+      
+      const total = PRIORITY_HOLDER_COUNT + i + batch.length
+      if (total % 50 === 0) {
+        console.log(`[HolderService] Background: ${total}/${sortedHolders.length} VWAPs`)
+      }
+      
+      await sleep(VWAP_BATCH_DELAY) // Small delay for remaining
     }
-    
-    await sleep(50) // Small delay
   }
   
   state.lastFullRefresh = Date.now()
   const eligible = Array.from(holders.values()).filter(h => h.isEligible).length
-  console.log(`[HolderService] ✅ Background complete: ${eligible} eligible`)
+  const withVwap = Array.from(holders.values()).filter(h => h.vwapSource === 'real').length
+  console.log(`[HolderService] ✅ Background complete: ${withVwap} with VWAP, ${eligible} eligible`)
 }
 
 /**
@@ -194,13 +235,14 @@ async function calculateHolderData(
       
       totalTokensBought += tx.tokenAmount
       
-      // Use USD value from swap if available, otherwise estimate
-      if (tx.usdValue > 0) {
+      // Use the actual price per token from the swap, NOT the current price
+      if (tx.pricePerToken > 0) {
+        totalCostBasis += tx.tokenAmount * tx.pricePerToken
+      } else if (tx.usdValue > 0) {
         totalCostBasis += tx.usdValue
-      } else {
-        // Estimate using current price as fallback
-        totalCostBasis += tx.tokenAmount * tokenPrice
       }
+      // If neither is available, skip this buy - don't estimate with current price
+      // as that would make VWAP = current price = 0% drawdown (WRONG!)
       
       buyCount++
     } else if (tx.type === 'SELL') {
@@ -208,8 +250,13 @@ async function calculateHolderData(
     }
   }
 
-  // Calculate VWAP
-  const vwap = totalTokensBought > 0 ? totalCostBasis / totalTokensBought : null
+  // Calculate VWAP - only if we have real cost basis data
+  const vwap = (totalTokensBought > 0 && totalCostBasis > 0) 
+    ? totalCostBasis / totalTokensBought 
+    : null
+  
+  // vwapSource is 'real' only if we have actual transaction data with USD values
+  const vwapSource: 'real' | 'none' = (vwap !== null && totalCostBasis > 0) ? 'real' : 'none'
 
   // Check eligibility and calculate drawdown
   const { isEligible, reason, drawdownPct, lossUsd } = checkEligibility(
@@ -226,6 +273,7 @@ async function calculateHolderData(
     balance,
     balanceRaw,
     vwap,
+    vwapSource,
     totalCostBasis,
     totalTokensBought,
     firstBuyTimestamp,
@@ -249,6 +297,7 @@ function createBasicHolder(wallet: string, balance: number, balanceRaw: number):
     balance,
     balanceRaw,
     vwap: null,
+    vwapSource: 'none',
     totalCostBasis: 0,
     totalTokensBought: 0,
     firstBuyTimestamp: null,
@@ -256,7 +305,7 @@ function createBasicHolder(wallet: string, balance: number, balanceRaw: number):
     buyCount: 0,
     hasSold: false,
     isEligible: false,
-    ineligibleReason: 'No transaction history',
+    ineligibleReason: 'Loading transaction history...',
     drawdownPct: 0,
     lossUsd: 0,
     updatedAt: Date.now(),
@@ -369,6 +418,7 @@ export function recordBuy(wallet: string, tokenAmount: number, pricePerToken: nu
     const newVwap = newTotalCost / newTotalTokens
     
     existing.vwap = newVwap
+    existing.vwapSource = 'real'
     existing.totalTokensBought = newTotalTokens
     existing.totalCostBasis = newTotalCost
     existing.buyCount++
@@ -403,6 +453,7 @@ export function recordBuy(wallet: string, tokenAmount: number, pricePerToken: nu
       balance: balanceAfter,
       balanceRaw: Math.round(balanceAfter * Math.pow(10, config.tokenDecimals)),
       vwap: pricePerToken,
+      vwapSource: 'real',
       totalCostBasis: tokenAmount * pricePerToken,
       totalTokensBought: tokenAmount,
       firstBuyTimestamp: Date.now(),
@@ -458,16 +509,16 @@ export function recordSell(wallet: string, balanceAfter: number): void {
 
 /**
  * Get ranked losers sorted by drawdown %
- * Only returns holders who meet the minimum loss threshold (10% of pool)
+ * Only returns holders with REAL VWAP data and who meet the minimum loss threshold
  */
 export function getRankedLosers(): HolderData[] {
   const minLossRequired = config.poolBalanceUsd * (config.minLossThresholdPct / 100)
   
   const losers = Array.from(holders.values())
-    // Only include holders who meet the minimum loss threshold
     .filter(h => 
       h.vwap && 
       h.vwap > 0 && 
+      h.vwapSource === 'real' && // CRITICAL: Only real VWAP data
       h.drawdownPct < 0 && 
       h.balance >= config.minTokenHolding &&
       h.lossUsd >= minLossRequired // Must have at least $50 loss (10% of $500 pool)
@@ -486,10 +537,11 @@ export function getRankedLosers(): HolderData[] {
 
 /**
  * Get strictly eligible winners (for actual payout)
+ * Only includes holders with real VWAP data
  */
 export function getEligibleWinners(): HolderData[] {
   return Array.from(holders.values())
-    .filter(h => h.isEligible && h.drawdownPct < 0)
+    .filter(h => h.isEligible && h.drawdownPct < 0 && h.vwapSource === 'real')
     .sort((a, b) => {
       if (a.drawdownPct !== b.drawdownPct) {
         return a.drawdownPct - b.drawdownPct
@@ -517,6 +569,13 @@ export function getHolderCount(): number {
  */
 export function getEligibleCount(): number {
   return Array.from(holders.values()).filter(h => h.isEligible).length
+}
+
+/**
+ * Get count of holders with real VWAP data
+ */
+export function getHoldersWithRealVwapCount(): number {
+  return Array.from(holders.values()).filter(h => h.vwapSource === 'real').length
 }
 
 /**

@@ -75,12 +75,14 @@ export function useRealtimePrice(pollInterval = 10000) {
 }
 
 // Hook for real-time leaderboard data
+// Polls faster when data is still loading, slower when complete
 export function useRealtimeLeaderboard(pollInterval = 10000) {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [countdown, setCountdown] = useState(300) // 5 minutes default
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -104,12 +106,34 @@ export function useRealtimeLeaderboard(pollInterval = 10000) {
     }
   }, [])
 
-  // Fetch data on interval
+  // Fetch data on interval - faster when still loading VWAPs
   useEffect(() => {
     fetchLeaderboard()
-    const interval = setInterval(fetchLeaderboard, pollInterval)
-    return () => clearInterval(interval)
-  }, [fetchLeaderboard, pollInterval])
+    
+    // Determine poll speed based on data state
+    const getInterval = () => {
+      if (!data) return 2000 // Very fast while no data
+      if (data.status === 'initializing') return 2000 // Fast during init
+      const holdersWithVwap = data.holders_with_real_vwap || 0
+      const totalHolders = data.tracked_holders || 1
+      const pctLoaded = holdersWithVwap / totalHolders
+      
+      if (pctLoaded < 0.5) return 3000 // Fast while < 50% loaded
+      if (pctLoaded < 0.9) return 5000 // Medium while < 90% loaded
+      return pollInterval // Normal speed when fully loaded
+    }
+    
+    const setupInterval = () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      intervalRef.current = setInterval(fetchLeaderboard, getInterval())
+    }
+    
+    setupInterval()
+    
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [fetchLeaderboard, pollInterval, data?.holders_with_real_vwap, data?.tracked_holders, data?.status])
 
   // Countdown timer
   useEffect(() => {
