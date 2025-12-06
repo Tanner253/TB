@@ -1,6 +1,5 @@
 import axios from 'axios'
 import { config } from '@/lib/config'
-import { getCachedSolPrice } from './price'
 
 // Helius API configuration
 function getHeliusUrl(): string {
@@ -101,26 +100,30 @@ export async function getWalletTransactions(
         for (const transfer of tx.tokenTransfers) {
           // User received the token (this is a BUY)
           if (transfer.mint === mint && transfer.toUserAccount === wallet) {
-            const { usdValue, pricePerToken } = estimateSwapValue(tx, transfer)
+            const { solAmount, usdValue, pricePerToken, isStablecoinSwap } = estimateSwapValue(tx, transfer)
             transactions.push({
               signature: tx.signature,
               timestamp: tx.timestamp * 1000, // Convert to ms
               type: 'BUY',
               tokenAmount: transfer.tokenAmount || 0,
+              solAmount,
               usdValue,
               pricePerToken,
+              isStablecoinSwap,
             })
           }
           // User sent the token (this is a SELL)
           if (transfer.mint === mint && transfer.fromUserAccount === wallet) {
-            const { usdValue, pricePerToken } = estimateSwapValue(tx, transfer)
+            const { solAmount, usdValue, pricePerToken, isStablecoinSwap } = estimateSwapValue(tx, transfer)
             transactions.push({
               signature: tx.signature,
               timestamp: tx.timestamp * 1000,
               type: 'SELL',
               tokenAmount: transfer.tokenAmount || 0,
+              solAmount,
               usdValue,
               pricePerToken,
+              isStablecoinSwap,
             })
           }
         }
@@ -152,8 +155,10 @@ export async function getWalletTransactions(
                   timestamp: tx.timestamp * 1000,
                   type: 'TRANSFER_IN',
                   tokenAmount: transfer.tokenAmount || 0,
+                  solAmount: 0,
                   usdValue: 0,
                   pricePerToken: 0,
+                  isStablecoinSwap: false,
                 })
               }
               // Sent transfer
@@ -163,8 +168,10 @@ export async function getWalletTransactions(
                   timestamp: tx.timestamp * 1000,
                   type: 'TRANSFER_OUT',
                   tokenAmount: transfer.tokenAmount || 0,
+                  solAmount: 0,
                   usdValue: 0,
                   pricePerToken: 0,
+                  isStablecoinSwap: false,
                 })
               }
             }
@@ -187,15 +194,20 @@ export async function getWalletTransactions(
 }
 
 /**
- * Estimate USD value of a swap from the transaction data
- * Returns { usdValue, pricePerToken } to get accurate VWAP
- * CRITICAL: Only return values we're confident about - bad estimates break VWAP
+ * Estimate swap value from transaction data
+ * Returns raw SOL amount so USD can be calculated at snapshot time using CURRENT SOL price
+ * This is critical: We should NOT use historical SOL prices, only current prices matter
  */
-function estimateSwapValue(tx: any, transfer: any): { usdValue: number; pricePerToken: number } {
+function estimateSwapValue(tx: any, transfer: any): { 
+  solAmount: number
+  usdValue: number 
+  pricePerToken: number 
+  isStablecoinSwap: boolean 
+} {
   const tokenAmount = transfer.tokenAmount || 0
-  if (tokenAmount === 0) return { usdValue: 0, pricePerToken: 0 }
+  if (tokenAmount === 0) return { solAmount: 0, usdValue: 0, pricePerToken: 0, isStablecoinSwap: false }
   
-  // Method 1: Look for stablecoin transfers (most accurate)
+  // Method 1: Look for stablecoin transfers (most accurate - already in USD)
   if (tx.tokenTransfers) {
     for (const t of tx.tokenTransfers) {
       // Skip the token we're tracking
@@ -204,19 +216,18 @@ function estimateSwapValue(tx: any, transfer: any): { usdValue: number; pricePer
       // USDC mint
       if (t.mint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' && t.tokenAmount > 0) {
         const usd = t.tokenAmount
-        return { usdValue: usd, pricePerToken: usd / tokenAmount }
+        return { solAmount: 0, usdValue: usd, pricePerToken: usd / tokenAmount, isStablecoinSwap: true }
       }
       // USDT mint
       if (t.mint === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB' && t.tokenAmount > 0) {
         const usd = t.tokenAmount
-        return { usdValue: usd, pricePerToken: usd / tokenAmount }
+        return { solAmount: 0, usdValue: usd, pricePerToken: usd / tokenAmount, isStablecoinSwap: true }
       }
     }
   }
   
-  // Method 2: Look for SOL in native transfers - use CURRENT SOL price
-  // NOTE: This is inaccurate for historical transactions, but better than hardcoded guesses
-  // For accurate historical VWAP, we'd need historical SOL prices
+  // Method 2: Look for SOL in native transfers - store RAW SOL amount
+  // USD will be calculated at snapshot time using CURRENT SOL price
   if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
     let totalSol = 0
     for (const native of tx.nativeTransfers) {
@@ -227,11 +238,8 @@ function estimateSwapValue(tx: any, transfer: any): { usdValue: number; pricePer
       }
     }
     if (totalSol > 0) {
-      // Use cached SOL price (current price)
-      // This is imperfect for historical txs but much better than random guesses
-      const solPrice = getCachedSolPrice()
-      const usd = totalSol * solPrice
-      return { usdValue: usd, pricePerToken: usd / tokenAmount }
+      // Return RAW SOL amount - USD will be calculated later with current SOL price
+      return { solAmount: totalSol, usdValue: 0, pricePerToken: 0, isStablecoinSwap: false }
     }
   }
   
@@ -241,14 +249,13 @@ function estimateSwapValue(tx: any, transfer: any): { usdValue: number; pricePer
     if (match) {
       const usd = parseFloat(match[1].replace(',', ''))
       if (usd > 0) {
-        return { usdValue: usd, pricePerToken: usd / tokenAmount }
+        return { solAmount: 0, usdValue: usd, pricePerToken: usd / tokenAmount, isStablecoinSwap: true }
       }
     }
   }
   
-  // If we can't determine USD value accurately, return 0
-  // The VWAP calculation will skip transactions with 0 USD value
-  return { usdValue: 0, pricePerToken: 0 }
+  // If we can't determine value, return 0
+  return { solAmount: 0, usdValue: 0, pricePerToken: 0, isStablecoinSwap: false }
 }
 
 export interface ParsedTransaction {
@@ -256,8 +263,10 @@ export interface ParsedTransaction {
   timestamp: number
   type: 'BUY' | 'SELL' | 'TRANSFER_IN' | 'TRANSFER_OUT'
   tokenAmount: number
-  usdValue: number
-  pricePerToken: number // The actual price paid per token
+  solAmount: number      // RAW SOL amount (for recalculating at snapshot time)
+  usdValue: number       // USD value (for stablecoin swaps)
+  pricePerToken: number  // The actual price paid per token
+  isStablecoinSwap: boolean // Whether this was a direct stablecoin swap
 }
 
 /**

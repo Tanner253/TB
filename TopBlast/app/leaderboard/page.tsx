@@ -13,31 +13,13 @@ interface Winner {
   wallet_display: string
   balance: string
   balance_raw?: number
-  vwap: string
-  vwap_raw?: number
-  drawdown_pct: number
-  loss_usd: string
-  loss_usd_raw?: number
-  payout_usd: string
   is_eligible?: boolean
   ineligible_reason?: string | null
-  first_buy_at?: string
-  buy_count?: number
-}
-
-function getDrawdownColor(pct: number): string {
-  if (pct >= 0) return 'text-emerald-400'
-  if (pct > -10) return 'text-yellow-400'
-  if (pct > -30) return 'text-orange-400'
-  if (pct > -50) return 'text-red-400'
-  return 'text-red-500'
-}
-
-function getDrawdownGlow(pct: number): string {
-  if (pct >= 0) return ''
-  if (pct > -30) return ''
-  if (pct > -50) return 'drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]'
-  return 'drop-shadow-[0_0_12px_rgba(239,68,68,0.8)]'
+  // Keep these for API compatibility even if not displayed
+  drawdown_pct?: number
+  loss_usd?: string
+  vwap?: string
+  payout_usd?: string
 }
 
 function getRankStyle(rank: number) {
@@ -346,22 +328,29 @@ export default function LeaderboardPage() {
                         </div>
                       </div>
 
-                      <div className={`text-5xl font-bold mb-6 ${getDrawdownColor(winner.drawdown_pct)} ${getDrawdownGlow(winner.drawdown_pct)}`}>
-                        <AnimatedNumber value={winner.drawdown_pct} format="percent" decimals={2} />
+                      {/* Rank highlight with dynamic styling */}
+                      <div className="flex items-center justify-center py-4 mb-4">
+                        <motion.div
+                          animate={{ scale: [1, 1.05, 1] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                          className={`text-6xl ${idx === 0 ? 'drop-shadow-[0_0_20px_rgba(234,179,8,0.5)]' : idx === 1 ? 'drop-shadow-[0_0_15px_rgba(156,163,175,0.4)]' : 'drop-shadow-[0_0_15px_rgba(234,88,12,0.4)]'}`}
+                        >
+                          {idx === 0 ? '👑' : idx === 1 ? '⚔️' : '🛡️'}
+                        </motion.div>
                       </div>
 
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between py-2 border-b border-white/5">
-                          <span className="text-gray-500">Loss</span>
-                          <span className="text-red-400 font-mono">{winner.loss_usd}</span>
+                          <span className="text-gray-500">Position</span>
+                          <span className="text-white font-bold">{idx === 0 ? 'Biggest Loser' : idx === 1 ? 'Runner Up' : 'Third Place'}</span>
                         </div>
                         <div className="flex justify-between py-2 border-b border-white/5">
                           <span className="text-gray-500">Balance</span>
                           <span className="text-white font-mono">{formatNumber(winner.balance)}</span>
                         </div>
                         <div className="flex justify-between py-2">
-                          <span className="text-gray-500">Avg Buy</span>
-                          <span className="text-white font-mono">{winner.vwap}</span>
+                          <span className="text-gray-500">Share</span>
+                          <span className="text-emerald-400 font-bold">{idx === 0 ? '80%' : idx === 1 ? '15%' : '5%'}</span>
                         </div>
                       </div>
                     </motion.div>
@@ -421,13 +410,13 @@ export default function LeaderboardPage() {
             <div>
               <h2 className="text-xl font-bold">Top Losers Leaderboard</h2>
               <p className="text-sm text-gray-400 mt-1">
-                {data?.total_losers || 0} in loss • {data?.eligible_count || 0} eligible for payout
+                {data?.eligible_count || 0} eligible for payout • Rankings updated in real-time
               </p>
             </div>
             <div className="flex items-center gap-4 text-sm text-gray-400">
               <span>{data?.total_holders || 0} total holders</span>
               <span className="w-px h-4 bg-white/20" />
-              <span>{data?.tracked_holders || 0} with VWAP</span>
+              <span>{data?.tracked_holders || 0} tracked</span>
             </div>
           </div>
 
@@ -438,9 +427,6 @@ export default function LeaderboardPage() {
                   <th className="px-6 py-4 font-medium">Rank</th>
                   <th className="px-6 py-4 font-medium">Wallet</th>
                   <th className="px-6 py-4 font-medium text-right">Balance</th>
-                  <th className="px-6 py-4 font-medium text-right">Avg Buy</th>
-                  <th className="px-6 py-4 font-medium text-right">Drawdown</th>
-                  <th className="px-6 py-4 font-medium text-right">Loss</th>
                   <th className="px-6 py-4 font-medium text-center">Status</th>
                   <th className="px-6 py-4 font-medium text-right">Payout</th>
                 </tr>
@@ -479,15 +465,6 @@ export default function LeaderboardPage() {
                       <td className="px-6 py-4 text-right font-mono">
                         {formatNumber(holder.balance)}
                       </td>
-                      <td className="px-6 py-4 text-right font-mono text-gray-400">
-                        {holder.vwap}
-                      </td>
-                      <td className={`px-6 py-4 text-right font-bold font-mono ${getDrawdownColor(holder.drawdown_pct)}`}>
-                        {holder.drawdown_pct.toFixed(2)}%
-                      </td>
-                      <td className="px-6 py-4 text-right text-red-400 font-mono">
-                        {holder.loss_usd}
-                      </td>
                       <td className="px-6 py-4 text-center">
                         {isEligible ? (
                           <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-full">
@@ -513,8 +490,8 @@ export default function LeaderboardPage() {
                 })}
                 {(!data?.rankings || data.rankings.length === 0) && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
-                      No holders in loss position found yet
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                      No eligible holders found yet
                     </td>
                   </tr>
                 )}
@@ -539,7 +516,7 @@ export default function LeaderboardPage() {
             Real-time tracking via Helius
           </div>
           <p className="text-xs text-gray-500">
-            {data?.tracked_holders || 0} holders tracked • VWAP calculated from transaction history
+            {data?.tracked_holders || 0} holders tracked • Top 3 losers paid automatically every hour
           </p>
         </motion.div>
       </main>

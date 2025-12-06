@@ -1,11 +1,13 @@
 import { getWalletTransactions, ParsedTransaction } from '../solana/helius'
-import { getTokenPrice } from '../solana/price'
+import { getTokenPrice, getSolPrice } from '../solana/price'
 
 export interface VwapData {
   wallet: string
   vwap: number | null
   totalTokensBought: number
-  totalCostBasis: number
+  totalSolSpent: number       // RAW SOL spent on buys
+  totalStablecoinSpent: number // Direct USD spent (stablecoin swaps)
+  totalCostBasis: number       // Calculated: (SOL × current_price) + stablecoins
   firstBuyTimestamp: number | null
   lastActivityTimestamp: number | null
   hasSold: boolean
@@ -14,15 +16,18 @@ export interface VwapData {
 }
 
 // Calculate VWAP from actual on-chain buy transactions
+// CRITICAL: Uses CURRENT SOL price to calculate cost basis, not historical prices
 export async function calculateWalletVwap(
   wallet: string,
   mint: string,
-  currentPrice: number
+  currentTokenPrice: number,
+  currentSolPrice?: number // Pass in current SOL price, or we'll fetch it
 ): Promise<VwapData> {
   const transactions = await getWalletTransactions(wallet, mint, 100)
   
   let totalTokensBought = 0
-  let totalCostBasis = 0
+  let totalSolSpent = 0         // Raw SOL amount from swap transactions
+  let totalStablecoinSpent = 0  // Direct USD from stablecoin swaps
   let firstBuyTimestamp: number | null = null
   let lastActivityTimestamp: number | null = null
   let hasSold = false
@@ -41,16 +46,17 @@ export async function calculateWalletVwap(
         firstBuyTimestamp = tx.timestamp
       }
 
-      // Add to cost basis
       totalTokensBought += tx.tokenAmount
       
-      // If we have USD value from the swap, use it
-      if (tx.usdValue > 0) {
-        totalCostBasis += tx.usdValue
-      } else {
-        // Estimate using current price (fallback)
-        totalCostBasis += tx.tokenAmount * currentPrice
+      // Track SOL and stablecoin amounts separately
+      if (tx.isStablecoinSwap && tx.usdValue > 0) {
+        // Direct stablecoin swap - already in USD
+        totalStablecoinSpent += tx.usdValue
+      } else if (tx.solAmount > 0) {
+        // SOL swap - store raw SOL amount
+        totalSolSpent += tx.solAmount
       }
+      // Note: If neither, we can't determine cost basis for this transaction
       
       buyCount++
     } else if (tx.type === 'SELL') {
@@ -60,6 +66,13 @@ export async function calculateWalletVwap(
     }
   }
 
+  // Get current SOL price for cost basis calculation
+  const solPrice = currentSolPrice || (await getSolPrice()) || 220
+  
+  // Calculate total cost basis using CURRENT SOL price
+  // This is how GMGN and other trackers do it - historical prices don't matter
+  const totalCostBasis = (totalSolSpent * solPrice) + totalStablecoinSpent
+
   // Calculate VWAP
   const vwap = totalTokensBought > 0 ? totalCostBasis / totalTokensBought : null
 
@@ -67,6 +80,8 @@ export async function calculateWalletVwap(
     wallet,
     vwap,
     totalTokensBought,
+    totalSolSpent,
+    totalStablecoinSpent,
     totalCostBasis,
     firstBuyTimestamp,
     lastActivityTimestamp,
@@ -80,17 +95,22 @@ export async function calculateWalletVwap(
 export async function calculateBatchVwaps(
   wallets: string[],
   mint: string,
-  currentPrice: number,
+  currentTokenPrice: number,
   concurrency: number = 5
 ): Promise<Map<string, VwapData>> {
   const results = new Map<string, VwapData>()
+  
+  // Fetch current SOL price ONCE at the start (not per wallet)
+  // This ensures all wallets use the same SOL price for fair comparison
+  const currentSolPrice = (await getSolPrice()) || 220
+  console.log(`[VWAP] Using SOL price: $${currentSolPrice}`)
   
   // Process in batches to avoid rate limiting
   for (let i = 0; i < wallets.length; i += concurrency) {
     const batch = wallets.slice(i, i + concurrency)
     
     const batchResults = await Promise.all(
-      batch.map(wallet => calculateWalletVwap(wallet, mint, currentPrice))
+      batch.map(wallet => calculateWalletVwap(wallet, mint, currentTokenPrice, currentSolPrice))
     )
     
     for (const result of batchResults) {

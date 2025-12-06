@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/db'
 import { Holder, Snapshot, PoolBalance, Disqualification } from '@/lib/db/models'
 import { getTokenHolders } from '@/lib/solana/helius'
-import { getTokenPrice } from '@/lib/solana/price'
+import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
 import { calculateBatchVwaps, VwapData } from '@/lib/tracker/vwap'
 import { calculateDrawdown, calculateLossUsd, rankHolders, RankedHolder } from '@/lib/engine/calculations'
 import { config, validateConfig } from '@/lib/config'
@@ -57,7 +57,11 @@ async function runSnapshot(_request: NextRequest) {
         error: 'Failed to fetch token price from Jupiter',
       }, { status: 500 })
     }
-    console.log(`[Snapshot] Price: $${tokenPrice}`)
+    
+    // Get current SOL price for cost basis calculations
+    const solPrice = (await getSolPrice()) || 220
+    console.log(`[Snapshot] Token Price: $${tokenPrice}`)
+    console.log(`[Snapshot] SOL Price: $${solPrice}`)
 
     // 2. Get pool balance from database
     const pool = await PoolBalance.findOne()

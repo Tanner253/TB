@@ -36,10 +36,6 @@ interface StatsData {
     }
   }
   leaderboard: {
-    deepest_drawdown: {
-      wallet_display: string
-      drawdown_pct: number
-    } | null
     most_wins: {
       wallet_display: string
       win_count: number
@@ -312,29 +308,14 @@ export default function StatsPage() {
           className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6"
         >
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <span>🏆</span> Current Records
+            <span>🏆</span> Protocol Records
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-white/5 rounded-xl p-5">
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Deepest Drawdown</div>
-              {stats?.leaderboard.deepest_drawdown ? (
-                <>
-                  <div className="text-3xl font-bold text-red-400 mb-1">
-                    {stats.leaderboard.deepest_drawdown.drawdown_pct.toFixed(2)}%
-                  </div>
-                  <div className="text-sm text-gray-500 font-mono">
-                    {stats.leaderboard.deepest_drawdown.wallet_display}
-                  </div>
-                </>
-              ) : (
-                <div className="text-gray-500">No eligible holders yet</div>
-              )}
-            </div>
             <div className="bg-white/5 rounded-xl p-5">
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Most Wins</div>
               {stats?.leaderboard.most_wins ? (
                 <>
-                  <div className="text-3xl font-bold mb-1">
+                  <div className="text-3xl font-bold text-emerald-400 mb-1">
                     {stats.leaderboard.most_wins.win_count} wins
                   </div>
                   <div className="text-sm text-gray-500 font-mono">
@@ -344,6 +325,15 @@ export default function StatsPage() {
               ) : (
                 <div className="text-gray-500">No wins yet</div>
               )}
+            </div>
+            <div className="bg-white/5 rounded-xl p-5">
+              <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Total Cycles</div>
+              <div className="text-3xl font-bold text-cyan-400 mb-1">
+                {stats?.protocol.total_cycles || 0}
+              </div>
+              <div className="text-sm text-gray-500">
+                Completed payout rounds
+              </div>
             </div>
           </div>
         </motion.div>

@@ -278,8 +278,7 @@ export default function HistoryPage() {
                                 {winner.wallet_display}
                               </div>
                               <div className="text-sm text-gray-400 mt-1">
-                                <span className="text-red-400">{winner.drawdown_pct.toFixed(2)}%</span> drawdown • 
-                                <span className="text-red-400/80"> {winner.loss_usd}</span> loss
+                                {winner.rank === 1 ? '🔥 Biggest Loser' : winner.rank === 2 ? '⚔️ Runner Up' : '🛡️ Third Place'}
                               </div>
                             </div>
                           </div>

@@ -5,7 +5,7 @@
 
 import { config } from '@/lib/config'
 import { getTokenHolders, getWalletTransactions, ParsedTransaction } from '@/lib/solana/helius'
-import { getTokenPrice } from '@/lib/solana/price'
+import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
 
 // Types
 export interface HolderData {
@@ -136,6 +136,10 @@ async function fetchVwapsInBackground(sortedHolders: Array<{ wallet: string; bal
   
   console.log(`[HolderService] Background: fetching VWAPs for ${sortedHolders.length} holders...`)
   
+  // Fetch current SOL price ONCE at the start for consistent calculations
+  const currentSolPrice = (await getSolPrice()) || 220
+  console.log(`[HolderService] Using SOL price: $${currentSolPrice}`)
+  
   // PHASE 1: Priority holders (top 50) - fast, no delay between batches
   const priorityHolders = sortedHolders.slice(0, PRIORITY_HOLDER_COUNT)
   const remainingHolders = sortedHolders.slice(PRIORITY_HOLDER_COUNT)
@@ -153,7 +157,8 @@ async function fetchVwapsInBackground(sortedHolders: Array<{ wallet: string; bal
             h.wallet,
             balance,
             h.balance,
-            state.currentTokenPrice!
+            state.currentTokenPrice!,
+            currentSolPrice
           )
           holders.set(h.wallet, holderData)
         } catch {
@@ -183,7 +188,8 @@ async function fetchVwapsInBackground(sortedHolders: Array<{ wallet: string; bal
               h.wallet,
               balance,
               h.balance,
-              state.currentTokenPrice!
+              state.currentTokenPrice!,
+              currentSolPrice
             )
             holders.set(h.wallet, holderData)
           } catch {
@@ -209,18 +215,21 @@ async function fetchVwapsInBackground(sortedHolders: Array<{ wallet: string; bal
 
 /**
  * Calculate full holder data including VWAP from transaction history
+ * CRITICAL: Uses CURRENT SOL price to calculate cost basis, not historical prices
  */
 async function calculateHolderData(
   wallet: string,
   balance: number,
   balanceRaw: number,
-  tokenPrice: number
+  tokenPrice: number,
+  currentSolPrice?: number // Optional: pass in SOL price for batch consistency
 ): Promise<HolderData> {
   // Fetch transaction history
   const transactions = await getWalletTransactions(wallet, config.tokenMint, 100)
 
   let totalTokensBought = 0
-  let totalCostBasis = 0
+  let totalSolSpent = 0         // Raw SOL amount
+  let totalStablecoinSpent = 0  // Direct USD from stablecoin swaps
   let firstBuyTimestamp: number | null = null
   let lastActivityTimestamp: number | null = null
   let buyCount = 0
@@ -240,14 +249,15 @@ async function calculateHolderData(
       
       totalTokensBought += tx.tokenAmount
       
-      // Use the actual price per token from the swap, NOT the current price
-      if (tx.pricePerToken > 0) {
-        totalCostBasis += tx.tokenAmount * tx.pricePerToken
-      } else if (tx.usdValue > 0) {
-        totalCostBasis += tx.usdValue
+      // Track SOL and stablecoin amounts separately
+      if (tx.isStablecoinSwap && tx.usdValue > 0) {
+        // Direct stablecoin swap - already in USD
+        totalStablecoinSpent += tx.usdValue
+      } else if (tx.solAmount > 0) {
+        // SOL swap - store raw SOL amount
+        totalSolSpent += tx.solAmount
       }
-      // If neither is available, skip this buy - don't estimate with current price
-      // as that would make VWAP = current price = 0% drawdown (WRONG!)
+      // Note: If neither, we can't determine cost basis for this transaction
       
       buyCount++
     } else if (tx.type === 'SELL') {
@@ -257,12 +267,19 @@ async function calculateHolderData(
     }
   }
 
+  // Get current SOL price for cost basis calculation
+  // This is how GMGN calculates it - historical prices don't matter, only current price
+  const solPrice = currentSolPrice || (await getTokenPrice('So11111111111111111111111111111111111111112')) || 220
+  
+  // Calculate total cost basis using CURRENT SOL price
+  const totalCostBasis = (totalSolSpent * solPrice) + totalStablecoinSpent
+
   // Calculate VWAP - only if we have real cost basis data
   const vwap = (totalTokensBought > 0 && totalCostBasis > 0) 
     ? totalCostBasis / totalTokensBought 
     : null
   
-  // vwapSource is 'real' only if we have actual transaction data with USD values
+  // vwapSource is 'real' only if we have actual transaction data
   const vwapSource: 'real' | 'none' = (vwap !== null && totalCostBasis > 0) ? 'real' : 'none'
 
   // Preserve lastWinCycle from existing holder data if it exists
@@ -775,6 +792,10 @@ export async function refreshHolders(): Promise<boolean> {
       state.currentTokenPrice = price
     }
     
+    // Get current SOL price for consistent calculations
+    const currentSolPrice = (await getSolPrice()) || 220
+    console.log(`[HolderService] Refresh using SOL price: $${currentSolPrice}`)
+    
     // Fetch new holder list
     const limit = Math.min(config.maxHoldersToProcess, MAX_INITIAL_HOLDERS)
     const rawHolders = await getTokenHolders(config.tokenMint, limit)
@@ -799,7 +820,8 @@ export async function refreshHolders(): Promise<boolean> {
                 holder.wallet,
                 holder.balance,
                 holder.balanceRaw,
-                state.currentTokenPrice!
+                state.currentTokenPrice!,
+                currentSolPrice
               )
               holders.set(holder.wallet, holderData)
             } catch (error) {
