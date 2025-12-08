@@ -8,21 +8,36 @@
  * 3. Calculate VWAPs and rankings in real-time
  * 4. Send SOL to top 3 losers + dev fee
  * 5. Save results to DB with real tx hashes
+ * 
+ * IMPORTANT: All timer state is stored in MongoDB to ensure consistency
+ * across Vercel serverless function instances (no in-memory state drift)
  */
 
 import connectDB from '@/lib/db'
-import { Payout, Holder, Disqualification } from '@/lib/db/models'
+import { Payout, Holder, Disqualification, TimerState } from '@/lib/db/models'
 import { transferSol, getPayoutWalletBalance } from '@/lib/solana/transfer'
 import { getSolPrice } from '@/lib/solana/price'
 import { config } from '@/lib/config'
 import { getRankedLosers, getServiceStatus } from '@/lib/tracker/holderService'
 
-// Prevent duplicate execution
-let lastPayoutTime = Date.now() // Start with current time to prevent insta-fire
-let isPayoutInProgress = false
-let currentCycle = 0
-let failedAttempts = 0
-let dbInitialized = false
+// In-memory cache for timer state (refreshed from DB on each request)
+// These are ONLY used as a cache - database is the source of truth
+let cachedTimerState: {
+  lastPayoutTime: number
+  currentCycle: number
+  failedAttempts: number
+  isPayoutInProgress: boolean
+  lastDbSync: number
+} = {
+  lastPayoutTime: Date.now(),
+  currentCycle: 0,
+  failedAttempts: 0,
+  isPayoutInProgress: false,
+  lastDbSync: 0,
+}
+
+// How often to refresh from DB (5 seconds - balance between consistency and performance)
+const DB_SYNC_INTERVAL = 5000
 const MAX_ATTEMPTS_PER_INTERVAL = 3
 
 // Helper to generate Solscan link
@@ -41,26 +56,104 @@ export interface PayoutResult {
 }
 
 /**
- * Initialize cycle from database (call once on startup)
+ * Sync timer state from MongoDB (source of truth for serverless consistency)
+ * This ensures all Vercel instances see the same timer state
  */
-async function initFromDatabase(): Promise<void> {
-  if (dbInitialized) return
+async function syncTimerStateFromDb(): Promise<void> {
+  const now = Date.now()
+  
+  // Only sync if we haven't synced recently (performance optimization)
+  if (now - cachedTimerState.lastDbSync < DB_SYNC_INTERVAL) {
+    return
+  }
   
   try {
     await connectDB()
     
-    // Get the last payout from database
-    const lastPayout = await Payout.findOne().sort({ createdAt: -1 }).lean()
+    // Get or create timer state
+    let timerState = await TimerState.findOne({ key: 'payout_timer' }).lean()
     
-    if (lastPayout) {
-      currentCycle = lastPayout.cycle
-      lastPayoutTime = new Date(lastPayout.createdAt).getTime()
-      console.log(`[Payout] Loaded from DB: cycle ${currentCycle}, last payout ${new Date(lastPayoutTime).toISOString()}`)
+    if (!timerState) {
+      // First time - initialize from last payout or current time
+      const lastPayout = await Payout.findOne().sort({ createdAt: -1 }).lean()
+      
+      const initialLastPayoutTime = lastPayout 
+        ? new Date(lastPayout.createdAt).getTime() 
+        : now
+      const initialCycle = lastPayout?.cycle || 0
+      
+      // Create the timer state document
+      await TimerState.create({
+        key: 'payout_timer',
+        lastPayoutTime: new Date(initialLastPayoutTime),
+        currentCycle: initialCycle,
+        failedAttempts: 0,
+        isPayoutInProgress: false,
+      })
+      
+      cachedTimerState = {
+        lastPayoutTime: initialLastPayoutTime,
+        currentCycle: initialCycle,
+        failedAttempts: 0,
+        isPayoutInProgress: false,
+        lastDbSync: now,
+      }
+      
+      console.log(`[Payout] Timer state initialized: cycle ${initialCycle}, last payout ${new Date(initialLastPayoutTime).toISOString()}`)
+    } else {
+      // Load from existing timer state
+      cachedTimerState = {
+        lastPayoutTime: new Date(timerState.lastPayoutTime).getTime(),
+        currentCycle: timerState.currentCycle,
+        failedAttempts: timerState.failedAttempts,
+        isPayoutInProgress: timerState.isPayoutInProgress,
+        lastDbSync: now,
+      }
+    }
+  } catch (error) {
+    console.error('[Payout] Failed to sync timer state from DB:', error)
+    // Keep using cached state if DB sync fails
+  }
+}
+
+/**
+ * Update timer state in MongoDB
+ */
+async function updateTimerStateInDb(updates: {
+  lastPayoutTime?: number
+  currentCycle?: number
+  failedAttempts?: number
+  isPayoutInProgress?: boolean
+}): Promise<void> {
+  try {
+    const dbUpdates: any = { updatedAt: new Date() }
+    
+    if (updates.lastPayoutTime !== undefined) {
+      dbUpdates.lastPayoutTime = new Date(updates.lastPayoutTime)
+      cachedTimerState.lastPayoutTime = updates.lastPayoutTime
+    }
+    if (updates.currentCycle !== undefined) {
+      dbUpdates.currentCycle = updates.currentCycle
+      cachedTimerState.currentCycle = updates.currentCycle
+    }
+    if (updates.failedAttempts !== undefined) {
+      dbUpdates.failedAttempts = updates.failedAttempts
+      cachedTimerState.failedAttempts = updates.failedAttempts
+    }
+    if (updates.isPayoutInProgress !== undefined) {
+      dbUpdates.isPayoutInProgress = updates.isPayoutInProgress
+      cachedTimerState.isPayoutInProgress = updates.isPayoutInProgress
     }
     
-    dbInitialized = true
+    await TimerState.findOneAndUpdate(
+      { key: 'payout_timer' },
+      { $set: dbUpdates },
+      { upsert: true }
+    )
+    
+    cachedTimerState.lastDbSync = Date.now()
   } catch (error) {
-    console.error('[Payout] Failed to init from DB:', error)
+    console.error('[Payout] Failed to update timer state in DB:', error)
   }
 }
 
@@ -68,18 +161,19 @@ async function initFromDatabase(): Promise<void> {
  * Execute a payout - calculates winners in real-time and sends SOL
  */
 export async function executePayout(): Promise<PayoutResult> {
-  // MUTEX LOCK
-  if (isPayoutInProgress) {
-    return { success: false, error: 'Payout already in progress' }
-  }
-  
-  isPayoutInProgress = true
-  
   try {
     await connectDB()
     
-    // Initialize from database on first run
-    await initFromDatabase()
+    // Sync timer state from DB FIRST (source of truth)
+    await syncTimerStateFromDb()
+    
+    // MUTEX LOCK using DB state
+    if (cachedTimerState.isPayoutInProgress) {
+      return { success: false, error: 'Payout already in progress' }
+    }
+    
+    // Mark as in progress in DB (prevents other instances from starting)
+    await updateTimerStateInDb({ isPayoutInProgress: true })
     
     const now = Date.now()
     const intervalMs = config.payoutIntervalMinutes * 60 * 1000
@@ -94,31 +188,31 @@ export async function executePayout(): Promise<PayoutResult> {
     
     if (existingPayout) {
       console.log(`[Payout] Already paid this interval (cycle ${existingPayout.cycle})`)
-      isPayoutInProgress = false
+      await updateTimerStateInDb({ isPayoutInProgress: false })
       return { success: false, error: 'Already paid this interval' }
     }
     
     // If a full interval has passed, reset attempt counter
-    if (now - lastPayoutTime >= intervalMs) {
-      failedAttempts = 0
+    if (now - cachedTimerState.lastPayoutTime >= intervalMs) {
+      await updateTimerStateInDb({ failedAttempts: 0 })
     }
     
     // RETRY LIMIT - max 3 attempts per interval
-    if (failedAttempts >= MAX_ATTEMPTS_PER_INTERVAL) {
-      isPayoutInProgress = false
+    if (cachedTimerState.failedAttempts >= MAX_ATTEMPTS_PER_INTERVAL) {
+      await updateTimerStateInDb({ isPayoutInProgress: false })
       return { success: false, error: `Max ${MAX_ATTEMPTS_PER_INTERVAL} attempts reached. Waiting for next interval.` }
     }
     
-    failedAttempts++
+    await updateTimerStateInDb({ failedAttempts: cachedTimerState.failedAttempts + 1 })
     
     // Check if service has holder data
     const status = getServiceStatus()
     if (!status.initialized || status.holderCount === 0) {
-      isPayoutInProgress = false
+      await updateTimerStateInDb({ isPayoutInProgress: false })
       return { success: false, error: 'Holder service not ready. Waiting for data...' }
     }
     
-    console.log(`[Payout] Starting payout cycle ${currentCycle + 1} (attempt ${failedAttempts}/${MAX_ATTEMPTS_PER_INTERVAL})`)
+    console.log(`[Payout] Starting payout cycle ${cachedTimerState.currentCycle + 1} (attempt ${cachedTimerState.failedAttempts}/${MAX_ATTEMPTS_PER_INTERVAL})`)
     console.log(`[Payout] Execute transfers: ${config.executePayouts}`)
 
     // 1. Get SOL price
@@ -154,12 +248,16 @@ export async function executePayout(): Promise<PayoutResult> {
 
     if (eligibleWinners.length === 0) {
       console.log('[Payout] No eligible winners')
-      currentCycle++
-      lastPayoutTime = now
-      isPayoutInProgress = false
+      const newCycle = cachedTimerState.currentCycle + 1
+      await updateTimerStateInDb({ 
+        currentCycle: newCycle, 
+        lastPayoutTime: now, 
+        isPayoutInProgress: false,
+        failedAttempts: 0 
+      })
       return { 
         success: true, 
-        cycle: currentCycle,
+        cycle: newCycle,
         data: { skipped: true, reason: 'No eligible winners', eligible_count: 0 } 
       }
     }
@@ -177,7 +275,7 @@ export async function executePayout(): Promise<PayoutResult> {
 
     const results: any[] = []
     let totalPaidSol = 0
-    const cycle = currentCycle + 1
+    const cycle = cachedTimerState.currentCycle + 1
 
     // 6. Pay dev fee FIRST
     if (config.devWalletAddress && config.executePayouts) {
@@ -285,11 +383,13 @@ export async function executePayout(): Promise<PayoutResult> {
       }
     }
 
-    // Update state - success resets everything
-    currentCycle = cycle
-    lastPayoutTime = now
-    failedAttempts = 0 // Reset on success
-    isPayoutInProgress = false
+    // Update state in DB - success resets everything
+    await updateTimerStateInDb({ 
+      currentCycle: cycle, 
+      lastPayoutTime: now, 
+      failedAttempts: 0, 
+      isPayoutInProgress: false 
+    })
 
     const totalPaidUsd = totalPaidSol * solPrice
     console.log(`[Payout] ✅ Cycle ${cycle} complete | ${totalPaidSol.toFixed(6)} SOL ($${totalPaidUsd.toFixed(2)})`)
@@ -311,20 +411,22 @@ export async function executePayout(): Promise<PayoutResult> {
     }
   } catch (error: any) {
     console.error('[Payout] Error:', error)
-    isPayoutInProgress = false
+    // Make sure to release the lock on error
+    await updateTimerStateInDb({ isPayoutInProgress: false }).catch(() => {})
     return { success: false, error: error.message || 'Payout failed' }
   }
 }
 
 /**
  * Can we execute a payout now?
+ * Note: This uses cached state - call syncTimerStateFromDb() first for accuracy
  */
 export function canExecutePayout(): boolean {
-  if (isPayoutInProgress) return false
+  if (cachedTimerState.isPayoutInProgress) return false
   
   const now = Date.now()
   const intervalMs = config.payoutIntervalMinutes * 60 * 1000
-  const elapsed = now - lastPayoutTime
+  const elapsed = now - cachedTimerState.lastPayoutTime
   
   // Must wait for full interval to pass
   if (elapsed < intervalMs - 5000) { // 5 second buffer
@@ -332,23 +434,34 @@ export function canExecutePayout(): boolean {
   }
   
   // Check if we've maxed out attempts this interval
-  if (failedAttempts >= MAX_ATTEMPTS_PER_INTERVAL) return false
+  if (cachedTimerState.failedAttempts >= MAX_ATTEMPTS_PER_INTERVAL) return false
   
   return true
 }
 
 /**
  * Get current cycle number
+ * Note: This uses cached state - call syncTimerStateFromDb() first for accuracy
  */
 export function getCurrentPayoutCycle(): number {
-  return currentCycle
+  return cachedTimerState.currentCycle
 }
 
 /**
  * Get seconds until next payout allowed
+ * Note: This uses cached state - call syncTimerStateFromDb() first for accuracy
  */
 export function getSecondsUntilNextPayout(): number {
   const intervalMs = config.payoutIntervalMinutes * 60 * 1000
-  const elapsed = Date.now() - lastPayoutTime
+  const elapsed = Date.now() - cachedTimerState.lastPayoutTime
   return Math.max(0, Math.floor((intervalMs - elapsed) / 1000))
+}
+
+/**
+ * Sync timer state from database
+ * Call this before using getSecondsUntilNextPayout or getCurrentPayoutCycle
+ * for accurate cross-instance consistency
+ */
+export async function ensureTimerStateSync(): Promise<void> {
+  await syncTimerStateFromDb()
 }

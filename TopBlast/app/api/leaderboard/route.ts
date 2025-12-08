@@ -15,7 +15,7 @@ import {
 } from '@/lib/tracker/holderService'
 import { config } from '@/lib/config'
 import { getPayoutWalletBalance } from '@/lib/solana/transfer'
-import { executePayout, canExecutePayout, getSecondsUntilNextPayout, getCurrentPayoutCycle } from '@/lib/payout/executor'
+import { executePayout, canExecutePayout, getSecondsUntilNextPayout, getCurrentPayoutCycle, ensureTimerStateSync } from '@/lib/payout/executor'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,6 +38,10 @@ export async function GET(request: NextRequest) {
         error: 'HELIUS_API_KEY not configured',
       }, { status: 500 })
     }
+
+    // CRITICAL: Sync timer state from database for cross-instance consistency
+    // This ensures all Vercel serverless instances show the same countdown
+    await ensureTimerStateSync()
 
     // Initialize tracker on first request
     if (!initStarted) {

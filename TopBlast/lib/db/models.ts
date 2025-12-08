@@ -129,6 +129,24 @@ const PriceCacheSchema = new Schema<IPriceCache>({
   source: { type: String, default: 'jupiter' },
 }, { timestamps: true })
 
+// Timer State Interface (singleton - stores payout timer state for serverless consistency)
+export interface ITimerState extends Document {
+  key: string // Always 'payout_timer' - singleton pattern
+  lastPayoutTime: Date
+  currentCycle: number
+  failedAttempts: number
+  isPayoutInProgress: boolean
+  updatedAt: Date
+}
+
+const TimerStateSchema = new Schema<ITimerState>({
+  key: { type: String, required: true, unique: true, default: 'payout_timer' },
+  lastPayoutTime: { type: Date, required: true },
+  currentCycle: { type: Number, default: 0 },
+  failedAttempts: { type: Number, default: 0 },
+  isPayoutInProgress: { type: Boolean, default: false },
+}, { timestamps: true })
+
 // Export models (check if already registered to avoid OverwriteModelError)
 export const Holder: Model<IHolder> = mongoose.models.Holder || mongoose.model<IHolder>('Holder', HolderSchema)
 export const Snapshot: Model<ISnapshot> = mongoose.models.Snapshot || mongoose.model<ISnapshot>('Snapshot', SnapshotSchema)
@@ -136,4 +154,5 @@ export const Payout: Model<IPayout> = mongoose.models.Payout || mongoose.model<I
 export const Disqualification: Model<IDisqualification> = mongoose.models.Disqualification || mongoose.model<IDisqualification>('Disqualification', DisqualificationSchema)
 export const PoolBalance: Model<IPoolBalance> = mongoose.models.PoolBalance || mongoose.model<IPoolBalance>('PoolBalance', PoolBalanceSchema)
 export const PriceCache: Model<IPriceCache> = mongoose.models.PriceCache || mongoose.model<IPriceCache>('PriceCache', PriceCacheSchema)
+export const TimerState: Model<ITimerState> = mongoose.models.TimerState || mongoose.model<ITimerState>('TimerState', TimerStateSchema)
 

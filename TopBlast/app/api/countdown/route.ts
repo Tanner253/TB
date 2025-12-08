@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server'
-import { getSecondsUntilNextPayout, getCurrentPayoutCycle } from '@/lib/payout/executor'
+import { getSecondsUntilNextPayout, getCurrentPayoutCycle, ensureTimerStateSync } from '@/lib/payout/executor'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
+    // CRITICAL: Sync timer state from database for cross-instance consistency
+    // This ensures all Vercel serverless instances show the same countdown
+    await ensureTimerStateSync()
+    
     const secondsRemaining = getSecondsUntilNextPayout()
     const currentCycle = getCurrentPayoutCycle()
 

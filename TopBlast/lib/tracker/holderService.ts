@@ -1,11 +1,14 @@
 /**
  * Holder Service - Manages all holder data with VWAP calculations
- * Loads existing holders on startup and keeps data live via WebSocket
+ * Uses MongoDB as cache for serverless compatibility (Vercel)
+ * Loads from DB first, then fetches fresh data in background
  */
 
 import { config } from '@/lib/config'
 import { getTokenHolders, getWalletTransactions, ParsedTransaction } from '@/lib/solana/helius'
 import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
+import connectDB from '@/lib/db'
+import { Holder } from '@/lib/db/models'
 
 // Types
 export interface HolderData {
@@ -66,7 +69,9 @@ const PRIORITY_HOLDER_COUNT = 50 // Process top 50 holders FIRST for instant res
 
 /**
  * Initialize the holder service
- * Returns immediately with basic data, fetches VWAPs in background
+ * STEP 1: Load cached data from MongoDB (instant)
+ * STEP 2: Fetch fresh holders from blockchain
+ * STEP 3: Calculate VWAPs in background, save to DB
  */
 export async function initializeHolderService(): Promise<boolean> {
   if (state.serviceInitialized) {
@@ -74,7 +79,6 @@ export async function initializeHolderService(): Promise<boolean> {
   }
 
   if (state.initializationInProgress) {
-    // Already initializing - that's fine, return true so API can serve partial data
     return true
   }
 
@@ -82,6 +86,9 @@ export async function initializeHolderService(): Promise<boolean> {
   console.log('[HolderService] Starting initialization...')
 
   try {
+    // Connect to MongoDB
+    await connectDB()
+    
     // Get current token price
     state.currentTokenPrice = await getTokenPrice(config.tokenMint)
     if (!state.currentTokenPrice) {
@@ -91,32 +98,94 @@ export async function initializeHolderService(): Promise<boolean> {
     }
     console.log(`[HolderService] Current price: $${state.currentTokenPrice}`)
 
-    // Fetch token holders
+    // STEP 1: Load cached holders from MongoDB (instant results!)
+    const cachedHolders = await Holder.find({ isEligible: true })
+      .sort({ lossUsd: -1 })
+      .limit(100)
+      .lean()
+    
+    if (cachedHolders.length > 0) {
+      console.log(`[HolderService] Loading ${cachedHolders.length} cached holders from DB...`)
+      
+      for (const h of cachedHolders) {
+        if (!h.vwap || !h.balance) continue
+        
+        // Recalculate eligibility with current price
+        const drawdownPct = h.vwap > 0 ? ((state.currentTokenPrice - h.vwap) / h.vwap) * 100 : 0
+        const lossUsd = drawdownPct < 0 ? Math.abs(drawdownPct / 100) * h.vwap * h.balance : 0
+        const poolUsd = 500 // Rough estimate for min loss check
+        const minLoss = poolUsd * (config.minLossThresholdPct / 100)
+        const isEligible = drawdownPct < 0 && lossUsd >= minLoss && !h.hasSold && h.balance >= config.minTokenHolding
+        
+        holders.set(h.wallet, {
+          wallet: h.wallet,
+          balance: h.balance,
+          balanceRaw: h.balance * Math.pow(10, config.tokenDecimals),
+          vwap: h.vwap,
+          vwapSource: 'real',
+          totalCostBasis: h.totalCostBasis || 0,
+          totalTokensBought: h.totalBought || 0,
+          firstBuyTimestamp: h.firstBuyAt ? new Date(h.firstBuyAt).getTime() : null,
+          lastActivityTimestamp: h.lastActivityAt ? new Date(h.lastActivityAt).getTime() : null,
+          buyCount: 1,
+          hasSold: h.hasSold || false,
+          hasTransferredOut: false,
+          lastWinCycle: h.lastWinCycle || null,
+          isEligible,
+          ineligibleReason: isEligible ? null : 'Recalculating...',
+          drawdownPct,
+          lossUsd,
+          updatedAt: Date.now(),
+        })
+      }
+      
+      const eligibleFromCache = Array.from(holders.values()).filter(h => h.isEligible).length
+      console.log(`[HolderService] ✅ Loaded ${holders.size} from cache, ${eligibleFromCache} eligible`)
+    }
+
+    // STEP 2: Fetch fresh holders from blockchain
     const limit = Math.min(config.maxHoldersToProcess, MAX_INITIAL_HOLDERS)
     const rawHolders = await getTokenHolders(config.tokenMint, limit)
-    console.log(`[HolderService] Found ${rawHolders.length} holders`)
+    console.log(`[HolderService] Found ${rawHolders.length} holders on-chain`)
 
-    if (rawHolders.length === 0) {
+    if (rawHolders.length === 0 && holders.size === 0) {
       console.warn('[HolderService] No holders found')
       state.initializationInProgress = false
       return false
     }
 
-    // Sort by balance descending - process biggest holders first (most likely to have big losses)
+    // Sort by balance descending
     const sortedHolders = [...rawHolders].sort((a, b) => b.balance - a.balance)
     
-    // Immediately add all holders with basic data (no VWAP yet)
+    // Add holders not already in cache
     for (const h of sortedHolders) {
       const balance = h.balance / Math.pow(10, config.tokenDecimals)
-      holders.set(h.wallet, createBasicHolder(h.wallet, balance, h.balance))
+      if (!holders.has(h.wallet)) {
+        holders.set(h.wallet, createBasicHolder(h.wallet, balance, h.balance))
+      } else {
+        // Update balance for cached holder
+        const existing = holders.get(h.wallet)!
+        existing.balance = balance
+        existing.balanceRaw = h.balance
+      }
     }
 
-    // Mark as initialized so API can return data
+    // Mark as initialized
     state.serviceInitialized = true
-    console.log(`[HolderService] ✅ Quick init: ${holders.size} holders loaded (sorted by balance)`)
+    console.log(`[HolderService] ✅ Quick init: ${holders.size} holders (${cachedHolders.length} from cache)`)
 
-    // Fetch real VWAPs in background - priority holders first
-    fetchVwapsInBackground(sortedHolders)
+    // STEP 3: Fetch VWAPs for holders not in cache
+    const holdersNeedingVwap = sortedHolders.filter(h => {
+      const cached = holders.get(h.wallet)
+      return !cached?.vwap || cached.vwapSource !== 'real'
+    })
+    
+    if (holdersNeedingVwap.length > 0) {
+      console.log(`[HolderService] Need to fetch ${holdersNeedingVwap.length} VWAPs...`)
+      fetchVwapsInBackground(holdersNeedingVwap)
+    } else {
+      console.log(`[HolderService] All VWAPs loaded from cache!`)
+    }
 
     state.initializationInProgress = false
     return true
@@ -172,6 +241,9 @@ async function fetchVwapsInBackground(sortedHolders: Array<{ wallet: string; bal
   const priorityEligible = Array.from(holders.values()).filter(h => h.isEligible).length
   const priorityWithVwap = Array.from(holders.values()).filter(h => h.vwapSource === 'real').length
   console.log(`[HolderService] ✅ PRIORITY complete: ${priorityWithVwap} with VWAP, ${priorityEligible} eligible`)
+  
+  // Save priority holders to MongoDB for future cold starts
+  await saveHoldersToDb(priorityHolders.map(h => holders.get(h.wallet)).filter(Boolean) as HolderData[])
   
   // PHASE 2: Remaining holders - with small delays to not overwhelm API
   if (remainingHolders.length > 0) {
