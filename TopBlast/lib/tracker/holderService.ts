@@ -242,9 +242,6 @@ async function fetchVwapsInBackground(sortedHolders: Array<{ wallet: string; bal
   const priorityWithVwap = Array.from(holders.values()).filter(h => h.vwapSource === 'real').length
   console.log(`[HolderService] ✅ PRIORITY complete: ${priorityWithVwap} with VWAP, ${priorityEligible} eligible`)
   
-  // Save priority holders to MongoDB for future cold starts
-  await saveHoldersToDb(priorityHolders.map(h => holders.get(h.wallet)).filter(Boolean) as HolderData[])
-  
   // PHASE 2: Remaining holders - with small delays to not overwhelm API
   if (remainingHolders.length > 0) {
     console.log(`[HolderService] Processing remaining ${remainingHolders.length} holders...`)
