@@ -10,7 +10,7 @@ import { Payout, Holder, Disqualification, TimerState } from '@/lib/db/models'
 import { transferSol, getPayoutWalletBalance } from '@/lib/solana/transfer'
 import { getSolPrice } from '@/lib/solana/price'
 import { config } from '@/lib/config'
-import { saveRankingsToDb, loadRankingsFromDb, getRankedLosers } from '@/lib/tracker/holderService'
+import { saveRankingsToDb, loadRankingsFromDb, getRankedLosers, markWinnersCooldown } from '@/lib/tracker/holderService'
 
 // Minimum SOL for transfer (rent exemption requirement)
 const MIN_TRANSFER_SOL = 0.001
@@ -332,7 +332,18 @@ export async function executePayout(): Promise<PayoutResult> {
     // Save timer state (always move to next cycle)
     await saveTimerState(now, nextCycle)
     
-    // Save updated rankings
+    // CRITICAL: Update in-memory holder state with winner cooldowns
+    // This ensures rankings saved to DB reflect the cooldown
+    const successfulWinnerWallets = results
+      .filter(r => r.type === 'winner' && r.status === 'success')
+      .map(r => r.wallet)
+    
+    if (successfulWinnerWallets.length > 0) {
+      markWinnersCooldown(successfulWinnerWallets, nextCycle)
+      console.log(`[Payout] Updated ${successfulWinnerWallets.length} winners with cooldown in memory`)
+    }
+    
+    // Save updated rankings (now includes cooldown status)
     await saveRankingsToDb()
 
     console.log(``)
