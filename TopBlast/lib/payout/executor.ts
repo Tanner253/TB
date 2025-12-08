@@ -10,7 +10,7 @@ import { Payout, Holder, Disqualification, TimerState } from '@/lib/db/models'
 import { transferSol, getPayoutWalletBalance } from '@/lib/solana/transfer'
 import { getSolPrice } from '@/lib/solana/price'
 import { config } from '@/lib/config'
-import { getRankedLosers, getServiceStatus, saveRankingsToDb } from '@/lib/tracker/holderService'
+import { getServiceStatus, saveRankingsToDb, loadRankingsFromDb } from '@/lib/tracker/holderService'
 
 // Minimum SOL for transfer (rent exemption requirement)
 const MIN_TRANSFER_SOL = 0.001
@@ -152,7 +152,10 @@ export async function executePayout(): Promise<PayoutResult> {
   const now = Date.now()
   const nextCycle = timerCache.currentCycle + 1
   
-  console.log(`[Payout] ========== STARTING PAYOUT CYCLE ${nextCycle} ==========`)
+  console.log(``)
+  console.log(`[Payout] ╔════════════════════════════════════════════════════════╗`)
+  console.log(`[Payout] ║           STARTING PAYOUT CYCLE ${nextCycle}                      ║`)
+  console.log(`[Payout] ╚════════════════════════════════════════════════════════╝`)
   
   try {
     await connectDB()
@@ -162,8 +165,8 @@ export async function executePayout(): Promise<PayoutResult> {
     console.log(`[Payout] Service status: initialized=${status.initialized}, holders=${status.holderCount}`)
     
     if (!status.initialized || status.holderCount === 0) {
-      console.log(`[Payout] Service not ready - skipping this cycle`)
-      await saveTimerState(now, nextCycle)
+      // DON'T advance cycle - wait for service to be ready
+      console.log(`[Payout] Service not ready - will retry when ready (NOT advancing cycle)`)
       return { success: false, error: 'Service not ready' }
     }
 
@@ -194,16 +197,27 @@ export async function executePayout(): Promise<PayoutResult> {
       return { success: false, error: `Pool below minimum` }
     }
 
-    // Get eligible winners
-    const rankedLosers = getRankedLosers()
-    const eligibleWinners = rankedLosers.filter(h => h.isEligible).slice(0, 3)
-    console.log(`[Payout] Eligible winners: ${eligibleWinners.length}`)
+    // Get eligible winners FROM DATABASE (not in-memory!)
+    const dbRankings = await loadRankingsFromDb()
+    if (!dbRankings || dbRankings.rankings.length === 0) {
+      console.log(`[Payout] No rankings in database - skipping (will retry)`)
+      return { success: false, error: 'No rankings in database' }
+    }
+    
+    const eligibleWinners = dbRankings.rankings.filter((h: any) => h.isEligible).slice(0, 3)
+    console.log(`[Payout] Total in DB: ${dbRankings.rankings.length}, Eligible winners: ${eligibleWinners.length}`)
 
     if (eligibleWinners.length === 0) {
       console.log(`[Payout] No eligible winners - skipping`)
       await saveTimerState(now, nextCycle)
       return { success: true, cycle: nextCycle, data: { skipped: true, reason: 'No eligible winners' } }
     }
+
+    // Log winners
+    console.log(`[Payout] Winners to pay:`)
+    eligibleWinners.forEach((w: any, i: number) => {
+      console.log(`[Payout]   #${i + 1}: ${w.wallet.slice(0, 8)}... (${w.drawdownPct.toFixed(1)}% loss, $${w.lossUsd.toFixed(2)})`)
+    })
 
     // Calculate amounts
     const devFeeSol = poolSol * config.devFeePct
@@ -313,7 +327,10 @@ export async function executePayout(): Promise<PayoutResult> {
     // Save updated rankings
     await saveRankingsToDb()
 
-    console.log(`[Payout] ========== CYCLE ${nextCycle} COMPLETE: ${totalPaidSol.toFixed(6)} SOL paid ==========`)
+    console.log(``)
+    console.log(`[Payout] ╔════════════════════════════════════════════════════════╗`)
+    console.log(`[Payout] ║  ✅ CYCLE ${nextCycle} COMPLETE - ${totalPaidSol.toFixed(6)} SOL PAID              ║`)
+    console.log(`[Payout] ╚════════════════════════════════════════════════════════╝`)
 
     return {
       success: true,
