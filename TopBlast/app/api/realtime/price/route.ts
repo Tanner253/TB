@@ -4,7 +4,6 @@
  */
 
 import { NextResponse } from 'next/server'
-import { Connection, PublicKey } from '@solana/web3.js'
 import axios from 'axios'
 import { config } from '@/lib/config'
 
@@ -76,13 +75,21 @@ async function fetchPriceAndSupply(): Promise<{
   // 3. Get supply - try Helius RPC first
   if (config.heliusRpcUrl) {
     try {
-      const connection = new Connection(config.heliusRpcUrl, 'confirmed')
-      const mintPubkey = new PublicKey(tokenMint)
-      const supplyInfo = await connection.getTokenSupply(mintPubkey)
+      const response = await axios.post(
+        config.heliusRpcUrl,
+        {
+          jsonrpc: '2.0',
+          id: 'supply-rpc',
+          method: 'getTokenSupply',
+          params: [tokenMint],
+        },
+        { timeout: 5000 }
+      )
 
-      if (supplyInfo.value) {
-        const decimals = supplyInfo.value.decimals
-        supply = parseFloat(supplyInfo.value.amount) / Math.pow(10, decimals)
+      if (response.data?.result?.value) {
+        const supplyData = response.data.result.value
+        const decimals = supplyData.decimals
+        supply = parseFloat(supplyData.amount) / Math.pow(10, decimals)
       }
     } catch {
       // RPC failed

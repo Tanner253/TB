@@ -1,5 +1,4 @@
 import { 
-  Connection, 
   Keypair, 
   PublicKey, 
   Transaction, 
@@ -32,26 +31,57 @@ function getRpcUrl(): string {
 }
 
 /**
+ * Generic JSON-RPC helper to avoid WebSockets completely
+ */
+async function jsonRpcCall(rpcUrl: string, method: string, params: any[]): Promise<any> {
+  const response = await fetch(rpcUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 'rpc-' + Date.now(),
+      method,
+      params,
+    }),
+    cache: 'no-store',
+  })
+
+  if (!response.ok) {
+    throw new Error(`HTTP error ${response.status}: ${response.statusText}`)
+  }
+
+  const data = await response.json()
+  if (data.error) {
+    throw new Error(data.error.message || JSON.stringify(data.error))
+  }
+
+  return data.result
+}
+
+/**
  * Wait for transaction confirmation using HTTP polling (no WebSockets)
  * This is required for serverless environments like Vercel
  */
 async function confirmTransactionWithPolling(
-  connection: Connection,
+  rpcUrl: string,
   signature: string,
   maxRetries: number = 30,
   intervalMs: number = 1000
 ): Promise<{ confirmed: boolean; error: string | null }> {
   for (let i = 0; i < maxRetries; i++) {
     try {
-      const status = await connection.getSignatureStatus(signature)
+      // Use getSignatureStatuses RPC directly
+      const result = await jsonRpcCall(rpcUrl, 'getSignatureStatuses', [[signature], { searchTransactionHistory: true }])
       
-      if (status?.value?.confirmationStatus === 'confirmed' || 
-          status?.value?.confirmationStatus === 'finalized') {
-        return { confirmed: true, error: null }
-      }
+      const status = result?.value?.[0]
       
-      if (status?.value?.err) {
-        return { confirmed: false, error: JSON.stringify(status.value.err) }
+      if (status) {
+        if (status.confirmationStatus === 'confirmed' || status.confirmationStatus === 'finalized') {
+          return { confirmed: true, error: null }
+        }
+        if (status.err) {
+          return { confirmed: false, error: JSON.stringify(status.err) }
+        }
       }
       
       // Wait before next poll
@@ -64,6 +94,50 @@ async function confirmTransactionWithPolling(
   }
   
   return { confirmed: false, error: 'Confirmation timeout' }
+}
+
+/**
+ * Helper to get latest blockhash via HTTP (avoiding WebSockets)
+ */
+async function getLatestBlockhashHttp(rpcUrl: string): Promise<{ blockhash: string; lastValidBlockHeight: number }> {
+  try {
+    const result = await jsonRpcCall(rpcUrl, 'getLatestBlockhash', [{ commitment: 'confirmed' }])
+    return result.value
+  } catch (error: any) {
+    throw new Error(`Failed to get blockhash: ${error.message}`)
+  }
+}
+
+/**
+ * Helper to send raw transaction via HTTP (avoiding WebSockets)
+ */
+async function sendRawTransactionHttp(
+  serializedTransaction: Buffer | Uint8Array,
+  rpcUrl: string,
+  options: { skipPreflight?: boolean; preflightCommitment?: string } = {}
+): Promise<string> {
+  try {
+    const base58Tx = bs58.encode(serializedTransaction)
+    
+    return await jsonRpcCall(rpcUrl, 'sendTransaction', [
+      base58Tx,
+      {
+        encoding: 'base58',
+        skipPreflight: options.skipPreflight ?? false,
+        preflightCommitment: options.preflightCommitment ?? 'confirmed',
+      },
+    ])
+  } catch (error: any) {
+    throw new Error(`Failed to send transaction: ${error.message}`)
+  }
+}
+
+/**
+ * Helper to get balance via HTTP
+ */
+async function getBalanceHttp(rpcUrl: string, pubkey: PublicKey): Promise<number> {
+  const result = await jsonRpcCall(rpcUrl, 'getBalance', [pubkey.toBase58()])
+  return result?.value || 0
 }
 
 /**
@@ -118,7 +192,6 @@ export async function transferSol(
 
   try {
     const rpcUrl = getRpcUrl()
-    const connection = new Connection(rpcUrl, 'confirmed')
     
     // Load payout wallet from private key
     const payoutKeypair = Keypair.fromSecretKey(
@@ -130,8 +203,8 @@ export async function transferSol(
     console.log(`[Transfer] To: ${recipientAddress.slice(0, 8)}...`)
     console.log(`[Transfer] Amount: ${amountSol} SOL`)
 
-    // Check sender balance
-    const senderBalance = await connection.getBalance(payoutKeypair.publicKey)
+    // Check sender balance (HTTP)
+    const senderBalance = await getBalanceHttp(rpcUrl, payoutKeypair.publicKey)
     const lamportsToSend = Math.floor(amountSol * LAMPORTS_PER_SOL)
     
     // Need extra for transaction fee (~5000 lamports)
@@ -154,8 +227,9 @@ export async function transferSol(
     // Build transaction
     const transaction = new Transaction().add(transferInstruction)
     
-    // Get recent blockhash
-    const { blockhash } = await connection.getLatestBlockhash('confirmed')
+    // Get recent blockhash - Using HTTP fallback to avoid WebSocket issues
+    console.log(`[Transfer] Getting blockhash (HTTP)...`)
+    const { blockhash } = await getLatestBlockhashHttp(rpcUrl)
     transaction.recentBlockhash = blockhash
     transaction.feePayer = payoutKeypair.publicKey
     
@@ -163,17 +237,23 @@ export async function transferSol(
     transaction.sign(payoutKeypair)
 
     // Send transaction (without WebSocket confirmation)
-    console.log(`[Transfer] Sending transaction...`)
-    const txHash = await connection.sendRawTransaction(transaction.serialize(), {
-      skipPreflight: false,
-      preflightCommitment: 'confirmed',
-    })
+    console.log(`[Transfer] Sending transaction (HTTP)...`)
+    
+    // Use manual HTTP send to guarantee no WebSockets
+    const txHash = await sendRawTransactionHttp(
+      transaction.serialize(),
+      rpcUrl,
+      {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      }
+    )
     
     console.log(`[Transfer] Transaction sent: ${txHash}`)
     console.log(`[Transfer] Waiting for confirmation (HTTP polling)...`)
     
     // Confirm using HTTP polling (no WebSockets - works in serverless)
-    const confirmation = await confirmTransactionWithPolling(connection, txHash)
+    const confirmation = await confirmTransactionWithPolling(rpcUrl, txHash)
     
     if (confirmation.confirmed) {
       console.log(`[Transfer] ✅ Confirmed: ${txHash}`)
@@ -214,13 +294,13 @@ export async function getPayoutWalletBalance(): Promise<{
 
   try {
     const rpcUrl = getRpcUrl()
-    const connection = new Connection(rpcUrl, 'confirmed')
     
     const payoutKeypair = Keypair.fromSecretKey(
       bs58.decode(process.env.PAYOUT_WALLET_PRIVATE_KEY)
     )
 
-    const balance = await connection.getBalance(payoutKeypair.publicKey)
+    // Use HTTP for balance
+    const balance = await getBalanceHttp(rpcUrl, payoutKeypair.publicKey)
 
     return {
       sol: balance / LAMPORTS_PER_SOL,
@@ -242,8 +322,9 @@ export async function verifyConnection(): Promise<{
 }> {
   try {
     const rpcUrl = getRpcUrl()
-    const connection = new Connection(rpcUrl, 'confirmed')
-    const blockHeight = await connection.getBlockHeight()
+    // Use HTTP for block height
+    const result = await jsonRpcCall(rpcUrl, 'getBlockHeight', [])
+    const blockHeight = result as number
     
     return {
       connected: true,
