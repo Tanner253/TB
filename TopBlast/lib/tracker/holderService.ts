@@ -242,6 +242,9 @@ async function fetchVwapsInBackground(sortedHolders: Array<{ wallet: string; bal
   const priorityWithVwap = Array.from(holders.values()).filter(h => h.vwapSource === 'real').length
   console.log(`[HolderService] ✅ PRIORITY complete: ${priorityWithVwap} with VWAP, ${priorityEligible} eligible`)
   
+  // Save rankings to DB after priority holders (so UI has data quickly)
+  await saveRankingsToDb()
+  
   // PHASE 2: Remaining holders - with small delays to not overwhelm API
   if (remainingHolders.length > 0) {
     console.log(`[HolderService] Processing remaining ${remainingHolders.length} holders...`)
@@ -280,6 +283,9 @@ async function fetchVwapsInBackground(sortedHolders: Array<{ wallet: string; bal
   const eligible = Array.from(holders.values()).filter(h => h.isEligible).length
   const withVwap = Array.from(holders.values()).filter(h => h.vwapSource === 'real').length
   console.log(`[HolderService] ✅ Background complete: ${withVwap} with VWAP, ${eligible} eligible`)
+  
+  // Save rankings to DB for cross-instance consistency
+  await saveRankingsToDb()
 }
 
 /**
@@ -914,6 +920,91 @@ export async function refreshHolders(): Promise<boolean> {
     console.error('[HolderService] Refresh error:', error.message)
     state.initializationInProgress = false
     return false
+  }
+}
+
+/**
+ * Save current rankings to database for cross-instance consistency
+ * This ensures all Vercel serverless instances show the same rankings
+ */
+export async function saveRankingsToDb(): Promise<void> {
+  try {
+    const { CurrentRankings } = await import('@/lib/db/models')
+    await connectDB()
+    
+    const rankedLosers = getRankedLosers()
+    const rankings = rankedLosers.slice(0, 50).map(h => ({
+      wallet: h.wallet,
+      balance: h.balance,
+      vwap: h.vwap || 0,
+      drawdownPct: h.drawdownPct,
+      lossUsd: h.lossUsd,
+      isEligible: h.isEligible,
+      ineligibleReason: h.ineligibleReason,
+    }))
+    
+    await CurrentRankings.findOneAndUpdate(
+      { key: 'current_rankings' },
+      {
+        $set: {
+          rankings,
+          totalHolders: holders.size,
+          eligibleCount: getEligibleCount(),
+          holdersWithVwap: getHoldersWithRealVwapCount(),
+          tokenPrice: state.currentTokenPrice || 0,
+          lastCalculated: new Date(),
+        }
+      },
+      { upsert: true }
+    )
+    
+    console.log(`[HolderService] Rankings saved to DB: ${rankings.length} entries, ${getEligibleCount()} eligible`)
+  } catch (error: any) {
+    console.error('[HolderService] Failed to save rankings to DB:', error.message)
+  }
+}
+
+/**
+ * Load rankings from database
+ * Returns null if no rankings exist yet
+ */
+export async function loadRankingsFromDb(): Promise<{
+  rankings: Array<{
+    wallet: string
+    balance: number
+    vwap: number
+    drawdownPct: number
+    lossUsd: number
+    isEligible: boolean
+    ineligibleReason: string | null
+  }>
+  totalHolders: number
+  eligibleCount: number
+  holdersWithVwap: number
+  tokenPrice: number
+  lastCalculated: Date
+} | null> {
+  try {
+    const { CurrentRankings } = await import('@/lib/db/models')
+    await connectDB()
+    
+    const data = await CurrentRankings.findOne({ key: 'current_rankings' }).lean()
+    
+    if (!data) {
+      return null
+    }
+    
+    return {
+      rankings: data.rankings || [],
+      totalHolders: data.totalHolders || 0,
+      eligibleCount: data.eligibleCount || 0,
+      holdersWithVwap: data.holdersWithVwap || 0,
+      tokenPrice: data.tokenPrice || 0,
+      lastCalculated: data.lastCalculated || new Date(),
+    }
+  } catch (error: any) {
+    console.error('[HolderService] Failed to load rankings from DB:', error.message)
+    return null
   }
 }
 

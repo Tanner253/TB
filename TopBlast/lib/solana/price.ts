@@ -213,9 +213,9 @@ export async function getSolPrice(): Promise<number | null> {
   }
 
   // Return stale cache if available (better than nothing)
-  if (solPriceCache.price !== null) {
+    if (solPriceCache.price !== null) {
     console.log(`[Price] Using stale SOL price: $${solPriceCache.price.toFixed(2)}`)
-    return solPriceCache.price
+      return solPriceCache.price
   }
   
   // Last resort fallback

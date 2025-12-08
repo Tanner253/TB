@@ -271,22 +271,22 @@ export default function LeaderboardPage() {
 
           {top3.length > 0 ? (
             <div className="grid md:grid-cols-3 gap-6">
-              {top3.map((winner: Winner, idx: number) => {
-                const style = getRankStyle(idx + 1)
-                const isEligible = winner.is_eligible !== false
+                {top3.map((winner: Winner, idx: number) => {
+                  const style = getRankStyle(idx + 1)
+                  const isEligible = winner.is_eligible !== false
                 // Actual payout after 5% dev fee: 80% of 95% = 76%, 15% of 95% = 14.25%, 5% of 95% = 4.75%
                 // UI shows clean percentages (80/15/5) for better UX
-                const payoutPct = isEligible ? (idx === 0 ? 0.76 : idx === 1 ? 0.1425 : 0.0475) : 0
-                const payoutAmount = poolValue * payoutPct
+                  const payoutPct = isEligible ? (idx === 0 ? 0.76 : idx === 1 ? 0.1425 : 0.0475) : 0
+                  const payoutAmount = poolValue * payoutPct
 
-                return (
-                  <motion.div
+                  return (
+                    <motion.div
                     key={`position-${idx}`}
                     initial={false}
-                    animate={{ opacity: 1, y: 0 }}
-                    whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                    className={`relative bg-[#0a0a10] border ${style.border} rounded-2xl p-6 ${style.glow} overflow-hidden ${!isEligible ? 'opacity-70' : ''}`}
-                  >
+                      animate={{ opacity: 1, y: 0 }}
+                      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                      className={`relative bg-[#0a0a10] border ${style.border} rounded-2xl p-6 ${style.glow} overflow-hidden ${!isEligible ? 'opacity-70' : ''}`}
+                    >
                       {/* Rank badge */}
                       {idx === 0 && isEligible && (
                         <div className="absolute top-0 right-0">
@@ -353,9 +353,9 @@ export default function LeaderboardPage() {
                           <span className="text-emerald-400 font-bold">{idx === 0 ? '80%' : idx === 1 ? '15%' : '5%'}</span>
                         </div>
                       </div>
-                  </motion.div>
-                )
-              })}
+                    </motion.div>
+                  )
+                })}
             </div>
           ) : (
             <motion.div

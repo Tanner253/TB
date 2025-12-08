@@ -18,7 +18,7 @@ import { Payout, Holder, Disqualification, TimerState } from '@/lib/db/models'
 import { transferSol, getPayoutWalletBalance } from '@/lib/solana/transfer'
 import { getSolPrice } from '@/lib/solana/price'
 import { config } from '@/lib/config'
-import { getRankedLosers, getServiceStatus } from '@/lib/tracker/holderService'
+import { getRankedLosers, getServiceStatus, saveRankingsToDb } from '@/lib/tracker/holderService'
 
 // In-memory cache for timer state (refreshed from DB on each request)
 // These are ONLY used as a cache - database is the source of truth
@@ -164,9 +164,9 @@ export async function executePayout(): Promise<PayoutResult> {
     
     // MUTEX LOCK using DB state
     if (cachedTimerState.isPayoutInProgress) {
-      return { success: false, error: 'Payout already in progress' }
-    }
-    
+    return { success: false, error: 'Payout already in progress' }
+  }
+  
     // Mark as in progress in DB (prevents other instances from starting)
     await updateTimerStateInDb({ isPayoutInProgress: true })
     
@@ -385,6 +385,9 @@ export async function executePayout(): Promise<PayoutResult> {
       failedAttempts: 0, 
       isPayoutInProgress: false 
     })
+    
+    // Save updated rankings to DB (winners now have cooldown)
+    await saveRankingsToDb()
 
     const totalPaidUsd = totalPaidSol * solPrice
     console.log(`[Payout] ✅ Cycle ${cycle} complete | ${totalPaidSol.toFixed(6)} SOL ($${totalPaidUsd.toFixed(2)})`)

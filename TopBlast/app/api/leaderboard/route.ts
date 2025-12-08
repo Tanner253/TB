@@ -1,25 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { formatPrice, formatUsd, getSolPrice } from '@/lib/solana/price'
 import { formatWallet } from '@/lib/solana/holders'
-import { 
-  initializeTracker, 
-  getTrackerStatus, 
-} from '@/lib/tracker/init'
-import {
-  getRankedLosers,
-  getHolderCount as getTrackedHolderCount,
-  getEligibleCount,
-  getCurrentPrice,
-  getServiceStatus,
-  getHoldersWithRealVwapCount,
-} from '@/lib/tracker/holderService'
+import { initializeTracker, getTrackerStatus } from '@/lib/tracker/init'
+import { loadRankingsFromDb, saveRankingsToDb, getServiceStatus } from '@/lib/tracker/holderService'
 import { config } from '@/lib/config'
 import { getPayoutWalletBalance } from '@/lib/solana/transfer'
 import { executePayout, canExecutePayout, getSecondsUntilNextPayout, getCurrentPayoutCycle, ensureTimerStateSync, resetTimerForNextInterval } from '@/lib/payout/executor'
 
 export const dynamic = 'force-dynamic'
 
-// Track initialization state
+// Track initialization state (per-instance, but that's OK - just prevents double init)
 let initStarted = false
 
 export async function GET(request: NextRequest) {
@@ -40,64 +30,27 @@ export async function GET(request: NextRequest) {
     }
 
     // CRITICAL: Sync timer state from database for cross-instance consistency
-    // This ensures all Vercel serverless instances show the same countdown
     await ensureTimerStateSync()
 
-    // Initialize tracker on first request
+    // Start tracker initialization in background (if not already started on this instance)
+    // This populates the rankings in the database
     if (!initStarted) {
       initStarted = true
       initializeTracker().catch(err => {
         console.error('[Leaderboard] Tracker init error:', err)
-        initStarted = false // Allow retry
+        initStarted = false
       })
     }
 
     const { searchParams } = new URL(request.url)
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
 
-    // Get service status
-    const serviceStatus = getServiceStatus()
-    const trackerStatus = getTrackerStatus()
-
     // Get pool balance = 99% of wallet balance
     const solPrice = await getSolPrice() || 200
     const walletBalance = await getPayoutWalletBalance()
     const walletSol = walletBalance?.sol || 0
-    const poolSol = walletSol * config.poolPercentage // 99% of wallet
+    const poolSol = walletSol * config.poolPercentage
     const poolUsd = poolSol * solPrice
-
-    // If service not initialized yet, return loading state with basic info
-    if (!serviceStatus.initialized) {
-      // During initialization, use the tracked count as estimate
-      // The service is processing holders, so show progress
-      const totalEstimate = serviceStatus.holderCount > 0 ? 500 : 0 // We're processing up to 500
-      
-      return NextResponse.json({
-        success: true,
-        data: {
-          status: 'initializing',
-          message: serviceStatus.initInProgress 
-            ? 'Loading holder data and calculating VWAPs...' 
-            : 'Starting initialization...',
-          cycle: getCurrentPayoutCycle() + 1,
-          seconds_remaining: getSecondsUntilNextPayout(),
-          pool_balance_sol: poolSol.toFixed(4),
-          pool_balance_usd: formatUsd(poolUsd),
-          pool_balance_tokens: `${poolSol.toFixed(4)} SOL`,
-          sol_price: solPrice,
-          token_price: serviceStatus.currentPrice ? formatPrice(serviceStatus.currentPrice) : 'Loading...',
-          token_symbol: config.tokenSymbol,
-          token_mint: config.tokenMint,
-          total_holders: totalEstimate,
-          tracked_holders: serviceStatus.holderCount,
-          eligible_count: serviceStatus.eligibleCount,
-          ws_connected: trackerStatus.wsConnected,
-          tracker_initialized: trackerStatus.initialized,
-          rankings: [],
-          last_updated: new Date().toISOString(),
-        },
-      })
-    }
 
     // Auto-trigger payout when timer hits 0
     const secondsUntil = getSecondsUntilNextPayout()
@@ -106,38 +59,57 @@ export async function GET(request: NextRequest) {
         const payoutResult = await executePayout()
         if (payoutResult.success) {
           console.log(`[Leaderboard] ✅ Payout executed: cycle ${payoutResult.cycle}`)
+          // Save updated rankings after payout
+          await saveRankingsToDb()
         } else if (!payoutResult.error?.includes('Max')) {
-          // Only log non-retry-limit errors
           console.log(`[Leaderboard] ❌ Payout failed: ${payoutResult.error}`)
         }
       } else {
-        // Can't execute payout (max attempts or already in progress)
-        // Reset timer for next interval so UI doesn't stay at 0:00
+        // Can't execute payout - reset timer for next interval
         await resetTimerForNextInterval()
       }
     }
 
-    // Get current price from service
-    const tokenPrice = getCurrentPrice()
-    if (!tokenPrice) {
+    // CRITICAL: Load rankings from DATABASE (not in-memory)
+    // This ensures all Vercel instances return the same data
+    const dbRankings = await loadRankingsFromDb()
+    
+    const trackerStatus = getTrackerStatus()
+    const serviceStatus = getServiceStatus()
+
+    // If no rankings in DB yet, show initializing state
+    if (!dbRankings || dbRankings.rankings.length === 0) {
       return NextResponse.json({
-        success: false,
-        error: 'Failed to fetch token price',
-      }, { status: 500 })
+        success: true,
+        data: {
+          status: 'initializing',
+          message: 'Loading holder data and calculating VWAPs...',
+          cycle: getCurrentPayoutCycle() + 1,
+          seconds_remaining: getSecondsUntilNextPayout(),
+          pool_balance_sol: poolSol.toFixed(4),
+          pool_balance_usd: formatUsd(poolUsd),
+          pool_balance_tokens: `${poolSol.toFixed(4)} SOL`,
+          sol_price: solPrice,
+          token_price: dbRankings?.tokenPrice ? formatPrice(dbRankings.tokenPrice) : 'Loading...',
+          token_symbol: config.tokenSymbol,
+          token_mint: config.tokenMint,
+          total_holders: dbRankings?.totalHolders || 0,
+          tracked_holders: dbRankings?.totalHolders || 0,
+          holders_with_real_vwap: dbRankings?.holdersWithVwap || 0,
+          eligible_count: dbRankings?.eligibleCount || 0,
+          ws_connected: false,
+          tracker_initialized: serviceStatus.initialized,
+          rankings: [],
+          last_updated: new Date().toISOString(),
+        },
+      })
     }
 
-    // Get ranked losers from holder service
-    const rankedLosers = getRankedLosers()
-    // Pool is now in SOL, converted to USD above
-    const poolBal = poolUsd // USD value of the SOL pool
+    // Format rankings from database
+    const poolBal = poolUsd
     const minLoss = poolBal * (config.minLossThresholdPct / 100)
 
-    // Use the tracked holder count
-    const totalHolderCount = getTrackedHolderCount()
-
-    // Format rankings for response - show top losers with eligibility status
-    // Note: Only holders with vwapSource === 'real' are returned by getRankedLosers()
-    const rankings = rankedLosers.slice(0, limit).map((holder, idx) => ({
+    const rankings = dbRankings.rankings.slice(0, limit).map((holder, idx) => ({
       rank: idx + 1,
       wallet: holder.wallet,
       wallet_display: formatWallet(holder.wallet),
@@ -145,7 +117,7 @@ export async function GET(request: NextRequest) {
       balance_raw: holder.balance,
       vwap: holder.vwap ? formatPrice(holder.vwap) : 'N/A',
       vwap_raw: holder.vwap,
-      vwap_source: holder.vwapSource, // 'real' = from actual transaction data
+      vwap_source: 'real',
       drawdown_pct: Math.round(holder.drawdownPct * 100) / 100,
       loss_usd: formatUsd(holder.lossUsd),
       loss_usd_raw: holder.lossUsd,
@@ -156,40 +128,32 @@ export async function GET(request: NextRequest) {
         idx === 1 ? poolBal * 0.15 :
         idx === 2 ? poolBal * 0.05 : 0
       ) : '$0.00',
-      first_buy_at: holder.firstBuyTimestamp 
-        ? new Date(holder.firstBuyTimestamp).toISOString() 
-        : null,
-      buy_count: holder.buyCount,
     }))
-
-    // Get payout timing - simple, no snapshots
-    const secondsRemaining = getSecondsUntilNextPayout()
-    const cycle = getCurrentPayoutCycle()
 
     return NextResponse.json({
       success: true,
       data: {
         status: 'ready',
-        cycle: cycle + 1, // Next cycle to be paid
-        seconds_remaining: secondsRemaining,
+        cycle: getCurrentPayoutCycle() + 1,
+        seconds_remaining: getSecondsUntilNextPayout(),
         pool_balance_sol: poolSol.toFixed(4),
         pool_balance_usd: formatUsd(poolUsd),
         pool_balance_tokens: `${poolSol.toFixed(4)} SOL`,
         sol_price: solPrice,
-        token_price: formatPrice(tokenPrice),
-        token_price_raw: tokenPrice,
+        token_price: formatPrice(dbRankings.tokenPrice),
+        token_price_raw: dbRankings.tokenPrice,
         token_symbol: config.tokenSymbol,
         token_mint: config.tokenMint,
-        total_holders: totalHolderCount,
-        tracked_holders: getTrackedHolderCount(),
-        holders_with_real_vwap: getHoldersWithRealVwapCount(),
-        eligible_count: getEligibleCount(),
-        total_losers: rankedLosers.length,
+        total_holders: dbRankings.totalHolders,
+        tracked_holders: dbRankings.totalHolders,
+        holders_with_real_vwap: dbRankings.holdersWithVwap,
+        eligible_count: dbRankings.eligibleCount,
+        total_losers: dbRankings.rankings.length,
         min_loss_threshold_usd: formatUsd(minLoss),
-        ws_connected: trackerStatus.wsConnected,
-        tracker_initialized: trackerStatus.initialized,
+        ws_connected: false,
+        tracker_initialized: true,
         rankings,
-        last_updated: new Date().toISOString(),
+        last_updated: dbRankings.lastCalculated.toISOString(),
       },
     })
   } catch (error: any) {
@@ -199,14 +163,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
-}
-
-// Helper functions
-function formatTokenAmount(usdValue: number, tokenPrice: number | null): string {
-  if (!tokenPrice || tokenPrice === 0) return '0'
-  const tokens = usdValue / tokenPrice
-  if (tokens >= 1_000_000_000_000) return `${(tokens / 1_000_000_000_000).toFixed(0)}T`
-  if (tokens >= 1_000_000_000) return `${(tokens / 1_000_000_000).toFixed(0)}B`
-  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(0)}M`
-  return tokens.toLocaleString('en-US', { maximumFractionDigits: 0 })
 }

@@ -147,6 +147,37 @@ const TimerStateSchema = new Schema<ITimerState>({
   isPayoutInProgress: { type: Boolean, default: false },
 }, { timestamps: true })
 
+// Current Rankings Interface (singleton - stores current rankings for serverless consistency)
+// This ensures all Vercel instances show the same rankings
+export interface ICurrentRankings extends Document {
+  key: string // Always 'current_rankings' - singleton pattern
+  rankings: Array<{
+    wallet: string
+    balance: number
+    vwap: number
+    drawdownPct: number
+    lossUsd: number
+    isEligible: boolean
+    ineligibleReason: string | null
+  }>
+  totalHolders: number
+  eligibleCount: number
+  holdersWithVwap: number
+  tokenPrice: number
+  lastCalculated: Date
+  updatedAt: Date
+}
+
+const CurrentRankingsSchema = new Schema<ICurrentRankings>({
+  key: { type: String, required: true, unique: true, default: 'current_rankings' },
+  rankings: { type: [Schema.Types.Mixed], default: [] },
+  totalHolders: { type: Number, default: 0 },
+  eligibleCount: { type: Number, default: 0 },
+  holdersWithVwap: { type: Number, default: 0 },
+  tokenPrice: { type: Number, default: 0 },
+  lastCalculated: { type: Date, default: Date.now },
+}, { timestamps: true })
+
 // Export models (check if already registered to avoid OverwriteModelError)
 export const Holder: Model<IHolder> = mongoose.models.Holder || mongoose.model<IHolder>('Holder', HolderSchema)
 export const Snapshot: Model<ISnapshot> = mongoose.models.Snapshot || mongoose.model<ISnapshot>('Snapshot', SnapshotSchema)
@@ -155,4 +186,5 @@ export const Disqualification: Model<IDisqualification> = mongoose.models.Disqua
 export const PoolBalance: Model<IPoolBalance> = mongoose.models.PoolBalance || mongoose.model<IPoolBalance>('PoolBalance', PoolBalanceSchema)
 export const PriceCache: Model<IPriceCache> = mongoose.models.PriceCache || mongoose.model<IPriceCache>('PriceCache', PriceCacheSchema)
 export const TimerState: Model<ITimerState> = mongoose.models.TimerState || mongoose.model<ITimerState>('TimerState', TimerStateSchema)
+export const CurrentRankings: Model<ICurrentRankings> = mongoose.models.CurrentRankings || mongoose.model<ICurrentRankings>('CurrentRankings', CurrentRankingsSchema)
 
