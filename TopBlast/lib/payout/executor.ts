@@ -22,6 +22,7 @@ import { getRankedLosers, getServiceStatus } from '@/lib/tracker/holderService'
 
 // In-memory cache for timer state (refreshed from DB on each request)
 // These are ONLY used as a cache - database is the source of truth
+// lastDbSync = 0 means we need to sync from DB before using these values
 let cachedTimerState: {
   lastPayoutTime: number
   currentCycle: number
@@ -29,11 +30,11 @@ let cachedTimerState: {
   isPayoutInProgress: boolean
   lastDbSync: number
 } = {
-  lastPayoutTime: Date.now(),
+  lastPayoutTime: 0, // Will be set from DB on first sync
   currentCycle: 0,
   failedAttempts: 0,
   isPayoutInProgress: false,
-  lastDbSync: 0,
+  lastDbSync: 0, // 0 = needs sync from DB
 }
 
 // How often to refresh from DB (5 seconds - balance between consistency and performance)
@@ -58,12 +59,14 @@ export interface PayoutResult {
 /**
  * Sync timer state from MongoDB (source of truth for serverless consistency)
  * This ensures all Vercel instances see the same timer state
+ * Also handles timer reset when interval has passed
  */
 async function syncTimerStateFromDb(): Promise<void> {
   const now = Date.now()
   
   // Only sync if we haven't synced recently (performance optimization)
-  if (now - cachedTimerState.lastDbSync < DB_SYNC_INTERVAL) {
+  // BUT always sync on first call (lastDbSync === 0)
+  if (cachedTimerState.lastDbSync > 0 && now - cachedTimerState.lastDbSync < DB_SYNC_INTERVAL) {
     return
   }
   
@@ -72,42 +75,71 @@ async function syncTimerStateFromDb(): Promise<void> {
     
     // Get or create timer state
     let timerState = await TimerState.findOne({ key: 'payout_timer' }).lean()
+    const intervalMs = config.payoutIntervalMinutes * 60 * 1000
     
     if (!timerState) {
-      // First time - initialize from last payout or current time
-      const lastPayout = await Payout.findOne().sort({ createdAt: -1 }).lean()
-      
-      const initialLastPayoutTime = lastPayout 
-        ? new Date(lastPayout.createdAt).getTime() 
-        : now
-      const initialCycle = lastPayout?.cycle || 0
-      
+      // First time - set lastPayoutTime to NOW so timer starts fresh
       // Create the timer state document
       await TimerState.create({
         key: 'payout_timer',
-        lastPayoutTime: new Date(initialLastPayoutTime),
-        currentCycle: initialCycle,
+        lastPayoutTime: new Date(now),
+        currentCycle: 0,
         failedAttempts: 0,
         isPayoutInProgress: false,
       })
       
       cachedTimerState = {
-        lastPayoutTime: initialLastPayoutTime,
-        currentCycle: initialCycle,
+        lastPayoutTime: now,
+        currentCycle: 0,
         failedAttempts: 0,
         isPayoutInProgress: false,
         lastDbSync: now,
       }
       
-      console.log(`[Payout] Timer state initialized: cycle ${initialCycle}, last payout ${new Date(initialLastPayoutTime).toISOString()}`)
+      console.log(`[Payout] Timer state initialized: starting fresh, ${config.payoutIntervalMinutes} min until first payout`)
     } else {
       // Load from existing timer state
-      cachedTimerState = {
-        lastPayoutTime: new Date(timerState.lastPayoutTime).getTime(),
-        currentCycle: timerState.currentCycle,
-        failedAttempts: timerState.failedAttempts,
-        isPayoutInProgress: timerState.isPayoutInProgress,
-        lastDbSync: now,
+      const lastPayoutTime = new Date(timerState.lastPayoutTime).getTime()
+      const elapsed = now - lastPayoutTime
+      
+      // If more than one interval has passed, reset the timer to start a new interval
+      // This prevents the timer from being stuck at 0 indefinitely
+      if (elapsed >= intervalMs) {
+        // Calculate how many intervals have passed and set to start of current interval
+        const intervalsPassed = Math.floor(elapsed / intervalMs)
+        const newLastPayoutTime = lastPayoutTime + (intervalsPassed * intervalMs)
+        
+        // Update DB with new timer start
+        await TimerState.findOneAndUpdate(
+          { key: 'payout_timer' },
+          { 
+            $set: { 
+              lastPayoutTime: new Date(newLastPayoutTime),
+              failedAttempts: 0,
+              isPayoutInProgress: false,
+              updatedAt: new Date()
+            } 
+          }
+        )
+        
+        cachedTimerState = {
+          lastPayoutTime: newLastPayoutTime,
+          currentCycle: timerState.currentCycle,
+          failedAttempts: 0,
+          isPayoutInProgress: false,
+          lastDbSync: now,
+        }
+        
+        const secondsRemaining = Math.floor((intervalMs - (now - newLastPayoutTime)) / 1000)
+        console.log(`[Payout] Timer reset (${intervalsPassed} intervals passed), ${secondsRemaining}s until next payout`)
+      } else {
+        cachedTimerState = {
+          lastPayoutTime: lastPayoutTime,
+          currentCycle: timerState.currentCycle,
+          failedAttempts: timerState.failedAttempts,
+          isPayoutInProgress: timerState.isPayoutInProgress,
+          lastDbSync: now,
+        }
       }
     }
   } catch (error) {
@@ -222,7 +254,7 @@ export async function executePayout(): Promise<PayoutResult> {
     // 2. Get wallet balance and calculate pool (99% of balance)
     const walletBalance = await getPayoutWalletBalance()
     if (!walletBalance || walletBalance.sol <= 0) {
-      isPayoutInProgress = false
+      await updateTimerStateInDb({ isPayoutInProgress: false })
       return { success: false, error: 'Payout wallet has no balance' }
     }
     
@@ -235,7 +267,7 @@ export async function executePayout(): Promise<PayoutResult> {
     
     // Check minimum pool threshold
     if (poolSol < config.minPoolSol) {
-      isPayoutInProgress = false
+      await updateTimerStateInDb({ isPayoutInProgress: false })
       return { 
         success: false, 
         error: `Pool ${poolSol.toFixed(6)} SOL below minimum ${config.minPoolSol} SOL` 
@@ -449,9 +481,15 @@ export function getCurrentPayoutCycle(): number {
 
 /**
  * Get seconds until next payout allowed
- * Note: This uses cached state - call syncTimerStateFromDb() first for accuracy
+ * Note: This uses cached state - call ensureTimerStateSync() first for accuracy
  */
 export function getSecondsUntilNextPayout(): number {
+  // If not synced yet (lastPayoutTime is 0), return full interval
+  // This will be corrected once DB sync completes
+  if (cachedTimerState.lastPayoutTime === 0) {
+    return config.payoutIntervalMinutes * 60
+  }
+  
   const intervalMs = config.payoutIntervalMinutes * 60 * 1000
   const elapsed = Date.now() - cachedTimerState.lastPayoutTime
   return Math.max(0, Math.floor((intervalMs - elapsed) / 1000))

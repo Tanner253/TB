@@ -75,14 +75,15 @@ export function useRealtimePrice(pollInterval = 10000) {
 }
 
 // Hook for real-time leaderboard data
-// Polls faster when data is still loading, slower when complete
+// Polls at fixed interval, countdown runs locally between syncs
 export function useRealtimeLeaderboard(pollInterval = 10000) {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
-  const [countdown, setCountdown] = useState(300) // 5 minutes default
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const [countdown, setCountdown] = useState<number | null>(null)
+  const countdownRef = useRef<number | null>(null) // Track countdown without re-renders
+  const lastServerCountdown = useRef<number | null>(null)
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -90,10 +91,40 @@ export function useRealtimeLeaderboard(pollInterval = 10000) {
       const json = await res.json()
       
       if (json.success) {
-        setData(json.data)
+        // Only update data if rankings actually changed (prevents re-renders)
+        setData((prev: any) => {
+          // If no previous data, set it
+          if (!prev) return json.data
+          
+          // Check if rankings changed (compare wallet addresses)
+          const prevWallets = prev.rankings?.map((r: any) => r.wallet).join(',') || ''
+          const newWallets = json.data.rankings?.map((r: any) => r.wallet).join(',') || ''
+          
+          // Only update if something meaningful changed
+          if (prevWallets !== newWallets || 
+              prev.status !== json.data.status ||
+              prev.eligible_count !== json.data.eligible_count) {
+            return json.data
+          }
+          
+          // Update non-visual fields without causing re-render of rankings
+          return { ...prev, ...json.data, rankings: prev.rankings }
+        })
+        
+        // Sync countdown from server - only if significantly different (>5 seconds)
+        // This prevents small timing drifts from causing jumps
         if (json.data.seconds_remaining !== undefined) {
-          setCountdown(json.data.seconds_remaining)
+          const serverCountdown = json.data.seconds_remaining
+          const localCountdown = countdownRef.current
+          
+          // First sync or significant drift (>5 seconds difference)
+          if (localCountdown === null || Math.abs(serverCountdown - localCountdown) > 5) {
+            countdownRef.current = serverCountdown
+            setCountdown(serverCountdown)
+            lastServerCountdown.current = serverCountdown
+          }
         }
+        
         setLastUpdate(new Date())
         setError(null)
       } else {
@@ -106,39 +137,22 @@ export function useRealtimeLeaderboard(pollInterval = 10000) {
     }
   }, [])
 
-  // Fetch data on interval - faster when still loading VWAPs
+  // Initial fetch and fixed polling interval
   useEffect(() => {
     fetchLeaderboard()
-    
-    // Determine poll speed based on data state
-    const getInterval = () => {
-      if (!data) return 2000 // Very fast while no data
-      if (data.status === 'initializing') return 2000 // Fast during init
-      const holdersWithVwap = data.holders_with_real_vwap || 0
-      const totalHolders = data.tracked_holders || 1
-      const pctLoaded = holdersWithVwap / totalHolders
-      
-      if (pctLoaded < 0.5) return 3000 // Fast while < 50% loaded
-      if (pctLoaded < 0.9) return 5000 // Medium while < 90% loaded
-      return pollInterval // Normal speed when fully loaded
-    }
-    
-    const setupInterval = () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-      intervalRef.current = setInterval(fetchLeaderboard, getInterval())
-    }
-    
-    setupInterval()
-    
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-    }
-  }, [fetchLeaderboard, pollInterval, data?.holders_with_real_vwap, data?.tracked_holders, data?.status])
+    const interval = setInterval(fetchLeaderboard, pollInterval)
+    return () => clearInterval(interval)
+  }, [fetchLeaderboard, pollInterval])
 
-  // Countdown timer
+  // Local countdown timer - decrements every second, syncs from server periodically
   useEffect(() => {
     const timer = setInterval(() => {
-      setCountdown((prev) => (prev <= 0 ? 300 : prev - 1)) // Reset to 5 min
+      setCountdown((prev) => {
+        if (prev === null) return null
+        const newVal = Math.max(0, prev - 1)
+        countdownRef.current = newVal
+        return newVal
+      })
     }, 1000)
     return () => clearInterval(timer)
   }, [])
@@ -148,7 +162,7 @@ export function useRealtimeLeaderboard(pollInterval = 10000) {
     loading,
     error,
     lastUpdate,
-    countdown,
+    countdown: countdown ?? 0,
     refresh: fetchLeaderboard,
   }
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useRealtimeLeaderboard, useRealtimePrice, useTimeSince, useRealtime } from '@/hooks/useRealtime'
 import { AnimatedNumber, Countdown, PriceTicker } from '@/components/ui/AnimatedNumber'
 import { LeaderboardCardSkeleton, TableRowSkeleton } from '@/components/ui/Skeleton'
@@ -271,24 +271,21 @@ export default function LeaderboardPage() {
 
           {top3.length > 0 ? (
             <div className="grid md:grid-cols-3 gap-6">
-              <AnimatePresence>
-                {top3.map((winner: Winner, idx: number) => {
-                  const style = getRankStyle(idx + 1)
-                  const isEligible = winner.is_eligible !== false
-                  // After 5% dev fee: 80% of 95% = 76%, 15% of 95% = 14.25%, 5% of 95% = 4.75%
-                  const payoutPct = isEligible ? (idx === 0 ? 0.76 : idx === 1 ? 0.1425 : 0.0475) : 0
-                  const payoutAmount = poolValue * payoutPct
+              {top3.map((winner: Winner, idx: number) => {
+                const style = getRankStyle(idx + 1)
+                const isEligible = winner.is_eligible !== false
+                // After 5% dev fee: 80% of 95% = 76%, 15% of 95% = 14.25%, 5% of 95% = 4.75%
+                const payoutPct = isEligible ? (idx === 0 ? 0.76 : idx === 1 ? 0.1425 : 0.0475) : 0
+                const payoutAmount = poolValue * payoutPct
 
-                  return (
-                    <motion.div
-                      key={winner.wallet}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ delay: idx * 0.1 }}
-                      whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                      className={`relative bg-[#0a0a10] border ${style.border} rounded-2xl p-6 ${style.glow} overflow-hidden ${!isEligible ? 'opacity-70' : ''}`}
-                    >
+                return (
+                  <motion.div
+                    key={`position-${idx}`}
+                    initial={false}
+                    animate={{ opacity: 1, y: 0 }}
+                    whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                    className={`relative bg-[#0a0a10] border ${style.border} rounded-2xl p-6 ${style.glow} overflow-hidden ${!isEligible ? 'opacity-70' : ''}`}
+                  >
                       {/* Rank badge */}
                       {idx === 0 && isEligible && (
                         <div className="absolute top-0 right-0">
@@ -355,10 +352,9 @@ export default function LeaderboardPage() {
                           <span className="text-emerald-400 font-bold">{idx === 0 ? '76%' : idx === 1 ? '14.25%' : '4.75%'}</span>
                         </div>
                       </div>
-                    </motion.div>
-                  )
-                })}
-              </AnimatePresence>
+                  </motion.div>
+                )
+              })}
             </div>
           ) : (
             <motion.div
@@ -443,10 +439,9 @@ export default function LeaderboardPage() {
 
                   return (
                     <motion.tr
-                      key={holder.wallet}
-                      initial={{ opacity: 0, x: -20 }}
+                      key={`row-${idx}`}
+                      initial={false}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.03 }}
                       className={`border-b border-white/5 hover:bg-white/5 transition-colors ${!isEligible ? 'opacity-60' : ''}`}
                     >
                       <td className="px-6 py-4">
