@@ -5,7 +5,7 @@ import { initializeTracker, getTrackerStatus } from '@/lib/tracker/init'
 import { loadRankingsFromDb, saveRankingsToDb, getServiceStatus } from '@/lib/tracker/holderService'
 import { config } from '@/lib/config'
 import { getPayoutWalletBalance } from '@/lib/solana/transfer'
-import { executePayout, canExecutePayout, getSecondsUntilNextPayout, getCurrentPayoutCycle, ensureTimerStateSync, resetTimerForNextInterval } from '@/lib/payout/executor'
+import { executePayout, isPayoutDue, getSecondsUntilNextPayout, getCurrentPayoutCycle, ensureTimerStateSync } from '@/lib/payout/executor'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,28 +54,11 @@ export async function GET(request: NextRequest) {
 
     // Auto-trigger payout when timer hits 0
     const secondsUntil = getSecondsUntilNextPayout()
-    console.log(`[Leaderboard] Timer check: ${secondsUntil}s remaining, pool: ${poolSol.toFixed(6)} SOL`)
     
-    if (secondsUntil <= 0) {
-      console.log(`[Leaderboard] Timer at 0! Checking if can execute payout...`)
-      const canPay = canExecutePayout()
-      console.log(`[Leaderboard] canExecutePayout: ${canPay}`)
-      
-      if (canPay) {
-        console.log(`[Leaderboard] Executing payout...`)
-        const payoutResult = await executePayout()
-        console.log(`[Leaderboard] Payout result:`, JSON.stringify(payoutResult, null, 2))
-        
-        if (payoutResult.success) {
-          console.log(`[Leaderboard] ✅ Payout executed: cycle ${payoutResult.cycle}`)
-          await saveRankingsToDb()
-        } else {
-          console.log(`[Leaderboard] ❌ Payout failed: ${payoutResult.error}`)
-        }
-      } else {
-        console.log(`[Leaderboard] Cannot execute payout - resetting timer`)
-        await resetTimerForNextInterval()
-      }
+    if (isPayoutDue()) {
+      console.log(`[Leaderboard] ⏰ Timer at 0 - executing payout`)
+      const payoutResult = await executePayout()
+      console.log(`[Leaderboard] Payout complete: ${payoutResult.success ? '✅' : '❌'} ${payoutResult.error || ''}`)
     }
 
     // CRITICAL: Load rankings from DATABASE (not in-memory)

@@ -1,16 +1,8 @@
 /**
  * Payout Executor - Simple, direct payout logic
- * NO snapshots, NO cron, NO mock data
  * 
- * Flow:
- * 1. Timer hits 0
- * 2. Fetch holders from blockchain
- * 3. Calculate VWAPs and rankings in real-time
- * 4. Send SOL to top 3 losers + dev fee
- * 5. Save results to DB with real tx hashes
- * 
- * IMPORTANT: All timer state is stored in MongoDB to ensure consistency
- * across Vercel serverless function instances (no in-memory state drift)
+ * SIMPLIFIED: No locks, no retry attempts, no complex state
+ * Either the payout works or it doesn't - move to next cycle either way
  */
 
 import connectDB from '@/lib/db'
@@ -20,26 +12,8 @@ import { getSolPrice } from '@/lib/solana/price'
 import { config } from '@/lib/config'
 import { getRankedLosers, getServiceStatus, saveRankingsToDb } from '@/lib/tracker/holderService'
 
-// In-memory cache for timer state (refreshed from DB on each request)
-// These are ONLY used as a cache - database is the source of truth
-// lastDbSync = 0 means we need to sync from DB before using these values
-let cachedTimerState: {
-  lastPayoutTime: number
-  currentCycle: number
-  failedAttempts: number
-  isPayoutInProgress: boolean
-  lastDbSync: number
-} = {
-  lastPayoutTime: 0, // Will be set from DB on first sync
-  currentCycle: 0,
-  failedAttempts: 0,
-  isPayoutInProgress: false,
-  lastDbSync: 0, // 0 = needs sync from DB
-}
-
-// How often to refresh from DB (5 seconds - balance between consistency and performance)
-const DB_SYNC_INTERVAL = 5000
-const MAX_ATTEMPTS_PER_INTERVAL = 3
+// Minimum SOL for transfer (rent exemption requirement)
+const MIN_TRANSFER_SOL = 0.001
 
 // Helper to generate Solscan link
 function getSolscanLink(txHash: string | null): string | null {
@@ -56,28 +30,29 @@ export interface PayoutResult {
   data?: any
 }
 
+// Timer state from database
+let timerCache: {
+  lastPayoutTime: number
+  currentCycle: number
+  lastSync: number
+} = {
+  lastPayoutTime: 0,
+  currentCycle: 0,
+  lastSync: 0,
+}
+
 /**
- * Sync timer state from MongoDB (source of truth for serverless consistency)
- * This ensures all Vercel instances see the same timer state
- * NOTE: Does NOT auto-reset timer - that happens after payout attempt
+ * Load timer state from database
  */
-async function syncTimerStateFromDb(): Promise<void> {
-  const now = Date.now()
-  
-  // Only sync if we haven't synced recently (performance optimization)
-  // BUT always sync on first call (lastDbSync === 0)
-  if (cachedTimerState.lastDbSync > 0 && now - cachedTimerState.lastDbSync < DB_SYNC_INTERVAL) {
-    return
-  }
-  
+async function loadTimerState(): Promise<void> {
   try {
     await connectDB()
     
-    // Get or create timer state
-    let timerState = await TimerState.findOne({ key: 'payout_timer' }).lean()
+    let state = await TimerState.findOne({ key: 'payout_timer' }).lean()
     
-    if (!timerState) {
-      // First time - set lastPayoutTime to NOW so timer starts fresh
+    if (!state) {
+      // Create initial state
+      const now = Date.now()
       await TimerState.create({
         key: 'payout_timer',
         lastPayoutTime: new Date(now),
@@ -85,189 +60,152 @@ async function syncTimerStateFromDb(): Promise<void> {
         failedAttempts: 0,
         isPayoutInProgress: false,
       })
-      
-      cachedTimerState = {
-        lastPayoutTime: now,
-        currentCycle: 0,
-        failedAttempts: 0,
-        isPayoutInProgress: false,
-        lastDbSync: now,
-      }
-      
-      console.log(`[Payout] Timer state initialized: starting fresh, ${config.payoutIntervalMinutes} min until first payout`)
+      timerCache = { lastPayoutTime: now, currentCycle: 0, lastSync: now }
+      console.log(`[Payout] Timer initialized: ${config.payoutIntervalMinutes} min until first payout`)
     } else {
-      // Load from existing timer state (don't modify, just load)
-      cachedTimerState = {
-        lastPayoutTime: new Date(timerState.lastPayoutTime).getTime(),
-        currentCycle: timerState.currentCycle,
-        failedAttempts: timerState.failedAttempts,
-        isPayoutInProgress: timerState.isPayoutInProgress,
-        lastDbSync: now,
+      timerCache = {
+        lastPayoutTime: new Date(state.lastPayoutTime).getTime(),
+        currentCycle: state.currentCycle || 0,
+        lastSync: Date.now(),
       }
     }
   } catch (error) {
-    console.error('[Payout] Failed to sync timer state from DB:', error)
-    // Keep using cached state if DB sync fails
+    console.error('[Payout] Failed to load timer state:', error)
   }
 }
 
 /**
- * Update timer state in MongoDB
+ * Save timer state to database
  */
-async function updateTimerStateInDb(updates: {
-  lastPayoutTime?: number
-  currentCycle?: number
-  failedAttempts?: number
-  isPayoutInProgress?: boolean
-}): Promise<void> {
+async function saveTimerState(lastPayoutTime: number, currentCycle: number): Promise<void> {
   try {
-    const dbUpdates: any = { updatedAt: new Date() }
-    
-    if (updates.lastPayoutTime !== undefined) {
-      dbUpdates.lastPayoutTime = new Date(updates.lastPayoutTime)
-      cachedTimerState.lastPayoutTime = updates.lastPayoutTime
-    }
-    if (updates.currentCycle !== undefined) {
-      dbUpdates.currentCycle = updates.currentCycle
-      cachedTimerState.currentCycle = updates.currentCycle
-    }
-    if (updates.failedAttempts !== undefined) {
-      dbUpdates.failedAttempts = updates.failedAttempts
-      cachedTimerState.failedAttempts = updates.failedAttempts
-    }
-    if (updates.isPayoutInProgress !== undefined) {
-      dbUpdates.isPayoutInProgress = updates.isPayoutInProgress
-      cachedTimerState.isPayoutInProgress = updates.isPayoutInProgress
-    }
-    
     await TimerState.findOneAndUpdate(
       { key: 'payout_timer' },
-      { $set: dbUpdates },
+      { 
+        $set: { 
+          lastPayoutTime: new Date(lastPayoutTime),
+          currentCycle: currentCycle,
+          failedAttempts: 0,
+          isPayoutInProgress: false,
+        } 
+      },
       { upsert: true }
     )
-    
-    cachedTimerState.lastDbSync = Date.now()
+    timerCache = { lastPayoutTime, currentCycle, lastSync: Date.now() }
   } catch (error) {
-    console.error('[Payout] Failed to update timer state in DB:', error)
+    console.error('[Payout] Failed to save timer state:', error)
   }
 }
 
 /**
- * Execute a payout - calculates winners in real-time and sends SOL
+ * Get seconds until next payout
+ */
+export function getSecondsUntilNextPayout(): number {
+  if (timerCache.lastPayoutTime === 0) {
+    return config.payoutIntervalMinutes * 60
+  }
+  const intervalMs = config.payoutIntervalMinutes * 60 * 1000
+  const elapsed = Date.now() - timerCache.lastPayoutTime
+  return Math.max(0, Math.floor((intervalMs - elapsed) / 1000))
+}
+
+/**
+ * Get current cycle number
+ */
+export function getCurrentPayoutCycle(): number {
+  return timerCache.currentCycle
+}
+
+/**
+ * Sync timer state from database
+ */
+export async function ensureTimerStateSync(): Promise<void> {
+  // Only sync every 5 seconds
+  if (Date.now() - timerCache.lastSync < 5000 && timerCache.lastSync > 0) {
+    return
+  }
+  await loadTimerState()
+}
+
+/**
+ * Reset timer for next interval
+ */
+export async function resetTimerForNextInterval(): Promise<void> {
+  const now = Date.now()
+  await saveTimerState(now, timerCache.currentCycle)
+  console.log(`[Payout] Timer reset for next interval (${config.payoutIntervalMinutes} min)`)
+}
+
+/**
+ * Check if timer has elapsed (simple check, no locks)
+ */
+export function isPayoutDue(): boolean {
+  const secondsUntil = getSecondsUntilNextPayout()
+  return secondsUntil <= 0
+}
+
+/**
+ * Execute a payout - SIMPLE VERSION
+ * No locks, no retry tracking - just try once and move on
  */
 export async function executePayout(): Promise<PayoutResult> {
+  const now = Date.now()
+  const nextCycle = timerCache.currentCycle + 1
+  
+  console.log(`[Payout] ========== STARTING PAYOUT CYCLE ${nextCycle} ==========`)
+  
   try {
     await connectDB()
     
-    // Sync timer state from DB FIRST (source of truth)
-    await syncTimerStateFromDb()
-    
-    // MUTEX LOCK using DB state
-    if (cachedTimerState.isPayoutInProgress) {
-    return { success: false, error: 'Payout already in progress' }
-  }
-  
-    // Mark as in progress in DB (prevents other instances from starting)
-    await updateTimerStateInDb({ isPayoutInProgress: true })
-    
-    const now = Date.now()
-    const intervalMs = config.payoutIntervalMinutes * 60 * 1000
-    
-    // Calculate the current interval window
-    const intervalStart = Math.floor(now / intervalMs) * intervalMs
-    
-    // CHECK DATABASE for existing payout in this interval
-    const existingPayout = await Payout.findOne({
-      createdAt: { $gte: new Date(intervalStart) }
-    }).lean()
-    
-    if (existingPayout) {
-      console.log(`[Payout] Already paid this interval (cycle ${existingPayout.cycle})`)
-      await updateTimerStateInDb({ isPayoutInProgress: false })
-      return { success: false, error: 'Already paid this interval' }
-    }
-    
-    // If a full interval has passed, reset attempt counter
-    if (now - cachedTimerState.lastPayoutTime >= intervalMs) {
-      await updateTimerStateInDb({ failedAttempts: 0 })
-    }
-    
-    // RETRY LIMIT - max 3 attempts per interval
-    if (cachedTimerState.failedAttempts >= MAX_ATTEMPTS_PER_INTERVAL) {
-      await updateTimerStateInDb({ isPayoutInProgress: false })
-      return { success: false, error: `Max ${MAX_ATTEMPTS_PER_INTERVAL} attempts reached. Waiting for next interval.` }
-    }
-    
-    await updateTimerStateInDb({ failedAttempts: cachedTimerState.failedAttempts + 1 })
-    
-    // Check if service has holder data
-    // NOTE: Don't count this as a failed attempt - just not ready yet
+    // Check if holder service has data
     const status = getServiceStatus()
+    console.log(`[Payout] Service status: initialized=${status.initialized}, holders=${status.holderCount}`)
+    
     if (!status.initialized || status.holderCount === 0) {
-      // Decrement the failed attempt counter since this isn't a real failure
-      await updateTimerStateInDb({ 
-        isPayoutInProgress: false,
-        failedAttempts: Math.max(0, cachedTimerState.failedAttempts - 1)
-      })
-      return { success: false, error: 'Holder service not ready. Waiting for data...' }
+      console.log(`[Payout] Service not ready - skipping this cycle`)
+      await saveTimerState(now, nextCycle)
+      return { success: false, error: 'Service not ready' }
     }
-    
-    console.log(`[Payout] Starting payout cycle ${cachedTimerState.currentCycle + 1} (attempt ${cachedTimerState.failedAttempts}/${MAX_ATTEMPTS_PER_INTERVAL})`)
-    console.log(`[Payout] Execute transfers: ${config.executePayouts}`)
 
-    // 1. Get SOL price
-    const solPrice = await getSolPrice() || 200
-    console.log(`[Payout] SOL Price: $${solPrice}`)
+    // Get SOL price
+    const solPrice = await getSolPrice() || 220
+    console.log(`[Payout] SOL price: $${solPrice}`)
 
-    // 2. Get wallet balance and calculate pool (99% of balance)
+    // Get wallet balance
     const walletBalance = await getPayoutWalletBalance()
-    if (!walletBalance || walletBalance.sol <= 0) {
-      await updateTimerStateInDb({ isPayoutInProgress: false })
-      return { success: false, error: 'Payout wallet has no balance' }
-    }
+    const walletSol = walletBalance?.sol || 0
+    console.log(`[Payout] Wallet balance: ${walletSol.toFixed(6)} SOL`)
     
-    // Pool = 99% of wallet balance (keep 1% for rent/fees)
-    const poolSol = walletBalance.sol * config.poolPercentage
-    const poolUsd = poolSol * solPrice
-    
-    console.log(`[Payout] Wallet: ${walletBalance.sol.toFixed(6)} SOL`)
-    console.log(`[Payout] Pool (${config.poolPercentage * 100}%): ${poolSol.toFixed(6)} SOL ($${poolUsd.toFixed(2)})`)
-    
-    // Check minimum pool threshold
-    if (poolSol < config.minPoolSol) {
-      await updateTimerStateInDb({ isPayoutInProgress: false })
-      return { 
-        success: false, 
-        error: `Pool ${poolSol.toFixed(6)} SOL below minimum ${config.minPoolSol} SOL` 
-      }
+    if (walletSol <= 0) {
+      console.log(`[Payout] No balance - skipping`)
+      await saveTimerState(now, nextCycle)
+      return { success: false, error: 'No wallet balance' }
     }
 
-    // 3. Get ranked losers IN REAL-TIME (no snapshots!)
+    // Calculate pool (99% of wallet)
+    const poolSol = walletSol * config.poolPercentage
+    const poolUsd = poolSol * solPrice
+    console.log(`[Payout] Pool: ${poolSol.toFixed(6)} SOL ($${poolUsd.toFixed(2)})`)
+
+    // Check minimum pool
+    if (poolSol < config.minPoolSol) {
+      console.log(`[Payout] Pool below minimum ${config.minPoolSol} SOL - skipping`)
+      await saveTimerState(now, nextCycle)
+      return { success: false, error: `Pool below minimum` }
+    }
+
+    // Get eligible winners
     const rankedLosers = getRankedLosers()
     const eligibleWinners = rankedLosers.filter(h => h.isEligible).slice(0, 3)
+    console.log(`[Payout] Eligible winners: ${eligibleWinners.length}`)
 
     if (eligibleWinners.length === 0) {
-      console.log('[Payout] No eligible winners')
-      const newCycle = cachedTimerState.currentCycle + 1
-      await updateTimerStateInDb({ 
-        currentCycle: newCycle, 
-        lastPayoutTime: now, 
-        isPayoutInProgress: false,
-        failedAttempts: 0 
-      })
-      return { 
-        success: true, 
-        cycle: newCycle,
-        data: { skipped: true, reason: 'No eligible winners', eligible_count: 0 } 
-      }
+      console.log(`[Payout] No eligible winners - skipping`)
+      await saveTimerState(now, nextCycle)
+      return { success: true, cycle: nextCycle, data: { skipped: true, reason: 'No eligible winners' } }
     }
 
-    console.log(`[Payout] Found ${eligibleWinners.length} eligible winners`)
-
-    // 5. Calculate amounts
-    // Minimum SOL for transfer (rent exemption requirement)
-    const MIN_TRANSFER_SOL = 0.001
-    
+    // Calculate amounts
     const devFeeSol = poolSol * config.devFeePct
     const winnersPoolSol = poolSol - devFeeSol
     const payoutAmounts = [
@@ -278,17 +216,16 @@ export async function executePayout(): Promise<PayoutResult> {
 
     const results: any[] = []
     let totalPaidSol = 0
-    const cycle = cachedTimerState.currentCycle + 1
 
-    // 6. Pay dev fee FIRST (only if above minimum)
-    if (config.devWalletAddress && config.executePayouts) {
-      if (devFeeSol >= MIN_TRANSFER_SOL) {
-      console.log(`[Payout] Dev fee: ${devFeeSol.toFixed(6)} SOL -> ${config.devWalletAddress.slice(0, 8)}...`)
+    // Pay dev fee (if above minimum)
+    if (config.devWalletAddress && config.executePayouts && devFeeSol >= MIN_TRANSFER_SOL) {
+      console.log(`[Payout] Sending dev fee: ${devFeeSol.toFixed(6)} SOL to ${config.devWalletAddress.slice(0, 8)}...`)
       
       const devResult = await transferSol(config.devWalletAddress, devFeeSol)
+      console.log(`[Payout] Dev fee result: ${devResult.success ? '✅' : '❌'} ${devResult.txHash || devResult.error}`)
       
       await Payout.create({
-        cycle,
+        cycle: nextCycle,
         rank: 0,
         wallet: config.devWalletAddress,
         amount: devFeeSol * solPrice,
@@ -300,60 +237,42 @@ export async function executePayout(): Promise<PayoutResult> {
         errorMessage: devResult.error,
       })
 
+      if (devResult.success) totalPaidSol += devFeeSol
+      
       results.push({
         rank: 0,
         type: 'dev_fee',
         wallet: config.devWalletAddress,
-        wallet_display: `${config.devWalletAddress.slice(0, 4)}...${config.devWalletAddress.slice(-4)}`,
         amount_sol: devFeeSol.toFixed(6),
-        amount_usd: (devFeeSol * solPrice).toFixed(2),
-        tx_hash: devResult.txHash,
-        solscan_url: getSolscanLink(devResult.txHash),
         status: devResult.success ? 'success' : 'failed',
+        tx_hash: devResult.txHash,
         error: devResult.error,
       })
-
-      if (devResult.success) {
-        totalPaidSol += devFeeSol
-        console.log(`[Payout] Dev fee: ✅ ${devResult.txHash}`)
-      } else {
-        console.log(`[Payout] Dev fee: ❌ ${devResult.error}`)
-        }
-      } else {
-        console.log(`[Payout] Dev fee skipped: ${devFeeSol.toFixed(6)} SOL below minimum ${MIN_TRANSFER_SOL} SOL`)
-      }
     }
 
-    // 7. Pay winners (only amounts above minimum)
+    // Pay winners
     for (let i = 0; i < eligibleWinners.length; i++) {
       const winner = eligibleWinners[i]
       const amountSol = payoutAmounts[i]
-      const amountUsd = amountSol * solPrice
 
-      // Skip if amount is below minimum
       if (amountSol < MIN_TRANSFER_SOL) {
-        console.log(`[Payout] #${i + 1}: Skipped - ${amountSol.toFixed(6)} SOL below minimum ${MIN_TRANSFER_SOL} SOL`)
+        console.log(`[Payout] #${i + 1}: Skipped - ${amountSol.toFixed(6)} SOL below minimum`)
         continue
       }
 
-      console.log(`[Payout] #${i + 1}: ${winner.wallet.slice(0, 8)}... | ${amountSol.toFixed(6)} SOL | ${winner.drawdownPct.toFixed(1)}% down`)
+      console.log(`[Payout] #${i + 1}: Sending ${amountSol.toFixed(6)} SOL to ${winner.wallet.slice(0, 8)}...`)
+      
+      const txResult = config.executePayouts 
+        ? await transferSol(winner.wallet, amountSol)
+        : { success: false, txHash: null, error: 'EXECUTE_PAYOUTS disabled' }
+      
+      console.log(`[Payout] #${i + 1} result: ${txResult.success ? '✅' : '❌'} ${txResult.txHash || txResult.error}`)
 
-      let txResult: { success: boolean; txHash: string | null; error: string | null }
-
-      if (config.executePayouts) {
-        txResult = await transferSol(winner.wallet, amountSol)
-      } else {
-        // NOT executing - this should NOT happen in production
-        console.warn('[Payout] ⚠️ EXECUTE_PAYOUTS is false - no transfer made')
-        txResult = { success: false, txHash: null, error: 'EXECUTE_PAYOUTS is false' }
-      }
-
-      // Save to DB with REAL data
       await Payout.create({
-        cycle,
+        cycle: nextCycle,
         rank: i + 1,
         wallet: winner.wallet,
-        amount: amountUsd,
+        amount: amountSol * solPrice,
         amountTokens: amountSol,
         drawdownPct: winner.drawdownPct,
         lossUsd: winner.lossUsd,
@@ -362,162 +281,59 @@ export async function executePayout(): Promise<PayoutResult> {
         errorMessage: txResult.error,
       })
 
-      results.push({
-        rank: i + 1,
-        wallet: winner.wallet,
-        wallet_display: `${winner.wallet.slice(0, 4)}...${winner.wallet.slice(-4)}`,
-        amount_sol: amountSol.toFixed(6),
-        amount_usd: amountUsd.toFixed(2),
-        drawdown_pct: winner.drawdownPct.toFixed(2),
-        loss_usd: winner.lossUsd.toFixed(2),
-        tx_hash: txResult.txHash,
-        solscan_url: getSolscanLink(txResult.txHash),
-        status: txResult.success ? 'success' : 'failed',
-        error: txResult.error,
-      })
-
       if (txResult.success) {
         totalPaidSol += amountSol
-        console.log(`[Payout] #${i + 1}: ✅ ${txResult.txHash}`)
-
+        
         // Winner cooldown
         await Disqualification.create({
           wallet: winner.wallet,
           reason: 'winner_cooldown',
           expiresAt: new Date(Date.now() + config.payoutIntervalMinutes * 60 * 1000 * 2),
-        })
+        }).catch(() => {})
 
         await Holder.findOneAndUpdate(
           { wallet: winner.wallet },
-          { lastWinCycle: cycle, updatedAt: new Date() }
-        )
-      } else {
-        console.log(`[Payout] #${i + 1}: ❌ ${txResult.error}`)
+          { lastWinCycle: nextCycle, updatedAt: new Date() }
+        ).catch(() => {})
       }
+
+      results.push({
+        rank: i + 1,
+        wallet: winner.wallet,
+        amount_sol: amountSol.toFixed(6),
+        status: txResult.success ? 'success' : 'failed',
+        tx_hash: txResult.txHash,
+        error: txResult.error,
+      })
     }
 
-    // Update state in DB - success resets everything
-    await updateTimerStateInDb({ 
-      currentCycle: cycle, 
-      lastPayoutTime: now, 
-      failedAttempts: 0, 
-      isPayoutInProgress: false 
-    })
+    // Save timer state (always move to next cycle)
+    await saveTimerState(now, nextCycle)
     
-    // Save updated rankings to DB (winners now have cooldown)
+    // Save updated rankings
     await saveRankingsToDb()
 
-    const totalPaidUsd = totalPaidSol * solPrice
-    console.log(`[Payout] ✅ Cycle ${cycle} complete | ${totalPaidSol.toFixed(6)} SOL ($${totalPaidUsd.toFixed(2)})`)
+    console.log(`[Payout] ========== CYCLE ${nextCycle} COMPLETE: ${totalPaidSol.toFixed(6)} SOL paid ==========`)
 
     return {
       success: true,
-      cycle,
+      cycle: nextCycle,
       data: {
-        cycle,
-        network: process.env.SOLANA_NETWORK || 'mainnet',
-        sol_price: solPrice,
-        pool_sol: poolSol.toFixed(6),
-        pool_usd: poolUsd.toFixed(2),
+        cycle: nextCycle,
         total_paid_sol: totalPaidSol.toFixed(6),
-        total_paid_usd: totalPaidUsd.toFixed(2),
-        winners_count: eligibleWinners.length,
+        total_paid_usd: (totalPaidSol * solPrice).toFixed(2),
         payouts: results,
       },
     }
   } catch (error: any) {
-    console.error('[Payout] Error:', error)
-    // Make sure to release the lock on error
-    await updateTimerStateInDb({ isPayoutInProgress: false }).catch(() => {})
-    return { success: false, error: error.message || 'Payout failed' }
+    console.error(`[Payout] ERROR:`, error)
+    // Still advance the cycle on error
+    await saveTimerState(now, nextCycle)
+    return { success: false, error: error.message }
   }
 }
 
-/**
- * Can we execute a payout now?
- * Note: This uses cached state - call syncTimerStateFromDb() first for accuracy
- */
+// Legacy exports for compatibility
 export function canExecutePayout(): boolean {
-  const now = Date.now()
-  const intervalMs = config.payoutIntervalMinutes * 60 * 1000
-  const elapsed = now - cachedTimerState.lastPayoutTime
-  
-  console.log(`[Payout] canExecutePayout check:`, {
-    isPayoutInProgress: cachedTimerState.isPayoutInProgress,
-    lastPayoutTime: new Date(cachedTimerState.lastPayoutTime).toISOString(),
-    elapsed: elapsed,
-    intervalMs: intervalMs,
-    failedAttempts: cachedTimerState.failedAttempts,
-    maxAttempts: MAX_ATTEMPTS_PER_INTERVAL,
-  })
-  
-  if (cachedTimerState.isPayoutInProgress) {
-    console.log(`[Payout] Cannot execute: payout already in progress`)
-    return false
-  }
-  
-  // Must wait for full interval to pass
-  if (elapsed < intervalMs - 5000) { // 5 second buffer
-    console.log(`[Payout] Cannot execute: not enough time elapsed (${elapsed}ms < ${intervalMs - 5000}ms)`)
-    return false
-  }
-  
-  // Check if we've maxed out attempts this interval
-  if (cachedTimerState.failedAttempts >= MAX_ATTEMPTS_PER_INTERVAL) {
-    console.log(`[Payout] Cannot execute: max attempts reached (${cachedTimerState.failedAttempts}/${MAX_ATTEMPTS_PER_INTERVAL})`)
-    return false
-  }
-  
-  return true
-}
-
-/**
- * Get current cycle number
- * Note: This uses cached state - call syncTimerStateFromDb() first for accuracy
- */
-export function getCurrentPayoutCycle(): number {
-  return cachedTimerState.currentCycle
-}
-
-/**
- * Get seconds until next payout allowed
- * Note: This uses cached state - call ensureTimerStateSync() first for accuracy
- */
-export function getSecondsUntilNextPayout(): number {
-  // If not synced yet (lastPayoutTime is 0), return full interval
-  // This will be corrected once DB sync completes
-  if (cachedTimerState.lastPayoutTime === 0) {
-    return config.payoutIntervalMinutes * 60
-  }
-  
-  const intervalMs = config.payoutIntervalMinutes * 60 * 1000
-  const elapsed = Date.now() - cachedTimerState.lastPayoutTime
-  return Math.max(0, Math.floor((intervalMs - elapsed) / 1000))
-}
-
-/**
- * Sync timer state from database
- * Call this before using getSecondsUntilNextPayout or getCurrentPayoutCycle
- * for accurate cross-instance consistency
- */
-export async function ensureTimerStateSync(): Promise<void> {
-  await syncTimerStateFromDb()
-}
-
-/**
- * Reset timer for next interval
- * Call this when timer is at 0 but payout can't execute (e.g., max attempts reached)
- * This prevents the UI from being stuck at 0:00
- */
-export async function resetTimerForNextInterval(): Promise<void> {
-  const now = Date.now()
-  
-  // Reset to current time so a new interval starts
-  await updateTimerStateInDb({
-    lastPayoutTime: now,
-    failedAttempts: 0,
-    isPayoutInProgress: false,
-  })
-  
-  console.log(`[Payout] Timer reset for next interval (${config.payoutIntervalMinutes} min)`)
+  return isPayoutDue()
 }
