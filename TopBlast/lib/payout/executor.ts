@@ -59,7 +59,7 @@ export interface PayoutResult {
 /**
  * Sync timer state from MongoDB (source of truth for serverless consistency)
  * This ensures all Vercel instances see the same timer state
- * Also handles timer reset when interval has passed
+ * NOTE: Does NOT auto-reset timer - that happens after payout attempt
  */
 async function syncTimerStateFromDb(): Promise<void> {
   const now = Date.now()
@@ -75,11 +75,9 @@ async function syncTimerStateFromDb(): Promise<void> {
     
     // Get or create timer state
     let timerState = await TimerState.findOne({ key: 'payout_timer' }).lean()
-    const intervalMs = config.payoutIntervalMinutes * 60 * 1000
     
     if (!timerState) {
       // First time - set lastPayoutTime to NOW so timer starts fresh
-      // Create the timer state document
       await TimerState.create({
         key: 'payout_timer',
         lastPayoutTime: new Date(now),
@@ -98,48 +96,13 @@ async function syncTimerStateFromDb(): Promise<void> {
       
       console.log(`[Payout] Timer state initialized: starting fresh, ${config.payoutIntervalMinutes} min until first payout`)
     } else {
-      // Load from existing timer state
-      const lastPayoutTime = new Date(timerState.lastPayoutTime).getTime()
-      const elapsed = now - lastPayoutTime
-      
-      // If more than one interval has passed, reset the timer to start a new interval
-      // This prevents the timer from being stuck at 0 indefinitely
-      if (elapsed >= intervalMs) {
-        // Calculate how many intervals have passed and set to start of current interval
-        const intervalsPassed = Math.floor(elapsed / intervalMs)
-        const newLastPayoutTime = lastPayoutTime + (intervalsPassed * intervalMs)
-        
-        // Update DB with new timer start
-        await TimerState.findOneAndUpdate(
-          { key: 'payout_timer' },
-          { 
-            $set: { 
-              lastPayoutTime: new Date(newLastPayoutTime),
-              failedAttempts: 0,
-              isPayoutInProgress: false,
-              updatedAt: new Date()
-            } 
-          }
-        )
-        
-        cachedTimerState = {
-          lastPayoutTime: newLastPayoutTime,
-          currentCycle: timerState.currentCycle,
-          failedAttempts: 0,
-          isPayoutInProgress: false,
-          lastDbSync: now,
-        }
-        
-        const secondsRemaining = Math.floor((intervalMs - (now - newLastPayoutTime)) / 1000)
-        console.log(`[Payout] Timer reset (${intervalsPassed} intervals passed), ${secondsRemaining}s until next payout`)
-      } else {
-        cachedTimerState = {
-          lastPayoutTime: lastPayoutTime,
-          currentCycle: timerState.currentCycle,
-          failedAttempts: timerState.failedAttempts,
-          isPayoutInProgress: timerState.isPayoutInProgress,
-          lastDbSync: now,
-        }
+      // Load from existing timer state (don't modify, just load)
+      cachedTimerState = {
+        lastPayoutTime: new Date(timerState.lastPayoutTime).getTime(),
+        currentCycle: timerState.currentCycle,
+        failedAttempts: timerState.failedAttempts,
+        isPayoutInProgress: timerState.isPayoutInProgress,
+        lastDbSync: now,
       }
     }
   } catch (error) {
@@ -502,4 +465,22 @@ export function getSecondsUntilNextPayout(): number {
  */
 export async function ensureTimerStateSync(): Promise<void> {
   await syncTimerStateFromDb()
+}
+
+/**
+ * Reset timer for next interval
+ * Call this when timer is at 0 but payout can't execute (e.g., max attempts reached)
+ * This prevents the UI from being stuck at 0:00
+ */
+export async function resetTimerForNextInterval(): Promise<void> {
+  const now = Date.now()
+  
+  // Reset to current time so a new interval starts
+  await updateTimerStateInDb({
+    lastPayoutTime: now,
+    failedAttempts: 0,
+    isPayoutInProgress: false,
+  })
+  
+  console.log(`[Payout] Timer reset for next interval (${config.payoutIntervalMinutes} min)`)
 }

@@ -15,7 +15,7 @@ import {
 } from '@/lib/tracker/holderService'
 import { config } from '@/lib/config'
 import { getPayoutWalletBalance } from '@/lib/solana/transfer'
-import { executePayout, canExecutePayout, getSecondsUntilNextPayout, getCurrentPayoutCycle, ensureTimerStateSync } from '@/lib/payout/executor'
+import { executePayout, canExecutePayout, getSecondsUntilNextPayout, getCurrentPayoutCycle, ensureTimerStateSync, resetTimerForNextInterval } from '@/lib/payout/executor'
 
 export const dynamic = 'force-dynamic'
 
@@ -101,13 +101,19 @@ export async function GET(request: NextRequest) {
 
     // Auto-trigger payout when timer hits 0
     const secondsUntil = getSecondsUntilNextPayout()
-    if (secondsUntil <= 0 && canExecutePayout()) {
-      const payoutResult = await executePayout()
-      if (payoutResult.success) {
-        console.log(`[Leaderboard] ✅ Payout executed: cycle ${payoutResult.cycle}`)
-      } else if (!payoutResult.error?.includes('Max')) {
-        // Only log non-retry-limit errors
-        console.log(`[Leaderboard] ❌ Payout failed: ${payoutResult.error}`)
+    if (secondsUntil <= 0) {
+      if (canExecutePayout()) {
+        const payoutResult = await executePayout()
+        if (payoutResult.success) {
+          console.log(`[Leaderboard] ✅ Payout executed: cycle ${payoutResult.cycle}`)
+        } else if (!payoutResult.error?.includes('Max')) {
+          // Only log non-retry-limit errors
+          console.log(`[Leaderboard] ❌ Payout failed: ${payoutResult.error}`)
+        }
+      } else {
+        // Can't execute payout (max attempts or already in progress)
+        // Reset timer for next interval so UI doesn't stay at 0:00
+        await resetTimerForNextInterval()
       }
     }
 
