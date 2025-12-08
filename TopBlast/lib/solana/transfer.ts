@@ -5,7 +5,6 @@ import {
   Transaction, 
   SystemProgram,
   LAMPORTS_PER_SOL,
-  sendAndConfirmTransaction
 } from '@solana/web3.js'
 import bs58 from 'bs58'
 
@@ -30,6 +29,41 @@ function getRpcUrl(): string {
   }
   
   return 'https://api.mainnet-beta.solana.com'
+}
+
+/**
+ * Wait for transaction confirmation using HTTP polling (no WebSockets)
+ * This is required for serverless environments like Vercel
+ */
+async function confirmTransactionWithPolling(
+  connection: Connection,
+  signature: string,
+  maxRetries: number = 30,
+  intervalMs: number = 1000
+): Promise<{ confirmed: boolean; error: string | null }> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const status = await connection.getSignatureStatus(signature)
+      
+      if (status?.value?.confirmationStatus === 'confirmed' || 
+          status?.value?.confirmationStatus === 'finalized') {
+        return { confirmed: true, error: null }
+      }
+      
+      if (status?.value?.err) {
+        return { confirmed: false, error: JSON.stringify(status.value.err) }
+      }
+      
+      // Wait before next poll
+      await new Promise(resolve => setTimeout(resolve, intervalMs))
+    } catch (err: any) {
+      // Network error, keep trying
+      console.log(`[Transfer] Polling attempt ${i + 1}/${maxRetries} failed: ${err.message}`)
+      await new Promise(resolve => setTimeout(resolve, intervalMs))
+    }
+  }
+  
+  return { confirmed: false, error: 'Confirmation timeout' }
 }
 
 /**
@@ -119,21 +153,42 @@ export async function transferSol(
 
     // Build transaction
     const transaction = new Transaction().add(transferInstruction)
-
-    // Send and confirm
-    const txHash = await sendAndConfirmTransaction(
-      connection,
-      transaction,
-      [payoutKeypair],
-      { commitment: 'confirmed' }
-    )
-
-    console.log(`[Transfer] ✅ Success: ${txHash}`)
     
-    return { 
-      success: true, 
-      txHash, 
-      error: null 
+    // Get recent blockhash
+    const { blockhash } = await connection.getLatestBlockhash('confirmed')
+    transaction.recentBlockhash = blockhash
+    transaction.feePayer = payoutKeypair.publicKey
+    
+    // Sign the transaction
+    transaction.sign(payoutKeypair)
+
+    // Send transaction (without WebSocket confirmation)
+    console.log(`[Transfer] Sending transaction...`)
+    const txHash = await connection.sendRawTransaction(transaction.serialize(), {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    })
+    
+    console.log(`[Transfer] Transaction sent: ${txHash}`)
+    console.log(`[Transfer] Waiting for confirmation (HTTP polling)...`)
+    
+    // Confirm using HTTP polling (no WebSockets - works in serverless)
+    const confirmation = await confirmTransactionWithPolling(connection, txHash)
+    
+    if (confirmation.confirmed) {
+      console.log(`[Transfer] ✅ Confirmed: ${txHash}`)
+      return { 
+        success: true, 
+        txHash, 
+        error: null 
+      }
+    } else {
+      console.log(`[Transfer] ❌ Confirmation failed: ${confirmation.error}`)
+      return {
+        success: false,
+        txHash,
+        error: confirmation.error || 'Transaction not confirmed',
+      }
     }
 
   } catch (error: any) {
