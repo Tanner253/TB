@@ -283,41 +283,41 @@ export async function executePayout(): Promise<PayoutResult> {
     // 6. Pay dev fee FIRST (only if above minimum)
     if (config.devWalletAddress && config.executePayouts) {
       if (devFeeSol >= MIN_TRANSFER_SOL) {
-        console.log(`[Payout] Dev fee: ${devFeeSol.toFixed(6)} SOL -> ${config.devWalletAddress.slice(0, 8)}...`)
-        
-        const devResult = await transferSol(config.devWalletAddress, devFeeSol)
-        
-        await Payout.create({
-          cycle,
-          rank: 0,
-          wallet: config.devWalletAddress,
-          amount: devFeeSol * solPrice,
-          amountTokens: devFeeSol,
-          drawdownPct: 0,
-          lossUsd: 0,
-          txHash: devResult.txHash,
-          status: devResult.success ? 'success' : 'failed',
-          errorMessage: devResult.error,
-        })
+      console.log(`[Payout] Dev fee: ${devFeeSol.toFixed(6)} SOL -> ${config.devWalletAddress.slice(0, 8)}...`)
+      
+      const devResult = await transferSol(config.devWalletAddress, devFeeSol)
+      
+      await Payout.create({
+        cycle,
+        rank: 0,
+        wallet: config.devWalletAddress,
+        amount: devFeeSol * solPrice,
+        amountTokens: devFeeSol,
+        drawdownPct: 0,
+        lossUsd: 0,
+        txHash: devResult.txHash,
+        status: devResult.success ? 'success' : 'failed',
+        errorMessage: devResult.error,
+      })
 
-        results.push({
-          rank: 0,
-          type: 'dev_fee',
-          wallet: config.devWalletAddress,
-          wallet_display: `${config.devWalletAddress.slice(0, 4)}...${config.devWalletAddress.slice(-4)}`,
-          amount_sol: devFeeSol.toFixed(6),
-          amount_usd: (devFeeSol * solPrice).toFixed(2),
-          tx_hash: devResult.txHash,
-          solscan_url: getSolscanLink(devResult.txHash),
-          status: devResult.success ? 'success' : 'failed',
-          error: devResult.error,
-        })
+      results.push({
+        rank: 0,
+        type: 'dev_fee',
+        wallet: config.devWalletAddress,
+        wallet_display: `${config.devWalletAddress.slice(0, 4)}...${config.devWalletAddress.slice(-4)}`,
+        amount_sol: devFeeSol.toFixed(6),
+        amount_usd: (devFeeSol * solPrice).toFixed(2),
+        tx_hash: devResult.txHash,
+        solscan_url: getSolscanLink(devResult.txHash),
+        status: devResult.success ? 'success' : 'failed',
+        error: devResult.error,
+      })
 
-        if (devResult.success) {
-          totalPaidSol += devFeeSol
-          console.log(`[Payout] Dev fee: ✅ ${devResult.txHash}`)
-        } else {
-          console.log(`[Payout] Dev fee: ❌ ${devResult.error}`)
+      if (devResult.success) {
+        totalPaidSol += devFeeSol
+        console.log(`[Payout] Dev fee: ✅ ${devResult.txHash}`)
+      } else {
+        console.log(`[Payout] Dev fee: ❌ ${devResult.error}`)
         }
       } else {
         console.log(`[Payout] Dev fee skipped: ${devFeeSol.toFixed(6)} SOL below minimum ${MIN_TRANSFER_SOL} SOL`)
@@ -438,19 +438,35 @@ export async function executePayout(): Promise<PayoutResult> {
  * Note: This uses cached state - call syncTimerStateFromDb() first for accuracy
  */
 export function canExecutePayout(): boolean {
-  if (cachedTimerState.isPayoutInProgress) return false
-  
   const now = Date.now()
   const intervalMs = config.payoutIntervalMinutes * 60 * 1000
   const elapsed = now - cachedTimerState.lastPayoutTime
   
+  console.log(`[Payout] canExecutePayout check:`, {
+    isPayoutInProgress: cachedTimerState.isPayoutInProgress,
+    lastPayoutTime: new Date(cachedTimerState.lastPayoutTime).toISOString(),
+    elapsed: elapsed,
+    intervalMs: intervalMs,
+    failedAttempts: cachedTimerState.failedAttempts,
+    maxAttempts: MAX_ATTEMPTS_PER_INTERVAL,
+  })
+  
+  if (cachedTimerState.isPayoutInProgress) {
+    console.log(`[Payout] Cannot execute: payout already in progress`)
+    return false
+  }
+  
   // Must wait for full interval to pass
   if (elapsed < intervalMs - 5000) { // 5 second buffer
+    console.log(`[Payout] Cannot execute: not enough time elapsed (${elapsed}ms < ${intervalMs - 5000}ms)`)
     return false
   }
   
   // Check if we've maxed out attempts this interval
-  if (cachedTimerState.failedAttempts >= MAX_ATTEMPTS_PER_INTERVAL) return false
+  if (cachedTimerState.failedAttempts >= MAX_ATTEMPTS_PER_INTERVAL) {
+    console.log(`[Payout] Cannot execute: max attempts reached (${cachedTimerState.failedAttempts}/${MAX_ATTEMPTS_PER_INTERVAL})`)
+    return false
+  }
   
   return true
 }

@@ -54,24 +54,26 @@ export async function GET(request: NextRequest) {
 
     // Auto-trigger payout when timer hits 0
     const secondsUntil = getSecondsUntilNextPayout()
+    console.log(`[Leaderboard] Timer check: ${secondsUntil}s remaining, pool: ${poolSol.toFixed(6)} SOL`)
+    
     if (secondsUntil <= 0) {
-      if (canExecutePayout()) {
+      console.log(`[Leaderboard] Timer at 0! Checking if can execute payout...`)
+      const canPay = canExecutePayout()
+      console.log(`[Leaderboard] canExecutePayout: ${canPay}`)
+      
+      if (canPay) {
+        console.log(`[Leaderboard] Executing payout...`)
         const payoutResult = await executePayout()
+        console.log(`[Leaderboard] Payout result:`, JSON.stringify(payoutResult, null, 2))
+        
         if (payoutResult.success) {
           console.log(`[Leaderboard] ✅ Payout executed: cycle ${payoutResult.cycle}`)
-          // Save updated rankings after payout
           await saveRankingsToDb()
         } else {
-          // Don't log spam for expected conditions
-          const isExpectedError = payoutResult.error?.includes('Max') || 
-                                   payoutResult.error?.includes('not ready') ||
-                                   payoutResult.error?.includes('Already paid')
-          if (!isExpectedError) {
-            console.log(`[Leaderboard] ❌ Payout failed: ${payoutResult.error}`)
-          }
+          console.log(`[Leaderboard] ❌ Payout failed: ${payoutResult.error}`)
         }
       } else {
-        // Can't execute payout - reset timer for next interval
+        console.log(`[Leaderboard] Cannot execute payout - resetting timer`)
         await resetTimerForNextInterval()
       }
     }
