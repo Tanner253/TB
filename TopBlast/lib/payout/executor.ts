@@ -10,7 +10,7 @@ import { Payout, Holder, Disqualification, TimerState } from '@/lib/db/models'
 import { transferSol, getPayoutWalletBalance } from '@/lib/solana/transfer'
 import { getSolPrice } from '@/lib/solana/price'
 import { config } from '@/lib/config'
-import { getServiceStatus, saveRankingsToDb, loadRankingsFromDb } from '@/lib/tracker/holderService'
+import { saveRankingsToDb, loadRankingsFromDb, getRankedLosers } from '@/lib/tracker/holderService'
 
 // Minimum SOL for transfer (rent exemption requirement)
 const MIN_TRANSFER_SOL = 0.001
@@ -159,16 +159,6 @@ export async function executePayout(): Promise<PayoutResult> {
   
   try {
     await connectDB()
-    
-    // Check if holder service has data
-    const status = getServiceStatus()
-    console.log(`[Payout] Service status: initialized=${status.initialized}, holders=${status.holderCount}`)
-    
-    if (!status.initialized || status.holderCount === 0) {
-      // DON'T advance cycle - wait for service to be ready
-      console.log(`[Payout] Service not ready - will retry when ready (NOT advancing cycle)`)
-      return { success: false, error: 'Service not ready' }
-    }
 
     // Get SOL price
     const solPrice = await getSolPrice() || 220
@@ -197,18 +187,29 @@ export async function executePayout(): Promise<PayoutResult> {
       return { success: false, error: `Pool below minimum` }
     }
 
-    // Get eligible winners FROM DATABASE (not in-memory!)
-    const dbRankings = await loadRankingsFromDb()
-    if (!dbRankings || dbRankings.rankings.length === 0) {
-      console.log(`[Payout] No rankings in database - skipping (will retry)`)
-      return { success: false, error: 'No rankings in database' }
+    // STEP 1: Save current rankings to DB (ensures DB is fresh)
+    console.log(`[Payout] Saving rankings to database...`)
+    await saveRankingsToDb()
+    
+    // STEP 2: Get eligible winners - try in-memory first, fall back to DB
+    let eligibleWinners: any[] = []
+    
+    // Try in-memory (fastest, already loaded since service is ready)
+    const inMemoryRankings = getRankedLosers()
+    if (inMemoryRankings.length > 0) {
+      eligibleWinners = inMemoryRankings.filter(h => h.isEligible).slice(0, 3)
+      console.log(`[Payout] Using in-memory: ${inMemoryRankings.length} total, ${eligibleWinners.length} eligible`)
+    } else {
+      // Fall back to DB
+      const dbRankings = await loadRankingsFromDb()
+      if (dbRankings && dbRankings.rankings.length > 0) {
+        eligibleWinners = dbRankings.rankings.filter((h: any) => h.isEligible).slice(0, 3)
+        console.log(`[Payout] Using database: ${dbRankings.rankings.length} total, ${eligibleWinners.length} eligible`)
+      }
     }
     
-    const eligibleWinners = dbRankings.rankings.filter((h: any) => h.isEligible).slice(0, 3)
-    console.log(`[Payout] Total in DB: ${dbRankings.rankings.length}, Eligible winners: ${eligibleWinners.length}`)
-
     if (eligibleWinners.length === 0) {
-      console.log(`[Payout] No eligible winners - skipping`)
+      console.log(`[Payout] No eligible winners - skipping (advancing to next cycle)`)
       await saveTimerState(now, nextCycle)
       return { success: true, cycle: nextCycle, data: { skipped: true, reason: 'No eligible winners' } }
     }
@@ -231,14 +232,15 @@ export async function executePayout(): Promise<PayoutResult> {
     const results: any[] = []
     let totalPaidSol = 0
 
-    // Pay dev fee (if above minimum)
+    // STEP 3: Create PENDING payout records BEFORE sending money
+    // This ensures we have a record even if DB fails after transfer
+    console.log(`[Payout] Creating pending payout records in database...`)
+    
+    const pendingPayouts: { id: any; rank: number; wallet: string; amountSol: number }[] = []
+    
+    // Dev fee record
     if (config.devWalletAddress && config.executePayouts && devFeeSol >= MIN_TRANSFER_SOL) {
-      console.log(`[Payout] Sending dev fee: ${devFeeSol.toFixed(6)} SOL to ${config.devWalletAddress.slice(0, 8)}...`)
-      
-      const devResult = await transferSol(config.devWalletAddress, devFeeSol)
-      console.log(`[Payout] Dev fee result: ${devResult.success ? '✅' : '❌'} ${devResult.txHash || devResult.error}`)
-      
-      await Payout.create({
+      const devPayout = await Payout.create({
         cycle: nextCycle,
         rank: 0,
         wallet: config.devWalletAddress,
@@ -246,43 +248,21 @@ export async function executePayout(): Promise<PayoutResult> {
         amountTokens: devFeeSol,
         drawdownPct: 0,
         lossUsd: 0,
-        txHash: devResult.txHash,
-        status: devResult.success ? 'success' : 'failed',
-        errorMessage: devResult.error,
+        txHash: null,
+        status: 'pending',
+        errorMessage: null,
       })
-
-      if (devResult.success) totalPaidSol += devFeeSol
-      
-      results.push({
-        rank: 0,
-        type: 'dev_fee',
-        wallet: config.devWalletAddress,
-        amount_sol: devFeeSol.toFixed(6),
-        status: devResult.success ? 'success' : 'failed',
-        tx_hash: devResult.txHash,
-        error: devResult.error,
-      })
+      pendingPayouts.push({ id: devPayout._id, rank: 0, wallet: config.devWalletAddress, amountSol: devFeeSol })
     }
-
-    // Pay winners
+    
+    // Winner records
     for (let i = 0; i < eligibleWinners.length; i++) {
       const winner = eligibleWinners[i]
       const amountSol = payoutAmounts[i]
-
-      if (amountSol < MIN_TRANSFER_SOL) {
-        console.log(`[Payout] #${i + 1}: Skipped - ${amountSol.toFixed(6)} SOL below minimum`)
-        continue
-      }
-
-      console.log(`[Payout] #${i + 1}: Sending ${amountSol.toFixed(6)} SOL to ${winner.wallet.slice(0, 8)}...`)
       
-      const txResult = config.executePayouts 
-        ? await transferSol(winner.wallet, amountSol)
-        : { success: false, txHash: null, error: 'EXECUTE_PAYOUTS disabled' }
+      if (amountSol < MIN_TRANSFER_SOL) continue
       
-      console.log(`[Payout] #${i + 1} result: ${txResult.success ? '✅' : '❌'} ${txResult.txHash || txResult.error}`)
-
-      await Payout.create({
+      const winnerPayout = await Payout.create({
         cycle: nextCycle,
         rank: i + 1,
         wallet: winner.wallet,
@@ -290,31 +270,59 @@ export async function executePayout(): Promise<PayoutResult> {
         amountTokens: amountSol,
         drawdownPct: winner.drawdownPct,
         lossUsd: winner.lossUsd,
+        txHash: null,
+        status: 'pending',
+        errorMessage: null,
+      })
+      pendingPayouts.push({ id: winnerPayout._id, rank: i + 1, wallet: winner.wallet, amountSol })
+    }
+    
+    console.log(`[Payout] Created ${pendingPayouts.length} pending payout records`)
+    
+    // STEP 4: Execute transfers and update records
+    for (const pending of pendingPayouts) {
+      const isDevFee = pending.rank === 0
+      const label = isDevFee ? 'Dev fee' : `#${pending.rank}`
+      
+      console.log(`[Payout] ${label}: Sending ${pending.amountSol.toFixed(6)} SOL to ${pending.wallet.slice(0, 8)}...`)
+      
+      const txResult = config.executePayouts
+        ? await transferSol(pending.wallet, pending.amountSol)
+        : { success: false, txHash: null, error: 'EXECUTE_PAYOUTS disabled' }
+      
+      console.log(`[Payout] ${label} result: ${txResult.success ? '✅' : '❌'} ${txResult.txHash || txResult.error}`)
+      
+      // Update the payout record with result
+      await Payout.findByIdAndUpdate(pending.id, {
         txHash: txResult.txHash,
         status: txResult.success ? 'success' : 'failed',
         errorMessage: txResult.error,
       })
-
+      
       if (txResult.success) {
-        totalPaidSol += amountSol
+        totalPaidSol += pending.amountSol
         
-        // Winner cooldown
-        await Disqualification.create({
-          wallet: winner.wallet,
-          reason: 'winner_cooldown',
-          expiresAt: new Date(Date.now() + config.payoutIntervalMinutes * 60 * 1000 * 2),
-        }).catch(() => {})
+        // Winner cooldown (only for winners, not dev fee)
+        if (!isDevFee) {
+          await Disqualification.create({
+            wallet: pending.wallet,
+            reason: 'winner_cooldown',
+            expiresAt: new Date(Date.now() + config.payoutIntervalMinutes * 60 * 1000 * 2),
+          }).catch(() => {})
 
-        await Holder.findOneAndUpdate(
-          { wallet: winner.wallet },
-          { lastWinCycle: nextCycle, updatedAt: new Date() }
-        ).catch(() => {})
+          await Holder.findOneAndUpdate(
+            { wallet: pending.wallet },
+            { lastWinCycle: nextCycle, updatedAt: new Date() },
+            { upsert: true }
+          ).catch(() => {})
+        }
       }
-
+      
       results.push({
-        rank: i + 1,
-        wallet: winner.wallet,
-        amount_sol: amountSol.toFixed(6),
+        rank: pending.rank,
+        type: isDevFee ? 'dev_fee' : 'winner',
+        wallet: pending.wallet,
+        amount_sol: pending.amountSol.toFixed(6),
         status: txResult.success ? 'success' : 'failed',
         tx_hash: txResult.txHash,
         error: txResult.error,

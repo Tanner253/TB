@@ -52,11 +52,12 @@ export async function GET(request: NextRequest) {
     const poolSol = walletSol * config.poolPercentage
     const poolUsd = poolSol * solPrice
 
-    // Auto-trigger payout when timer hits 0
+    // Auto-trigger payout when timer hits 0 AND service is ready
     const secondsUntil = getSecondsUntilNextPayout()
+    const serviceStatus = getServiceStatus()
     
-    if (isPayoutDue()) {
-      console.log(`[Leaderboard] ⏰ Timer at 0 - executing payout`)
+    if (isPayoutDue() && serviceStatus.initialized && serviceStatus.holderCount > 0) {
+      console.log(`[Leaderboard] ⏰ Timer at 0 & service ready - executing payout`)
       const payoutResult = await executePayout()
       console.log(`[Leaderboard] Payout complete: ${payoutResult.success ? '✅' : '❌'} ${payoutResult.error || ''}`)
     }
