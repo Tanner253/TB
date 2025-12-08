@@ -201,9 +201,14 @@ export async function executePayout(): Promise<PayoutResult> {
     await updateTimerStateInDb({ failedAttempts: cachedTimerState.failedAttempts + 1 })
     
     // Check if service has holder data
+    // NOTE: Don't count this as a failed attempt - just not ready yet
     const status = getServiceStatus()
     if (!status.initialized || status.holderCount === 0) {
-      await updateTimerStateInDb({ isPayoutInProgress: false })
+      // Decrement the failed attempt counter since this isn't a real failure
+      await updateTimerStateInDb({ 
+        isPayoutInProgress: false,
+        failedAttempts: Math.max(0, cachedTimerState.failedAttempts - 1)
+      })
       return { success: false, error: 'Holder service not ready. Waiting for data...' }
     }
     
@@ -260,6 +265,9 @@ export async function executePayout(): Promise<PayoutResult> {
     console.log(`[Payout] Found ${eligibleWinners.length} eligible winners`)
 
     // 5. Calculate amounts
+    // Minimum SOL for transfer (rent exemption requirement)
+    const MIN_TRANSFER_SOL = 0.001
+    
     const devFeeSol = poolSol * config.devFeePct
     const winnersPoolSol = poolSol - devFeeSol
     const payoutAmounts = [
@@ -272,51 +280,61 @@ export async function executePayout(): Promise<PayoutResult> {
     let totalPaidSol = 0
     const cycle = cachedTimerState.currentCycle + 1
 
-    // 6. Pay dev fee FIRST
+    // 6. Pay dev fee FIRST (only if above minimum)
     if (config.devWalletAddress && config.executePayouts) {
-      console.log(`[Payout] Dev fee: ${devFeeSol.toFixed(6)} SOL -> ${config.devWalletAddress.slice(0, 8)}...`)
-      
-      const devResult = await transferSol(config.devWalletAddress, devFeeSol)
-      
-      await Payout.create({
-        cycle,
-        rank: 0,
-        wallet: config.devWalletAddress,
-        amount: devFeeSol * solPrice,
-        amountTokens: devFeeSol,
-        drawdownPct: 0,
-        lossUsd: 0,
-        txHash: devResult.txHash,
-        status: devResult.success ? 'success' : 'failed',
-        errorMessage: devResult.error,
-      })
+      if (devFeeSol >= MIN_TRANSFER_SOL) {
+        console.log(`[Payout] Dev fee: ${devFeeSol.toFixed(6)} SOL -> ${config.devWalletAddress.slice(0, 8)}...`)
+        
+        const devResult = await transferSol(config.devWalletAddress, devFeeSol)
+        
+        await Payout.create({
+          cycle,
+          rank: 0,
+          wallet: config.devWalletAddress,
+          amount: devFeeSol * solPrice,
+          amountTokens: devFeeSol,
+          drawdownPct: 0,
+          lossUsd: 0,
+          txHash: devResult.txHash,
+          status: devResult.success ? 'success' : 'failed',
+          errorMessage: devResult.error,
+        })
 
-      results.push({
-        rank: 0,
-        type: 'dev_fee',
-        wallet: config.devWalletAddress,
-        wallet_display: `${config.devWalletAddress.slice(0, 4)}...${config.devWalletAddress.slice(-4)}`,
-        amount_sol: devFeeSol.toFixed(6),
-        amount_usd: (devFeeSol * solPrice).toFixed(2),
-        tx_hash: devResult.txHash,
-        solscan_url: getSolscanLink(devResult.txHash),
-        status: devResult.success ? 'success' : 'failed',
-        error: devResult.error,
-      })
+        results.push({
+          rank: 0,
+          type: 'dev_fee',
+          wallet: config.devWalletAddress,
+          wallet_display: `${config.devWalletAddress.slice(0, 4)}...${config.devWalletAddress.slice(-4)}`,
+          amount_sol: devFeeSol.toFixed(6),
+          amount_usd: (devFeeSol * solPrice).toFixed(2),
+          tx_hash: devResult.txHash,
+          solscan_url: getSolscanLink(devResult.txHash),
+          status: devResult.success ? 'success' : 'failed',
+          error: devResult.error,
+        })
 
-      if (devResult.success) {
-        totalPaidSol += devFeeSol
-        console.log(`[Payout] Dev fee: ✅ ${devResult.txHash}`)
+        if (devResult.success) {
+          totalPaidSol += devFeeSol
+          console.log(`[Payout] Dev fee: ✅ ${devResult.txHash}`)
+        } else {
+          console.log(`[Payout] Dev fee: ❌ ${devResult.error}`)
+        }
       } else {
-        console.log(`[Payout] Dev fee: ❌ ${devResult.error}`)
+        console.log(`[Payout] Dev fee skipped: ${devFeeSol.toFixed(6)} SOL below minimum ${MIN_TRANSFER_SOL} SOL`)
       }
     }
 
-    // 7. Pay winners
+    // 7. Pay winners (only amounts above minimum)
     for (let i = 0; i < eligibleWinners.length; i++) {
       const winner = eligibleWinners[i]
       const amountSol = payoutAmounts[i]
       const amountUsd = amountSol * solPrice
+
+      // Skip if amount is below minimum
+      if (amountSol < MIN_TRANSFER_SOL) {
+        console.log(`[Payout] #${i + 1}: Skipped - ${amountSol.toFixed(6)} SOL below minimum ${MIN_TRANSFER_SOL} SOL`)
+        continue
+      }
 
       console.log(`[Payout] #${i + 1}: ${winner.wallet.slice(0, 8)}... | ${amountSol.toFixed(6)} SOL | ${winner.drawdownPct.toFixed(1)}% down`)
 

@@ -61,8 +61,14 @@ export async function GET(request: NextRequest) {
           console.log(`[Leaderboard] ✅ Payout executed: cycle ${payoutResult.cycle}`)
           // Save updated rankings after payout
           await saveRankingsToDb()
-        } else if (!payoutResult.error?.includes('Max')) {
-          console.log(`[Leaderboard] ❌ Payout failed: ${payoutResult.error}`)
+        } else {
+          // Don't log spam for expected conditions
+          const isExpectedError = payoutResult.error?.includes('Max') || 
+                                   payoutResult.error?.includes('not ready') ||
+                                   payoutResult.error?.includes('Already paid')
+          if (!isExpectedError) {
+            console.log(`[Leaderboard] ❌ Payout failed: ${payoutResult.error}`)
+          }
         }
       } else {
         // Can't execute payout - reset timer for next interval

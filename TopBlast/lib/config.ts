@@ -15,7 +15,10 @@ export const config = {
   // Pool = 99% of payout wallet balance (keeps 1% for rent/fees)
   // This ensures we never zero out the wallet
   poolPercentage: 0.99, // Use 99% of wallet balance
-  minPoolSol: 0.001, // Minimum pool to trigger payouts
+  // Minimum pool to trigger payouts (ensures all transfers are above 0.001 SOL minimum)
+  // 0.025 SOL ensures even 3rd place (4.75%) gets 0.00119 SOL
+  // Default ~$5.50 at $220/SOL - low for testing, set MIN_POOL_SOL higher for production
+  minPoolSol: parseFloat(process.env.MIN_POOL_SOL || '0.025'),
   
   poolBalanceUsd: parseFloat(process.env.POOL_BALANCE_USD || '500'),
   poolBalanceTokens: parseInt(process.env.POOL_BALANCE_TOKENS || '1000000000'),
