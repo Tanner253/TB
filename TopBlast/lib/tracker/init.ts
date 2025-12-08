@@ -64,7 +64,11 @@ async function doInitialize(): Promise<void> {
   try {
     // Pre-fetch SOL price for VWAP calculations
     const solPrice = await getSolPrice()
-    console.log(`[Tracker] SOL price cached: $${solPrice}`)
+    if (solPrice) {
+      console.log(`[Tracker] SOL price: $${solPrice.toFixed(2)}`)
+    } else {
+      console.warn('[Tracker] ⚠️ Could not fetch SOL price - USD values may be inaccurate')
+    }
 
     // Initialize holder service (loads all existing holders with VWAPs)
     console.log('[Tracker] Initializing holder service...')

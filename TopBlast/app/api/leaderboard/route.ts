@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { formatPrice, formatUsd } from '@/lib/solana/price'
+import { formatPrice, formatUsd, getSolPrice } from '@/lib/solana/price'
 import { formatWallet } from '@/lib/solana/holders'
 import { 
   initializeTracker, 
@@ -13,14 +13,9 @@ import {
   getServiceStatus,
   getHoldersWithRealVwapCount,
 } from '@/lib/tracker/holderService'
-import {
-  checkAndExecutePayout,
-  getSecondsUntilPayout,
-  getNextPayoutTime,
-  getCurrentCycle,
-  getLastPayout,
-} from '@/lib/tracker/payoutService'
 import { config } from '@/lib/config'
+import { getPayoutWalletBalance } from '@/lib/solana/transfer'
+import { executePayout, canExecutePayout, getSecondsUntilNextPayout, getCurrentPayoutCycle } from '@/lib/payout/executor'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,6 +55,13 @@ export async function GET(request: NextRequest) {
     const serviceStatus = getServiceStatus()
     const trackerStatus = getTrackerStatus()
 
+    // Get pool balance = 99% of wallet balance
+    const solPrice = await getSolPrice() || 200
+    const walletBalance = await getPayoutWalletBalance()
+    const walletSol = walletBalance?.sol || 0
+    const poolSol = walletSol * config.poolPercentage // 99% of wallet
+    const poolUsd = poolSol * solPrice
+
     // If service not initialized yet, return loading state with basic info
     if (!serviceStatus.initialized) {
       // During initialization, use the tracked count as estimate
@@ -73,11 +75,12 @@ export async function GET(request: NextRequest) {
           message: serviceStatus.initInProgress 
             ? 'Loading holder data and calculating VWAPs...' 
             : 'Starting initialization...',
-          cycle: 1,
-          next_payout_at: getNextPayoutTime().toISOString(),
-          seconds_remaining: getSecondsUntilPayout(),
-          pool_balance_usd: formatUsd(config.poolBalanceUsd),
-          pool_balance_tokens: formatTokenAmount(config.poolBalanceUsd, serviceStatus.currentPrice),
+          cycle: getCurrentPayoutCycle() + 1,
+          seconds_remaining: getSecondsUntilNextPayout(),
+          pool_balance_sol: poolSol.toFixed(4),
+          pool_balance_usd: formatUsd(poolUsd),
+          pool_balance_tokens: `${poolSol.toFixed(4)} SOL`,
+          sol_price: solPrice,
           token_price: serviceStatus.currentPrice ? formatPrice(serviceStatus.currentPrice) : 'Loading...',
           token_symbol: config.tokenSymbol,
           token_mint: config.tokenMint,
@@ -92,10 +95,16 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Check and execute payout if due
-    const payoutResult = await checkAndExecutePayout()
-    if (payoutResult) {
-      console.log(`[Leaderboard] Payout executed: cycle ${payoutResult.cycle}, status: ${payoutResult.status}`)
+    // Auto-trigger payout when timer hits 0
+    const secondsUntil = getSecondsUntilNextPayout()
+    if (secondsUntil <= 0 && canExecutePayout()) {
+      const payoutResult = await executePayout()
+      if (payoutResult.success) {
+        console.log(`[Leaderboard] ✅ Payout executed: cycle ${payoutResult.cycle}`)
+      } else if (!payoutResult.error?.includes('Max')) {
+        // Only log non-retry-limit errors
+        console.log(`[Leaderboard] ❌ Payout failed: ${payoutResult.error}`)
+      }
     }
 
     // Get current price from service
@@ -109,7 +118,8 @@ export async function GET(request: NextRequest) {
 
     // Get ranked losers from holder service
     const rankedLosers = getRankedLosers()
-    const poolBal = config.poolBalanceUsd
+    // Pool is now in SOL, converted to USD above
+    const poolBal = poolUsd // USD value of the SOL pool
     const minLoss = poolBal * (config.minLossThresholdPct / 100)
 
     // Use the tracked holder count
@@ -142,21 +152,20 @@ export async function GET(request: NextRequest) {
       buy_count: holder.buyCount,
     }))
 
-    // Get payout timing from payout service
-    const nextPayout = getNextPayoutTime()
-    const secondsRemaining = getSecondsUntilPayout()
-    const currentCycle = getCurrentCycle()
-    const lastPayout = await getLastPayout()
+    // Get payout timing - simple, no snapshots
+    const secondsRemaining = getSecondsUntilNextPayout()
+    const cycle = getCurrentPayoutCycle()
 
     return NextResponse.json({
       success: true,
       data: {
         status: 'ready',
-        cycle: currentCycle,
-        next_payout_at: nextPayout.toISOString(),
+        cycle: cycle + 1, // Next cycle to be paid
         seconds_remaining: secondsRemaining,
-        pool_balance_usd: formatUsd(poolBal),
-        pool_balance_tokens: formatTokenAmount(poolBal, tokenPrice),
+        pool_balance_sol: poolSol.toFixed(4),
+        pool_balance_usd: formatUsd(poolUsd),
+        pool_balance_tokens: `${poolSol.toFixed(4)} SOL`,
+        sol_price: solPrice,
         token_price: formatPrice(tokenPrice),
         token_price_raw: tokenPrice,
         token_symbol: config.tokenSymbol,
@@ -170,13 +179,6 @@ export async function GET(request: NextRequest) {
         ws_connected: trackerStatus.wsConnected,
         tracker_initialized: trackerStatus.initialized,
         rankings,
-        last_payout: lastPayout ? {
-          cycle: lastPayout.cycle,
-          timestamp: new Date(lastPayout.timestamp).toISOString(),
-          status: lastPayout.status,
-          winners_count: lastPayout.winners.length,
-          total_distributed: formatUsd(lastPayout.total_distributed_usd),
-        } : null,
         last_updated: new Date().toISOString(),
       },
     })

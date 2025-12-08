@@ -17,7 +17,10 @@ export interface PayoutWinner {
   drawdown_pct: number
   loss_usd: number
   payout_usd: number
+  payout_sol?: number
   payout_pct: number
+  tx_hash?: string | null
+  status?: string
 }
 
 export interface PayoutRecord {
@@ -75,6 +78,16 @@ export function getSecondsUntilPayout(): number {
  */
 export function getNextPayoutTime(): Date {
   return new Date(timingState.nextPayoutTime)
+}
+
+/**
+ * Reset the payout timer (call after successful payout)
+ */
+export function resetPayoutTimer(): void {
+  timingState.lastPayoutTime = Date.now()
+  timingState.nextPayoutTime = getNextPayoutTimestamp()
+  timingState.currentCycle += 1
+  console.log(`[PayoutService] Timer reset. Next payout at ${new Date(timingState.nextPayoutTime).toISOString()}`)
 }
 
 /**
@@ -276,7 +289,10 @@ export async function getPayoutHistory(limit: number = 20): Promise<PayoutRecord
         drawdown_pct: p.drawdownPct,
         loss_usd: p.lossUsd,
         payout_usd: p.amount,
-        payout_pct: p.rank === 1 ? 80 : p.rank === 2 ? 15 : 5,
+        payout_sol: p.amountTokens || 0, // amountTokens now stores SOL
+        payout_pct: p.rank === 0 ? 5 : p.rank === 1 ? 76 : p.rank === 2 ? 14.25 : 4.75,
+        tx_hash: p.txHash,
+        status: p.status,
       })
       record.total_distributed_usd += p.amount
     }

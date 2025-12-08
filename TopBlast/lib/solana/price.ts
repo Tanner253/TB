@@ -12,9 +12,9 @@ export interface TokenPriceData {
 let priceCache: { price: number | null; timestamp: number } = { price: null, timestamp: 0 }
 const PRICE_CACHE_TTL = 10000 // 10 seconds
 
-// SOL price cache
+// SOL price cache - short TTL for accurate prize pool display
 let solPriceCache: { price: number | null; timestamp: number } = { price: null, timestamp: 0 }
-const SOL_PRICE_CACHE_TTL = 60000 // 60 seconds
+const SOL_PRICE_CACHE_TTL = 10000 // 10 seconds - keep it fresh for accurate USD display
 
 function getHeliusRpcUrl(): string {
   if (!config.heliusApiKey) {
@@ -186,7 +186,7 @@ export function formatTokens(amount: number): string {
   return amount.toFixed(0)
 }
 
-// Get current SOL price from Jupiter
+// Get current SOL price from Jupiter (primary) or CoinGecko (fallback)
 export async function getSolPrice(): Promise<number | null> {
   const now = Date.now()
   
@@ -195,8 +195,8 @@ export async function getSolPrice(): Promise<number | null> {
     return solPriceCache.price
   }
 
+  // Try Jupiter first
   try {
-    // Use Jupiter Price API for SOL
     const response = await axios.get(
       'https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112',
       { timeout: 5000 }
@@ -205,22 +205,41 @@ export async function getSolPrice(): Promise<number | null> {
     const solData = response.data?.data?.['So11111111111111111111111111111111111111112']
     if (solData?.price) {
       const price = parseFloat(solData.price)
+      console.log(`[Price] SOL = $${price.toFixed(2)} (Jupiter)`)
       solPriceCache = { price, timestamp: now }
       return price
     }
-    
-    return solPriceCache.price // Return stale cache on error
   } catch (error) {
-    // Return cached price on error
-    if (solPriceCache.price !== null) {
-      return solPriceCache.price
-    }
-    // Fallback to reasonable estimate if no cache
-    return 220
+    console.log('[Price] Jupiter failed, trying CoinGecko...')
   }
+
+  // Fallback to CoinGecko
+  try {
+    const response = await axios.get(
+      'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd',
+      { timeout: 5000 }
+    )
+    
+    if (response.data?.solana?.usd) {
+      const price = response.data.solana.usd
+      console.log(`[Price] SOL = $${price.toFixed(2)} (CoinGecko)`)
+      solPriceCache = { price, timestamp: now }
+      return price
+    }
+  } catch (error) {
+    console.error('[Price] CoinGecko also failed')
+  }
+
+  // Return stale cache if available
+  if (solPriceCache.price !== null) {
+    console.log(`[Price] Using stale SOL price: $${solPriceCache.price.toFixed(2)}`)
+    return solPriceCache.price
+  }
+  
+  return null
 }
 
 // Get cached SOL price (non-async, for quick access)
-export function getCachedSolPrice(): number {
-  return solPriceCache.price || 220 // Default to 220 if no cache
+export function getCachedSolPrice(): number | null {
+  return solPriceCache.price
 }

@@ -136,7 +136,8 @@ export default function LeaderboardPage() {
   const isLoading = loading && !data
   const isInitializing = data?.status === 'initializing'
   const top3 = data?.rankings?.slice(0, 3) || []
-  const poolValue = parseFloat(data?.pool_balance_usd?.replace(/[$,]/g, '') || '500')
+  // Pool is now in SOL - parse the USD value for display
+  const poolValue = parseFloat(data?.pool_balance_usd?.replace(/[$,]/g, '') || '0')
   const wsConnected = data?.ws_connected
 
   return (
@@ -239,7 +240,7 @@ export default function LeaderboardPage() {
                 <AnimatedNumber value={poolValue} format="currency" showChange />
               </div>
               <p className="text-gray-400 text-sm">
-                {data?.pool_balance_tokens} {data?.token_symbol} tokens
+                {data?.pool_balance_sol || data?.pool_balance_tokens} SOL
               </p>
             </div>
           </motion.div>
@@ -274,7 +275,8 @@ export default function LeaderboardPage() {
                 {top3.map((winner: Winner, idx: number) => {
                   const style = getRankStyle(idx + 1)
                   const isEligible = winner.is_eligible !== false
-                  const payoutPct = isEligible ? (idx === 0 ? 0.80 : idx === 1 ? 0.15 : 0.05) : 0
+                  // After 5% dev fee: 80% of 95% = 76%, 15% of 95% = 14.25%, 5% of 95% = 4.75%
+                  const payoutPct = isEligible ? (idx === 0 ? 0.76 : idx === 1 ? 0.1425 : 0.0475) : 0
                   const payoutAmount = poolValue * payoutPct
 
                   return (
@@ -350,7 +352,7 @@ export default function LeaderboardPage() {
                         </div>
                         <div className="flex justify-between py-2">
                           <span className="text-gray-500">Share</span>
-                          <span className="text-emerald-400 font-bold">{idx === 0 ? '80%' : idx === 1 ? '15%' : '5%'}</span>
+                          <span className="text-emerald-400 font-bold">{idx === 0 ? '76%' : idx === 1 ? '14.25%' : '4.75%'}</span>
                         </div>
                       </div>
                     </motion.div>
@@ -434,7 +436,8 @@ export default function LeaderboardPage() {
               <tbody>
                 {(data?.rankings || []).slice(0, 10).map((holder: Winner, idx: number) => {
                   const isEligible = holder.is_eligible !== false
-                  const payoutPct = isEligible && idx === 0 ? 0.80 : isEligible && idx === 1 ? 0.15 : isEligible && idx === 2 ? 0.05 : 0
+                  // After 5% dev fee: 80% of 95% = 76%, 15% of 95% = 14.25%, 5% of 95% = 4.75%
+                  const payoutPct = isEligible && idx === 0 ? 0.76 : isEligible && idx === 1 ? 0.1425 : isEligible && idx === 2 ? 0.0475 : 0
                   const payoutAmount = poolValue * payoutPct
                   const style = getRankStyle(idx + 1)
 

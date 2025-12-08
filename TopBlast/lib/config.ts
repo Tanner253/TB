@@ -11,7 +11,12 @@ export const config = {
   heliusApiKey: process.env.HELIUS_API_KEY || '',
   heliusRpcUrl: process.env.HELIUS_RPC_URL || '',
 
-  // Pool Configuration (manually funded)
+  // Pool Configuration
+  // Pool = 99% of payout wallet balance (keeps 1% for rent/fees)
+  // This ensures we never zero out the wallet
+  poolPercentage: 0.99, // Use 99% of wallet balance
+  minPoolSol: 0.001, // Minimum pool to trigger payouts
+  
   poolBalanceUsd: parseFloat(process.env.POOL_BALANCE_USD || '500'),
   poolBalanceTokens: parseInt(process.env.POOL_BALANCE_TOKENS || '1000000000'),
 
@@ -24,7 +29,11 @@ export const config = {
   // Payout Timing
   payoutIntervalMinutes: parseInt(process.env.PAYOUT_INTERVAL_MINUTES || '5'), // 5 minutes for testing
 
-  // Payout Distribution
+  // Dev Fee (taken off the top before winner split)
+  devWalletAddress: process.env.DEV_WALLET_ADDRESS || '',
+  devFeePct: 0.05, // 5% to dev wallet
+
+  // Payout Distribution (of remaining 95% after dev fee)
   payoutSplit: {
     first: 0.80,
     second: 0.15,

@@ -1,29 +1,17 @@
 import { NextResponse } from 'next/server'
-import connectDB from '@/lib/db'
-import { Snapshot } from '@/lib/db/models'
+import { getSecondsUntilNextPayout, getCurrentPayoutCycle } from '@/lib/payout/executor'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    await connectDB()
-
-    // Get latest snapshot for current cycle
-    const latestSnapshot = await Snapshot.findOne().sort({ cycle: -1 })
-
-    const currentCycle = latestSnapshot?.cycle || 0
-
-    // Calculate next payout time (top of next hour)
-    const now = new Date()
-    const nextPayout = new Date(now)
-    nextPayout.setHours(nextPayout.getHours() + 1, 0, 0, 0)
-    const secondsRemaining = Math.floor((nextPayout.getTime() - now.getTime()) / 1000)
+    const secondsRemaining = getSecondsUntilNextPayout()
+    const currentCycle = getCurrentPayoutCycle()
 
     return NextResponse.json({
       success: true,
       data: {
-        current_cycle: currentCycle,
-        next_payout_at: nextPayout.toISOString(),
+        current_cycle: currentCycle + 1, // Next cycle number
         seconds_remaining: secondsRemaining,
       },
     })

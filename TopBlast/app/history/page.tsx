@@ -4,44 +4,59 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 
-interface Winner {
+// Types matching the API response
+interface PayoutEntry {
   rank: number
+  type: 'dev_fee' | 'winner'
   wallet: string
   wallet_display: string
-  drawdown_pct: number
-  loss_usd: string
-  payout_usd: string
-  payout_pct: string
+  amount_sol: string
+  amount_usd: string
+  drawdown_pct: string | null
+  loss_usd: string | null
+  tx_hash: string | null
+  solscan_url: string | null
+  status: 'success' | 'failed'
+  error: string | null
 }
 
 interface PayoutCycle {
-  id: string
   cycle: number
   timestamp: string
-  pool_balance_usd: string
-  token_price: number
-  status: 'completed' | 'no_winners' | 'pool_empty'
-  message: string
-  total_distributed_usd: string
-  winners: Winner[]
+  payouts: PayoutEntry[]
+  total_sol: string
+  total_usd: string
+  success_count: number
+  failed_count: number
+  status: 'success' | 'failed' | 'partial'
 }
 
 interface HistoryStats {
   total_cycles: number
-  completed_payouts: number
-  total_distributed_usd: string
-  total_winners: number
-  current_cycle: number
-  next_payout_at: string | null
+  total_payouts: number
+  total_distributed_sol: string
+  failed_payouts: number
 }
 
 interface HistoryData {
+  network: string
   token_symbol: string
   stats: HistoryStats
   cycles: PayoutCycle[]
 }
 
-function getRankBadge(rank: number) {
+function getRankBadge(rank: number, type: string) {
+  if (type === 'dev_fee') {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-2xl">🔧</span>
+        <span className="bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded text-xs font-medium">
+          DEV
+        </span>
+      </div>
+    )
+  }
+  
   const styles = {
     1: { emoji: '🥇', bg: 'bg-gradient-to-r from-yellow-500 to-amber-400', text: 'text-black' },
     2: { emoji: '🥈', bg: 'bg-gradient-to-r from-gray-400 to-gray-300', text: 'text-black' },
@@ -62,7 +77,7 @@ function getRankBadge(rank: number) {
 
 function getStatusBadge(status: string) {
   switch (status) {
-    case 'completed':
+    case 'success':
       return (
         <motion.span
           initial={{ scale: 0.9 }}
@@ -70,21 +85,21 @@ function getStatusBadge(status: string) {
           className="inline-flex items-center gap-1.5 bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-xs font-medium"
         >
           <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
-          Completed
+          Success
         </motion.span>
       )
-    case 'no_winners':
+    case 'partial':
       return (
         <span className="inline-flex items-center gap-1.5 bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full text-xs font-medium">
           <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
-          No Winners
+          Partial
         </span>
       )
-    case 'pool_empty':
+    case 'failed':
       return (
-        <span className="inline-flex items-center gap-1.5 bg-gray-500/20 text-gray-400 px-3 py-1 rounded-full text-xs font-medium">
-          <span className="w-1.5 h-1.5 bg-gray-400 rounded-full" />
-          Pool Empty
+        <span className="inline-flex items-center gap-1.5 bg-red-500/20 text-red-400 px-3 py-1 rounded-full text-xs font-medium">
+          <span className="w-1.5 h-1.5 bg-red-400 rounded-full" />
+          Failed
         </span>
       )
     default:
@@ -130,8 +145,6 @@ export default function HistoryPage() {
     }
 
     fetchHistory()
-    
-    // Refresh every 30 seconds
     const interval = setInterval(fetchHistory, 30000)
     return () => clearInterval(interval)
   }, [])
@@ -202,7 +215,10 @@ export default function HistoryPage() {
         >
           <h1 className="text-3xl font-bold mb-2">Payout History</h1>
           <p className="text-gray-400">
-            {data?.stats.total_cycles || 0} cycles • {data?.stats.total_winners || 0} winners • {data?.stats.total_distributed_usd || '$0.00'} distributed
+            {data?.stats.total_cycles || 0} cycles • {data?.stats.total_payouts || 0} successful payouts • {data?.stats.total_distributed_sol || '0'} SOL distributed
+            {data?.network === 'devnet' && (
+              <span className="ml-2 text-amber-400">(Devnet)</span>
+            )}
           </p>
         </motion.div>
 
@@ -218,16 +234,16 @@ export default function HistoryPage() {
             <div className="text-2xl font-bold text-white">{data?.stats.total_cycles || 0}</div>
           </div>
           <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <div className="text-sm text-gray-400">With Winners</div>
-            <div className="text-2xl font-bold text-emerald-400">{data?.stats.completed_payouts || 0}</div>
+            <div className="text-sm text-gray-400">Successful</div>
+            <div className="text-2xl font-bold text-emerald-400">{data?.stats.total_payouts || 0}</div>
           </div>
           <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <div className="text-sm text-gray-400">Total Winners</div>
-            <div className="text-2xl font-bold text-cyan-400">{data?.stats.total_winners || 0}</div>
+            <div className="text-sm text-gray-400">Failed</div>
+            <div className="text-2xl font-bold text-red-400">{data?.stats.failed_payouts || 0}</div>
           </div>
           <div className="bg-white/5 border border-white/10 rounded-xl p-4">
             <div className="text-sm text-gray-400">Distributed</div>
-            <div className="text-2xl font-bold text-purple-400">{data?.stats.total_distributed_usd || '$0.00'}</div>
+            <div className="text-2xl font-bold text-purple-400">{data?.stats.total_distributed_sol || '0'} SOL</div>
           </div>
         </motion.div>
 
@@ -236,7 +252,7 @@ export default function HistoryPage() {
           {data?.cycles && data.cycles.length > 0 ? (
             data.cycles.map((cycle, cycleIdx) => (
               <motion.div
-                key={cycle.id}
+                key={cycle.cycle}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: cycleIdx * 0.1 }}
@@ -254,54 +270,99 @@ export default function HistoryPage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm text-gray-400">Pool</div>
-                    <div className="text-lg font-bold text-white">{cycle.pool_balance_usd}</div>
+                    <div className="text-sm text-gray-400">Total Paid</div>
+                    <div className="text-lg font-bold text-white">{cycle.total_sol} SOL</div>
+                    <div className="text-xs text-gray-500">${cycle.total_usd}</div>
                   </div>
                 </div>
 
-                {/* Winners or Message */}
-                {cycle.winners.length > 0 ? (
+                {/* Payouts */}
+                {cycle.payouts && cycle.payouts.length > 0 ? (
                   <div className="divide-y divide-white/5">
-                    {cycle.winners.map((winner, winnerIdx) => (
+                    {cycle.payouts.map((payout, idx) => (
                       <motion.div
-                        key={`${cycle.id}-${winner.rank}`}
+                        key={`${cycle.cycle}-${payout.rank}-${idx}`}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: cycleIdx * 0.1 + winnerIdx * 0.05 }}
-                        className="p-5 hover:bg-white/5 transition-colors"
+                        transition={{ delay: cycleIdx * 0.1 + idx * 0.05 }}
+                        className={`p-5 hover:bg-white/5 transition-colors ${payout.status === 'failed' ? 'bg-red-500/5' : ''}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            {getRankBadge(winner.rank)}
+                            {getRankBadge(payout.rank, payout.type)}
                             <div>
-                              <div className="font-mono text-white font-medium">
-                                {winner.wallet_display}
+                              <div className="font-mono text-white font-medium flex items-center gap-2">
+                                {payout.wallet_display}
+                                {payout.solscan_url && (
+                                  <a 
+                                    href={payout.solscan_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-emerald-400 hover:text-emerald-300 transition-colors"
+                                    title="View on Solscan"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                  </a>
+                                )}
                               </div>
-                              <div className="text-sm text-gray-400 mt-1">
-                                {winner.rank === 1 ? '🔥 Biggest Loser' : winner.rank === 2 ? '⚔️ Runner Up' : '🛡️ Third Place'}
+                              <div className="text-sm text-gray-400 mt-1 flex items-center gap-2">
+                                {payout.type === 'dev_fee' ? (
+                                  <span>Developer Fee (5%)</span>
+                                ) : (
+                                  <>
+                                    <span>{payout.rank === 1 ? '🔥 Biggest Loser' : payout.rank === 2 ? '⚔️ Runner Up' : '🛡️ Third Place'}</span>
+                                    {payout.drawdown_pct && (
+                                      <span className="text-red-400">-{payout.drawdown_pct}%</span>
+                                    )}
+                                  </>
+                                )}
+                                {payout.status === 'failed' && (
+                                  <span className="text-red-400 text-xs">• Failed: {payout.error}</span>
+                                )}
                               </div>
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-xl font-bold text-emerald-400">{winner.payout_usd}</div>
-                            <div className="text-sm text-gray-500 mt-1">{winner.payout_pct}</div>
+                            <div className={`text-xl font-bold ${payout.status === 'success' ? 'text-emerald-400' : 'text-red-400 line-through'}`}>
+                              {payout.amount_sol} SOL
+                            </div>
+                            <div className="text-sm text-gray-500 mt-1">${payout.amount_usd}</div>
                           </div>
                         </div>
+                        
+                        {/* TX Hash */}
+                        {payout.tx_hash && (
+                          <div className="mt-3 pt-3 border-t border-white/5">
+                            <span className="text-xs text-gray-500">TX: </span>
+                            <a 
+                              href={payout.solscan_url || '#'} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-xs font-mono text-emerald-400/70 hover:text-emerald-400 transition-colors"
+                            >
+                              {payout.tx_hash.slice(0, 20)}...{payout.tx_hash.slice(-8)}
+                            </a>
+                          </div>
+                        )}
                       </motion.div>
                     ))}
                     
-                    {/* Total */}
+                    {/* Summary */}
                     <div className="p-5 bg-emerald-500/5 border-t border-emerald-500/20">
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-400">Total Distributed</span>
-                        <span className="text-xl font-bold text-emerald-400">{cycle.total_distributed_usd}</span>
+                        <span className="text-gray-400">
+                          {cycle.success_count} successful, {cycle.failed_count} failed
+                        </span>
+                        <span className="text-xl font-bold text-emerald-400">{cycle.total_sol} SOL</span>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="p-8 text-center">
                     <div className="text-4xl mb-3">🔍</div>
-                    <p className="text-gray-400">{cycle.message}</p>
+                    <p className="text-gray-400">No payouts this cycle</p>
                   </div>
                 )}
               </motion.div>
@@ -322,7 +383,7 @@ export default function HistoryPage() {
               <h2 className="text-2xl font-bold mb-3">No Payouts Yet</h2>
               <p className="text-gray-400 mb-6 max-w-md mx-auto">
                 Winners will appear here after the first payout cycle is processed.
-                The timer resets every 5 minutes.
+                All transactions are recorded on-chain with Solscan links.
               </p>
               <Link href="/leaderboard">
                 <motion.button
