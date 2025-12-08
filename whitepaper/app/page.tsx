@@ -3,11 +3,22 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'
+import Image from 'next/image'
 
 // Dynamically import Three.js component to avoid SSR issues
 const CandlestickBackground = dynamic(() => import('./components/CandlestickBackground'), {
     ssr: false
 })
+
+// App URL
+const APP_URL = 'https://topblastweb3.xyz'
+
+// External Links
+const LINKS = {
+    twitter: 'https://x.com/TOPBLASTX',
+    github: 'https://github.com/Tanner253/TB',
+    app: APP_URL,
+}
 
 // --- Icons ---
 const Icons = {
@@ -17,19 +28,19 @@ const Icons = {
     Clock: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
     ArrowRight: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>,
     Menu: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>,
-    X: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
+    Close: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
     ChevronDown: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>,
-    Trophy: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 21h8m-4-9v9m-6.7-6a3 3 0 0 0 6 0V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v5a3 3 0 0 0 3 3zm14 0a3 3 0 0 0-3-3v-5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v5a3 3 0 0 1-3 3z"/></svg>
+    Trophy: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 21h8m-4-9v9m-6.7-6a3 3 0 0 0 6 0V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v5a3 3 0 0 0 3 3zm14 0a3 3 0 0 0-3-3v-5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v5a3 3 0 0 1-3 3z"/></svg>,
+    ExternalLink: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>,
+    Rocket: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path></svg>,
+    Shield: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>,
+    BarChart: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>,
+    Users: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+    Gift: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>,
+    // Social Icons
+    XTwitter: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>,
+    GitHub: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>,
 }
-
-// --- Data ---
-const MOCK_REKT_FEED = [
-    { wallet: "8x92...Fa1", loss: "-89.4%", payout: "1,240 $TBLAST" },
-    { wallet: "Sol...Whale", loss: "-42.1%", payout: "Waiting..." },
-    { wallet: "DeFi...God", loss: "-91.2%", payout: "2,500 $TBLAST" },
-    { wallet: "Paper...Hnd", loss: "-12.5%", payout: "Not Eligible" },
-    { wallet: "Moon...Boy", loss: "-66.6%", payout: "Waiting..." },
-]
 
 // --- Components ---
 
@@ -40,34 +51,48 @@ const Navbar = () => {
         <nav className="fixed top-0 left-0 w-full glass-nav z-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
-                    <div className="flex items-center gap-2 cursor-pointer group">
+                    <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer group">
                         <motion.div 
                             whileHover={{ rotate: 360 }}
                             transition={{ duration: 0.5 }}
-                            className="w-8 h-8 bg-gradient-to-br from-green-400 to-purple-600 rounded flex items-center justify-center text-black font-bold text-xl"
+                            className="w-8 h-8 rounded overflow-hidden"
                         >
-                            T
+                            <Image src="/logo.jpg" alt="TopBlast" width={32} height={32} className="w-full h-full object-cover" />
                         </motion.div>
                         <span className="text-xl font-bold tracking-tighter group-hover:text-green-400 transition-colors">TOPBLAST</span>
-                    </div>
+                    </a>
                     <div className="hidden md:block">
-                        <div className="ml-10 flex items-baseline space-x-8">
-                            <a href="#mission" className="hover:text-green-400 transition-colors px-3 py-2 rounded-md text-sm font-medium">Mission</a>
-                            <a href="#how-it-works" className="hover:text-green-400 transition-colors px-3 py-2 rounded-md text-sm font-medium">Mechanism</a>
-                            <a href="#tokenomics" className="hover:text-green-400 transition-colors px-3 py-2 rounded-md text-sm font-medium">Tokenomics</a>
-                            <a href="#whitepaper" className="hover:text-green-400 transition-colors px-3 py-2 rounded-md text-sm font-medium">Whitepaper</a>
-                            <motion.button 
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="bg-white text-black px-4 py-2 rounded font-bold hover:bg-green-400 hover:text-black transition-all shadow-[0_0_15px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_rgba(20,241,149,0.5)]"
-                            >
-                                Launch App
-                            </motion.button>
+                        <div className="ml-10 flex items-center space-x-6">
+                            <a href="#why-invest" className="hover:text-green-400 transition-colors px-2 py-2 rounded-md text-sm font-medium">Why $TBLAST</a>
+                            <a href="#how-it-works" className="hover:text-green-400 transition-colors px-2 py-2 rounded-md text-sm font-medium">Mechanism</a>
+                            <a href="#tokenomics" className="hover:text-green-400 transition-colors px-2 py-2 rounded-md text-sm font-medium">Tokenomics</a>
+                            <a href="#whitepaper" className="hover:text-green-400 transition-colors px-2 py-2 rounded-md text-sm font-medium">Whitepaper</a>
+                            <a href="#updates" className="hover:text-green-400 transition-colors px-2 py-2 rounded-md text-sm font-medium">Updates</a>
+                            
+                            {/* Social Links */}
+                            <div className="flex items-center gap-3 border-l border-white/10 pl-4">
+                                <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors" title="Follow on X">
+                                    <Icons.XTwitter />
+                                </a>
+                                <a href={LINKS.github} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors" title="GitHub">
+                                    <Icons.GitHub />
+                                </a>
+                            </div>
+                            
+                            <a href={APP_URL} target="_blank" rel="noopener noreferrer">
+                                <motion.button 
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    className="bg-gradient-to-r from-green-400 to-emerald-500 text-black px-4 py-2 rounded font-bold hover:from-green-300 hover:to-emerald-400 transition-all shadow-[0_0_15px_rgba(20,241,149,0.4)] hover:shadow-[0_0_25px_rgba(20,241,149,0.6)] flex items-center gap-2"
+                                >
+                                    Launch App <Icons.ExternalLink />
+                                </motion.button>
+                            </a>
                         </div>
                     </div>
                     <div className="-mr-2 flex md:hidden">
                         <button onClick={() => setIsOpen(!isOpen)} className="text-gray-400 hover:text-white p-2">
-                            {isOpen ? <Icons.X /> : <Icons.Menu />}
+                            {isOpen ? <Icons.Close /> : <Icons.Menu />}
                         </button>
                     </div>
                 </div>
@@ -76,9 +101,22 @@ const Navbar = () => {
             {isOpen && (
                 <div className="md:hidden glass-panel border-t border-gray-800">
                     <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                        <a href="#mission" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Mission</a>
+                        <a href="#why-invest" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Why $TBLAST</a>
                         <a href="#how-it-works" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Mechanism</a>
+                        <a href="#tokenomics" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Tokenomics</a>
                         <a href="#whitepaper" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Whitepaper</a>
+                        {/* Mobile Social Links */}
+                        <div className="flex items-center gap-4 px-3 py-2">
+                            <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors flex items-center gap-2">
+                                <Icons.XTwitter /> @TOPBLASTX
+                            </a>
+                            <a href={LINKS.github} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors flex items-center gap-2">
+                                <Icons.GitHub /> GitHub
+                            </a>
+                        </div>
+                        <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="block bg-green-500 text-black px-3 py-2 rounded-md text-base font-bold mt-2">
+                            Launch App →
+                        </a>
                     </div>
                 </div>
             )}
@@ -95,9 +133,9 @@ const Hero = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8 }}
                 >
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-white/10 mb-6 backdrop-blur-md">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-green-500/30 mb-6 backdrop-blur-md">
                         <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        <span className="text-xs font-mono text-gray-300">SYSTEM OPERATIONAL // SOLANA NETWORK</span>
+                        <span className="text-xs font-mono text-green-300">LIVE ON SOLANA • AUTOMATED PAYOUTS</span>
                     </div>
                 </motion.div>
 
@@ -114,15 +152,28 @@ const Hero = () => {
                 </motion.h1>
 
                 <motion.p 
-                    className="text-xl text-gray-300 max-w-2xl mx-auto mb-10 bg-black/30 backdrop-blur-sm py-2 px-4 rounded-lg"
+                    className="text-xl text-gray-300 max-w-2xl mx-auto mb-6 bg-black/30 backdrop-blur-sm py-2 px-4 rounded-lg"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.4 }}
                 >
-                    The world&apos;s first <strong>Loss-Mining Protocol</strong>. Built on Solana + Clockwork.
+                    The world&apos;s first <strong className="text-green-400">Loss-Mining Protocol</strong>. Built on Solana.
                     <br/>
-                    A hedge against yourself.
+                    Get paid for being a top loser. Automatically. Every hour.
                 </motion.p>
+
+                {/* Value Proposition Pills */}
+                <motion.div 
+                    className="flex flex-wrap justify-center gap-3 mb-10"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                >
+                    <span className="px-4 py-2 bg-green-500/10 border border-green-500/30 rounded-full text-green-400 text-sm font-medium">💰 Hourly Payouts</span>
+                    <span className="px-4 py-2 bg-purple-500/10 border border-purple-500/30 rounded-full text-purple-400 text-sm font-medium">🤖 Fully Automated</span>
+                    <span className="px-4 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded-full text-cyan-400 text-sm font-medium">🔗 On-Chain Verified</span>
+                    <span className="px-4 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-full text-yellow-400 text-sm font-medium">🎯 No Claiming Needed</span>
+                </motion.div>
 
                 <motion.div 
                     className="flex flex-col md:flex-row gap-4 justify-center"
@@ -130,20 +181,49 @@ const Hero = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 }}
                 >
-                    <motion.button 
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="bg-white text-black px-8 py-4 rounded font-bold text-lg hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
-                    >
-                        Start Losing to Win <Icons.ArrowRight />
-                    </motion.button>
-                    <motion.button 
-                        whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.1)" }}
-                        whileTap={{ scale: 0.95 }}
-                        className="glass-panel text-white px-8 py-4 rounded font-bold text-lg transition-all border border-white/20"
-                    >
-                        Read Whitepaper
-                    </motion.button>
+                    <a href={APP_URL} target="_blank" rel="noopener noreferrer">
+                        <motion.button 
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="bg-gradient-to-r from-green-400 to-emerald-500 text-black px-8 py-4 rounded-lg font-bold text-lg hover:from-green-300 hover:to-emerald-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(20,241,149,0.3)]"
+                        >
+                            <Icons.Rocket /> View Live Leaderboard
+                        </motion.button>
+                    </a>
+                    <a href="#whitepaper">
+                        <motion.button 
+                            whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.1)" }}
+                            whileTap={{ scale: 0.95 }}
+                            className="glass-panel text-white px-8 py-4 rounded-lg font-bold text-lg transition-all border border-white/20"
+                        >
+                            Read Whitepaper
+                        </motion.button>
+                    </a>
+                </motion.div>
+
+                {/* Quick Stats */}
+                <motion.div 
+                    className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto"
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.8 }}
+                >
+                    <div className="glass-panel rounded-xl p-4 text-center">
+                        <div className="text-3xl font-bold text-green-400 font-mono">80%</div>
+                        <div className="text-xs text-gray-400 mt-1">1st Place Payout</div>
+                    </div>
+                    <div className="glass-panel rounded-xl p-4 text-center">
+                        <div className="text-3xl font-bold text-cyan-400 font-mono">1hr</div>
+                        <div className="text-xs text-gray-400 mt-1">Payout Frequency</div>
+                    </div>
+                    <div className="glass-panel rounded-xl p-4 text-center">
+                        <div className="text-3xl font-bold text-purple-400 font-mono">95%</div>
+                        <div className="text-xs text-gray-400 mt-1">To Community</div>
+                    </div>
+                    <div className="glass-panel rounded-xl p-4 text-center">
+                        <div className="text-3xl font-bold text-yellow-400 font-mono">0</div>
+                        <div className="text-xs text-gray-400 mt-1">Interaction Needed</div>
+                    </div>
                 </motion.div>
             </div>
         </section>
@@ -151,10 +231,18 @@ const Hero = () => {
 }
 
 const RektTicker = () => {
+    const LIVE_FEED = [
+        { wallet: "7xKXt...Fa1", loss: "-72.5%", payout: "Winner 🏆" },
+        { wallet: "Sol...Whale", loss: "-45.2%", payout: "2nd Place" },
+        { wallet: "DeFi...Pro", loss: "-38.7%", payout: "3rd Place" },
+        { wallet: "Diam...Hand", loss: "-29.1%", payout: "Eligible ✓" },
+        { wallet: "Moon...Boy", loss: "-15.3%", payout: "Eligible ✓" },
+    ]
+    
     return (
-        <div className="w-full bg-red-900/20 border-y border-red-500/30 overflow-hidden py-3 relative z-20 backdrop-blur-sm">
+        <div className="w-full bg-green-900/20 border-y border-green-500/30 overflow-hidden py-3 relative z-20 backdrop-blur-sm">
             <div className="flex animate-slide whitespace-nowrap gap-12 px-4">
-                {[...MOCK_REKT_FEED, ...MOCK_REKT_FEED, ...MOCK_REKT_FEED, ...MOCK_REKT_FEED].map((item, i) => (
+                {[...LIVE_FEED, ...LIVE_FEED, ...LIVE_FEED, ...LIVE_FEED].map((item, i) => (
                     <div key={i} className="flex items-center gap-2 text-sm font-mono">
                         <span className="text-gray-400">{item.wallet}</span>
                         <span className="text-red-500 font-bold">{item.loss}</span>
@@ -163,6 +251,133 @@ const RektTicker = () => {
                 ))}
             </div>
         </div>
+    )
+}
+
+// Why Invest Section - NEW
+const WhyInvest = () => {
+    const benefits = [
+        {
+            icon: <Icons.Shield />,
+            title: "Downside Protection",
+            desc: "Unlike traditional tokens where you only win if price goes up, $TBLAST rewards you when price dumps. Your loss becomes your ticket to win.",
+            highlight: "Win when price pumps OR dumps"
+        },
+        {
+            icon: <Icons.Gift />,
+            title: "Automatic Rewards",
+            desc: "No staking, no claiming, no wallet connection. Just buy, hold, and if you qualify as a top loser, rewards are sent directly to your wallet.",
+            highlight: "Zero interaction required"
+        },
+        {
+            icon: <Icons.BarChart />,
+            title: "Volume-Backed Pool",
+            desc: "The reward pool grows with trading volume. More trading = bigger pool = bigger payouts. The flywheel rewards diamond hands.",
+            highlight: "Pool grows with activity"
+        },
+        {
+            icon: <Icons.Users />,
+            title: "Community First",
+            desc: "95% of all fees go back to the community through hourly payouts. Only 5% for development. This is a protocol by degens, for degens.",
+            highlight: "95% to holders"
+        },
+    ]
+
+    return (
+        <section id="why-invest" className="py-24 relative">
+            <div className="glass-section-bg">
+                <div className="max-w-7xl mx-auto px-4">
+                    <motion.div 
+                        className="text-center mb-16"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                    >
+                        <span className="inline-block px-4 py-1 bg-green-500/20 border border-green-500/30 rounded-full text-green-400 text-sm font-medium mb-4">
+                            INVESTOR VALUE
+                        </span>
+                        <h2 className="text-4xl md:text-5xl font-bold mb-4">Why Buy <span className="text-green-400">$TBLAST</span>?</h2>
+                        <p className="text-gray-400 max-w-2xl mx-auto text-lg">
+                            The only token where being wrong about price direction can still make you money.
+                        </p>
+                    </motion.div>
+
+                    <div className="grid md:grid-cols-2 gap-6 mb-12">
+                        {benefits.map((benefit, idx) => (
+                            <motion.div
+                                key={idx}
+                                className="glass-panel p-8 rounded-2xl hover:border-green-500/50 transition-all group"
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: idx * 0.1 }}
+                                whileHover={{ y: -5 }}
+                            >
+                                <div className="flex items-start gap-4">
+                                    <div className="w-14 h-14 bg-green-500/20 rounded-xl flex items-center justify-center text-green-400 shrink-0 group-hover:scale-110 transition-transform">
+                                        {benefit.icon}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold mb-2">{benefit.title}</h3>
+                                        <p className="text-gray-400 mb-3">{benefit.desc}</p>
+                                        <span className="inline-block px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full text-green-400 text-xs font-medium">
+                                            ✓ {benefit.highlight}
+                                        </span>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+
+                    {/* Investment Thesis */}
+                    <motion.div
+                        className="glass-panel rounded-2xl p-8 border-2 border-green-500/30 relative overflow-hidden"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                    >
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/10 rounded-full blur-3xl"></div>
+                        <div className="relative">
+                            <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                                <span className="text-3xl">💡</span>
+                                The Win-Win Investment Thesis
+                            </h3>
+                            <div className="grid md:grid-cols-2 gap-8">
+                                <div className="bg-green-900/20 border border-green-500/30 rounded-xl p-6">
+                                    <div className="text-green-400 font-bold mb-2 flex items-center gap-2">
+                                        <span className="text-2xl">📈</span> Scenario A: Price Pumps
+                                    </div>
+                                    <p className="text-gray-300">
+                                        Your tokens appreciate in value. You profit from standard price appreciation. 
+                                        <span className="text-green-400 font-bold"> You win.</span>
+                                    </p>
+                                </div>
+                                <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-6">
+                                    <div className="text-red-400 font-bold mb-2 flex items-center gap-2">
+                                        <span className="text-2xl">📉</span> Scenario B: Price Dumps
+                                    </div>
+                                    <p className="text-gray-300">
+                                        Your drawdown increases. You climb the leaderboard. You win 80% of the hourly pool. 
+                                        <span className="text-green-400 font-bold"> You still win.</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="mt-6 text-center">
+                                <a href={APP_URL} target="_blank" rel="noopener noreferrer">
+                                    <motion.button
+                                        whileHover={{ scale: 1.03 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        className="bg-gradient-to-r from-green-400 to-emerald-500 text-black px-8 py-3 rounded-lg font-bold text-lg shadow-[0_0_20px_rgba(20,241,149,0.3)] hover:shadow-[0_0_30px_rgba(20,241,149,0.5)] transition-all"
+                                    >
+                                        Check Live Rankings on App →
+                                    </motion.button>
+                                </a>
+                            </div>
+                        </div>
+                    </motion.div>
+                </div>
+            </div>
+        </section>
     )
 }
 
@@ -180,17 +395,25 @@ const CountDown = () => {
     }, [])
 
     return (
-        <div className="fixed bottom-10 right-10 glass-panel p-4 rounded-lg hidden md:block z-30 border-l-4 border-green-400 shadow-[0_0_20px_rgba(74,222,128,0.2)]">
-            <div className="flex items-center gap-3">
-                <div className="bg-green-500/20 p-2 rounded-full text-green-400 animate-pulse">
-                    <Icons.Clock />
+        <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer">
+            <motion.div 
+                className="fixed bottom-10 right-10 glass-panel p-4 rounded-lg hidden md:block z-30 border-l-4 border-green-400 shadow-[0_0_20px_rgba(74,222,128,0.2)] cursor-pointer hover:shadow-[0_0_30px_rgba(74,222,128,0.4)] transition-all"
+                whileHover={{ scale: 1.05 }}
+            >
+                <div className="flex items-center gap-3">
+                    <div className="bg-green-500/20 p-2 rounded-full text-green-400 animate-pulse">
+                        <Icons.Clock />
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-400 uppercase tracking-wider">Next Blast In</p>
+                        <p className="text-2xl font-mono font-bold">{timeLeft}</p>
+                    </div>
                 </div>
-                <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wider">Next Blast In</p>
-                    <p className="text-2xl font-mono font-bold">{timeLeft}</p>
+                <div className="mt-2 text-xs text-green-400 flex items-center gap-1">
+                    View Leaderboard <Icons.ExternalLink />
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </a>
     )
 }
 
@@ -220,30 +443,51 @@ const Mechanism = () => {
             <div className="glass-section-bg">
                 <div className="max-w-7xl mx-auto px-4">
                     <div className="text-center mb-16">
+                        <span className="inline-block px-4 py-1 bg-purple-500/20 border border-purple-500/30 rounded-full text-purple-400 text-sm font-medium mb-4">
+                            PROTOCOL MECHANICS
+                        </span>
                         <h2 className="text-4xl font-bold mb-4">How It Works</h2>
-                        <p className="text-gray-400">The first protocol that pays you to lose.</p>
+                        <p className="text-gray-400">The first protocol that pays you to lose. Fully automated, no interaction needed.</p>
                     </div>
                     
-                    <div className="grid md:grid-cols-3 gap-8">
+                    <div className="grid md:grid-cols-3 gap-8 mb-12">
                         <FeatureCard 
                             icon={<Icons.TrendingDown />} 
                             title="1. Track Your Entry" 
-                            desc="Our Smart Contract logs your average buy-in price on-chain. We know exactly when you're underwater."
+                            desc="The system calculates your VWAP (average buy price) from real on-chain transactions. We know exactly when you're underwater."
                             delay={0.1}
                         />
                         <FeatureCard 
                             icon={<Icons.ShieldAlert />} 
                             title="2. Calculate Drawdown" 
-                            desc="Every hour, Clockwork bots scan the ledger to find the biggest percentage losers (The Blasters)."
+                            desc="Every hour, the system scans all holders to find the biggest percentage losers. Ranked by drawdown %, with USD loss as tiebreaker."
                             delay={0.2}
                         />
                         <FeatureCard 
                             icon={<Icons.Zap />} 
                             title="3. Blast Rewards" 
-                            desc="Top 3 losers get paid from the pump.fun swap fee pool (80/15/5 split). Your entry resets, and you live to trade another day."
+                            desc="Top 3 losers automatically receive payouts (80/15/5 split). Tokens sent directly to wallets. No claiming, no gas, no interaction."
                             delay={0.3}
                         />
                     </div>
+
+                    {/* CTA to App */}
+                    <motion.div 
+                        className="text-center"
+                        initial={{ opacity: 0 }}
+                        whileInView={{ opacity: 1 }}
+                        viewport={{ once: true }}
+                    >
+                        <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer">
+                            <motion.button
+                                whileHover={{ scale: 1.03 }}
+                                whileTap={{ scale: 0.98 }}
+                                className="bg-white/10 border border-white/20 px-6 py-3 rounded-lg font-medium hover:bg-white/20 transition-all flex items-center gap-2 mx-auto"
+                            >
+                                See Live Rankings <Icons.ExternalLink />
+                            </motion.button>
+                        </a>
+                    </motion.div>
                 </div>
             </div>
         </section>
@@ -255,11 +499,14 @@ const Simulator = () => {
      const [poolSize, setPoolSize] = useState(1000)
      const [drawdown, setDrawdown] = useState(50)
      
-     const winFirst = (poolSize * 0.8).toLocaleString()
+     const winFirst = (poolSize * 0.8 * 0.95).toFixed(0) // After 5% dev fee
+     const lossAmount = (investment * (drawdown/100)).toFixed(0)
+     const netProfit = (parseFloat(winFirst) - parseFloat(lossAmount)).toFixed(0)
+     const roi = ((parseFloat(winFirst) / investment) * 100).toFixed(0)
 
      return (
          <div className="mt-8 glass-panel p-6 rounded-lg border border-purple-500/30">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Icons.Trophy /> Confidence Simulator: The "Win-Win" Calculator</h3>
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Icons.Trophy /> ROI Calculator: The &quot;Win-Win&quot; Simulator</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
                 <div>
                     <label className="block text-gray-400 mb-2">My Investment ($)</label>
@@ -275,12 +522,24 @@ const Simulator = () => {
                     <input type="number" value={poolSize} onChange={(e) => setPoolSize(Number(e.target.value))} className="w-full bg-black/50 border border-gray-700 rounded px-3 py-2 text-white focus:border-green-500 outline-none"/>
                 </div>
             </div>
-            <div className="mt-6 pt-6 border-t border-white/10 flex justify-between items-center">
-                <div className="text-gray-400">If you rank #1:</div>
-                <div className="text-right">
-                    <div className="text-2xl font-bold text-green-400 neon-green">+${winFirst}</div>
-                    <div className="text-xs text-gray-500">Recovered vs Lost: <span className="text-white">{(investment * (drawdown/100)).toLocaleString()} lost</span></div>
+            <div className="mt-6 pt-6 border-t border-white/10 grid md:grid-cols-3 gap-4">
+                <div className="bg-red-900/20 rounded-lg p-4 text-center">
+                    <div className="text-xs text-gray-400 uppercase">Paper Loss</div>
+                    <div className="text-2xl font-bold text-red-400 font-mono">-${lossAmount}</div>
                 </div>
+                <div className="bg-green-900/20 rounded-lg p-4 text-center">
+                    <div className="text-xs text-gray-400 uppercase">1st Place Win</div>
+                    <div className="text-2xl font-bold text-green-400 neon-green font-mono">+${winFirst}</div>
+                </div>
+                <div className="bg-purple-900/20 rounded-lg p-4 text-center">
+                    <div className="text-xs text-gray-400 uppercase">Net Profit</div>
+                    <div className={`text-2xl font-bold font-mono ${parseFloat(netProfit) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {parseFloat(netProfit) >= 0 ? '+' : ''}${netProfit}
+                    </div>
+                </div>
+            </div>
+            <div className="mt-4 text-center text-sm text-gray-400">
+                Potential ROI if you rank #1: <span className="text-green-400 font-bold">{roi}%</span>
             </div>
          </div>
      )
@@ -290,8 +549,8 @@ const Tokenomics = () => {
      const [hoveredRekt, setHoveredRekt] = useState(false)
      
      const data = [
-        { id: 'rekt', label: 'Rekt Pool (Rewards)', value: 95, color: 'bg-green-500', interactive: true },
-        { id: 'dev', label: 'Creator / Dev', value: 5, color: 'bg-purple-500', interactive: false },
+        { id: 'rekt', label: 'Community Rewards (Rekt Pool)', value: 95, color: 'bg-green-500', interactive: true },
+        { id: 'dev', label: 'Development & Maintenance', value: 5, color: 'bg-purple-500', interactive: false },
     ]
 
     return (
@@ -299,22 +558,35 @@ const Tokenomics = () => {
             <div className="glass-section-bg">
                 <div className="max-w-7xl mx-auto px-4 grid md:grid-cols-2 gap-12 items-center relative z-10">
                     <div>
+                        <span className="inline-block px-4 py-1 bg-cyan-500/20 border border-cyan-500/30 rounded-full text-cyan-400 text-sm font-medium mb-4">
+                            ECONOMICS
+                        </span>
                         <h2 className="text-4xl font-bold mb-8">Tokenomics</h2>
                         <p className="text-gray-400 mb-8 text-lg">
-                            The Flywheel is simple: <strong>More Volume = Bigger Top Blasts.</strong>
-                            <br/><br/>
-                            <span className="text-white font-bold">pump.fun Swap Fees:</span>
+                            The Flywheel is simple: <strong className="text-white">More Volume = Bigger Blasts.</strong>
                         </p>
-                        <ul className="list-disc pl-5 mt-2 space-y-2 text-gray-400 mb-8">
-                            <li><span className="text-green-400">95%</span> Refills Rekt Pool (Paid to Losers)</li>
-                            <li><span className="text-purple-400">5%</span> Creator Rewards</li>
-                        </ul>
-                        <p className="text-gray-400 mb-8">
-                            This ensures the payout pool grows directly with market activity. 
-                        </p>
+                        
+                        <div className="space-y-4 mb-8">
+                            <div className="flex items-center gap-3">
+                                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                <span className="text-gray-300"><span className="text-green-400 font-bold">95%</span> of fees → Community Rewards (Top 3 Losers)</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                                <span className="text-gray-300"><span className="text-purple-400 font-bold">5%</span> of fees → Protocol Development</span>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-green-900/20 border border-green-500/30 rounded-lg mb-8">
+                            <p className="text-green-300 text-sm">
+                                <strong>💡 Flywheel Effect:</strong> More trading → More fees → Bigger pool → Bigger payouts → More attention → More trading
+                            </p>
+                        </div>
+                        
                         <Simulator />
                     </div>
                     <div className="glass-panel p-8 rounded-2xl">
+                         <h3 className="text-xl font-bold mb-6">Fee Distribution</h3>
                          <div className="space-y-8">
                             {data.map((item, index) => (
                                 <div 
@@ -325,7 +597,7 @@ const Tokenomics = () => {
                                 >
                                     <div className="flex justify-between mb-2 font-mono text-sm">
                                         <span>{item.label}</span>
-                                        <span>{item.value}% of Fees</span>
+                                        <span className="font-bold">{item.value}%</span>
                                     </div>
                                     <div className="h-6 bg-gray-800 rounded-full overflow-hidden relative">
                                         <motion.div 
@@ -345,7 +617,7 @@ const Tokenomics = () => {
                                                 exit={{ opacity: 0, y: 10 }}
                                                 className="absolute top-full left-0 w-full mt-4 bg-gray-900 p-4 rounded-lg border border-green-500/50 z-50 shadow-2xl"
                                             >
-                                                <h4 className="text-sm font-bold text-green-400 mb-2">Hourly Payout Distribution</h4>
+                                                <h4 className="text-sm font-bold text-green-400 mb-2">Hourly Payout Split</h4>
                                                 <div className="flex gap-2 h-16">
                                                     <div className="h-full bg-yellow-400/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: '80%'}}>
                                                         <span>🥇 1st</span>
@@ -366,6 +638,112 @@ const Tokenomics = () => {
                                 </div>
                             ))}
                         </div>
+
+                        {/* App Link */}
+                        <div className="mt-8 pt-6 border-t border-white/10">
+                            <a href={`${APP_URL}/stats`} target="_blank" rel="noopener noreferrer">
+                                <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    className="w-full bg-white/5 border border-white/10 py-3 rounded-lg font-medium hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                                >
+                                    View Live Pool Stats <Icons.ExternalLink />
+                                </motion.button>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    )
+}
+
+// Update Log Section - NEW
+const UpdateLog = () => {
+    const updates = [
+        {
+            version: "v2.1.0",
+            date: "December 2025",
+            tag: "CURRENT",
+            changes: [
+                "Live automated payouts on Solana mainnet",
+                "Real-time leaderboard with 5-second polling",
+                "VWAP calculation from on-chain transaction history",
+                "Payout history with Solscan transaction links",
+                "Anti-gaming: winner cooldown, transfer detection, sell detection"
+            ]
+        },
+        {
+            version: "v2.0.0",
+            date: "December 2025",
+            tag: "MAJOR",
+            changes: [
+                "Complete rewrite with Next.js 14",
+                "MongoDB for holder caching and payout history",
+                "Helius RPC integration for blockchain data",
+                "Jupiter Price API for real-time pricing",
+                "Framer Motion animations"
+            ]
+        },
+        {
+            version: "v1.0.0",
+            date: "November 2025",
+            tag: "LAUNCH",
+            changes: [
+                "Initial whitepaper release",
+                "Protocol concept and mechanism design",
+                "Eligibility rules and anti-gaming framework"
+            ]
+        }
+    ]
+
+    return (
+        <section id="updates" className="py-24 relative">
+            <div className="glass-section-bg">
+                <div className="max-w-4xl mx-auto px-4">
+                    <motion.div 
+                        className="text-center mb-12"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                    >
+                        <span className="inline-block px-4 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded-full text-yellow-400 text-sm font-medium mb-4">
+                            DEVELOPMENT
+                        </span>
+                        <h2 className="text-4xl font-bold mb-4">Update Log</h2>
+                        <p className="text-gray-400">Track our progress and see what&apos;s new in each version.</p>
+                    </motion.div>
+
+                    <div className="space-y-6">
+                        {updates.map((update, idx) => (
+                            <motion.div
+                                key={idx}
+                                className="glass-panel rounded-xl p-6 border-l-4 border-green-500"
+                                initial={{ opacity: 0, x: -20 }}
+                                whileInView={{ opacity: 1, x: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: idx * 0.1 }}
+                            >
+                                <div className="flex items-center gap-4 mb-4">
+                                    <span className="text-2xl font-bold text-green-400 font-mono">{update.version}</span>
+                                    <span className="text-sm text-gray-400">{update.date}</span>
+                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                        update.tag === 'CURRENT' ? 'bg-green-500 text-black' :
+                                        update.tag === 'MAJOR' ? 'bg-purple-500 text-white' :
+                                        'bg-gray-600 text-white'
+                                    }`}>
+                                        {update.tag}
+                                    </span>
+                                </div>
+                                <ul className="space-y-2">
+                                    {update.changes.map((change, i) => (
+                                        <li key={i} className="flex items-start gap-2 text-gray-300">
+                                            <span className="text-green-400 mt-1">✓</span>
+                                            {change}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </motion.div>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -414,47 +792,47 @@ const Whitepaper = () => {
             title: "1.0 The Hedge Thesis: Volatility Insurance",
             content: (
                 <>
-                    <p className="mb-4">Most coins are a PVP battle where you only win if the price goes up (Number Go Up technology). <strong>Topblast flips this dynamic.</strong> It acts as volatility insurance for your portfolio, creating an asymmetric bet where downside volatility can result in upside payouts.</p>
+                    <p className="mb-4">Most tokens are a PVP battle where you only win if the price goes up. <strong className="text-white">Topblast flips this dynamic.</strong> It acts as volatility insurance for your portfolio, creating an asymmetric bet where downside volatility can result in upside payouts.</p>
                     <p className="mb-4 text-white"><strong>The Win-Win Scenario:</strong></p>
                     <ul className="list-disc pl-5 space-y-2 mb-4">
-                        <li><strong>Scenario A (Price Pumps):</strong> You hold the token, the value increases, and you sell for profit. Standard moon mission. You win.</li>
-                        <li><strong>Scenario B (Price Dumps):</strong> The market crashes. Paper hands sell in panic. But you? You hold or buy the dip. Your &quot;Drawdown %&quot; increases, skyrocketing you up the <strong>Blaster Leaderboard</strong>. You win the hourly jackpot (80% of the pool) which effectively rebates your loss, often exceeding it by 10x-100x.</li>
+                        <li><strong className="text-green-400">Scenario A (Price Pumps):</strong> You hold the token, the value increases, and you sell for profit. Standard moon mission. You win.</li>
+                        <li><strong className="text-red-400">Scenario B (Price Dumps):</strong> The market crashes. Paper hands sell. But you hold. Your drawdown % increases, shooting you up the Blaster Leaderboard. You win the hourly jackpot (80% of the pool).</li>
                     </ul>
                     <div className="mt-4 p-4 bg-green-900/20 border border-green-500/30 rounded text-sm text-green-300 italic">
-                        &quot;In a market of gambling, be the casino. If you can't be the casino, be the player who gets paid to lose.&quot;
+                        &quot;In a market of gambling, be the casino. If you can&apos;t be the casino, be the player who gets paid to lose.&quot;
                     </div>
                 </>
             )
         },
         {
-            title: "2.0 Core Mechanics: How Loss is Monetized",
+            title: "2.0 Core Mechanics: VWAP & Drawdown",
             content: (
                 <>
-                    <p className="mb-4">Topblast is built on Solana using Rust and Anchor. It relies on a transparent, on-chain tracking mechanism that is verifiable by anyone.</p>
-                    <h4 className="text-white font-bold mt-4 mb-2">The &quot;Average Buy Price&quot; Tracker</h4>
-                    <p className="mb-4">The system tracks every wallet&apos;s entry price from on-chain buy transactions. When you buy more tokens, your average entry price updates using a volume-weighted calculation (VWAP).</p>
-                    <p><strong>Drawdown Calculation:</strong></p>
-                    <code className="block bg-gray-900 p-2 rounded text-xs mb-4 text-green-400 font-mono">
-                        Current Price - Average Buy Price = PnL <br/>
-                        (PnL / Average Buy Price) × 100 = Drawdown %
+                    <p className="mb-4">Topblast uses real on-chain data to calculate your position. Everything is transparent and verifiable.</p>
+                    <h4 className="text-white font-bold mt-4 mb-2">Volume-Weighted Average Price (VWAP)</h4>
+                    <p className="mb-4">The system tracks every wallet&apos;s entry price from on-chain buy transactions. Your VWAP updates as you buy more tokens.</p>
+                    <code className="block bg-gray-900 p-3 rounded text-xs mb-4 text-green-400 font-mono">
+                        VWAP = Total Cost Basis / Total Tokens Bought<br/>
+                        Total Cost Basis = Σ(SOL spent × SOL price) + Σ(stablecoin spent)
+                    </code>
+                    <h4 className="text-white font-bold mt-4 mb-2">Drawdown Calculation</h4>
+                    <code className="block bg-gray-900 p-3 rounded text-xs mb-4 text-green-400 font-mono">
+                        Drawdown % = ((Current Price - VWAP) / VWAP) × 100
                     </code>
                     <h4 className="text-white font-bold mt-4 mb-2">Ranking Logic</h4>
-                    <p className="mb-2">Holders are ranked by:</p>
                     <ol className="list-decimal pl-5 space-y-1 mb-4">
-                        <li><strong>Primary:</strong> Drawdown % (biggest percentage loss first)</li>
-                        <li><strong>Tiebreaker:</strong> Absolute USD loss (bigger dollar loss wins ties)</li>
+                        <li><strong>Primary:</strong> Drawdown % (most negative first)</li>
+                        <li><strong>Tiebreaker:</strong> Absolute USD loss (bigger loss wins)</li>
                     </ol>
-                    <p>The deeper you are underwater, the higher your rank. This incentivizes holding through dips and buying falling knives, stabilizing the floor price naturally.</p>
                 </>
             )
         },
         {
-            title: "3.0 Eligibility Rules: Who Can Win?",
+            title: "3.0 Eligibility Rules",
             content: (
                 <>
-                    <p className="mb-4">Not everyone qualifies for the Top Blast. These rules prevent gaming and ensure genuine &quot;bag holders&quot; are rewarded.</p>
+                    <p className="mb-4">These rules prevent gaming and ensure genuine diamond hands are rewarded.</p>
                     
-                    {/* Threshold Summary Card */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                         <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-3 text-center">
                             <div className="text-xs text-gray-400 uppercase">Min Balance</div>
@@ -478,93 +856,32 @@ const Whitepaper = () => {
                         </div>
                     </div>
 
-                    <h4 className="text-white font-bold mt-4 mb-2">✅ Requirements to Qualify</h4>
-                    <div className="bg-gray-900/50 rounded-lg p-4 mb-4">
-                        <ul className="space-y-3">
-                            <li className="flex items-start gap-2">
-                                <span className="text-green-400 font-bold">1.</span>
-                                <div><strong className="text-white">Minimum Holding:</strong> Must hold at least <span className="text-green-400 font-mono">100,000 $TBLAST</span> tokens</div>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="text-green-400 font-bold">2.</span>
-                                <div><strong className="text-white">Holding Duration:</strong> Must have held for at least <span className="text-green-400 font-mono">1 hour</span> before the snapshot</div>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="text-green-400 font-bold">3.</span>
-                                <div><strong className="text-white">Minimum Loss:</strong> Your loss must exceed <span className="text-green-400 font-mono">10%</span> of the current hourly pool value (prevents $1 loss gaming)</div>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="text-green-400 font-bold">4.</span>
-                                <div><strong className="text-white">Underwater:</strong> Must be in a loss position (negative PnL)</div>
-                            </li>
-                        </ul>
-                    </div>
-
                     <h4 className="text-white font-bold mt-4 mb-2">❌ Disqualification Triggers</h4>
                     <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4 mb-4">
-                        <ul className="space-y-3">
+                        <ul className="space-y-2">
                             <li className="flex items-start gap-2">
                                 <span className="text-red-400">•</span>
-                                <div><strong className="text-white">Sold tokens:</strong> Any sell = immediate disqualification from current cycle</div>
+                                <div><strong className="text-white">Sold tokens:</strong> Immediate disqualification</div>
                             </li>
                             <li className="flex items-start gap-2">
                                 <span className="text-red-400">•</span>
-                                <div><strong className="text-white">Transferred OUT:</strong> Moving tokens to another wallet = 1 hour cooldown</div>
+                                <div><strong className="text-white">Transferred OUT:</strong> 1 hour cooldown</div>
                             </li>
                             <li className="flex items-start gap-2">
                                 <span className="text-red-400">•</span>
-                                <div><strong className="text-white">Won last cycle:</strong> Previous winners sit out 1 cycle (must take new risk to compete again)</div>
+                                <div><strong className="text-white">Won last cycle:</strong> 1 cycle cooldown</div>
                             </li>
                         </ul>
                     </div>
-
-                    <div className="mt-4 p-4 bg-purple-900/20 border border-purple-500/30 rounded text-sm">
-                        <strong className="text-purple-300">Why these rules?</strong>
-                        <p className="text-gray-400 mt-1">Prevents wash trading, sybil attacks, and micro-loss gaming. Only genuine diamond hands who buy and hold through pain are eligible for rewards.</p>
-                    </div>
                 </>
             )
         },
         {
-            title: "4.0 The Psychology of Winning (Why Buy Any Price?)",
+            title: "4.0 Payout Distribution",
             content: (
                 <>
-                    <p className="mb-4">Why should you feel confident buying at the top? Or the bottom?</p>
-                    <ul className="list-disc pl-5 space-y-3">
-                        <li><strong>Buying the Top:</strong> If you buy the top and it dumps, you immediately become eligible for the Rekt Pool. The larger the dump, the higher your probability of winning the jackpot. The jackpot is funded by the trading volume that caused the volatility.</li>
-                        <li><strong>Buying the Bottom:</strong> If you catch a knife and it keeps dipping, your drawdown % increases, protecting you. If it reverses and pumps, you profit from the token appreciation.</li>
-                        <li><strong>No Fear of Bag Holding:</strong> &quot;Bag holders&quot; are usually the victims of DeFi. In Topblast, Bag Holders are the VIPs. The protocol is designed to reward the most loyal holders who endure the most pain.</li>
-                    </ul>
-                </>
-            )
-        },
-        {
-            title: "5.0 Automation: Fully Automatic Payouts",
-            content: (
-                <>
-                    <p className="mb-4">Trust is paramount. <strong>You don&apos;t need to do anything.</strong> No wallet connection, no claiming, no interaction required.</p>
-                    <p className="mb-4">Every hour, the system automatically:</p>
-                    <ol className="list-decimal pl-5 space-y-2 mb-4">
-                        <li><strong>Scans:</strong> Reads all token holder data directly from Solana blockchain</li>
-                        <li><strong>Calculates:</strong> Computes average buy price (VWAP) for each wallet from on-chain transactions</li>
-                        <li><strong>Ranks:</strong> Sorts eligible wallets by drawdown % (tiebreaker: absolute loss)</li>
-                        <li><strong>Pays:</strong> Automatically sends $TBLAST tokens to Top 3 wallets</li>
-                        <li><strong>Resets:</strong> Updates winners&apos; entry price to current market price</li>
-                    </ol>
-                    <div className="mt-4 p-4 bg-green-900/20 border border-green-500/30 rounded">
-                        <p className="text-green-300 font-bold mb-2">🎯 Zero Interaction Required</p>
-                        <p className="text-gray-400 text-sm">Just buy and hold. If you qualify and rank in the top 3, tokens are sent directly to your wallet. Check the live leaderboard to see your position.</p>
-                    </div>
-                </>
-            )
-        },
-        {
-            title: "6.0 Tokenomics & Fee Structure",
-            content: (
-                <>
-                    <p className="mb-4">The Reward Pool is funded by <strong>creator fees</strong> from pump.fun/PumpSwap trading volume. More volume = bigger pool = bigger blasts.</p>
-                    <h4 className="text-white font-bold mt-4 mb-2">The Hourly Split (Top 3 Losers):</h4>
-                    <div className="flex gap-2 h-20 mb-4">
+                    <p className="mb-4">Every hour, the reward pool is distributed to the top 3 losers automatically.</p>
+                    <div className="flex gap-2 h-20 mb-6">
                         <div className="h-full bg-yellow-400/80 rounded flex flex-col items-center justify-center text-black font-bold" style={{width: '80%'}}>
                             <span>🥇 1st Place</span>
                             <span className="text-2xl">80%</span>
@@ -578,45 +895,25 @@ const Whitepaper = () => {
                             <span>5%</span>
                         </div>
                     </div>
-                    <h4 className="text-white font-bold mt-4 mb-2">Creator Fee Allocation:</h4>
-                    <ul className="list-disc pl-5 space-y-2 mb-4">
-                        <li><span className="text-green-400 font-bold">95%</span> → Reward Pool (distributed to Top Blasters)</li>
-                        <li><span className="text-purple-400 font-bold">5%</span> → Dev/Maintenance wallet</li>
-                    </ul>
-                    <p className="text-gray-400 text-sm">This is a community-first protocol. The vast majority of fees flow back to holders.</p>
-                </>
-            )
-        },
-        {
-            title: "7.0 Strategic Trading: How to Win",
-            content: (
-                <>
-                    <p className="mb-4">Advanced strategies for the professional Loser:</p>
-                    <ul className="list-disc pl-5 space-y-3">
-                        <li><strong>The &quot;Kamikaze&quot; Entry:</strong> Buying heavily during a massive red candle to instantly secure a high drawdown percentage if it dips further. Risk: must hold 1+ hour to qualify.</li>
-                        <li><strong>The &quot;Diamond Hand&quot; Hold:</strong> Refusing to sell even when down 50%+, knowing that the payout from the Rekt Pool could exceed your loss value.</li>
-                        <li><strong>Volume Watch:</strong> The Rekt Pool is biggest when volume is highest. High volatility days are the most profitable days to be &quot;wrong&quot; on price direction.</li>
-                        <li><strong>Timing the Cycle:</strong> The snapshot happens every hour on the hour. Position yourself in the top 3 before the snapshot for maximum chance.</li>
-                    </ul>
-                    <div className="mt-4 p-4 bg-yellow-900/20 border border-yellow-500/30 rounded text-sm">
-                        <strong className="text-yellow-300">⚠️ Remember:</strong>
-                        <p className="text-gray-400 mt-1">Selling disqualifies you. Transferring disqualifies you. The only way to win is to buy, hold through the pain, and let the system reward you automatically.</p>
+                    <div className="p-4 bg-green-900/20 border border-green-500/30 rounded">
+                        <p className="text-green-300 font-bold mb-2">🎯 Zero Interaction Required</p>
+                        <p className="text-gray-400 text-sm">Just buy and hold. Winners receive tokens directly in their wallets. Check your ranking on the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-green-400 underline hover:text-green-300">live leaderboard</a>.</p>
                     </div>
                 </>
             )
         },
         {
-            title: "8.0 How to Participate",
+            title: "5.0 How to Participate",
             content: (
                 <>
-                    <p className="mb-4">Getting started with Topblast is simple. <strong>No wallet connection to our site required.</strong></p>
+                    <p className="mb-4"><strong className="text-white">No wallet connection to our site required.</strong></p>
                     
                     <div className="space-y-4">
                         <div className="flex items-start gap-4 p-4 bg-gray-900/50 rounded-lg">
                             <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">1</div>
                             <div>
                                 <h4 className="text-white font-bold mb-1">Buy $TBLAST</h4>
-                                <p className="text-gray-400 text-sm">Purchase tokens on any supported DEX (Raydium, Jupiter, etc.) after bonding completes on pump.fun.</p>
+                                <p className="text-gray-400 text-sm">Purchase tokens on any DEX (Raydium, Jupiter) after bonding completes on pump.fun.</p>
                             </div>
                         </div>
                         
@@ -624,7 +921,7 @@ const Whitepaper = () => {
                             <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">2</div>
                             <div>
                                 <h4 className="text-white font-bold mb-1">Hold for 1+ Hour</h4>
-                                <p className="text-gray-400 text-sm">Your tokens must be held for at least 1 hour before you become eligible for rewards. Don&apos;t sell. Don&apos;t transfer.</p>
+                                <p className="text-gray-400 text-sm">Your tokens must be held for at least 1 hour before eligibility. Don&apos;t sell. Don&apos;t transfer.</p>
                             </div>
                         </div>
                         
@@ -632,61 +929,33 @@ const Whitepaper = () => {
                             <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">3</div>
                             <div>
                                 <h4 className="text-white font-bold mb-1">Watch &amp; Win</h4>
-                                <p className="text-gray-400 text-sm">Check the live leaderboard to see your ranking. If you&apos;re in the top 3 at the hourly snapshot, tokens are sent directly to your wallet. No claiming needed.</p>
+                                <p className="text-gray-400 text-sm">Check the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-green-400 underline">live leaderboard</a>. If you&apos;re top 3, tokens are sent automatically.</p>
                             </div>
                         </div>
-                    </div>
-
-                    <div className="mt-6 p-4 bg-green-900/20 border border-green-500/30 rounded">
-                        <p className="text-green-300 font-bold mb-2">💡 That&apos;s it. Seriously.</p>
-                        <p className="text-gray-400 text-sm">Buy, hold, and if you qualify as a top loser, you get paid. The entire system runs automatically using public blockchain data.</p>
                     </div>
                 </>
             )
         },
         {
-            title: "9.0 Frequently Asked Questions",
+            title: "6.0 FAQ",
             content: (
                 <>
                     <div className="space-y-6">
                         <div>
                             <h4 className="text-white font-bold mb-2">How do I check my ranking?</h4>
-                            <p className="text-gray-400">Visit the live Leaderboard page on our site. Your wallet address will appear if you&apos;re eligible. No wallet connection required—all data is public.</p>
+                            <p className="text-gray-400">Visit the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-green-400 underline">live leaderboard</a>. All data is public—no wallet connection needed.</p>
                         </div>
-
-                        <div>
-                            <h4 className="text-white font-bold mb-2">When do payouts start?</h4>
-                            <p className="text-gray-400">Payouts begin after the token graduates from pump.fun&apos;s bonding curve and sufficient creator fees have accumulated in the reward pool.</p>
-                        </div>
-
-                        <div>
-                            <h4 className="text-white font-bold mb-2">What happens if I win?</h4>
-                            <p className="text-gray-400">$TBLAST tokens are sent directly to your wallet automatically. Your average buy price (VWAP) resets to the current market price, and you sit out 1 cycle before competing again.</p>
-                        </div>
-
-                        <div>
-                            <h4 className="text-white font-bold mb-2">What if there are fewer than 3 eligible holders?</h4>
-                            <p className="text-gray-400">If only 2 holders qualify, they split 95% (80% + 15%). If only 1 qualifies, they receive the full payout. The remaining 5% stays in the pool.</p>
-                        </div>
-
-                        <div>
-                            <h4 className="text-white font-bold mb-2">Can I win multiple times?</h4>
-                            <p className="text-gray-400">Yes, but not consecutively. After winning, you must sit out 1 cycle. Your VWAP resets, so you need to take new risk (experience new losses) to compete again.</p>
-                        </div>
-
-                        <div>
-                            <h4 className="text-white font-bold mb-2">What if I transfer tokens to another wallet?</h4>
-                            <p className="text-gray-400">Transferring tokens OUT disqualifies you for 1 hour. The receiving wallet&apos;s VWAP will be recalculated. This prevents gaming via wallet splitting.</p>
-                        </div>
-
                         <div>
                             <h4 className="text-white font-bold mb-2">Is this gambling?</h4>
-                            <p className="text-gray-400">No. Payouts are deterministic based on your holdings and the price—there&apos;s no randomness. It&apos;s more like a structured reward system for diamond hands than a lottery.</p>
+                            <p className="text-gray-400">No. Payouts are deterministic based on your holdings and price. There&apos;s no randomness—it&apos;s a structured reward system for diamond hands.</p>
                         </div>
-
+                        <div>
+                            <h4 className="text-white font-bold mb-2">Can I win multiple times?</h4>
+                            <p className="text-gray-400">Yes, but not consecutively. Winners sit out 1 cycle and their VWAP resets to current price.</p>
+                        </div>
                         <div>
                             <h4 className="text-white font-bold mb-2">How big can payouts get?</h4>
-                            <p className="text-gray-400">The reward pool grows with trading volume. More volume = more creator fees = bigger pool = bigger blasts. On high-volume days, the 1st place payout could significantly exceed your loss amount.</p>
+                            <p className="text-gray-400">The pool grows with trading volume. More volume = more fees = bigger pool. Check current pool size on the <a href={`${APP_URL}/stats`} target="_blank" rel="noopener noreferrer" className="text-green-400 underline">stats page</a>.</p>
                         </div>
                     </div>
                 </>
@@ -698,7 +967,13 @@ const Whitepaper = () => {
         <section id="whitepaper" className="py-24 relative">
             <div className="glass-section-bg">
                 <div className="max-w-4xl mx-auto px-4">
-                    <h2 className="text-4xl font-bold mb-12 text-center">Whitepaper <span className="text-green-500 text-sm align-top">v2.1</span></h2>
+                    <div className="text-center mb-12">
+                        <span className="inline-block px-4 py-1 bg-purple-500/20 border border-purple-500/30 rounded-full text-purple-400 text-sm font-medium mb-4">
+                            DOCUMENTATION
+                        </span>
+                        <h2 className="text-4xl font-bold mb-4">Whitepaper <span className="text-green-500 text-sm align-top">v2.1</span></h2>
+                        <p className="text-gray-400">Complete technical documentation of the Topblast protocol.</p>
+                    </div>
                     <div className="glass-panel rounded-xl p-2 md:p-8">
                         {sections.map((section, idx) => (
                             <AccordionItem 
@@ -719,14 +994,58 @@ const Whitepaper = () => {
 
 const Footer = () => {
     return (
-        <footer className="py-12 border-t border-gray-900/50 bg-black/60 backdrop-blur-md text-center text-gray-500 text-sm relative z-10">
-            <div className="flex justify-center gap-6 mb-8">
-                <a href="#" className="hover:text-white transition-colors">Twitter</a>
-                <a href="#" className="hover:text-white transition-colors">Discord</a>
-                <a href="#" className="hover:text-white transition-colors">Telegram</a>
-                <a href="#" className="hover:text-white transition-colors">Github</a>
+        <footer className="py-12 border-t border-gray-900/50 bg-black/60 backdrop-blur-md relative z-10">
+            <div className="max-w-7xl mx-auto px-4">
+                {/* CTA Banner */}
+                <motion.div 
+                    className="glass-panel rounded-2xl p-8 mb-12 text-center border border-green-500/30 bg-gradient-to-r from-green-900/20 to-purple-900/20"
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                >
+                    <h3 className="text-3xl font-bold mb-4">Ready to Start Winning by Losing?</h3>
+                    <p className="text-gray-400 mb-6 max-w-2xl mx-auto">
+                        Join the first protocol where your losses can become wins. Check the live leaderboard, see current rankings, and watch your position.
+                    </p>
+                    <a href={APP_URL} target="_blank" rel="noopener noreferrer">
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="bg-gradient-to-r from-green-400 to-emerald-500 text-black px-10 py-4 rounded-lg font-bold text-lg shadow-[0_0_30px_rgba(20,241,149,0.4)] hover:shadow-[0_0_40px_rgba(20,241,149,0.6)] transition-all"
+                        >
+                            Launch App at topblastweb3.xyz →
+                        </motion.button>
+                    </a>
+                </motion.div>
+
+                {/* Links */}
+                <div className="flex flex-col md:flex-row justify-between items-center gap-6 text-sm text-gray-500">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded overflow-hidden">
+                            <Image src="/logo.jpg" alt="TopBlast" width={32} height={32} className="w-full h-full object-cover" />
+                        </div>
+                        <span className="font-bold text-white">TOPBLAST</span>
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors flex items-center gap-1">
+                            App <Icons.ExternalLink />
+                        </a>
+                        <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors">Leaderboard</a>
+                        <a href={`${APP_URL}/history`} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors">History</a>
+                        <a href={`${APP_URL}/stats`} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors">Stats</a>
+                        {/* Social Links */}
+                        <div className="flex items-center gap-4 border-l border-white/10 pl-4">
+                            <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors flex items-center gap-1" title="Follow on X">
+                                <Icons.XTwitter /> 
+                            </a>
+                            <a href={LINKS.github} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors flex items-center gap-1" title="GitHub">
+                                <Icons.GitHub />
+                            </a>
+                        </div>
+                    </div>
+                    <p>&copy; 2025 Topblast Protocol. Built on Solana.</p>
+                </div>
             </div>
-            <p>&copy; 2025 Topblast Protocol. Built on Solana.</p>
         </footer>
     )
 }
@@ -742,9 +1061,11 @@ export default function Home() {
                 <Navbar />
                 <Hero />
                 <RektTicker />
+                <WhyInvest />
                 <Mechanism />
                 <Tokenomics />
                 <Whitepaper />
+                <UpdateLog />
                 <Footer />
             </div>
             
