@@ -67,7 +67,6 @@ export async function GET(request: NextRequest) {
     const dbRankings = await loadRankingsFromDb()
     
     const trackerStatus = getTrackerStatus()
-    const serviceStatus = getServiceStatus()
 
     // If no rankings in DB yet, show initializing state
     if (!dbRankings || dbRankings.rankings.length === 0) {
