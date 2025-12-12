@@ -217,7 +217,7 @@ const Hero = () => {
                         <div className="text-xs text-gray-400 mt-1">1st Place Payout</div>
                     </div>
                     <div className="glass-panel rounded-xl p-4 text-center">
-                        <div className="text-3xl font-bold text-cyan-400 font-mono">1hr</div>
+                        <div className="text-3xl font-bold text-cyan-400 font-mono">2hr</div>
                         <div className="text-xs text-gray-400 mt-1">Payout Frequency</div>
                     </div>
                     <div className="glass-panel rounded-xl p-4 text-center">
@@ -1160,7 +1160,7 @@ const Whitepaper = () => {
                         </div>
                         <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-3 text-center">
                             <div className="text-xs text-gray-400 uppercase">Hold Time</div>
-                            <div className="text-xl font-bold text-green-400 font-mono">1 hr</div>
+                            <div className="text-xl font-bold text-green-400 font-mono">2 hr</div>
                             <div className="text-xs text-gray-500">minimum</div>
                         </div>
                         <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-3 text-center">
