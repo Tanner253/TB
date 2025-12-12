@@ -110,6 +110,21 @@ export async function GET(request: NextRequest) {
     const poolBal = poolUsd
     const minLoss = poolBal * (config.minLossThresholdPct / 100)
 
+    // Get eligible holders to calculate their payout rank (not overall rank)
+    const eligibleWallets = dbRankings.rankings
+      .filter(h => h.isEligible)
+      .map(h => h.wallet)
+    
+    // Calculate payout based on position among ELIGIBLE holders, not overall rank
+    const getPayoutForWallet = (wallet: string): number => {
+      const eligibleRank = eligibleWallets.indexOf(wallet)
+      if (eligibleRank === -1) return 0
+      if (eligibleRank === 0) return poolBal * 0.95 * 0.80  // 1st place: 80% of 95%
+      if (eligibleRank === 1) return poolBal * 0.95 * 0.15  // 2nd place: 15% of 95%
+      if (eligibleRank === 2) return poolBal * 0.95 * 0.05  // 3rd place: 5% of 95%
+      return 0
+    }
+
     const rankings = dbRankings.rankings.slice(0, limit).map((holder, idx) => ({
       rank: idx + 1,
       wallet: holder.wallet,
@@ -124,11 +139,9 @@ export async function GET(request: NextRequest) {
       loss_usd_raw: holder.lossUsd,
       is_eligible: holder.isEligible,
       ineligible_reason: holder.ineligibleReason,
-      payout_usd: holder.isEligible ? formatUsd(
-        idx === 0 ? poolBal * 0.8 :
-        idx === 1 ? poolBal * 0.15 :
-        idx === 2 ? poolBal * 0.05 : 0
-      ) : '$0.00',
+      // Show payout based on eligible rank, not overall rank
+      payout_usd: formatUsd(getPayoutForWallet(holder.wallet)),
+      eligible_rank: holder.isEligible ? eligibleWallets.indexOf(holder.wallet) + 1 : null,
     }))
 
     return NextResponse.json({
@@ -154,6 +167,8 @@ export async function GET(request: NextRequest) {
         ws_connected: false,
         tracker_initialized: true,
         rankings,
+        // Convenience: pre-filtered eligible winners (top 3)
+        eligible_winners: rankings.filter(r => r.is_eligible).slice(0, 3),
         last_updated: dbRankings.lastCalculated.toISOString(),
       },
     })

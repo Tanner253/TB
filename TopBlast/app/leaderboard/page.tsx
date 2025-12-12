@@ -165,7 +165,12 @@ export default function LeaderboardPage() {
   // Always show the page - use inline loading states for data
   const isLoading = loading && !data
   const isInitializing = data?.status === 'initializing'
-  const top3 = data?.rankings?.slice(0, 3) || []
+  
+  // IMPORTANT: Filter for ELIGIBLE holders first, then take top 3
+  // This ensures only eligible holders appear in "Current Winners"
+  const eligibleWinners = (data?.rankings || []).filter((h: Winner) => h.is_eligible === true)
+  const top3 = eligibleWinners.slice(0, 3)
+  
   // Pool is now in SOL - parse the USD value for display
   const poolValue = parseFloat(data?.pool_balance_usd?.replace(/[$,]/g, '') || '0')
   const wsConnected = data?.ws_connected

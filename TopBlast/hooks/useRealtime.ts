@@ -91,24 +91,30 @@ export function useRealtimeLeaderboard(pollInterval = 10000) {
       const json = await res.json()
       
       if (json.success) {
-        // Only update data if rankings actually changed (prevents re-renders)
+        // Update data when rankings or values change
         setData((prev: any) => {
           // If no previous data, set it
           if (!prev) return json.data
           
-          // Check if rankings changed (compare wallet addresses)
-          const prevWallets = prev.rankings?.map((r: any) => r.wallet).join(',') || ''
-          const newWallets = json.data.rankings?.map((r: any) => r.wallet).join(',') || ''
+          // Check if rankings changed (compare wallet addresses AND their loss values)
+          const prevSignature = prev.rankings?.map((r: any) => 
+            `${r.wallet}:${r.loss_usd_raw?.toFixed(2)}:${r.is_eligible}`
+          ).join(',') || ''
+          const newSignature = json.data.rankings?.map((r: any) => 
+            `${r.wallet}:${r.loss_usd_raw?.toFixed(2)}:${r.is_eligible}`
+          ).join(',') || ''
           
-          // Only update if something meaningful changed
-          if (prevWallets !== newWallets || 
+          // Update if rankings, eligibility, status, or pool changed
+          if (prevSignature !== newSignature || 
               prev.status !== json.data.status ||
-              prev.eligible_count !== json.data.eligible_count) {
+              prev.eligible_count !== json.data.eligible_count ||
+              prev.pool_balance_usd !== json.data.pool_balance_usd ||
+              prev.token_price_raw !== json.data.token_price_raw) {
             return json.data
           }
           
-          // Update non-visual fields without causing re-render of rankings
-          return { ...prev, ...json.data, rankings: prev.rankings }
+          // Update countdown and other metadata without full re-render
+          return { ...prev, seconds_remaining: json.data.seconds_remaining }
         })
         
         // Sync countdown from server - only if significantly different (>5 seconds)

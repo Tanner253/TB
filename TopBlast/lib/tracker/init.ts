@@ -89,6 +89,7 @@ async function doInitialize(): Promise<void> {
 
 /**
  * Update price if it's been more than 30 seconds
+ * Also saves to DB for cross-instance consistency
  */
 async function maybeUpdatePrice(): Promise<void> {
   const now = Date.now()
@@ -96,8 +97,10 @@ async function maybeUpdatePrice(): Promise<void> {
     try {
       const newPrice = await getTokenPrice(config.tokenMint)
       if (newPrice) {
-        updatePrice(newPrice)
+        // Save to DB so all instances see updated rankings
+        await updatePrice(newPrice, true)
         trackerState.lastPriceUpdate = now
+        console.log(`[Tracker] Price updated: $${newPrice.toFixed(8)} (saved to DB)`)
       }
     } catch (error) {
       // Ignore price update errors

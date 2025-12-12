@@ -501,8 +501,9 @@ function checkEligibility(
 
 /**
  * Update price and recalculate all holder eligibility
+ * Optionally saves to DB for cross-instance consistency
  */
-export function updatePrice(newPrice: number): void {
+export async function updatePrice(newPrice: number, saveToDb: boolean = false): Promise<void> {
   state.currentTokenPrice = newPrice
   
   // Recalculate drawdown and eligibility for all holders
@@ -532,6 +533,11 @@ export function updatePrice(newPrice: number): void {
       holder.ineligibleReason = reason
       holder.updatedAt = Date.now()
     }
+  }
+  
+  // Save to DB if requested (for cross-instance consistency)
+  if (saveToDb && holders.size > 0) {
+    await saveRankingsToDb()
   }
 }
 
