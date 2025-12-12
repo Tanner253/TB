@@ -520,7 +520,24 @@ export default function LeaderboardPage() {
                 {(!data?.rankings || data.rankings.length === 0) && (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                      No eligible holders found yet
+                      {isLoading || isInitializing ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                            className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full"
+                          />
+                          <span>Loading holder data...</span>
+                        </div>
+                      ) : data?.total_holders && data.total_holders > 0 ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <span className="text-3xl">📈</span>
+                          <span className="text-white font-medium">Everyone is in profit!</span>
+                          <span className="text-sm">No holders currently in loss. The leaderboard will populate when the price drops.</span>
+                        </div>
+                      ) : (
+                        <span>No eligible holders found yet</span>
+                      )}
                     </td>
                   </tr>
                 )}

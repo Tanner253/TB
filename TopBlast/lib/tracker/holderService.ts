@@ -926,14 +926,32 @@ export async function refreshHolders(): Promise<boolean> {
 /**
  * Save current rankings to database for cross-instance consistency
  * This ensures all Vercel serverless instances show the same rankings
+ * Saves ALL holders (not just losers) so leaderboard can show everyone's position
  */
 export async function saveRankingsToDb(): Promise<void> {
   try {
     const { CurrentRankings } = await import('@/lib/db/models')
     await connectDB()
     
-    const rankedLosers = getRankedLosers()
-    const rankings = rankedLosers.slice(0, 50).map(h => ({
+    // Get ALL holders with real VWAP, sorted by drawdown (most negative first)
+    // This shows everyone's position, not just those in loss
+    const allHoldersWithVwap = Array.from(holders.values())
+      .filter(h => 
+        h.vwap && 
+        h.vwap > 0 && 
+        h.vwapSource === 'real' &&
+        h.balance >= config.minTokenHolding
+      )
+      .sort((a, b) => {
+        // Sort by drawdown % (most negative = biggest loser first)
+        if (a.drawdownPct !== b.drawdownPct) {
+          return a.drawdownPct - b.drawdownPct
+        }
+        // Tiebreaker: highest USD loss
+        return b.lossUsd - a.lossUsd
+      })
+    
+    const rankings = allHoldersWithVwap.slice(0, 50).map(h => ({
       wallet: h.wallet,
       balance: h.balance,
       vwap: h.vwap || 0,

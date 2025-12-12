@@ -53,13 +53,22 @@ export async function GET(request: NextRequest) {
     const poolUsd = poolSol * solPrice
 
     // Auto-trigger payout when timer hits 0 AND service is ready
-    const secondsUntil = getSecondsUntilNextPayout()
+    // The executor has atomic locking to prevent duplicate concurrent payouts
     const serviceStatus = getServiceStatus()
     
     if (isPayoutDue() && serviceStatus.initialized && serviceStatus.holderCount > 0) {
-      console.log(`[Leaderboard] ⏰ Timer at 0 & service ready - executing payout`)
-      const payoutResult = await executePayout()
-      console.log(`[Leaderboard] Payout complete: ${payoutResult.success ? '✅' : '❌'} ${payoutResult.error || ''}`)
+      // Fire and forget - don't wait for payout to complete
+      // The atomic lock in executePayout prevents duplicates
+      executePayout()
+        .then(result => {
+          if (result.success) {
+            console.log(`[Leaderboard] ✅ Payout triggered successfully`)
+          } else if (result.error !== 'Payout already in progress') {
+            console.log(`[Leaderboard] ❌ Payout failed: ${result.error}`)
+          }
+          // Don't log "already in progress" - that's expected for concurrent requests
+        })
+        .catch(err => console.error(`[Leaderboard] Payout error:`, err))
     }
 
     // CRITICAL: Load rankings from DATABASE (not in-memory)
@@ -68,8 +77,9 @@ export async function GET(request: NextRequest) {
     
     const trackerStatus = getTrackerStatus()
 
-    // If no rankings in DB yet, show initializing state
-    if (!dbRankings || dbRankings.rankings.length === 0) {
+    // If no data in DB at all, show initializing state
+    // But if we have holders (even with no eligible losers), show "ready" with empty rankings
+    if (!dbRankings) {
       return NextResponse.json({
         success: true,
         data: {
@@ -81,13 +91,13 @@ export async function GET(request: NextRequest) {
           pool_balance_usd: formatUsd(poolUsd),
           pool_balance_tokens: `${poolSol.toFixed(4)} SOL`,
           sol_price: solPrice,
-          token_price: dbRankings?.tokenPrice ? formatPrice(dbRankings.tokenPrice) : 'Loading...',
+          token_price: 'Loading...',
           token_symbol: config.tokenSymbol,
           token_mint: config.tokenMint,
-          total_holders: dbRankings?.totalHolders || 0,
-          tracked_holders: dbRankings?.totalHolders || 0,
-          holders_with_real_vwap: dbRankings?.holdersWithVwap || 0,
-          eligible_count: dbRankings?.eligibleCount || 0,
+          total_holders: 0,
+          tracked_holders: 0,
+          holders_with_real_vwap: 0,
+          eligible_count: 0,
           ws_connected: false,
           tracker_initialized: serviceStatus.initialized,
           rankings: [],

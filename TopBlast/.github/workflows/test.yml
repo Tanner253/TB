@@ -42,3 +42,4 @@ jobs:
           TOKEN_SYMBOL: "TEST"
           MONGODB_URI: "mongodb://localhost:27017/test"
 
+

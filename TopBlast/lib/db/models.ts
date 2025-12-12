@@ -136,6 +136,8 @@ export interface ITimerState extends Document {
   currentCycle: number
   failedAttempts: number
   isPayoutInProgress: boolean
+  lockAcquiredAt: Date | null // When the current lock was acquired
+  lockCycle: number | null // Which cycle holds the lock
   updatedAt: Date
 }
 
@@ -145,6 +147,8 @@ const TimerStateSchema = new Schema<ITimerState>({
   currentCycle: { type: Number, default: 0 },
   failedAttempts: { type: Number, default: 0 },
   isPayoutInProgress: { type: Boolean, default: false },
+  lockAcquiredAt: { type: Date, default: null },
+  lockCycle: { type: Number, default: null },
 }, { timestamps: true })
 
 // Current Rankings Interface (singleton - stores current rankings for serverless consistency)

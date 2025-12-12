@@ -145,20 +145,76 @@ export function isPayoutDue(): boolean {
 }
 
 /**
- * Execute a payout - SIMPLE VERSION
- * No locks, no retry tracking - just try once and move on
+ * Acquire atomic lock for payout execution
+ * Prevents multiple concurrent payout attempts
+ */
+async function acquirePayoutLock(cycle: number): Promise<boolean> {
+  try {
+    // Atomically set isPayoutInProgress=true ONLY if it's currently false
+    // This prevents race conditions where multiple requests try to start payout
+    const result = await TimerState.findOneAndUpdate(
+      { 
+        key: 'payout_timer',
+        $or: [
+          { isPayoutInProgress: false },
+          { isPayoutInProgress: { $exists: false } },
+          // Also allow if lock is stale (>2 minutes old) - recover from crashes
+          { lockAcquiredAt: { $lt: new Date(Date.now() - 2 * 60 * 1000) } }
+        ]
+      },
+      { 
+        $set: { 
+          isPayoutInProgress: true,
+          lockAcquiredAt: new Date(),
+          lockCycle: cycle 
+        } 
+      },
+      { new: true }
+    )
+    
+    return result !== null
+  } catch (error) {
+    console.error('[Payout] Failed to acquire lock:', error)
+    return false
+  }
+}
+
+/**
+ * Release payout lock
+ */
+async function releasePayoutLock(): Promise<void> {
+  try {
+    await TimerState.findOneAndUpdate(
+      { key: 'payout_timer' },
+      { $set: { isPayoutInProgress: false, lockAcquiredAt: null } }
+    )
+  } catch (error) {
+    console.error('[Payout] Failed to release lock:', error)
+  }
+}
+
+/**
+ * Execute a payout - WITH ATOMIC LOCKING
+ * Prevents duplicate payouts from concurrent requests
  */
 export async function executePayout(): Promise<PayoutResult> {
   const now = Date.now()
   const nextCycle = timerCache.currentCycle + 1
   
-  console.log(``)
-  console.log(`[Payout] ╔════════════════════════════════════════════════════════╗`)
-  console.log(`[Payout] ║           STARTING PAYOUT CYCLE ${nextCycle}                      ║`)
-  console.log(`[Payout] ╚════════════════════════════════════════════════════════╝`)
-  
   try {
     await connectDB()
+    
+    // CRITICAL: Acquire atomic lock to prevent duplicate payouts
+    const lockAcquired = await acquirePayoutLock(nextCycle)
+    if (!lockAcquired) {
+      console.log(`[Payout] ⏳ Payout already in progress - skipping duplicate request`)
+      return { success: false, error: 'Payout already in progress' }
+    }
+    
+    console.log(``)
+    console.log(`[Payout] ╔════════════════════════════════════════════════════════╗`)
+    console.log(`[Payout] ║           STARTING PAYOUT CYCLE ${nextCycle}                      ║`)
+    console.log(`[Payout] ╚════════════════════════════════════════════════════════╝`)
 
     // Get SOL price
     const solPrice = await getSolPrice() || 220
@@ -284,6 +340,20 @@ export async function executePayout(): Promise<PayoutResult> {
       const isDevFee = pending.rank === 0
       const label = isDevFee ? 'Dev fee' : `#${pending.rank}`
       
+      // Check current balance before each transfer to avoid 0x1 errors
+      const currentBalance = await getPayoutWalletBalance()
+      const availableSol = currentBalance?.sol || 0
+      const requiredSol = pending.amountSol + 0.001 // Add buffer for tx fee + rent
+      
+      if (availableSol < requiredSol) {
+        console.log(`[Payout] ${label}: ⚠️ Insufficient balance (have ${availableSol.toFixed(6)}, need ${requiredSol.toFixed(6)}) - skipping`)
+        await Payout.findByIdAndUpdate(pending.id, {
+          status: 'skipped',
+          errorMessage: `Insufficient balance: ${availableSol.toFixed(6)} SOL < ${requiredSol.toFixed(6)} SOL needed`,
+        })
+        continue
+      }
+      
       console.log(`[Payout] ${label}: Sending ${pending.amountSol.toFixed(6)} SOL to ${pending.wallet.slice(0, 8)}...`)
       
       const txResult = config.executePayouts
@@ -351,6 +421,9 @@ export async function executePayout(): Promise<PayoutResult> {
     console.log(`[Payout] ║  ✅ CYCLE ${nextCycle} COMPLETE - ${totalPaidSol.toFixed(6)} SOL PAID              ║`)
     console.log(`[Payout] ╚════════════════════════════════════════════════════════╝`)
 
+    // Release the lock
+    await releasePayoutLock()
+
     return {
       success: true,
       cycle: nextCycle,
@@ -363,7 +436,8 @@ export async function executePayout(): Promise<PayoutResult> {
     }
   } catch (error: any) {
     console.error(`[Payout] ERROR:`, error)
-    // Still advance the cycle on error
+    // Release lock and advance the cycle on error
+    await releasePayoutLock()
     await saveTimerState(now, nextCycle)
     return { success: false, error: error.message }
   }
