@@ -68,6 +68,9 @@ const Navbar = () => {
                             <a href="#tokenomics" className="hover:text-green-400 transition-colors px-2 py-2 rounded-md text-sm font-medium">Tokenomics</a>
                             <a href="#whitepaper" className="hover:text-green-400 transition-colors px-2 py-2 rounded-md text-sm font-medium">Whitepaper</a>
                             <a href="#updates" className="hover:text-green-400 transition-colors px-2 py-2 rounded-md text-sm font-medium">Updates</a>
+                            <a href="#roadmap" className="hover:text-purple-400 transition-colors px-2 py-2 rounded-md text-sm font-medium flex items-center gap-1">
+                                <span className="text-xs">🗺️</span> Roadmap
+                            </a>
                             
                             {/* Social Links */}
                             <div className="flex items-center gap-3 border-l border-white/10 pl-4">
@@ -105,6 +108,7 @@ const Navbar = () => {
                         <a href="#how-it-works" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Mechanism</a>
                         <a href="#tokenomics" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Tokenomics</a>
                         <a href="#whitepaper" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Whitepaper</a>
+                        <a href="#roadmap" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">🗺️ Roadmap</a>
                         {/* Mobile Social Links */}
                         <div className="flex items-center gap-4 px-3 py-2">
                             <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors flex items-center gap-2">
@@ -159,7 +163,7 @@ const Hero = () => {
                 >
                     The world&apos;s first <strong className="text-green-400">Loss-Mining Protocol</strong>. Built on Solana.
                     <br/>
-                    Get paid for being a top loser. Automatically. Every hour.
+                    Get paid for being a top loser. Automatically. Every 2 hours.
                 </motion.p>
 
                 {/* Value Proposition Pills */}
@@ -169,7 +173,7 @@ const Hero = () => {
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.5 }}
                 >
-                    <span className="px-4 py-2 bg-green-500/10 border border-green-500/30 rounded-full text-green-400 text-sm font-medium">💰 Hourly Payouts</span>
+                    <span className="px-4 py-2 bg-green-500/10 border border-green-500/30 rounded-full text-green-400 text-sm font-medium">💰 2-Hour Payouts</span>
                     <span className="px-4 py-2 bg-purple-500/10 border border-purple-500/30 rounded-full text-purple-400 text-sm font-medium">🤖 Fully Automated</span>
                     <span className="px-4 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded-full text-cyan-400 text-sm font-medium">🔗 On-Chain Verified</span>
                     <span className="px-4 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-full text-yellow-400 text-sm font-medium">🎯 No Claiming Needed</span>
@@ -278,7 +282,7 @@ const WhyInvest = () => {
         {
             icon: <Icons.Users />,
             title: "Community First",
-            desc: "95% of all fees go back to the community through hourly payouts. Only 5% for development. This is a protocol by degens, for degens.",
+            desc: "95% of all fees go back to the community through 2-hour payouts. Only 5% for development. This is a protocol by degens, for degens.",
             highlight: "95% to holders"
         },
     ]
@@ -357,7 +361,7 @@ const WhyInvest = () => {
                                         <span className="text-2xl">📉</span> Scenario B: Price Dumps
                                     </div>
                                     <p className="text-gray-300">
-                                        Your drawdown increases. You climb the leaderboard. You win 80% of the hourly pool. 
+                                        Your drawdown increases. You climb the leaderboard. You win 80% of the 2-hour pool. 
                                         <span className="text-green-400 font-bold"> You still win.</span>
                                     </p>
                                 </div>
@@ -382,14 +386,24 @@ const WhyInvest = () => {
 }
 
 const CountDown = () => {
-    const [timeLeft, setTimeLeft] = useState("59:59")
+    const [timeLeft, setTimeLeft] = useState("1:59:59")
     
     useEffect(() => {
         const interval = setInterval(() => {
             const now = new Date()
-            const minutes = 59 - now.getMinutes()
-            const seconds = 59 - now.getSeconds()
-            setTimeLeft(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`)
+            // 2-hour cycle: calculate position within 2-hour window
+            const totalMinutesInCycle = now.getHours() % 2 === 0 
+                ? now.getMinutes() 
+                : 60 + now.getMinutes()
+            const totalSecondsElapsed = totalMinutesInCycle * 60 + now.getSeconds()
+            const totalSecondsInCycle = 2 * 60 * 60 // 2 hours in seconds
+            const secondsRemaining = totalSecondsInCycle - totalSecondsElapsed - 1
+            
+            const hours = Math.floor(secondsRemaining / 3600)
+            const minutes = Math.floor((secondsRemaining % 3600) / 60)
+            const seconds = secondsRemaining % 60
+            
+            setTimeLeft(`${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`)
         }, 1000)
         return () => clearInterval(interval)
     }, [])
@@ -460,7 +474,7 @@ const Mechanism = () => {
                         <FeatureCard 
                             icon={<Icons.ShieldAlert />} 
                             title="2. Calculate Drawdown" 
-                            desc="Every hour, the system scans all holders to find the biggest percentage losers. Ranked by drawdown %, with USD loss as tiebreaker."
+                            desc="Every 2 hours, the system scans all holders to find the biggest percentage losers. Ranked by drawdown %, with USD loss as tiebreaker."
                             delay={0.2}
                         />
                         <FeatureCard 
@@ -518,7 +532,7 @@ const Simulator = () => {
                     <div className="text-right text-red-500 font-mono mt-1">-{drawdown}%</div>
                 </div>
                 <div>
-                    <label className="block text-gray-400 mb-2">Est. Hourly Pool ($)</label>
+                    <label className="block text-gray-400 mb-2">Est. 2-Hour Pool ($)</label>
                     <input type="number" value={poolSize} onChange={(e) => setPoolSize(Number(e.target.value))} className="w-full bg-black/50 border border-gray-700 rounded px-3 py-2 text-white focus:border-green-500 outline-none"/>
                 </div>
             </div>
@@ -617,7 +631,7 @@ const Tokenomics = () => {
                                                 exit={{ opacity: 0, y: 10 }}
                                                 className="absolute top-full left-0 w-full mt-4 bg-gray-900 p-4 rounded-lg border border-green-500/50 z-50 shadow-2xl"
                                             >
-                                                <h4 className="text-sm font-bold text-green-400 mb-2">Hourly Payout Split</h4>
+                                                <h4 className="text-sm font-bold text-green-400 mb-2">2-Hour Payout Split</h4>
                                                 <div className="flex gap-2 h-16">
                                                     <div className="h-full bg-yellow-400/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: '80%'}}>
                                                         <span>🥇 1st</span>
@@ -751,6 +765,311 @@ const UpdateLog = () => {
     )
 }
 
+// Roadmap Section - Interactive Timeline for Shareholders
+const Roadmap = () => {
+    const [activePhase, setActivePhase] = useState(0)
+    
+    const phases = [
+        {
+            phase: 1,
+            title: "Foundation",
+            date: "Dec 16 - Jan 5",
+            status: "upcoming",
+            icon: "🏗️",
+            color: "purple",
+            summary: "Building the Multi-Token Engine",
+            description: "Transform TopBlast from a single-token protocol into a platform capable of supporting any token.",
+            milestones: [
+                { task: "Multi-token architecture", detail: "Platform tracks multiple tokens simultaneously" },
+                { task: "Isolated reward pools", detail: "Each token gets its own independent reward pool" },
+                { task: "Shared infrastructure", detail: "Common VWAP and eligibility calculation engine" },
+            ],
+            deliverable: "Internal demo with 2+ tokens running Loss-Mining"
+        },
+        {
+            phase: 2,
+            title: "Onboarding Flow",
+            date: "Jan 6 - Jan 26",
+            status: "upcoming",
+            icon: "🚀",
+            color: "blue",
+            summary: "Making It Easy to Launch",
+            description: "Self-service portal where any token creator can integrate TopBlast mechanics.",
+            milestones: [
+                { task: "Token creator dashboard", detail: "Simple UI to input token address and configure" },
+                { task: "Parameter customization", detail: "Choose payout interval, fee split, thresholds" },
+                { task: "Preview & simulation", detail: "Test your configuration before going live" },
+            ],
+            deliverable: "Working 'Create Your TopBlast Pool' wizard"
+        },
+        {
+            phase: 3,
+            title: "Payment & Burn",
+            date: "Jan 27 - Feb 16",
+            status: "upcoming",
+            icon: "🔥",
+            color: "orange",
+            summary: "TBLAST Deflationary Mechanics",
+            description: "Platform fees automatically buy TBLAST from the market and burn it forever.",
+            milestones: [
+                { task: "Payment integration", detail: "Accept SOL/USDC for platform access" },
+                { task: "Auto-buy mechanism", detail: "Payments swap to TBLAST on Jupiter" },
+                { task: "Burn execution", detail: "Purchased TBLAST sent to burn address" },
+            ],
+            deliverable: "First external token pays to join, TBLAST burned on-chain"
+        },
+        {
+            phase: 4,
+            title: "Public Launch",
+            date: "Feb 17 - Mar 9",
+            status: "upcoming",
+            icon: "🌍",
+            color: "green",
+            summary: "Opening the Platform",
+            description: "Full public launch with marketing push and partner tokens.",
+            milestones: [
+                { task: "Public dashboard", detail: "Browse all TopBlast-enabled tokens" },
+                { task: "Documentation & guides", detail: "Complete integration tutorials" },
+                { task: "Launch partners", detail: "5+ tokens debut with TopBlast mechanics" },
+            ],
+            deliverable: "Public platform with 5+ integrated tokens"
+        },
+        {
+            phase: 5,
+            title: "Scale & Optimize",
+            date: "Mar 10 - Mar 31",
+            status: "upcoming",
+            icon: "📈",
+            color: "emerald",
+            summary: "Ready for Growth",
+            description: "Analytics, API access, and infrastructure for mass adoption.",
+            milestones: [
+                { task: "Analytics dashboard", detail: "Burn stats, total value distributed, active pools" },
+                { task: "Public API", detail: "Let other platforms integrate TopBlast" },
+                { task: "Performance optimization", detail: "Handle 100+ concurrent pools" },
+            ],
+            deliverable: "Full SaaS platform live - Q1 Complete ✅"
+        }
+    ]
+    
+    const getStatusColor = (status: string, color: string) => {
+        if (status === 'complete') return 'bg-green-500'
+        if (status === 'in-progress') return 'bg-yellow-500 animate-pulse'
+        return `bg-${color}-500/30`
+    }
+    
+    const getPhaseColor = (color: string) => {
+        const colors: Record<string, string> = {
+            purple: 'from-purple-500 to-purple-600',
+            blue: 'from-blue-500 to-blue-600',
+            orange: 'from-orange-500 to-orange-600',
+            green: 'from-green-500 to-green-600',
+            emerald: 'from-emerald-500 to-emerald-600',
+        }
+        return colors[color] || 'from-gray-500 to-gray-600'
+    }
+
+    return (
+        <section id="roadmap" className="py-24 relative overflow-hidden">
+            {/* Background effects */}
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-900/5 to-transparent" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-500/5 rounded-full blur-3xl" />
+            
+            <div className="glass-section-bg relative z-10">
+                <div className="max-w-6xl mx-auto px-4">
+                    <motion.div 
+                        className="text-center mb-16"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                    >
+                        <span className="inline-block px-4 py-1 bg-gradient-to-r from-purple-500/20 to-green-500/20 border border-purple-500/30 rounded-full text-purple-400 text-sm font-medium mb-4">
+                            🗺️ SHAREHOLDER ROADMAP
+                        </span>
+                        <h2 className="text-4xl md:text-5xl font-bold mb-4">
+                            Platform <span className="bg-gradient-to-r from-purple-400 to-green-400 bg-clip-text text-transparent">Evolution</span>
+                        </h2>
+                        <p className="text-gray-400 max-w-2xl mx-auto text-lg">
+                            From single-token protocol to Loss-Mining as a Service. 
+                            <span className="text-green-400 font-semibold"> Target: End of Q1 2025</span>
+                        </p>
+                    </motion.div>
+
+                    {/* Timeline Navigation */}
+                    <div className="relative mb-12">
+                        {/* Progress Line */}
+                        <div className="absolute top-6 left-0 right-0 h-1 bg-gray-800 rounded-full hidden md:block">
+                            <motion.div 
+                                className="h-full bg-gradient-to-r from-purple-500 via-blue-500 to-green-500 rounded-full"
+                                initial={{ width: '0%' }}
+                                whileInView={{ width: `${((activePhase + 1) / phases.length) * 100}%` }}
+                                viewport={{ once: true }}
+                                transition={{ duration: 1, delay: 0.5 }}
+                            />
+                        </div>
+                        
+                        {/* Phase Buttons */}
+                        <div className="flex justify-between relative">
+                            {phases.map((phase, idx) => (
+                                <motion.button
+                                    key={idx}
+                                    onClick={() => setActivePhase(idx)}
+                                    className={`flex flex-col items-center group ${idx <= activePhase ? 'cursor-pointer' : 'cursor-pointer'}`}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true }}
+                                    transition={{ delay: idx * 0.1 }}
+                                    whileHover={{ scale: 1.05 }}
+                                >
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl mb-2 transition-all duration-300 ${
+                                        idx === activePhase 
+                                            ? `bg-gradient-to-r ${getPhaseColor(phase.color)} shadow-lg shadow-${phase.color}-500/30` 
+                                            : 'bg-gray-800 group-hover:bg-gray-700'
+                                    }`}>
+                                        {phase.icon}
+                                    </div>
+                                    <span className={`text-xs font-medium hidden md:block transition-colors ${
+                                        idx === activePhase ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'
+                                    }`}>
+                                        Phase {phase.phase}
+                                    </span>
+                                </motion.button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Active Phase Details */}
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={activePhase}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                            className="glass-panel rounded-2xl p-8 border border-gray-800"
+                        >
+                            <div className="flex flex-col lg:flex-row gap-8">
+                                {/* Left: Phase Info */}
+                                <div className="lg:w-1/3">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <span className="text-4xl">{phases[activePhase].icon}</span>
+                                        <div>
+                                            <h3 className="text-2xl font-bold">{phases[activePhase].title}</h3>
+                                            <p className="text-gray-400 text-sm">{phases[activePhase].date}</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-lg text-green-400 font-semibold mb-3">
+                                        {phases[activePhase].summary}
+                                    </p>
+                                    <p className="text-gray-400 mb-6">
+                                        {phases[activePhase].description}
+                                    </p>
+                                    <div className="p-4 bg-gradient-to-r from-green-900/30 to-emerald-900/30 rounded-lg border border-green-500/30">
+                                        <p className="text-xs text-green-400 uppercase tracking-wider mb-1">Deliverable</p>
+                                        <p className="text-white font-medium">{phases[activePhase].deliverable}</p>
+                                    </div>
+                                </div>
+                                
+                                {/* Right: Milestones */}
+                                <div className="lg:w-2/3">
+                                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Key Milestones</h4>
+                                    <div className="space-y-4">
+                                        {phases[activePhase].milestones.map((milestone, idx) => (
+                                            <motion.div
+                                                key={idx}
+                                                initial={{ opacity: 0, x: 20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: idx * 0.1 }}
+                                                className="flex items-start gap-4 p-4 bg-gray-900/50 rounded-lg hover:bg-gray-900 transition-colors"
+                                            >
+                                                <div className={`w-8 h-8 rounded-full bg-gradient-to-r ${getPhaseColor(phases[activePhase].color)} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+                                                    {idx + 1}
+                                                </div>
+                                                <div>
+                                                    <h5 className="font-semibold text-white mb-1">{milestone.task}</h5>
+                                                    <p className="text-gray-400 text-sm">{milestone.detail}</p>
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </AnimatePresence>
+
+                    {/* Navigation Arrows */}
+                    <div className="flex justify-center gap-4 mt-8">
+                        <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => setActivePhase(Math.max(0, activePhase - 1))}
+                            disabled={activePhase === 0}
+                            className={`p-3 rounded-full ${activePhase === 0 ? 'bg-gray-800 text-gray-600' : 'bg-gray-800 text-white hover:bg-gray-700'}`}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                        </motion.button>
+                        <div className="flex items-center gap-2">
+                            {phases.map((_, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => setActivePhase(idx)}
+                                    className={`w-2 h-2 rounded-full transition-all ${idx === activePhase ? 'bg-green-400 w-6' : 'bg-gray-600 hover:bg-gray-500'}`}
+                                />
+                            ))}
+                        </div>
+                        <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => setActivePhase(Math.min(phases.length - 1, activePhase + 1))}
+                            disabled={activePhase === phases.length - 1}
+                            className={`p-3 rounded-full ${activePhase === phases.length - 1 ? 'bg-gray-800 text-gray-600' : 'bg-gray-800 text-white hover:bg-gray-700'}`}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </motion.button>
+                    </div>
+
+                    {/* Value Proposition for TBLAST Holders */}
+                    <motion.div 
+                        className="mt-16 grid md:grid-cols-3 gap-6"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                    >
+                        <div className="glass-panel rounded-xl p-6 text-center border border-orange-500/30 bg-gradient-to-b from-orange-900/10 to-transparent">
+                            <div className="text-4xl mb-3">🔥</div>
+                            <h4 className="font-bold text-lg mb-2">Deflationary Pressure</h4>
+                            <p className="text-gray-400 text-sm">Every token that joins = TBLAST bought and burned forever</p>
+                        </div>
+                        <div className="glass-panel rounded-xl p-6 text-center border border-green-500/30 bg-gradient-to-b from-green-900/10 to-transparent">
+                            <div className="text-4xl mb-3">💰</div>
+                            <h4 className="font-bold text-lg mb-2">Revenue Sharing</h4>
+                            <p className="text-gray-400 text-sm">Platform fees flow back to TBLAST reward pool</p>
+                        </div>
+                        <div className="glass-panel rounded-xl p-6 text-center border border-purple-500/30 bg-gradient-to-b from-purple-900/10 to-transparent">
+                            <div className="text-4xl mb-3">🗳️</div>
+                            <h4 className="font-bold text-lg mb-2">Future Governance</h4>
+                            <p className="text-gray-400 text-sm">TBLAST holders vote on new token listings</p>
+                        </div>
+                    </motion.div>
+
+                    {/* Q1 Target Banner */}
+                    <motion.div 
+                        className="mt-12 text-center p-6 rounded-xl bg-gradient-to-r from-green-900/30 via-emerald-900/30 to-green-900/30 border border-green-500/30"
+                        initial={{ opacity: 0 }}
+                        whileInView={{ opacity: 1 }}
+                        viewport={{ once: true }}
+                    >
+                        <p className="text-green-400 font-mono text-lg">
+                            📅 TARGET COMPLETION: <span className="text-white font-bold">MARCH 31, 2025</span>
+                        </p>
+                        <p className="text-gray-400 text-sm mt-2">Full SaaS platform with 10+ integrated tokens</p>
+                    </motion.div>
+                </div>
+            </div>
+        </section>
+    )
+}
+
 const AccordionItem = ({ title, children, isOpen, onClick }: { title: string; children: React.ReactNode; isOpen: boolean; onClick: () => void }) => {
     return (
         <div className="border-b border-gray-800">
@@ -796,7 +1115,7 @@ const Whitepaper = () => {
                     <p className="mb-4 text-white"><strong>The Win-Win Scenario:</strong></p>
                     <ul className="list-disc pl-5 space-y-2 mb-4">
                         <li><strong className="text-green-400">Scenario A (Price Pumps):</strong> You hold the token, the value increases, and you sell for profit. Standard moon mission. You win.</li>
-                        <li><strong className="text-red-400">Scenario B (Price Dumps):</strong> The market crashes. Paper hands sell. But you hold. Your drawdown % increases, shooting you up the Blaster Leaderboard. You win the hourly jackpot (80% of the pool).</li>
+                        <li><strong className="text-red-400">Scenario B (Price Dumps):</strong> The market crashes. Paper hands sell. But you hold. Your drawdown % increases, shooting you up the Blaster Leaderboard. You win the 2-hour jackpot (80% of the pool).</li>
                     </ul>
                     <div className="mt-4 p-4 bg-green-900/20 border border-green-500/30 rounded text-sm text-green-300 italic">
                         &quot;In a market of gambling, be the casino. If you can&apos;t be the casino, be the player who gets paid to lose.&quot;
@@ -865,7 +1184,7 @@ const Whitepaper = () => {
                             </li>
                             <li className="flex items-start gap-2">
                                 <span className="text-red-400">•</span>
-                                <div><strong className="text-white">Transferred OUT:</strong> 1 hour cooldown</div>
+                                <div><strong className="text-white">Transferred OUT:</strong> 2 hour cooldown</div>
                             </li>
                             <li className="flex items-start gap-2">
                                 <span className="text-red-400">•</span>
@@ -880,7 +1199,7 @@ const Whitepaper = () => {
             title: "4.0 Payout Distribution",
             content: (
                 <>
-                    <p className="mb-4">Every hour, the reward pool is distributed to the top 3 losers automatically.</p>
+                    <p className="mb-4">Every 2 hours, the reward pool is distributed to the top 3 losers automatically.</p>
                     <div className="flex gap-2 h-20 mb-6">
                         <div className="h-full bg-yellow-400/80 rounded flex flex-col items-center justify-center text-black font-bold" style={{width: '80%'}}>
                             <span>🥇 1st Place</span>
@@ -920,8 +1239,8 @@ const Whitepaper = () => {
                         <div className="flex items-start gap-4 p-4 bg-gray-900/50 rounded-lg">
                             <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">2</div>
                             <div>
-                                <h4 className="text-white font-bold mb-1">Hold for 1+ Hour</h4>
-                                <p className="text-gray-400 text-sm">Your tokens must be held for at least 1 hour before eligibility. Don&apos;t sell. Don&apos;t transfer.</p>
+                                <h4 className="text-white font-bold mb-1">Hold for 2+ Hours</h4>
+                                <p className="text-gray-400 text-sm">Your tokens must be held for at least 2 hours before eligibility. Don&apos;t sell. Don&apos;t transfer.</p>
                             </div>
                         </div>
                         
@@ -1066,6 +1385,7 @@ export default function Home() {
                 <Tokenomics />
                 <Whitepaper />
                 <UpdateLog />
+                <Roadmap />
                 <Footer />
             </div>
             

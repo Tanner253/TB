@@ -3,18 +3,18 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'TopBlast Whitepaper | The Loss-Mining Protocol',
-  description: 'The world\'s first Loss-Mining Protocol. Get paid for being a top loser. Every hour, the top 3 wallets with the biggest drawdowns win from the reward pool.',
+  description: 'The world\'s first Loss-Mining Protocol. Get paid for being a top loser. Every 2 hours, the top 3 wallets with the biggest drawdowns win from the reward pool.',
   keywords: ['solana', 'defi', 'loss-mining', 'crypto', 'topblast', 'whitepaper', 'TBLAST'],
   authors: [{ name: 'TopBlast' }],
   openGraph: {
     title: 'TopBlast Whitepaper | The Loss-Mining Protocol',
-    description: 'Get paid for being a top loser. Every hour, the top 3 wallets with the biggest drawdowns win.',
+    description: 'Get paid for being a top loser. Every 2 hours, the top 3 wallets with the biggest drawdowns win.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'TopBlast Whitepaper | The Loss-Mining Protocol',
-    description: 'Get paid for being a top loser. Every hour, the top 3 wallets with the biggest drawdowns win.',
+    description: 'Get paid for being a top loser. Every 2 hours, the top 3 wallets with the biggest drawdowns win.',
     site: '@TOPBLASTX',
   },
 }
