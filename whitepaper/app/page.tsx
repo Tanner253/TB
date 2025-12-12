@@ -773,7 +773,7 @@ const Roadmap = () => {
         {
             phase: 1,
             title: "Foundation",
-            date: "Dec 16 - Jan 5",
+            date: "Dec '25 - Jan '26",
             status: "upcoming",
             icon: "🏗️",
             color: "purple",
@@ -789,7 +789,7 @@ const Roadmap = () => {
         {
             phase: 2,
             title: "Onboarding Flow",
-            date: "Jan 6 - Jan 26",
+            date: "Jan 6 - Jan 26, 2026",
             status: "upcoming",
             icon: "🚀",
             color: "blue",
@@ -805,7 +805,7 @@ const Roadmap = () => {
         {
             phase: 3,
             title: "Payment & Burn",
-            date: "Jan 27 - Feb 16",
+            date: "Jan 27 - Feb 16, 2026",
             status: "upcoming",
             icon: "🔥",
             color: "orange",
@@ -821,7 +821,7 @@ const Roadmap = () => {
         {
             phase: 4,
             title: "Public Launch",
-            date: "Feb 17 - Mar 9",
+            date: "Feb 17 - Mar 9, 2026",
             status: "upcoming",
             icon: "🌍",
             color: "green",
@@ -837,7 +837,7 @@ const Roadmap = () => {
         {
             phase: 5,
             title: "Scale & Optimize",
-            date: "Mar 10 - Mar 31",
+            date: "Mar 10 - Mar 31, 2026",
             status: "upcoming",
             icon: "📈",
             color: "emerald",
@@ -891,7 +891,7 @@ const Roadmap = () => {
                         </h2>
                         <p className="text-gray-400 max-w-2xl mx-auto text-lg">
                             From single-token protocol to Loss-Mining as a Service. 
-                            <span className="text-green-400 font-semibold"> Target: End of Q1 2025</span>
+                            <span className="text-green-400 font-semibold"> Target: End of Q1 2026</span>
                         </p>
                     </motion.div>
 
@@ -1060,7 +1060,7 @@ const Roadmap = () => {
                         viewport={{ once: true }}
                     >
                         <p className="text-green-400 font-mono text-lg">
-                            📅 TARGET COMPLETION: <span className="text-white font-bold">MARCH 31, 2025</span>
+                            📅 TARGET COMPLETION: <span className="text-white font-bold">MARCH 31, 2026</span>
                         </p>
                         <p className="text-gray-400 text-sm mt-2">Full SaaS platform with 10+ integrated tokens</p>
                     </motion.div>
