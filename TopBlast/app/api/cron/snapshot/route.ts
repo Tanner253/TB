@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/db'
 import { Holder, Snapshot, PoolBalance, Disqualification } from '@/lib/db/models'
-import { getTokenHolders } from '@/lib/solana/helius'
-import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
+import { getTokenHolders } from '@/lib/evm/indexer'
+import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
 import { calculateBatchVwaps, VwapData } from '@/lib/tracker/vwap'
 import { calculateDrawdown, calculateLossUsd, rankHolders, RankedHolder } from '@/lib/engine/calculations'
 import { config, validateConfig } from '@/lib/config'
@@ -59,9 +59,9 @@ async function runSnapshot(_request: NextRequest) {
     }
     
     // Get current SOL price for cost basis calculations
-    const solPrice = (await getSolPrice()) || 220
+    const ethPrice = (await getEthPrice()) || 3500
     console.log(`[Snapshot] Token Price: $${tokenPrice}`)
-    console.log(`[Snapshot] SOL Price: $${solPrice}`)
+    console.log(`[Snapshot] ETH Price: $${ethPrice}`)
 
     // 2. Get pool balance from database
     const pool = await PoolBalance.findOne()
@@ -83,7 +83,7 @@ async function runSnapshot(_request: NextRequest) {
     if (rawHolders.length === 0) {
       return NextResponse.json({
         success: false,
-        error: 'No holders found - verify TOKEN_MINT_ADDRESS and HELIUS_API_KEY',
+        error: 'No holders found - verify TOKEN_MINT_ADDRESS (0x...) and RPC connectivity',
       }, { status: 500 })
     }
 

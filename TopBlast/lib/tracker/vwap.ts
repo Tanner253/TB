@@ -1,11 +1,11 @@
-import { getWalletTransactions, ParsedTransaction } from '../solana/helius'
-import { getTokenPrice, getSolPrice } from '../solana/price'
+import { getWalletTransactions } from '../evm/indexer'
+import { getTokenPrice, getEthPrice } from '../evm/price'
 
 export interface VwapData {
   wallet: string
   vwap: number | null
   totalTokensBought: number
-  totalSolSpent: number       // RAW SOL spent on buys
+  totalEthSpent: number       // RAW SOL spent on buys
   totalStablecoinSpent: number // Direct USD spent (stablecoin swaps)
   totalCostBasis: number       // Calculated: (SOL × current_price) + stablecoins
   firstBuyTimestamp: number | null
@@ -26,7 +26,7 @@ export async function calculateWalletVwap(
   const transactions = await getWalletTransactions(wallet, mint, 100)
   
   let totalTokensBought = 0
-  let totalSolSpent = 0         // Raw SOL amount from swap transactions
+  let totalEthSpent = 0         // Raw SOL amount from swap transactions
   let totalStablecoinSpent = 0  // Direct USD from stablecoin swaps
   let firstBuyTimestamp: number | null = null
   let lastActivityTimestamp: number | null = null
@@ -52,9 +52,9 @@ export async function calculateWalletVwap(
       if (tx.isStablecoinSwap && tx.usdValue > 0) {
         // Direct stablecoin swap - already in USD
         totalStablecoinSpent += tx.usdValue
-      } else if (tx.solAmount > 0) {
+      } else if (tx.ethAmount > 0) {
         // SOL swap - store raw SOL amount
-        totalSolSpent += tx.solAmount
+        totalEthSpent += tx.ethAmount
       }
       // Note: If neither, we can't determine cost basis for this transaction
       
@@ -67,11 +67,11 @@ export async function calculateWalletVwap(
   }
 
   // Get current SOL price for cost basis calculation
-  const solPrice = currentSolPrice || (await getSolPrice()) || 220
+  const solPrice = currentSolPrice || (await getEthPrice()) || 220
   
   // Calculate total cost basis using CURRENT SOL price
   // This is how GMGN and other trackers do it - historical prices don't matter
-  const totalCostBasis = (totalSolSpent * solPrice) + totalStablecoinSpent
+  const totalCostBasis = (totalEthSpent * solPrice) + totalStablecoinSpent
 
   // Calculate VWAP
   const vwap = totalTokensBought > 0 ? totalCostBasis / totalTokensBought : null
@@ -80,7 +80,7 @@ export async function calculateWalletVwap(
     wallet,
     vwap,
     totalTokensBought,
-    totalSolSpent,
+    totalEthSpent,
     totalStablecoinSpent,
     totalCostBasis,
     firstBuyTimestamp,
@@ -102,7 +102,7 @@ export async function calculateBatchVwaps(
   
   // Fetch current SOL price ONCE at the start (not per wallet)
   // This ensures all wallets use the same SOL price for fair comparison
-  const currentSolPrice = (await getSolPrice()) || 220
+  const currentSolPrice = (await getEthPrice()) || 220
   console.log(`[VWAP] Using SOL price: $${currentSolPrice}`)
   
   // Process in batches to avoid rate limiting

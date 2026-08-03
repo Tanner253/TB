@@ -35,9 +35,9 @@ jest.mock('@/lib/config', () => ({
     minLossThresholdPct: 10,
     poolBalanceUsd: 500,
     payoutSplit: {
-      first: 0.80,
-      second: 0.15,
-      third: 0.05,
+      first: 0.60,
+      second: 0.25,
+      third: 0.15,
     },
     payoutIntervalMinutes: 60,
   },
@@ -494,9 +494,9 @@ describe('Persistence Layer', () => {
       // Verify payout history
       const payoutHistory = await Payout.find({ cycle: 1 }).sort({ rank: 1 })
       expect(payoutHistory.length).toBe(3)
-      expect(payoutHistory[0].amount).toBe(400) // 80% of 500
-      expect(payoutHistory[1].amount).toBe(75)  // 15% of 500
-      expect(payoutHistory[2].amount).toBe(25)  // 5% of 500
+      expect(payoutHistory[0].amount).toBe(300) // 60% of winner pool
+      expect(payoutHistory[1].amount).toBe(125)  // 25%
+      expect(payoutHistory[2].amount).toBe(75)   // 15%
     })
   })
 

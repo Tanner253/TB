@@ -36,9 +36,8 @@ jobs:
         run: npm run build
         env:
           # Dummy env vars for build
-          TOKEN_MINT_ADDRESS: "test"
-          HELIUS_API_KEY: "test"
-          HELIUS_RPC_URL: "https://test.helius-rpc.com"
+          TOKEN_MINT_ADDRESS: "0x0000000000000000000000000000000000000001"
+          HELIUS_RPC_URL: "https://rpc.testnet.chain.robinhood.com"
           TOKEN_SYMBOL: "TEST"
           MONGODB_URI: "mongodb://localhost:27017/test"
 

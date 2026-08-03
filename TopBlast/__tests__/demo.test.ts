@@ -3,9 +3,10 @@ import { config } from '@/lib/config'
 
 describe('Configuration', () => {
   it('should have required config values', () => {
-    expect(config.payoutSplit.first).toBe(0.80)
-    expect(config.payoutSplit.second).toBe(0.15)
-    expect(config.payoutSplit.third).toBe(0.05)
+    expect(config.payoutSplit.first).toBe(0.60)
+    expect(config.payoutSplit.second).toBe(0.25)
+    expect(config.payoutSplit.third).toBe(0.15)
+    expect(config.devFeePct).toBe(0.12)
   })
 
   it('should have valid thresholds', () => {
@@ -94,20 +95,20 @@ describe('Winner Selection', () => {
 })
 
 describe('Payout Calculation', () => {
-  it('should distribute 80/15/5 correctly', () => {
+  it('should distribute 60/25/15 correctly', () => {
     const pool = 1000
     const payouts = calculatePayouts(pool)
-    expect(payouts.first).toBe(800)
-    expect(payouts.second).toBe(150)
-    expect(payouts.third).toBe(50)
+    expect(payouts.first).toBe(600)
+    expect(payouts.second).toBe(250)
+    expect(payouts.third).toBe(150)
   })
 
   it('should handle small pool', () => {
     const pool = 10
     const payouts = calculatePayouts(pool)
-    expect(payouts.first).toBe(8)
-    expect(payouts.second).toBe(1.5)
-    expect(payouts.third).toBe(0.5)
+    expect(payouts.first).toBe(6)
+    expect(payouts.second).toBe(2.5)
+    expect(payouts.third).toBe(1.5)
   })
 
   it('should handle zero pool', () => {

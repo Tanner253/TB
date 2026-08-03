@@ -197,18 +197,18 @@ describe('Calculation Engine', () => {
   })
 
   describe('calculatePayouts', () => {
-    it('should calculate 80/15/5 split correctly', () => {
+    it('should calculate 60/25/15 split correctly', () => {
       const payouts = calculatePayouts(1000)
-      expect(payouts.first).toBe(800)
-      expect(payouts.second).toBe(150)
-      expect(payouts.third).toBe(50)
+      expect(payouts.first).toBe(600)
+      expect(payouts.second).toBe(250)
+      expect(payouts.third).toBe(150)
     })
 
     it('should handle small pool', () => {
       const payouts = calculatePayouts(10)
-      expect(payouts.first).toBe(8)
-      expect(payouts.second).toBe(1.5)
-      expect(payouts.third).toBe(0.5)
+      expect(payouts.first).toBe(6)
+      expect(payouts.second).toBe(2.5)
+      expect(payouts.third).toBe(1.5)
     })
 
     it('should handle zero pool', () => {

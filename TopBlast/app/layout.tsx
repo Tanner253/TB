@@ -4,7 +4,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'TopBlast | The Loss-Mining Protocol',
   description: 'The world\'s first Loss-Mining Protocol. Get paid for being a top blaster. Every hour, the top 3 losers win from the reward pool.',
-  keywords: ['solana', 'defi', 'loss-mining', 'crypto', 'topblast', 'meme coin'],
+  keywords: ['robinhood chain', 'evm', 'defi', 'loss-mining', 'crypto', 'topblast', 'ethereum'],
   authors: [{ name: 'TopBlast' }],
   openGraph: {
     title: 'TopBlast | The Loss-Mining Protocol',

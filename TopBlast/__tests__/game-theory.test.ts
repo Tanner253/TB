@@ -28,10 +28,11 @@ jest.mock('@/lib/config', () => ({
     minLossThresholdPct: 10,
     poolBalanceUsd: 500,
     payoutSplit: {
-      first: 0.80,
-      second: 0.15,
-      third: 0.05,
+      first: 0.60,
+      second: 0.25,
+      third: 0.15,
     },
+    devFeePct: 0.12,
   },
 }))
 
@@ -379,30 +380,30 @@ describe('TopBlast Game Theory', () => {
   describe('Payout Distribution', () => {
     /**
      * Per FEATURE_SPEC 5.4:
-     * 1st Place: 80%
-     * 2nd Place: 15%
-     * 3rd Place: 5%
+     * 1st Place: 60%
+     * 2nd Place: 25%
+     * 3rd Place: 15%
      */
 
-    it('should split pool 80/15/5', () => {
+    it('should split pool 60/25/15', () => {
       const payouts = calculatePayouts(1000)
-      expect(payouts.first).toBe(800)
-      expect(payouts.second).toBe(150)
-      expect(payouts.third).toBe(50)
+      expect(payouts.first).toBe(600)
+      expect(payouts.second).toBe(250)
+      expect(payouts.third).toBe(150)
     })
 
-    it('should handle exact FEATURE_SPEC example ($300 pool)', () => {
-      const payouts = calculatePayouts(300)
-      expect(payouts.first).toBe(240)
-      expect(payouts.second).toBe(45)
-      expect(payouts.third).toBe(15)
+    it('should handle exact FEATURE_SPEC example ($264 winner pool)', () => {
+      const payouts = calculatePayouts(264)
+      expect(payouts.first).toBeCloseTo(158.4, 1)
+      expect(payouts.second).toBe(66)
+      expect(payouts.third).toBeCloseTo(39.6, 1)
     })
 
     it('should handle small pool', () => {
       const payouts = calculatePayouts(10)
-      expect(payouts.first).toBe(8)
-      expect(payouts.second).toBe(1.5)
-      expect(payouts.third).toBe(0.5)
+      expect(payouts.first).toBe(6)
+      expect(payouts.second).toBe(2.5)
+      expect(payouts.third).toBe(1.5)
     })
 
     it('should sum to 100% of pool', () => {

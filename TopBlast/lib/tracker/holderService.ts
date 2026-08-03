@@ -5,8 +5,8 @@
  */
 
 import { config } from '@/lib/config'
-import { getTokenHolders, getWalletTransactions, ParsedTransaction } from '@/lib/solana/helius'
-import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
+import { getTokenHolders, getWalletTransactions } from '@/lib/evm/indexer'
+import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
 import connectDB from '@/lib/db'
 import { Holder } from '@/lib/db/models'
 
@@ -206,7 +206,7 @@ async function fetchVwapsInBackground(sortedHolders: Array<{ wallet: string; bal
   console.log(`[HolderService] Background: fetching VWAPs for ${sortedHolders.length} holders...`)
   
   // Fetch current SOL price ONCE at the start for consistent calculations
-  const currentSolPrice = (await getSolPrice()) || 220
+  const currentSolPrice = (await getEthPrice()) || 220
   console.log(`[HolderService] Using SOL price: $${currentSolPrice}`)
   
   // PHASE 1: Priority holders (top 50) - fast, no delay between batches
@@ -303,7 +303,7 @@ async function calculateHolderData(
   const transactions = await getWalletTransactions(wallet, config.tokenMint, 100)
 
   let totalTokensBought = 0
-  let totalSolSpent = 0         // Raw SOL amount
+  let totalEthSpent = 0         // Raw SOL amount
   let totalStablecoinSpent = 0  // Direct USD from stablecoin swaps
   let firstBuyTimestamp: number | null = null
   let lastActivityTimestamp: number | null = null
@@ -328,9 +328,9 @@ async function calculateHolderData(
       if (tx.isStablecoinSwap && tx.usdValue > 0) {
         // Direct stablecoin swap - already in USD
         totalStablecoinSpent += tx.usdValue
-      } else if (tx.solAmount > 0) {
+      } else if (tx.ethAmount > 0) {
         // SOL swap - store raw SOL amount
-        totalSolSpent += tx.solAmount
+        totalEthSpent += tx.ethAmount
       }
       // Note: If neither, we can't determine cost basis for this transaction
       
@@ -342,12 +342,10 @@ async function calculateHolderData(
     }
   }
 
-  // Get current SOL price for cost basis calculation
-  // This is how GMGN calculates it - historical prices don't matter, only current price
-  const solPrice = currentSolPrice || (await getTokenPrice('So11111111111111111111111111111111111111112')) || 220
+  const ethPrice = currentSolPrice || (await getEthPrice()) || 3500
   
-  // Calculate total cost basis using CURRENT SOL price
-  const totalCostBasis = (totalSolSpent * solPrice) + totalStablecoinSpent
+  // Calculate total cost basis using CURRENT ETH price
+  const totalCostBasis = (totalEthSpent * ethPrice) + totalStablecoinSpent
 
   // Calculate VWAP - only if we have real cost basis data
   const vwap = (totalTokensBought > 0 && totalCostBasis > 0) 
@@ -874,7 +872,7 @@ export async function refreshHolders(): Promise<boolean> {
     }
     
     // Get current SOL price for consistent calculations
-    const currentSolPrice = (await getSolPrice()) || 220
+    const currentSolPrice = (await getEthPrice()) || 220
     console.log(`[HolderService] Refresh using SOL price: $${currentSolPrice}`)
     
     // Fetch new holder list

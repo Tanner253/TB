@@ -10,7 +10,7 @@ import {
   getServiceStatus,
   updatePrice,
 } from './holderService'
-import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
+import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
 import { config } from '@/lib/config'
 
 // Global state for tracker
@@ -62,12 +62,11 @@ async function doInitialize(): Promise<void> {
   console.log(`[Tracker] Symbol: ${config.tokenSymbol}`)
 
   try {
-    // Pre-fetch SOL price for VWAP calculations
-    const solPrice = await getSolPrice()
-    if (solPrice) {
-      console.log(`[Tracker] SOL price: $${solPrice.toFixed(2)}`)
+    const ethPrice = await getEthPrice()
+    if (ethPrice) {
+      console.log(`[Tracker] ETH price: $${ethPrice.toFixed(2)}`)
     } else {
-      console.warn('[Tracker] ⚠️ Could not fetch SOL price - USD values may be inaccurate')
+      console.warn('[Tracker] ⚠️ Could not fetch ETH price - USD values may be inaccurate')
     }
 
     // Initialize holder service (loads all existing holders with VWAPs)

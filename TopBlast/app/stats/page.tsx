@@ -1,11 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRealtimePrice, useTimeSince } from '@/hooks/useRealtime'
 import { AnimatedNumber, PriceTicker } from '@/components/ui/AnimatedNumber'
+import { RobinhoodBadge } from '@/components/ui/RobinhoodBadge'
+import { getWinnerSharePercents, getDevFeePercent } from '@/lib/payout/shares'
+
+const SHARES = getWinnerSharePercents()
+const DEV_FEE = getDevFeePercent()
 
 // External Links
 const LINKS = {
@@ -200,7 +204,7 @@ export default function StatsPage() {
         >
           <h1 className="text-3xl font-bold mb-2">Protocol Statistics</h1>
           <div className="flex items-center gap-4 text-sm text-gray-400">
-            <span>Real-time data from Helius</span>
+            <span>Real-time data from Robinhood Chain</span>
             {lastUpdate && (
               <>
                 <span className="w-1 h-1 bg-gray-600 rounded-full" />
@@ -397,24 +401,24 @@ export default function StatsPage() {
             <div className="flex gap-2 h-10 rounded-lg overflow-hidden">
               <motion.div
                 className="bg-gradient-to-r from-yellow-500 to-amber-400 flex items-center justify-center text-black font-bold text-sm"
-                style={{ width: '80%' }}
+                style={{ width: `${SHARES.first}%` }}
                 whileHover={{ scale: 1.02 }}
               >
-                🥇 80%
+                🥇 {SHARES.first}%
               </motion.div>
               <motion.div
                 className="bg-gradient-to-r from-gray-400 to-gray-300 flex items-center justify-center text-black font-bold text-xs"
-                style={{ width: '15%' }}
+                style={{ width: `${SHARES.second}%` }}
                 whileHover={{ scale: 1.02 }}
               >
-                🥈 15%
+                🥈 {SHARES.second}%
               </motion.div>
               <motion.div
                 className="bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center text-black font-bold text-xs"
-                style={{ width: '5%' }}
+                style={{ width: `${SHARES.third}%` }}
                 whileHover={{ scale: 1.02 }}
               >
-                🥉
+                🥉 {SHARES.third}%
               </motion.div>
             </div>
           </div>

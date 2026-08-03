@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { formatPrice, formatUsd, getSolPrice } from '@/lib/solana/price'
-import { formatWallet } from '@/lib/solana/holders'
+import { formatPrice, formatUsd, getEthPrice } from '@/lib/evm/price'
+import { formatWallet } from '@/lib/evm/holders'
 import { initializeTracker, getTrackerStatus } from '@/lib/tracker/init'
 import { loadRankingsFromDb, saveRankingsToDb, getServiceStatus } from '@/lib/tracker/holderService'
 import { config } from '@/lib/config'
-import { getPayoutWalletBalance } from '@/lib/solana/transfer'
+import { getPayoutWalletBalance } from '@/lib/evm/transfer'
 import { executePayout, isPayoutDue, getSecondsUntilNextPayout, getCurrentPayoutCycle, ensureTimerStateSync } from '@/lib/payout/executor'
+import { getPayoutForEligibleRank } from '@/lib/payout/shares'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,10 +23,10 @@ export async function GET(request: NextRequest) {
       }, { status: 500 })
     }
 
-    if (!config.heliusApiKey) {
+    if (!config.tokenMint.startsWith('0x')) {
       return NextResponse.json({
         success: false,
-        error: 'HELIUS_API_KEY not configured',
+        error: 'TOKEN_MINT_ADDRESS must be an EVM contract address (0x...)',
       }, { status: 500 })
     }
 
@@ -46,11 +47,11 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
 
     // Get pool balance = 99% of wallet balance
-    const solPrice = await getSolPrice() || 200
+    const ethPrice = await getEthPrice() || 3500
     const walletBalance = await getPayoutWalletBalance()
-    const walletSol = walletBalance?.sol || 0
-    const poolSol = walletSol * config.poolPercentage
-    const poolUsd = poolSol * solPrice
+    const walletEth = walletBalance?.eth || walletBalance?.sol || 0
+    const poolEth = walletEth * config.poolPercentage
+    const poolUsd = poolEth * ethPrice
 
     // Auto-trigger payout when timer hits 0 AND service is ready
     // The executor has atomic locking to prevent duplicate concurrent payouts
@@ -87,10 +88,10 @@ export async function GET(request: NextRequest) {
           message: 'Loading holder data and calculating VWAPs...',
           cycle: getCurrentPayoutCycle() + 1,
           seconds_remaining: getSecondsUntilNextPayout(),
-          pool_balance_sol: poolSol.toFixed(4),
+          pool_balance_eth: poolEth.toFixed(4),
           pool_balance_usd: formatUsd(poolUsd),
-          pool_balance_tokens: `${poolSol.toFixed(4)} SOL`,
-          sol_price: solPrice,
+          pool_balance_tokens: `${poolEth.toFixed(4)} ETH`,
+          eth_price: ethPrice,
           token_price: 'Loading...',
           token_symbol: config.tokenSymbol,
           token_mint: config.tokenMint,
@@ -118,11 +119,7 @@ export async function GET(request: NextRequest) {
     // Calculate payout based on position among ELIGIBLE holders, not overall rank
     const getPayoutForWallet = (wallet: string): number => {
       const eligibleRank = eligibleWallets.indexOf(wallet)
-      if (eligibleRank === -1) return 0
-      if (eligibleRank === 0) return poolBal * 0.95 * 0.80  // 1st place: 80% of 95%
-      if (eligibleRank === 1) return poolBal * 0.95 * 0.15  // 2nd place: 15% of 95%
-      if (eligibleRank === 2) return poolBal * 0.95 * 0.05  // 3rd place: 5% of 95%
-      return 0
+      return getPayoutForEligibleRank(poolBal, eligibleRank)
     }
 
     const rankings = dbRankings.rankings.slice(0, limit).map((holder, idx) => ({
@@ -150,10 +147,12 @@ export async function GET(request: NextRequest) {
         status: 'ready',
         cycle: getCurrentPayoutCycle() + 1,
         seconds_remaining: getSecondsUntilNextPayout(),
-        pool_balance_sol: poolSol.toFixed(4),
+        pool_balance_eth: poolEth.toFixed(4),
         pool_balance_usd: formatUsd(poolUsd),
-        pool_balance_tokens: `${poolSol.toFixed(4)} SOL`,
-        sol_price: solPrice,
+        pool_balance_tokens: `${poolEth.toFixed(4)} ETH`,
+        pool_balance_sol: poolEth.toFixed(4),
+        eth_price: ethPrice,
+        sol_price: ethPrice,
         token_price: formatPrice(dbRankings.tokenPrice),
         token_price_raw: dbRankings.tokenPrice,
         token_symbol: config.tokenSymbol,

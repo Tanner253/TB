@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/db'
 import { PoolBalance } from '@/lib/db/models'
-import { formatUsd } from '@/lib/solana/price'
+import { formatUsd } from '@/lib/evm/price'
+import { formatUsd } from '@/lib/evm/price'
+import { getPayoutSplitLabels } from '@/lib/payout/shares'
 import { config } from '@/lib/config'
 
 export const dynamic = 'force-dynamic'
@@ -40,11 +42,7 @@ export async function GET() {
         last_payout_at: pool?.lastPayoutAt?.toISOString() || null,
         payout_enabled: balance >= config.minPoolForPayout,
         minimum_pool_usd: formatUsd(config.minPoolForPayout),
-        payout_split: {
-          first: '80%',
-          second: '15%',
-          third: '5%',
-        },
+        payout_split: getPayoutSplitLabels(),
       },
     })
   } catch (error: any) {
@@ -64,11 +62,7 @@ export async function GET() {
         last_payout_at: null,
         payout_enabled: config.poolBalanceUsd >= config.minPoolForPayout,
         minimum_pool_usd: formatUsd(config.minPoolForPayout),
-        payout_split: {
-          first: '80%',
-          second: '15%',
-          third: '5%',
-        },
+        payout_split: getPayoutSplitLabels(),
       },
     })
   }

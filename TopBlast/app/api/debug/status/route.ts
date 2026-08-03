@@ -1,6 +1,5 @@
 /**
- * Debug Status Endpoint
- * Shows the status of all services for troubleshooting
+ * Debug Status Endpoint — Robinhood Chain EVM
  */
 
 import { NextResponse } from 'next/server'
@@ -8,8 +7,9 @@ import { config } from '@/lib/config'
 import connectDB from '@/lib/db'
 import { getServiceStatus, loadRankingsFromDb } from '@/lib/tracker/holderService'
 import { getTrackerStatus } from '@/lib/tracker/init'
-import { checkHeliusHealth, getHolderCount } from '@/lib/solana/helius'
-import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
+import { checkRpcHealth, getHolderCount } from '@/lib/evm/indexer'
+import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
+import { getEvmChainId, getEvmRpcUrl } from '@/lib/evm/chain'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,18 +17,17 @@ export async function GET() {
   const status: Record<string, any> = {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
+    chain: 'robinhood-evm',
+    chainId: getEvmChainId(),
   }
 
-  // 1. Check config
   status.config = {
-    tokenMint: config.tokenMint ? `${config.tokenMint.slice(0, 8)}...` : 'NOT SET',
+    tokenContract: config.tokenMint ? `${config.tokenMint.slice(0, 10)}...` : 'NOT SET',
     tokenSymbol: config.tokenSymbol,
-    heliusApiKey: config.heliusApiKey ? 'SET' : 'NOT SET',
-    heliusRpcUrl: config.heliusRpcUrl ? 'SET' : 'NOT SET',
+    evmRpcUrl: getEvmRpcUrl() ? 'SET' : 'NOT SET',
     mongodbUri: process.env.MONGODB_URI ? 'SET' : 'NOT SET',
   }
 
-  // 2. Check MongoDB connection
   try {
     const conn = await connectDB()
     status.mongodb = {
@@ -36,65 +35,42 @@ export async function GET() {
       readyState: conn?.connection?.readyState,
     }
   } catch (error: any) {
-    status.mongodb = {
-      connected: false,
-      error: error.message,
-    }
+    status.mongodb = { connected: false, error: error.message }
   }
 
-  // 3. Check Helius RPC health
   try {
-    const heliusHealth = await checkHeliusHealth()
-    status.helius = {
-      healthy: heliusHealth.healthy,
-      latency: heliusHealth.latency,
-    }
+    const rpcHealth = await checkRpcHealth()
+    status.rpc = rpcHealth
   } catch (error: any) {
-    status.helius = {
-      healthy: false,
-      error: error.message,
-    }
+    status.rpc = { healthy: false, error: error.message }
   }
 
-  // 4. Check token holders count
   try {
     if (config.tokenMint) {
-      const holderCount = await getHolderCount(config.tokenMint)
-      status.holderCount = {
-        total: holderCount,
-      }
+      status.holderCount = { total: await getHolderCount(config.tokenMint) }
     } else {
-      status.holderCount = { error: 'No token mint configured' }
+      status.holderCount = { error: 'No token contract configured' }
     }
   } catch (error: any) {
-    status.holderCount = {
-      error: error.message,
-    }
+    status.holderCount = { error: error.message }
   }
 
-  // 5. Check token price
   try {
     if (config.tokenMint) {
-      const tokenPrice = await getTokenPrice(config.tokenMint)
-      const solPrice = await getSolPrice()
       status.prices = {
-        token: tokenPrice,
-        sol: solPrice,
+        token: await getTokenPrice(config.tokenMint),
+        eth: await getEthPrice(),
       }
     } else {
-      status.prices = { error: 'No token mint configured' }
+      status.prices = { error: 'No token contract configured' }
     }
   } catch (error: any) {
-    status.prices = {
-      error: error.message,
-    }
+    status.prices = { error: error.message }
   }
 
-  // 6. Check holder service status
   status.holderService = getServiceStatus()
   status.tracker = getTrackerStatus()
 
-  // 7. Check database rankings
   try {
     const dbRankings = await loadRankingsFromDb()
     status.dbRankings = {
@@ -106,15 +82,10 @@ export async function GET() {
       lastCalculated: dbRankings?.lastCalculated?.toISOString() || null,
     }
   } catch (error: any) {
-    status.dbRankings = {
-      error: error.message,
-    }
+    status.dbRankings = { error: error.message }
   }
 
   return NextResponse.json(status, {
-    headers: {
-      'Cache-Control': 'no-store',
-    },
+    headers: { 'Cache-Control': 'no-store' },
   })
 }
-

@@ -1,12 +1,11 @@
 /**
- * Helius Webhook Endpoint
- * Receives real-time transaction notifications for the token
- * Records buys and sells to track losers
+ * EVM webhook endpoint — Alchemy/Blockscout transfer notifications
+ * Records buys and sells to track losers (same role as Helius webhook on Solana)
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { recordBuy, recordSell, setBaselinePrice } from '@/lib/tracker/realtime'
-import { getTokenPrice } from '@/lib/solana/price'
+import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
 import { config } from '@/lib/config'
 
 export const dynamic = 'force-dynamic'
@@ -14,93 +13,74 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    
-    // Helius sends an array of transactions
-    const transactions = Array.isArray(body) ? body : [body]
-    
-    // Get current price for recording
+    const events = Array.isArray(body) ? body : [body]
+
     const currentPrice = await getTokenPrice(config.tokenMint)
     if (currentPrice) {
       setBaselinePrice(currentPrice)
     }
-    
+
     let buysProcessed = 0
     let sellsProcessed = 0
 
-    for (const tx of transactions) {
-      // Look for SWAP transactions involving our token
-      if (tx.type === 'SWAP' && tx.tokenTransfers) {
-        for (const transfer of tx.tokenTransfers) {
-          // Check if this involves our token
-          if (transfer.mint !== config.tokenMint) continue
-          
-          const tokenAmount = transfer.tokenAmount || 0
-          if (tokenAmount <= 0) continue
+    for (const event of events) {
+      // Alchemy-style: activity array with erc20 transfers
+      const transfers = event.activity || event.tokenTransfers || [event]
 
-          // Determine price from the swap
-          let pricePerToken = currentPrice || 0
-          
-          // Try to calculate from SOL transfer
-          if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
-            const solAmount = tx.nativeTransfers[0].amount / 1e9
-            const solPrice = 150 // Rough estimate, should use real SOL price
-            const usdValue = solAmount * solPrice
-            if (tokenAmount > 0) {
-              pricePerToken = usdValue / tokenAmount
-            }
-          }
+      for (const transfer of transfers) {
+        const tokenAddress = (
+          transfer.rawContract?.address ||
+          transfer.mint ||
+          transfer.tokenAddress ||
+          ''
+        ).toLowerCase()
 
-          // BUY: User received the token
-          if (transfer.toUserAccount && transfer.toUserAccount !== config.tokenMint) {
-            recordBuy(transfer.toUserAccount, tokenAmount, pricePerToken)
-            buysProcessed++
-          }
-          
-          // SELL: User sent the token
-          if (transfer.fromUserAccount && transfer.fromUserAccount !== config.tokenMint) {
-            recordSell(transfer.fromUserAccount)
-            sellsProcessed++
+        if (tokenAddress !== config.tokenMint.toLowerCase()) continue
+
+        const tokenAmount = parseFloat(
+          transfer.value ||
+          transfer.tokenAmount ||
+          transfer.rawContract?.rawValue ||
+          '0'
+        )
+        if (tokenAmount <= 0) continue
+
+        const to = (transfer.toAddress || transfer.to || '').toLowerCase()
+        const from = (transfer.fromAddress || transfer.from || '').toLowerCase()
+
+        let pricePerToken = currentPrice || 0
+        const ethPrice = (await getEthPrice()) || 3500
+
+        if (transfer.value && transfer.rawContract?.decimals) {
+          const decimals = transfer.rawContract.decimals
+          const amount = parseFloat(transfer.value) / Math.pow(10, decimals)
+          if (amount > 0 && event.value) {
+            const ethSpent = parseFloat(event.value) / 1e18
+            pricePerToken = (ethSpent * ethPrice) / amount
           }
         }
-      }
-      
-      // Also check for direct token transfers (not swaps)
-      if (tx.type === 'TRANSFER' && tx.tokenTransfers) {
-        for (const transfer of tx.tokenTransfers) {
-          if (transfer.mint !== config.tokenMint) continue
-          
-          // If someone transfers tokens OUT, treat as sell (disqualify)
-          if (transfer.fromUserAccount) {
-            recordSell(transfer.fromUserAccount)
-            sellsProcessed++
-          }
+
+        if (to && to !== from) {
+          recordBuy(to, tokenAmount, pricePerToken, tokenAmount)
+          buysProcessed++
+        }
+        if (from && from !== to) {
+          recordSell(from, 0)
+          sellsProcessed++
         }
       }
     }
 
-    console.log(`[Webhook] Processed ${transactions.length} txns: ${buysProcessed} buys, ${sellsProcessed} sells`)
-
     return NextResponse.json({
       success: true,
-      processed: transactions.length,
-      buys: buysProcessed,
-      sells: sellsProcessed,
+      processed: { buys: buysProcessed, sells: sellsProcessed },
     })
   } catch (error: any) {
-    console.error('[Webhook] Error:', error.message)
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    )
+    console.error('[Webhook/EVM] Error:', error)
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }
 
-// Health check
 export async function GET() {
-  return NextResponse.json({
-    success: true,
-    message: 'Helius webhook endpoint active',
-    token: config.tokenMint,
-  })
+  return NextResponse.json({ status: 'ok', chain: 'robinhood-evm' })
 }
-

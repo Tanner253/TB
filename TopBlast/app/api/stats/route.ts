@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { getTokenData, formatPrice, formatUsd } from '@/lib/solana/price'
-import { formatWallet } from '@/lib/solana/holders'
-import { getHolderCount } from '@/lib/solana/helius'
+import { getTokenData, formatPrice, formatUsd } from '@/lib/evm/price'
+import { formatWallet } from '@/lib/evm/holders'
+import { getHolderCount } from '@/lib/evm/indexer'
 import { 
   getAllHolders, 
   getEligibleCount, 
@@ -11,6 +11,7 @@ import {
 } from '@/lib/tracker/holderService'
 import { initializeTracker, isTrackerInitialized } from '@/lib/tracker/init'
 import { config } from '@/lib/config'
+import { getPayoutSplitLabels } from '@/lib/payout/shares'
 
 export const dynamic = 'force-dynamic'
 
@@ -90,11 +91,7 @@ export async function GET() {
           total_distributed_usd: formatUsd(0),
           average_pool_size_usd: formatUsd(config.poolBalanceUsd),
           current_pool_usd: formatUsd(config.poolBalanceUsd),
-          payout_split: {
-            first: '80%',
-            second: '15%',
-            third: '5%',
-          },
+          payout_split: getPayoutSplitLabels(),
         },
         leaderboard: {
           deepest_drawdown: deepestDrawdown ? {

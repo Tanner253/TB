@@ -29,7 +29,7 @@ import {
 // Mock config
 jest.mock('@/lib/config', () => ({
   config: {
-    tokenMint: 'mock_token_mint',
+    tokenMint: '0x0000000000000000000000000000000000000001',
     tokenSymbol: 'TEST',
     tokenDecimals: 6,
     minTokenHolding: 100000,
@@ -38,10 +38,11 @@ jest.mock('@/lib/config', () => ({
     poolBalanceUsd: 500,
     minPoolForPayout: 50,
     payoutSplit: {
-      first: 0.80,
-      second: 0.15,
-      third: 0.05,
+      first: 0.60,
+      second: 0.25,
+      third: 0.15,
     },
+    devFeePct: 0.12,
     payoutIntervalMinutes: 60,
     executePayouts: false, // Don't execute real transfers in tests
     cronSecret: 'test_secret',
@@ -274,8 +275,9 @@ describe('API Routes Workflow', () => {
         return { success: true, skipped: true, reason: 'No eligible winners' }
       }
 
-      // 5. Calculate payouts
-      const payouts = calculatePayouts(poolBal)
+      // 5. Calculate payouts (after dev fee — matches production executor)
+      const winnersPool = poolBal * (1 - 0.12)
+      const payouts = calculatePayouts(winnersPool)
       const payoutAmounts = [payouts.first, payouts.second, payouts.third]
 
       // 6. Process each winner
@@ -362,9 +364,9 @@ describe('API Routes Workflow', () => {
       // Check payouts were recorded
       const payouts = await Payout.find({ cycle: 1 })
       expect(payouts.length).toBe(3)
-      expect(payouts[0].amount).toBe(400) // 80%
-      expect(payouts[1].amount).toBe(75)  // 15%
-      expect(payouts[2].amount).toBe(25)  // 5%
+      expect(payouts[0].amount).toBe(264) // 60% of 88% of 500
+      expect(payouts[1].amount).toBe(110)  // 25% of 440
+      expect(payouts[2].amount).toBe(66)   // 15% of 440
 
       // Check cooldowns were created
       const dqs = await Disqualification.find()

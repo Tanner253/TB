@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
+import { getDevFeePercent } from '@/lib/payout/shares'
+
+const DEV_FEE = getDevFeePercent()
 
 // External Links
 const LINKS = {
@@ -244,7 +247,7 @@ export default function HistoryPage() {
         >
           <h1 className="text-3xl font-bold mb-2">Payout History</h1>
           <p className="text-gray-400">
-            {data?.stats.total_cycles || 0} cycles • {data?.stats.total_payouts || 0} successful payouts • {data?.stats.total_distributed_sol || '0'} SOL distributed
+            {data?.stats.total_cycles || 0} cycles • {data?.stats.total_payouts || 0} successful payouts • {data?.stats.total_distributed_eth || data?.stats.total_distributed_sol || '0'} ETH distributed
             {data?.network === 'devnet' && (
               <span className="ml-2 text-amber-400">(Devnet)</span>
             )}
@@ -272,7 +275,7 @@ export default function HistoryPage() {
           </div>
           <div className="bg-white/5 border border-white/10 rounded-xl p-4">
             <div className="text-sm text-gray-400">Distributed</div>
-            <div className="text-2xl font-bold text-purple-400">{data?.stats.total_distributed_sol || '0'} SOL</div>
+            <div className="text-2xl font-bold text-purple-400">{data?.stats.total_distributed_eth || data?.stats.total_distributed_sol || '0'} ETH</div>
           </div>
         </motion.div>
 
@@ -300,7 +303,7 @@ export default function HistoryPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-sm text-gray-400">Total Paid</div>
-                    <div className="text-lg font-bold text-white">{cycle.total_sol} SOL</div>
+                    <div className="text-lg font-bold text-white">{cycle.total_eth || cycle.total_sol} ETH</div>
                     <div className="text-xs text-gray-500">${cycle.total_usd}</div>
                   </div>
                 </div>
@@ -328,7 +331,7 @@ export default function HistoryPage() {
                                     target="_blank" 
                                     rel="noopener noreferrer"
                                     className="text-emerald-400 hover:text-emerald-300 transition-colors"
-                                    title="View on Solscan"
+                                    title="View on Blockscout"
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -338,7 +341,7 @@ export default function HistoryPage() {
                               </div>
                               <div className="text-sm text-gray-400 mt-1 flex items-center gap-2">
                                 {payout.type === 'dev_fee' ? (
-                                  <span>Developer Fee (5%)</span>
+                                  <span>Developer Fee ({DEV_FEE}%)</span>
                                 ) : (
                                   <>
                                     <span>{payout.rank === 1 ? '🔥 Biggest Loser' : payout.rank === 2 ? '⚔️ Runner Up' : '🛡️ Third Place'}</span>
@@ -355,7 +358,7 @@ export default function HistoryPage() {
                           </div>
                           <div className="text-right">
                             <div className={`text-xl font-bold ${payout.status === 'success' ? 'text-emerald-400' : 'text-red-400 line-through'}`}>
-                              {payout.amount_sol} SOL
+                              {payout.amount_eth || payout.amount_sol} ETH
                             </div>
                             <div className="text-sm text-gray-500 mt-1">${payout.amount_usd}</div>
                           </div>
@@ -384,7 +387,7 @@ export default function HistoryPage() {
                         <span className="text-gray-400">
                           {cycle.success_count} successful, {cycle.failed_count} failed
                         </span>
-                        <span className="text-xl font-bold text-emerald-400">{cycle.total_sol} SOL</span>
+                        <span className="text-xl font-bold text-emerald-400">{cycle.total_eth || cycle.total_sol} ETH</span>
                       </div>
                     </div>
                   </div>
@@ -412,7 +415,7 @@ export default function HistoryPage() {
               <h2 className="text-2xl font-bold mb-3">No Payouts Yet</h2>
               <p className="text-gray-400 mb-6 max-w-md mx-auto">
                 Winners will appear here after the first payout cycle is processed.
-                All transactions are recorded on-chain with Solscan links.
+                All transactions are recorded on-chain with Blockscout links.
               </p>
               <Link href="/leaderboard">
                 <motion.button

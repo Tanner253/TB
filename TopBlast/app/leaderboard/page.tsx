@@ -7,6 +7,10 @@ import { motion } from 'framer-motion'
 import { useRealtimeLeaderboard, useRealtimePrice, useTimeSince, useRealtime } from '@/hooks/useRealtime'
 import { AnimatedNumber, Countdown, PriceTicker } from '@/components/ui/AnimatedNumber'
 import { LeaderboardCardSkeleton, TableRowSkeleton } from '@/components/ui/Skeleton'
+import { RobinhoodBadge } from '@/components/ui/RobinhoodBadge'
+import { getWinnerSharePercents, getPayoutForEligibleRank } from '@/lib/payout/shares'
+
+const WINNER_SHARES = getWinnerSharePercents()
 
 // External Links
 const LINKS = {
@@ -268,7 +272,7 @@ export default function LeaderboardPage() {
                 <AnimatedNumber value={poolValue} format="currency" showChange />
               </div>
               <p className="text-gray-400 text-sm">
-                {data?.pool_balance_sol || data?.pool_balance_tokens} SOL
+                {data?.pool_balance_eth || data?.pool_balance_sol || data?.pool_balance_tokens} ETH
               </p>
             </div>
           </motion.div>
@@ -302,10 +306,9 @@ export default function LeaderboardPage() {
                 {top3.map((winner: Winner, idx: number) => {
                   const style = getRankStyle(idx + 1)
                   const isEligible = winner.is_eligible !== false
-                // Actual payout after 5% dev fee: 80% of 95% = 76%, 15% of 95% = 14.25%, 5% of 95% = 4.75%
-                // UI shows clean percentages (80/15/5) for better UX
-                  const payoutPct = isEligible ? (idx === 0 ? 0.76 : idx === 1 ? 0.1425 : 0.0475) : 0
-                  const payoutAmount = poolValue * payoutPct
+                // Payout from pool after dev fee
+                  const payoutAmount = isEligible ? getPayoutForEligibleRank(poolValue, idx) : 0
+                  const shareLabel = idx === 0 ? `${WINNER_SHARES.first}%` : idx === 1 ? `${WINNER_SHARES.second}%` : `${WINNER_SHARES.third}%`
 
                   return (
                     <motion.div
@@ -378,7 +381,7 @@ export default function LeaderboardPage() {
                         </div>
                         <div className="flex justify-between py-2">
                           <span className="text-gray-500">Share</span>
-                          <span className="text-emerald-400 font-bold">{idx === 0 ? '80%' : idx === 1 ? '15%' : '5%'}</span>
+                          <span className="text-emerald-400 font-bold">{shareLabel}</span>
                         </div>
                       </div>
                     </motion.div>
@@ -461,9 +464,12 @@ export default function LeaderboardPage() {
               <tbody>
                 {(data?.rankings || []).slice(0, 10).map((holder: Winner, idx: number) => {
                   const isEligible = holder.is_eligible !== false
-                  // Actual payout after 5% dev fee (UI shows clean 80/15/5 percentages)
-                  const payoutPct = isEligible && idx === 0 ? 0.76 : isEligible && idx === 1 ? 0.1425 : isEligible && idx === 2 ? 0.0475 : 0
-                  const payoutAmount = poolValue * payoutPct
+                  const eligibleRank = (data?.rankings || [])
+                    .filter((h: Winner) => h.is_eligible)
+                    .findIndex((h: Winner) => h.wallet === holder.wallet)
+                  const payoutAmount = eligibleRank >= 0 && eligibleRank < 3
+                    ? getPayoutForEligibleRank(poolValue, eligibleRank)
+                    : 0
                   const style = getRankStyle(idx + 1)
 
                   return (
@@ -557,7 +563,7 @@ export default function LeaderboardPage() {
               animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
               transition={{ duration: 1.5, repeat: Infinity }}
             />
-            Real-time tracking via Helius
+            Real-time tracking via Blockscout
           </div>
           <p className="text-xs text-gray-500">
             {data?.tracked_holders || 0} holders tracked • Top 3 losers paid automatically every hour

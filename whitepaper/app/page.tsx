@@ -13,6 +13,15 @@ const CandlestickBackground = dynamic(() => import('./components/CandlestickBack
 // App URL
 const APP_URL = 'https://topblastweb3.xyz'
 
+// Payout structure (winner pool shares after dev fee)
+const PAYOUT = {
+  dev: 12,
+  first: 60,
+  second: 25,
+  third: 15,
+  community: 88,
+}
+
 // External Links
 const LINKS = {
     twitter: 'https://x.com/TOPBLASTX',
@@ -40,6 +49,25 @@ const Icons = {
     XTwitter: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>,
 }
 
+// Robinhood Chain badge (matches TopBlast / waddle.bet branding)
+const RobinhoodBadge = ({ compact = false }: { compact?: boolean }) => (
+  <div
+    className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-emerald-100 shadow-md"
+    title="TopBlast on Robinhood Chain (EVM)"
+  >
+    <Image
+      src="/robinhood-feather.svg"
+      alt="Robinhood Chain"
+      width={compact ? 16 : 20}
+      height={compact ? 16 : 20}
+      className="shrink-0"
+    />
+    <span className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>
+      {compact ? 'Robinhood EVM' : 'Robinhood Chain · EVM'}
+    </span>
+  </div>
+)
+
 // --- Components ---
 
 const Navbar = () => {
@@ -58,6 +86,7 @@ const Navbar = () => {
                             <Image src="/logo.jpg" alt="TopBlast" width={32} height={32} className="w-full h-full object-cover" />
                         </motion.div>
                         <span className="text-xl font-bold tracking-tighter group-hover:text-green-400 transition-colors">TOPBLAST</span>
+                        <RobinhoodBadge compact />
                     </a>
                     <div className="hidden md:block">
                         <div className="ml-10 flex items-center space-x-6">
@@ -131,7 +160,7 @@ const Hero = () => {
                 >
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-green-500/30 mb-6 backdrop-blur-md">
                         <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        <span className="text-xs font-mono text-green-300">LIVE ON SOLANA • AUTOMATED PAYOUTS</span>
+                        <span className="text-xs font-mono text-green-300">LIVE ON ROBINHOOD CHAIN • EVM • AUTOMATED ETH PAYOUTS</span>
                     </div>
                 </motion.div>
 
@@ -153,10 +182,19 @@ const Hero = () => {
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.4 }}
                 >
-                    The world&apos;s first <strong className="text-green-400">Loss-Mining Protocol</strong>. Built on Solana.
+                    The world&apos;s first <strong className="text-green-400">Loss-Mining Protocol</strong>. Built on Robinhood Chain (EVM).
                     <br/>
                     Get paid for being a top loser. Automatically. Every 2 hours.
                 </motion.p>
+
+                <motion.div
+                    className="flex justify-center mb-6"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.45 }}
+                >
+                    <RobinhoodBadge />
+                </motion.div>
 
                 {/* Value Proposition Pills */}
                 <motion.div 
@@ -205,7 +243,7 @@ const Hero = () => {
                     transition={{ delay: 0.8 }}
                 >
                     <div className="glass-panel rounded-xl p-4 text-center">
-                        <div className="text-3xl font-bold text-green-400 font-mono">80%</div>
+                        <div className="text-3xl font-bold text-green-400 font-mono">{PAYOUT.first}%</div>
                         <div className="text-xs text-gray-400 mt-1">1st Place Payout</div>
                     </div>
                     <div className="glass-panel rounded-xl p-4 text-center">
@@ -213,7 +251,7 @@ const Hero = () => {
                         <div className="text-xs text-gray-400 mt-1">Payout Frequency</div>
                     </div>
                     <div className="glass-panel rounded-xl p-4 text-center">
-                        <div className="text-3xl font-bold text-purple-400 font-mono">95%</div>
+                        <div className="text-3xl font-bold text-purple-400 font-mono">{PAYOUT.community}%</div>
                         <div className="text-xs text-gray-400 mt-1">To Community</div>
                     </div>
                     <div className="glass-panel rounded-xl p-4 text-center">
@@ -228,8 +266,8 @@ const Hero = () => {
 
 const RektTicker = () => {
     const LIVE_FEED = [
-        { wallet: "7xKXt...Fa1", loss: "-72.5%", payout: "Winner 🏆" },
-        { wallet: "Sol...Whale", loss: "-45.2%", payout: "2nd Place" },
+        { wallet: "0x7xK...Fa1", loss: "-72.5%", payout: "Winner 🏆" },
+        { wallet: "0xEth...ale", loss: "-45.2%", payout: "2nd Place" },
         { wallet: "DeFi...Pro", loss: "-38.7%", payout: "3rd Place" },
         { wallet: "Diam...Hand", loss: "-29.1%", payout: "Eligible ✓" },
         { wallet: "Moon...Boy", loss: "-15.3%", payout: "Eligible ✓" },
@@ -274,8 +312,8 @@ const WhyInvest = () => {
         {
             icon: <Icons.Users />,
             title: "Community First",
-            desc: "95% of all fees go back to the community through 2-hour payouts. Only 5% for development. This is a protocol by degens, for degens.",
-            highlight: "95% to holders"
+            desc: "88% of each payout cycle goes to winners. 12% supports development and protocol growth. Winners still take 60% of the winner pool.",
+            highlight: "88% to holders"
         },
     ]
 
@@ -353,7 +391,7 @@ const WhyInvest = () => {
                                         <span className="text-2xl">📉</span> Scenario B: Price Dumps
                                     </div>
                                     <p className="text-gray-300">
-                                        Your drawdown increases. You climb the leaderboard. You win 80% of the 2-hour pool. 
+                                        Your drawdown increases. You climb the leaderboard. You win {PAYOUT.first}% of the winner pool each cycle. 
                                         <span className="text-green-400 font-bold"> You still win.</span>
                                     </p>
                                 </div>
@@ -472,7 +510,7 @@ const Mechanism = () => {
                         <FeatureCard 
                             icon={<Icons.Zap />} 
                             title="3. Blast Rewards" 
-                            desc="Top 3 losers automatically receive payouts (80/15/5 split). Tokens sent directly to wallets. No claiming, no gas, no interaction."
+                            desc={`Top 3 losers automatically receive payouts (${PAYOUT.first}/${PAYOUT.second}/${PAYOUT.third} split). Native ETH sent directly to wallets. No claiming, no interaction.`}
                             delay={0.3}
                         />
                     </div>
@@ -505,7 +543,7 @@ const Simulator = () => {
      const [poolSize, setPoolSize] = useState(1000)
      const [drawdown, setDrawdown] = useState(50)
      
-     const winFirst = (poolSize * 0.8 * 0.95).toFixed(0) // After 5% dev fee
+     const winFirst = (poolSize * (PAYOUT.community / 100) * (PAYOUT.first / 100)).toFixed(0)
      const lossAmount = (investment * (drawdown/100)).toFixed(0)
      const netProfit = (parseFloat(winFirst) - parseFloat(lossAmount)).toFixed(0)
      const roi = ((parseFloat(winFirst) / investment) * 100).toFixed(0)
@@ -555,8 +593,8 @@ const Tokenomics = () => {
      const [hoveredRekt, setHoveredRekt] = useState(false)
      
      const data = [
-        { id: 'rekt', label: 'Community Rewards (Rekt Pool)', value: 95, color: 'bg-green-500', interactive: true },
-        { id: 'dev', label: 'Development & Maintenance', value: 5, color: 'bg-purple-500', interactive: false },
+        { id: 'rekt', label: 'Community Rewards (Rekt Pool)', value: PAYOUT.community, color: 'bg-green-500', interactive: true },
+        { id: 'dev', label: 'Development & Maintenance', value: PAYOUT.dev, color: 'bg-purple-500', interactive: false },
     ]
 
     return (
@@ -575,11 +613,11 @@ const Tokenomics = () => {
                         <div className="space-y-4 mb-8">
                             <div className="flex items-center gap-3">
                                 <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                <span className="text-gray-300"><span className="text-green-400 font-bold">95%</span> of fees → Community Rewards (Top 3 Losers)</span>
+                                <span className="text-gray-300"><span className="text-green-400 font-bold">{PAYOUT.community}%</span> of fees → Community Rewards (Top 3 Losers)</span>
                             </div>
                             <div className="flex items-center gap-3">
                                 <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                                <span className="text-gray-300"><span className="text-purple-400 font-bold">5%</span> of fees → Protocol Development</span>
+                                <span className="text-gray-300"><span className="text-purple-400 font-bold">{PAYOUT.dev}%</span> of fees → Protocol Development</span>
                             </div>
                         </div>
 
@@ -625,17 +663,17 @@ const Tokenomics = () => {
                                             >
                                                 <h4 className="text-sm font-bold text-green-400 mb-2">2-Hour Payout Split</h4>
                                                 <div className="flex gap-2 h-16">
-                                                    <div className="h-full bg-yellow-400/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: '80%'}}>
+                                                    <div className="h-full bg-yellow-400/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: `${PAYOUT.first}%`}}>
                                                         <span>🥇 1st</span>
-                                                        <span className="text-lg">80%</span>
+                                                        <span className="text-lg">{PAYOUT.first}%</span>
                                                     </div>
-                                                    <div className="h-full bg-gray-300/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: '15%'}}>
+                                                    <div className="h-full bg-gray-300/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: `${PAYOUT.second}%`}}>
                                                         <span>🥈</span>
-                                                        <span>15%</span>
+                                                        <span>{PAYOUT.second}%</span>
                                                     </div>
-                                                    <div className="h-full bg-orange-400/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: '5%'}}>
+                                                    <div className="h-full bg-orange-400/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: `${PAYOUT.third}%`}}>
                                                         <span>🥉</span>
-                                                        <span>5%</span>
+                                                        <span>{PAYOUT.third}%</span>
                                                     </div>
                                                 </div>
                                             </motion.div>
@@ -667,15 +705,25 @@ const Tokenomics = () => {
 const UpdateLog = () => {
     const updates = [
         {
-            version: "v2.1.0",
-            date: "December 2025",
+            version: "v3.0.0",
+            date: "August 2026",
             tag: "CURRENT",
             changes: [
-                "Live automated payouts on Solana mainnet",
+                "Migrated to Robinhood Chain (EVM) — native ETH payouts",
+                "Blockscout indexer + viem RPC for on-chain holder data",
+                "Updated payout split: 60/25/15 winner shares, 12% dev fee",
+                "Payout history with Blockscout transaction links",
+                "Anti-gaming: winner cooldown, transfer detection, sell detection"
+            ]
+        },
+        {
+            version: "v2.1.0",
+            date: "December 2025",
+            tag: "LEGACY",
+            changes: [
+                "Live automated payouts on Solana mainnet (preserved on sol-build branch)",
                 "Real-time leaderboard with 5-second polling",
                 "VWAP calculation from on-chain transaction history",
-                "Payout history with Solscan transaction links",
-                "Anti-gaming: winner cooldown, transfer detection, sell detection"
             ]
         },
         {
@@ -685,8 +733,8 @@ const UpdateLog = () => {
             changes: [
                 "Complete rewrite with Next.js 14",
                 "MongoDB for holder caching and payout history",
-                "Helius RPC integration for blockchain data",
-                "Jupiter Price API for real-time pricing",
+                "EVM indexer integration for blockchain data",
+                "Real-time token pricing via Blockscout / CoinGecko",
                 "Framer Motion animations"
             ]
         },
@@ -804,8 +852,8 @@ const Roadmap = () => {
             summary: "TBLAST Deflationary Mechanics",
             description: "Platform fees automatically buy TBLAST from the market and burn it forever.",
             milestones: [
-                { task: "Payment integration", detail: "Accept SOL/USDC for platform access" },
-                { task: "Auto-buy mechanism", detail: "Payments swap to TBLAST on Jupiter" },
+                { task: "Payment integration", detail: "Accept ETH/USDC for platform access on Robinhood Chain" },
+                { task: "Auto-buy mechanism", detail: "Payments swap to TBLAST on Robinhood DEX" },
                 { task: "Burn execution", detail: "Purchased TBLAST sent to burn address" },
             ],
             deliverable: "First external token pays to join, TBLAST burned on-chain"
@@ -1107,7 +1155,7 @@ const Whitepaper = () => {
                     <p className="mb-4 text-white"><strong>The Win-Win Scenario:</strong></p>
                     <ul className="list-disc pl-5 space-y-2 mb-4">
                         <li><strong className="text-green-400">Scenario A (Price Pumps):</strong> You hold the token, the value increases, and you sell for profit. Standard moon mission. You win.</li>
-                        <li><strong className="text-red-400">Scenario B (Price Dumps):</strong> The market crashes. Paper hands sell. But you hold. Your drawdown % increases, shooting you up the Blaster Leaderboard. You win the 2-hour jackpot (80% of the pool).</li>
+                        <li><strong className="text-red-400">Scenario B (Price Dumps):</strong> The market crashes. Paper hands sell. But you hold. Your drawdown % increases, shooting you up the Blaster Leaderboard. You win {PAYOUT.first}% of the winner pool each cycle.</li>
                     </ul>
                     <div className="mt-4 p-4 bg-green-900/20 border border-green-500/30 rounded text-sm text-green-300 italic">
                         &quot;In a market of gambling, be the casino. If you can&apos;t be the casino, be the player who gets paid to lose.&quot;
@@ -1124,7 +1172,7 @@ const Whitepaper = () => {
                     <p className="mb-4">The system tracks every wallet&apos;s entry price from on-chain buy transactions. Your VWAP updates as you buy more tokens.</p>
                     <code className="block bg-gray-900 p-3 rounded text-xs mb-4 text-green-400 font-mono">
                         VWAP = Total Cost Basis / Total Tokens Bought<br/>
-                        Total Cost Basis = Σ(SOL spent × SOL price) + Σ(stablecoin spent)
+                        Total Cost Basis = Σ(ETH spent × ETH price) + Σ(stablecoin spent)
                     </code>
                     <h4 className="text-white font-bold mt-4 mb-2">Drawdown Calculation</h4>
                     <code className="block bg-gray-900 p-3 rounded text-xs mb-4 text-green-400 font-mono">
@@ -1191,24 +1239,24 @@ const Whitepaper = () => {
             title: "4.0 Payout Distribution",
             content: (
                 <>
-                    <p className="mb-4">Every 2 hours, the reward pool is distributed to the top 3 losers automatically.</p>
+                    <p className="mb-4">Every 2 hours, the reward pool is distributed to the top 3 losers automatically. A {PAYOUT.dev}% dev fee is taken first; the remaining {PAYOUT.community}% is split {PAYOUT.first}/{PAYOUT.second}/{PAYOUT.third}.</p>
                     <div className="flex gap-2 h-20 mb-6">
-                        <div className="h-full bg-yellow-400/80 rounded flex flex-col items-center justify-center text-black font-bold" style={{width: '80%'}}>
+                        <div className="h-full bg-yellow-400/80 rounded flex flex-col items-center justify-center text-black font-bold" style={{width: `${PAYOUT.first}%`}}>
                             <span>🥇 1st Place</span>
-                            <span className="text-2xl">80%</span>
+                            <span className="text-2xl">{PAYOUT.first}%</span>
                         </div>
-                        <div className="h-full bg-gray-300/80 rounded flex flex-col items-center justify-center text-black font-bold text-sm" style={{width: '15%'}}>
+                        <div className="h-full bg-gray-300/80 rounded flex flex-col items-center justify-center text-black font-bold text-sm" style={{width: `${PAYOUT.second}%`}}>
                             <span>🥈 2nd</span>
-                            <span className="text-lg">15%</span>
+                            <span className="text-lg">{PAYOUT.second}%</span>
                         </div>
-                        <div className="h-full bg-orange-400/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: '5%'}}>
+                        <div className="h-full bg-orange-400/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: `${PAYOUT.third}%`}}>
                             <span>🥉</span>
-                            <span>5%</span>
+                            <span>{PAYOUT.third}%</span>
                         </div>
                     </div>
                     <div className="p-4 bg-green-900/20 border border-green-500/30 rounded">
                         <p className="text-green-300 font-bold mb-2">🎯 Zero Interaction Required</p>
-                        <p className="text-gray-400 text-sm">Just buy and hold. Winners receive tokens directly in their wallets. Check your ranking on the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-green-400 underline hover:text-green-300">live leaderboard</a>.</p>
+                        <p className="text-gray-400 text-sm">Just buy and hold. Winners receive native ETH directly in their wallets. Check your ranking on the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-green-400 underline hover:text-green-300">live leaderboard</a>.</p>
                     </div>
                 </>
             )
@@ -1224,7 +1272,7 @@ const Whitepaper = () => {
                             <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">1</div>
                             <div>
                                 <h4 className="text-white font-bold mb-1">Buy $TBLAST</h4>
-                                <p className="text-gray-400 text-sm">Purchase tokens on any DEX (Raydium, Jupiter) after bonding completes on pump.fun.</p>
+                                <p className="text-gray-400 text-sm">Purchase $TBLAST on Robinhood Chain via any supported DEX. Hold in your EVM wallet — no app connection required.</p>
                             </div>
                         </div>
                         
@@ -1240,7 +1288,7 @@ const Whitepaper = () => {
                             <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">3</div>
                             <div>
                                 <h4 className="text-white font-bold mb-1">Watch &amp; Win</h4>
-                                <p className="text-gray-400 text-sm">Check the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-green-400 underline">live leaderboard</a>. If you&apos;re top 3, tokens are sent automatically.</p>
+                                <p className="text-gray-400 text-sm">Check the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-green-400 underline">live leaderboard</a>. If you&apos;re top 3, ETH is sent automatically.</p>
                             </div>
                         </div>
                     </div>
@@ -1282,7 +1330,7 @@ const Whitepaper = () => {
                         <span className="inline-block px-4 py-1 bg-purple-500/20 border border-purple-500/30 rounded-full text-purple-400 text-sm font-medium mb-4">
                             DOCUMENTATION
                         </span>
-                        <h2 className="text-4xl font-bold mb-4">Whitepaper <span className="text-green-500 text-sm align-top">v2.1</span></h2>
+                        <h2 className="text-4xl font-bold mb-4">Whitepaper <span className="text-green-500 text-sm align-top">v3.0</span></h2>
                         <p className="text-gray-400">Complete technical documentation of the Topblast protocol.</p>
                     </div>
                     <div className="glass-panel rounded-xl p-2 md:p-8">
@@ -1336,6 +1384,7 @@ const Footer = () => {
                             <Image src="/logo.jpg" alt="TopBlast" width={32} height={32} className="w-full h-full object-cover" />
                         </div>
                         <span className="font-bold text-white">TOPBLAST</span>
+                        <RobinhoodBadge compact />
                     </div>
                     <div className="flex items-center gap-6">
                         <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors flex items-center gap-1">
@@ -1351,7 +1400,7 @@ const Footer = () => {
                             </a>
                         </div>
                     </div>
-                    <p>&copy; 2025 Topblast Protocol. Built on Solana.</p>
+                    <p>&copy; 2025 Topblast Protocol. Built on Robinhood Chain (EVM).</p>
                 </div>
             </div>
         </footer>
