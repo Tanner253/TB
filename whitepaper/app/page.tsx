@@ -11,7 +11,7 @@ const CandlestickBackground = dynamic(() => import('./components/CandlestickBack
 })
 
 // App URL
-const APP_URL = 'https://topblastweb3.xyz'
+const APP_URL = 'https://topblasteth.xyz'
 
 // Payout structure (winner pool shares after dev fee)
 const PAYOUT = {
@@ -847,7 +847,7 @@ const Roadmap = () => {
                 { task: "Automated ETH payouts", detail: "12% dev fee, 88% to top 3 eligible losers (60/25/15)" },
                 { task: "Live app & leaderboard", detail: "Real-time rankings, payout history, eligibility rules" },
             ],
-            deliverable: "topblastweb3.xyz live on Robinhood Chain mainnet"
+            deliverable: "topblasteth.xyz live on Robinhood Chain mainnet"
         },
         {
             phase: 2,
@@ -1417,7 +1417,7 @@ const Footer = () => {
                             whileTap={{ scale: 0.95 }}
                             className="bg-gradient-to-r from-rh-green to-rh-lime text-black px-10 py-4 rounded-lg font-bold text-lg shadow-[0_0_30px_rgba(20,241,149,0.4)] hover:shadow-[0_0_40px_rgba(20,241,149,0.6)] transition-all"
                         >
-                            Launch App at topblastweb3.xyz →
+                            Launch App at topblasteth.xyz →
                         </motion.button>
                     </a>
                 </motion.div>
