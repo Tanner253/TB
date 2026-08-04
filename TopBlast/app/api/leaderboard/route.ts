@@ -23,6 +23,7 @@ import { getPayoutForEligibleRank } from '@/lib/payout/shares'
 import { buildHoldTimeFields } from '@/lib/eligibility/holdDuration'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
+import { loadLastWinCycleByWallet } from '@/lib/payout/winnerPersistence'
 import { getEarliestBuyTimestamp, getTokenHolders } from '@/lib/evm/indexer'
 
 export const dynamic = 'force-dynamic'
@@ -82,10 +83,16 @@ export async function GET(request: NextRequest) {
       0
 
     let liveEligibleCount = 0
+    let lastWinByWallet = new Map<string, number | null>()
     if (dbRankings) {
+      lastWinByWallet = await loadLastWinCycleByWallet(
+        dbRankings.rankings.map(h => h.wallet)
+      )
       liveEligibleCount = dbRankings.rankings.filter(h => {
         if (h.isContract || isExcludedParticipantWallet(h.wallet)) return false
         const firstBuyMs = h.firstBuyAt ? new Date(h.firstBuyAt).getTime() : null
+        const lastWinCycle =
+          lastWinByWallet.get(h.wallet.toLowerCase()) ?? h.lastWinCycle ?? null
         const live = evaluateHolderEligibility({
           wallet: h.wallet,
           balance: h.balance,
@@ -94,7 +101,7 @@ export async function GET(request: NextRequest) {
           firstBuyTimestamp: firstBuyMs,
           hasSold: h.hasSold ?? false,
           hasTransferredOut: h.hasTransferredOut ?? false,
-          lastWinCycle: h.lastWinCycle ?? null,
+          lastWinCycle,
           totalTokensBought: h.totalTokensBought ?? 0,
           poolUsd: poolUsd,
           currentCycle: getCurrentPayoutCycle(),
@@ -232,6 +239,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Re-load after payout may have persisted winner cooldown in this request
+    lastWinByWallet = await loadLastWinCycleByWallet(
+      sourceRankings.map(h => h.wallet)
+    )
+
     const liveEvaluated = sourceRankings.map(holder => {
       const firstBuyAt =
         holder.firstBuyAt ??
@@ -246,7 +258,7 @@ export async function GET(request: NextRequest) {
         firstBuyTimestamp: firstBuyMs,
         hasSold: holder.hasSold ?? false,
         hasTransferredOut: holder.hasTransferredOut ?? false,
-        lastWinCycle: holder.lastWinCycle ?? null,
+        lastWinCycle: lastWinByWallet.get(holder.wallet.toLowerCase()) ?? holder.lastWinCycle ?? null,
         totalTokensBought: holder.totalTokensBought ?? 0,
         poolUsd: poolBal,
         currentCycle: getCurrentPayoutCycle(),

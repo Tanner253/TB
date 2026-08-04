@@ -4,7 +4,7 @@
  */
 
 import connectDB from '@/lib/db'
-import { Payout, Holder, Disqualification, TimerState, CurrentRankings } from '@/lib/db/models'
+import { Payout, Disqualification, TimerState } from '@/lib/db/models'
 import { resetDeploymentState } from '@/lib/payout/resetDeployment'
 import { transferEth } from '@/lib/evm/transfer'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
@@ -14,6 +14,11 @@ import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
 import { getTokenHolders } from '@/lib/evm/indexer'
 import { getTxExplorerUrl } from '@/lib/evm/explorer'
 import { config } from '@/lib/config'
+import { isAddress } from 'viem'
+import {
+  persistWinnerAfterPayout,
+  loadLastWinCycleByWallet,
+} from '@/lib/payout/winnerPersistence'
 import { saveRankingsToDb, loadRankingsFromDb, getRankedLosers, markWinnersCooldown, getServiceStatus, refreshPoolUsdCache } from '@/lib/tracker/holderService'
 
 const MIN_TRANSFER_ETH = 0.001
@@ -164,6 +169,27 @@ async function saveTimerState(
   }
 }
 
+async function getAccruedDevFeeEth(): Promise<number> {
+  try {
+    const doc = await TimerState.findOne({ key: TIMER_KEY }).select('accruedDevFeeEth').lean()
+    return doc?.accruedDevFeeEth ?? 0
+  } catch {
+    return 0
+  }
+}
+
+async function setAccruedDevFeeEth(amount: number): Promise<void> {
+  try {
+    await TimerState.findOneAndUpdate(
+      { key: TIMER_KEY },
+      { $set: { accruedDevFeeEth: Math.max(0, amount) } },
+      { upsert: true }
+    )
+  } catch (error) {
+    console.error('[Payout] Failed to update accrued dev fee:', error)
+  }
+}
+
 export function getSecondsUntilNextPayout(): number | null {
   if (timerCache.timerStatus !== 'active') {
     return null
@@ -266,6 +292,10 @@ export async function resolveLivePayableWinners(limit = 3): Promise<PayableWinne
 
   const currentCycle = getCurrentPayoutCycle()
 
+  const lastWinByWallet = await loadLastWinCycleByWallet(
+    dbRankings.rankings.map(h => h.wallet)
+  )
+
   return dbRankings.rankings
     .filter(
       h =>
@@ -275,6 +305,8 @@ export async function resolveLivePayableWinners(limit = 3): Promise<PayableWinne
     )
     .map(h => {
       const firstBuyMs = h.firstBuyAt ? new Date(h.firstBuyAt).getTime() : null
+      const lastWinCycle =
+        lastWinByWallet.get(h.wallet.toLowerCase()) ?? h.lastWinCycle ?? null
       const live = evaluateHolderEligibility({
         wallet: h.wallet,
         balance: h.balance,
@@ -283,7 +315,7 @@ export async function resolveLivePayableWinners(limit = 3): Promise<PayableWinne
         firstBuyTimestamp: firstBuyMs,
         hasSold: h.hasSold ?? false,
         hasTransferredOut: h.hasTransferredOut ?? false,
-        lastWinCycle: h.lastWinCycle ?? null,
+        lastWinCycle,
         totalTokensBought: h.totalTokensBought ?? 0,
         poolUsd: livePool.poolUsd,
         currentCycle,
@@ -438,6 +470,11 @@ export async function executePayout(): Promise<PayoutResult> {
       winnersPoolEth * config.payoutSplit.third,
     ]
 
+    const accruedDevFee = await getAccruedDevFeeEth()
+    const devWalletValid =
+      !!config.devWalletAddress && isAddress(config.devWalletAddress)
+    const totalDevFeeEth = devFeeEth + accruedDevFee
+
     const results: any[] = []
     let totalPaidEth = 0
 
@@ -445,20 +482,33 @@ export async function executePayout(): Promise<PayoutResult> {
 
     const pendingPayouts: { id: any; rank: number; wallet: string; amountEth: number }[] = []
 
-    if (config.devWalletAddress && config.executePayouts && devFeeEth >= MIN_TRANSFER_ETH) {
+    if (devWalletValid && config.executePayouts && totalDevFeeEth >= MIN_TRANSFER_ETH) {
       const devPayout = await Payout.create({
         cycle: nextCycle,
         rank: 0,
         wallet: config.devWalletAddress,
-        amount: devFeeEth * ethPrice,
-        amountTokens: devFeeEth,
+        amount: totalDevFeeEth * ethPrice,
+        amountTokens: totalDevFeeEth,
         drawdownPct: 0,
         lossUsd: 0,
         txHash: null,
         status: 'pending',
         errorMessage: null,
       })
-      pendingPayouts.push({ id: devPayout._id, rank: 0, wallet: config.devWalletAddress, amountEth: devFeeEth })
+      pendingPayouts.push({
+        id: devPayout._id,
+        rank: 0,
+        wallet: config.devWalletAddress,
+        amountEth: totalDevFeeEth,
+      })
+    } else if (devWalletValid && devFeeEth > 0) {
+      const newAccrued = accruedDevFee + devFeeEth
+      await setAccruedDevFeeEth(newAccrued)
+      console.log(
+        `[Payout] Dev fee ${devFeeEth.toFixed(6)} ETH below min transfer — accrued total ${newAccrued.toFixed(6)} ETH`
+      )
+    } else if (devFeeEth > 0 && !devWalletValid) {
+      console.warn('[Payout] DEV_WALLET_ADDRESS missing or invalid — dev fee stays in pool wallet')
     }
 
     for (let i = 0; i < eligibleWinners.length; i++) {
@@ -518,18 +568,17 @@ export async function executePayout(): Promise<PayoutResult> {
       if (txResult.success) {
         totalPaidEth += pending.amountEth
 
-        if (!isDevFee) {
+        if (isDevFee) {
+          await setAccruedDevFeeEth(0)
+        } else {
           await Disqualification.create({
             wallet: pending.wallet,
             reason: 'winner_cooldown',
             expiresAt: new Date(Date.now() + config.payoutIntervalMinutes * 60 * 1000 * 2),
           }).catch(() => {})
 
-          await Holder.findOneAndUpdate(
-            { wallet: pending.wallet },
-            { lastWinCycle: nextCycle, updatedAt: new Date() },
-            { upsert: true }
-          ).catch(() => {})
+          const tokenPrice = (await getTokenPrice(config.tokenMint)) ?? ethPrice
+          await persistWinnerAfterPayout(pending.wallet, nextCycle, tokenPrice)
         }
       }
 

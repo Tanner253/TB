@@ -52,6 +52,7 @@ export async function resetDeploymentState(): Promise<DeploymentResetResult> {
         isPayoutInProgress: false,
         lockAcquiredAt: null,
         lockCycle: null,
+        accruedDevFeeEth: 0,
       },
     },
     { upsert: true }
