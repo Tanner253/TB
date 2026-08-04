@@ -147,7 +147,7 @@ function InlineSpinner() {
 }
 
 export default function LeaderboardPage() {
-  const { data, loading, error, countdown, lastUpdate, refresh } = useRealtimeLeaderboard(5000)
+  const { data, loading, error, countdown, timerStatus, lastUpdate, refresh } = useRealtimeLeaderboard(5000)
   const { price, marketCap, loading: priceLoading } = useRealtimePrice(5000)
   const { connectionState } = useRealtime({ autoReconnect: true })
   const [refreshing, setRefreshing] = useState(false)
@@ -161,6 +161,7 @@ export default function LeaderboardPage() {
   // Always show the page - use inline loading states for data
   const isLoading = loading && !data
   const isInitializing = data?.status === 'initializing'
+  const isWaitingForEligible = timerStatus === 'waiting' || data?.timer_status === 'waiting'
   
   // IMPORTANT: Filter for ELIGIBLE holders first, then take top 3
   // This ensures only eligible holders appear in "Current Winners"
@@ -240,17 +241,35 @@ export default function LeaderboardPage() {
             <div className="relative">
               <div className="flex items-center gap-2 text-rh-green text-sm font-medium mb-4">
                 <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                  animate={isWaitingForEligible ? { scale: [1, 1.1, 1] } : { rotate: 360 }}
+                  transition={isWaitingForEligible
+                    ? { duration: 2, repeat: Infinity, ease: 'easeInOut' }
+                    : { duration: 2, repeat: Infinity, ease: 'linear' }}
                   className="w-4 h-4"
                 >
-                  ⏱️
+                  {isWaitingForEligible ? '⏳' : '⏱️'}
                 </motion.div>
-                NEXT PAYOUT IN
+                {isWaitingForEligible ? 'WAITING FOR FIRST ELIGIBLE HOLDER' : 'NEXT PAYOUT IN'}
               </div>
-              <Countdown seconds={countdown} size="xl" className="text-rh-green" />
+              {isWaitingForEligible ? (
+                <div className="py-4">
+                  <p className="text-2xl md:text-3xl font-bold text-rh-lime font-mono mb-3">Launch limbo</p>
+                  <p className="text-gray-400 text-sm leading-relaxed">
+                    Countdown starts once a holder meets all rules: 15 min hold, min balance, in loss, and min loss threshold.
+                  </p>
+                  {data?.eligible_count === 0 && (data?.tracked_holders || 0) > 0 && (
+                    <p className="text-gray-500 text-xs mt-3">
+                      {data.tracked_holders} holder(s) tracked — none eligible yet
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <Countdown seconds={countdown ?? 0} size="xl" className="text-rh-green" />
+              )}
               <p className="text-gray-400 text-sm mt-4">
-                Top 3 losers receive native ETH automatically
+                {isWaitingForEligible
+                  ? 'No payout cycle until someone qualifies'
+                  : 'Top 3 losers receive native ETH automatically'}
               </p>
             </div>
           </motion.div>

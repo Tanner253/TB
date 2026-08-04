@@ -6,6 +6,7 @@ import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
 import { calculateBatchVwaps, VwapData } from '@/lib/tracker/vwap'
 import { calculateDrawdown, calculateLossUsd, rankHolders, RankedHolder } from '@/lib/engine/calculations'
 import { config, validateConfig } from '@/lib/config'
+import { maybeStartPayoutTimer } from '@/lib/payout/executor'
 
 // Verify cron secret
 function verifyCronSecret(request: NextRequest): boolean {
@@ -217,6 +218,8 @@ async function runSnapshot(_request: NextRequest) {
 
     // 9. Rank by drawdown % (most negative first), tiebreaker: USD loss
     const ranked = rankHolders(rankedHolders)
+
+    await maybeStartPayoutTimer(ranked.length)
 
     // 10. Save snapshot to database
     const snapshot = await Snapshot.create({

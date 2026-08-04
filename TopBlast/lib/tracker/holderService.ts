@@ -965,13 +965,16 @@ export async function saveRankingsToDb(): Promise<void> {
       ineligibleReason: h.ineligibleReason,
     }))
     
+    const eligibleCount = getEligibleCount()
+
     await CurrentRankings.findOneAndUpdate(
       { key: 'current_rankings' },
       {
         $set: {
+          tokenMint: config.tokenMint,
           rankings,
           totalHolders: holders.size,
-          eligibleCount: getEligibleCount(),
+          eligibleCount,
           holdersWithVwap: getHoldersWithRealVwapCount(),
           tokenPrice: state.currentTokenPrice || 0,
           lastCalculated: new Date(),
@@ -979,8 +982,11 @@ export async function saveRankingsToDb(): Promise<void> {
       },
       { upsert: true }
     )
+
+    const { maybeStartPayoutTimer } = await import('@/lib/payout/executor')
+    await maybeStartPayoutTimer(eligibleCount)
     
-    console.log(`[HolderService] Rankings saved to DB: ${rankings.length} entries, ${getEligibleCount()} eligible`)
+    console.log(`[HolderService] Rankings saved to DB: ${rankings.length} entries, ${eligibleCount} eligible`)
   } catch (error: any) {
     console.error('[HolderService] Failed to save rankings to DB:', error.message)
   }

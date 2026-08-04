@@ -5,11 +5,12 @@ import { motion } from 'framer-motion'
 import { useRealtimePrice } from '@/hooks/useRealtime'
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
 import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
-import { getWinnerSharePercents, getDevFeePercent } from '@/lib/payout/shares'
+import { getWinnerSharePercents, getDevFeePercent, getCommunityPercent } from '@/lib/payout/shares'
 import { MIN_HOLD_DURATION_MINUTES, formatHoldDuration } from '@/lib/eligibility/holdDuration'
 
 const SHARES = getWinnerSharePercents()
 const DEV_FEE = getDevFeePercent()
+const COMMUNITY = getCommunityPercent()
 
 const LINKS = {
   twitter: 'https://x.com/TOPBLASTX',
@@ -120,12 +121,12 @@ export default function Home() {
               <motion.div key={item.place} whileHover={{ y: -4 }} className="text-center p-4 glass-panel rounded-xl border-rh-green/15">
                 <div className="text-3xl mb-2">{item.emoji}</div>
                 <div className="text-3xl font-bold text-rh-green">{item.pct}%</div>
-                <div className="text-xs text-gray-500 mt-1">{item.place} · ETH share</div>
+                <div className="text-xs text-gray-500 mt-1">{item.place} · of winner pool</div>
               </motion.div>
             ))}
           </motion.div>
           <p className="text-xs text-gray-500 mb-12 text-center max-w-lg mx-auto">
-            Winner pool {SHARES.first}/{SHARES.second}/{SHARES.third} after {DEV_FEE}% dev fee · all payouts sent as native ETH on Robinhood Chain
+            {COMMUNITY}% of pool to top 3 losers (split {SHARES.first}/{SHARES.second}/{SHARES.third} of winner pool) · {DEV_FEE}% dev fee · native ETH on Robinhood Chain
           </p>
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="glass-panel rounded-2xl p-8 max-w-2xl mx-auto border-rh-green/20">
@@ -146,7 +147,7 @@ export default function Home() {
             </div>
             <div className="border-t border-rh-green/10 pt-4">
               <p className="text-sm text-gray-400">
-                <span className="text-red-400 font-semibold">Disqualifiers:</span> Sold tokens · Transferred out (2hr cooldown) · Won last cycle
+                <span className="text-red-400 font-semibold">Disqualifiers:</span> Sold tokens · Transferred out · Won last cycle
               </p>
             </div>
           </motion.div>

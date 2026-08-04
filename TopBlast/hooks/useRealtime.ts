@@ -82,8 +82,8 @@ export function useRealtimeLeaderboard(pollInterval = 10000) {
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [countdown, setCountdown] = useState<number | null>(null)
-  const countdownRef = useRef<number | null>(null) // Track countdown without re-renders
-  const lastServerCountdown = useRef<number | null>(null)
+  const [timerStatus, setTimerStatus] = useState<'waiting' | 'active'>('waiting')
+  const countdownRef = useRef<number | null>(null)
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -107,6 +107,7 @@ export function useRealtimeLeaderboard(pollInterval = 10000) {
           // Update if rankings, eligibility, status, or pool changed
           if (prevSignature !== newSignature || 
               prev.status !== json.data.status ||
+              prev.timer_status !== json.data.timer_status ||
               prev.eligible_count !== json.data.eligible_count ||
               prev.pool_balance_usd !== json.data.pool_balance_usd ||
               prev.token_price_raw !== json.data.token_price_raw) {
@@ -114,20 +115,23 @@ export function useRealtimeLeaderboard(pollInterval = 10000) {
           }
           
           // Update countdown and other metadata without full re-render
-          return { ...prev, seconds_remaining: json.data.seconds_remaining }
+          return { ...prev, seconds_remaining: json.data.seconds_remaining, timer_status: json.data.timer_status }
         })
         
-        // Sync countdown from server - only if significantly different (>5 seconds)
-        // This prevents small timing drifts from causing jumps
-        if (json.data.seconds_remaining !== undefined) {
+        if (json.data.timer_status) {
+          setTimerStatus(json.data.timer_status)
+        }
+
+        if (json.data.timer_status === 'waiting') {
+          countdownRef.current = null
+          setCountdown(null)
+        } else if (json.data.seconds_remaining !== undefined && json.data.seconds_remaining !== null) {
           const serverCountdown = json.data.seconds_remaining
           const localCountdown = countdownRef.current
           
-          // First sync or significant drift (>5 seconds difference)
           if (localCountdown === null || Math.abs(serverCountdown - localCountdown) > 5) {
             countdownRef.current = serverCountdown
             setCountdown(serverCountdown)
-            lastServerCountdown.current = serverCountdown
           }
         }
         
@@ -168,7 +172,8 @@ export function useRealtimeLeaderboard(pollInterval = 10000) {
     loading,
     error,
     lastUpdate,
-    countdown: countdown ?? 0,
+    countdown,
+    timerStatus,
     refresh: fetchLeaderboard,
   }
 }

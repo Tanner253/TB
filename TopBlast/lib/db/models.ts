@@ -132,7 +132,9 @@ const PriceCacheSchema = new Schema<IPriceCache>({
 // Timer State Interface (singleton - stores payout timer state for serverless consistency)
 export interface ITimerState extends Document {
   key: string // Always 'payout_timer' - singleton pattern
-  lastPayoutTime: Date
+  tokenMint: string
+  timerStatus: 'waiting' | 'active'
+  lastPayoutTime: Date | null
   currentCycle: number
   failedAttempts: number
   isPayoutInProgress: boolean
@@ -143,7 +145,9 @@ export interface ITimerState extends Document {
 
 const TimerStateSchema = new Schema<ITimerState>({
   key: { type: String, required: true, unique: true, default: 'payout_timer' },
-  lastPayoutTime: { type: Date, required: true },
+  tokenMint: { type: String, default: '' },
+  timerStatus: { type: String, enum: ['waiting', 'active'], default: 'waiting' },
+  lastPayoutTime: { type: Date, default: null },
   currentCycle: { type: Number, default: 0 },
   failedAttempts: { type: Number, default: 0 },
   isPayoutInProgress: { type: Boolean, default: false },
@@ -155,6 +159,7 @@ const TimerStateSchema = new Schema<ITimerState>({
 // This ensures all Vercel instances show the same rankings
 export interface ICurrentRankings extends Document {
   key: string // Always 'current_rankings' - singleton pattern
+  tokenMint: string
   rankings: Array<{
     wallet: string
     balance: number
@@ -174,6 +179,7 @@ export interface ICurrentRankings extends Document {
 
 const CurrentRankingsSchema = new Schema<ICurrentRankings>({
   key: { type: String, required: true, unique: true, default: 'current_rankings' },
+  tokenMint: { type: String, default: '' },
   rankings: { type: [Schema.Types.Mixed], default: [] },
   totalHolders: { type: Number, default: 0 },
   eligibleCount: { type: Number, default: 0 },

@@ -1171,7 +1171,7 @@ const Whitepaper = () => {
                             </li>
                             <li className="flex items-start gap-2">
                                 <span className="text-red-400">•</span>
-                                <div><strong className="text-white">Transferred OUT:</strong> 2 hour cooldown</div>
+                                <div><strong className="text-white">Transferred OUT:</strong> Immediate disqualification</div>
                             </li>
                             <li className="flex items-start gap-2">
                                 <span className="text-red-400">•</span>

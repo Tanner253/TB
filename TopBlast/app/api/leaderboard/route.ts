@@ -5,7 +5,7 @@ import { initializeTracker, getTrackerStatus } from '@/lib/tracker/init'
 import { loadRankingsFromDb, saveRankingsToDb, getServiceStatus } from '@/lib/tracker/holderService'
 import { config } from '@/lib/config'
 import { getPayoutWalletBalance } from '@/lib/evm/transfer'
-import { executePayout, isPayoutDue, getSecondsUntilNextPayout, getCurrentPayoutCycle, ensureTimerStateSync } from '@/lib/payout/executor'
+import { executePayout, isPayoutDue, getPayoutTimerInfo, maybeStartPayoutTimer, ensureTimerStateSync } from '@/lib/payout/executor'
 import { getPayoutForEligibleRank } from '@/lib/payout/shares'
 
 export const dynamic = 'force-dynamic'
@@ -56,8 +56,17 @@ export async function GET(request: NextRequest) {
     // Auto-trigger payout when timer hits 0 AND service is ready
     // The executor has atomic locking to prevent duplicate concurrent payouts
     const serviceStatus = getServiceStatus()
-    
-    if (isPayoutDue() && serviceStatus.initialized && serviceStatus.holderCount > 0) {
+
+    const dbRankings = await loadRankingsFromDb()
+
+    if (dbRankings) {
+      await maybeStartPayoutTimer(dbRankings.eligibleCount)
+    }
+    await ensureTimerStateSync()
+
+    const timer = getPayoutTimerInfo()
+
+    if (isPayoutDue() && serviceStatus.initialized && serviceStatus.holderCount > 0 && timer.timer_status === 'active') {
       // Fire and forget - don't wait for payout to complete
       // The atomic lock in executePayout prevents duplicates
       executePayout()
@@ -72,22 +81,19 @@ export async function GET(request: NextRequest) {
         .catch(err => console.error(`[Leaderboard] Payout error:`, err))
     }
 
-    // CRITICAL: Load rankings from DATABASE (not in-memory)
-    // This ensures all Vercel instances return the same data
-    const dbRankings = await loadRankingsFromDb()
-    
-    const trackerStatus = getTrackerStatus()
-
     // If no data in DB at all, show initializing state
     // But if we have holders (even with no eligible losers), show "ready" with empty rankings
     if (!dbRankings) {
       return NextResponse.json({
         success: true,
         data: {
-          status: 'initializing',
-          message: 'Loading holder data and calculating VWAPs...',
-          cycle: getCurrentPayoutCycle() + 1,
-          seconds_remaining: getSecondsUntilNextPayout(),
+          status: timer.timer_status === 'waiting' ? 'waiting' : 'initializing',
+          message: timer.timer_status === 'waiting'
+            ? 'Waiting for the first eligible holder (15 min hold + in loss)...'
+            : 'Loading holder data and calculating VWAPs...',
+          timer_status: timer.timer_status,
+          cycle: timer.next_cycle,
+          seconds_remaining: timer.seconds_remaining,
           pool_balance_eth: poolEth.toFixed(4),
           pool_balance_usd: formatUsd(poolUsd),
           pool_balance_tokens: `${poolEth.toFixed(4)} ETH`,
@@ -144,9 +150,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        status: 'ready',
-        cycle: getCurrentPayoutCycle() + 1,
-        seconds_remaining: getSecondsUntilNextPayout(),
+        status: timer.timer_status === 'waiting' ? 'waiting' : 'ready',
+        timer_status: timer.timer_status,
+        cycle: timer.next_cycle,
+        seconds_remaining: timer.seconds_remaining,
         pool_balance_eth: poolEth.toFixed(4),
         pool_balance_usd: formatUsd(poolUsd),
         pool_balance_tokens: `${poolEth.toFixed(4)} ETH`,
