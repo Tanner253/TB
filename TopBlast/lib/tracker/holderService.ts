@@ -39,6 +39,7 @@ declare global {
     serviceInitialized: boolean
     lastFullRefresh: number
     currentTokenPrice: number | null
+    currentPoolUsd: number | null
     initializationInProgress: boolean
     currentCycle: number // Added: track current cycle for cooldown checking
   } | undefined
@@ -51,6 +52,7 @@ if (!global._holderServiceState) {
     serviceInitialized: false,
     lastFullRefresh: 0,
     currentTokenPrice: null,
+    currentPoolUsd: null,
     initializationInProgress: false,
     currentCycle: 1,
   }
@@ -66,6 +68,24 @@ const VWAP_BATCH_SIZE = 30 // Process 30 wallets at a time (more parallel)
 const VWAP_BATCH_DELAY = 50 // 50ms between batches (faster)
 const MAX_INITIAL_HOLDERS = 200 // Process top 200 holders first (sorted by balance)
 const PRIORITY_HOLDER_COUNT = 50 // Process top 50 holders FIRST for instant results
+
+async function resolvePoolUsd(): Promise<number> {
+  try {
+    const { getPayoutWalletBalance } = await import('@/lib/evm/transfer')
+    const walletBalance = await getPayoutWalletBalance()
+    const ethPrice = (await getEthPrice()) || 3500
+    const walletEth = walletBalance?.eth || walletBalance?.sol || 0
+    return walletEth * config.poolPercentage * ethPrice
+  } catch {
+    return config.poolBalanceUsd
+  }
+}
+
+function getEffectivePoolUsd(): number {
+  return state.currentPoolUsd && state.currentPoolUsd > 0
+    ? state.currentPoolUsd
+    : config.poolBalanceUsd
+}
 
 /**
  * Initialize the holder service
@@ -88,15 +108,16 @@ export async function initializeHolderService(): Promise<boolean> {
   try {
     // Connect to MongoDB
     await connectDB()
+
+    state.currentPoolUsd = await resolvePoolUsd()
     
-    // Get current token price
+    // Get current token price (Blockscout, CoinGecko, or recent swap)
     state.currentTokenPrice = await getTokenPrice(config.tokenMint)
     if (!state.currentTokenPrice) {
-      console.error('[HolderService] Failed to fetch token price')
-      state.initializationInProgress = false
-      return false
+      console.warn('[HolderService] No market price yet — indexing holders; price will update from swap history')
+    } else {
+      console.log(`[HolderService] Current price: $${state.currentTokenPrice}`)
     }
-    console.log(`[HolderService] Current price: $${state.currentTokenPrice}`)
 
     // STEP 1: Load cached holders from MongoDB (instant results!)
     const cachedHolders = await Holder.find({ isEligible: true })
@@ -111,9 +132,9 @@ export async function initializeHolderService(): Promise<boolean> {
         if (!h.vwap || !h.balance) continue
         
         // Recalculate eligibility with current price
-        const drawdownPct = h.vwap > 0 ? ((state.currentTokenPrice - h.vwap) / h.vwap) * 100 : 0
+        const drawdownPct = h.vwap > 0 ? ((state.currentTokenPrice! - h.vwap) / h.vwap) * 100 : 0
         const lossUsd = drawdownPct < 0 ? Math.abs(drawdownPct / 100) * h.vwap * h.balance : 0
-        const poolUsd = 500 // Rough estimate for min loss check
+        const poolUsd = getEffectivePoolUsd()
         const minLoss = poolUsd * (config.minLossThresholdPct / 100)
         const isEligible = drawdownPct < 0 && lossUsd >= minLoss && !h.hasSold && h.balance >= config.minTokenHolding
         
@@ -201,7 +222,13 @@ export async function initializeHolderService(): Promise<boolean> {
  * Processes PRIORITY holders first (top by balance) with no delay
  */
 async function fetchVwapsInBackground(sortedHolders: Array<{ wallet: string; balance: number }>): Promise<void> {
-  if (!state.currentTokenPrice) return
+  if (!state.currentTokenPrice) {
+    state.currentTokenPrice = await getTokenPrice(config.tokenMint)
+  }
+  if (!state.currentTokenPrice) {
+    console.warn('[HolderService] Background VWAP: still no token price — eligibility may be delayed')
+    return
+  }
   
   console.log(`[HolderService] Background: fetching VWAPs for ${sortedHolders.length} holders...`)
   
@@ -446,6 +473,10 @@ function checkEligibility(
     }
   }
 
+  if (!tokenPrice || tokenPrice <= 0) {
+    return { isEligible: false, reason: 'Price loading', drawdownPct, lossUsd }
+  }
+
   // Check minimum balance
   if (balance < config.minTokenHolding) {
     return { isEligible: false, reason: 'Insufficient balance', drawdownPct, lossUsd }
@@ -487,8 +518,8 @@ function checkEligibility(
     return { isEligible: false, reason: 'In profit', drawdownPct, lossUsd }
   }
 
-  // Check minimum loss threshold
-  const poolBal = config.poolBalanceUsd
+  // Check minimum loss threshold (uses live payout wallet pool when available)
+  const poolBal = getEffectivePoolUsd()
   const minLoss = poolBal * (config.minLossThresholdPct / 100)
   if (lossUsd < minLoss) {
     return { isEligible: false, reason: 'Loss below threshold', drawdownPct, lossUsd }
@@ -741,7 +772,7 @@ export function getHolderServiceCycle(): number {
  * Only returns holders with REAL VWAP data and who meet the minimum loss threshold
  */
 export function getRankedLosers(): HolderData[] {
-  const minLossRequired = config.poolBalanceUsd * (config.minLossThresholdPct / 100)
+  const minLossRequired = getEffectivePoolUsd() * (config.minLossThresholdPct / 100)
   
   const losers = Array.from(holders.values())
     .filter(h => 
@@ -934,28 +965,25 @@ export async function refreshHolders(): Promise<boolean> {
  */
 export async function saveRankingsToDb(): Promise<void> {
   try {
+    if (holders.size === 0) {
+      console.log('[HolderService] Skip rankings save — in-memory holders empty (avoid wiping DB)')
+      return
+    }
+
     const { CurrentRankings } = await import('@/lib/db/models')
     await connectDB()
     
-    // Get ALL holders with real VWAP, sorted by drawdown (most negative first)
-    // This shows everyone's position, not just those in loss
-    const allHoldersWithVwap = Array.from(holders.values())
-      .filter(h => 
-        h.vwap && 
-        h.vwap > 0 && 
-        h.vwapSource === 'real' &&
-        h.balance >= config.minTokenHolding
-      )
+    // Include all tracked holders for leaderboard display; VWAP may still be loading
+    const allHolders = Array.from(holders.values())
+      .filter(h => h.balance >= config.minTokenHolding)
       .sort((a, b) => {
-        // Sort by drawdown % (most negative = biggest loser first)
         if (a.drawdownPct !== b.drawdownPct) {
           return a.drawdownPct - b.drawdownPct
         }
-        // Tiebreaker: highest USD loss
         return b.lossUsd - a.lossUsd
       })
     
-    const rankings = allHoldersWithVwap.slice(0, 50).map(h => ({
+    const rankings = allHolders.slice(0, 50).map(h => ({
       wallet: h.wallet,
       balance: h.balance,
       vwap: h.vwap || 0,
@@ -1039,5 +1067,34 @@ export async function loadRankingsFromDb(): Promise<{
 // Utility functions
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/** Clear in-memory holder cache (after deployment reset or token change). */
+export function resetHolderServiceState(): void {
+  holders.clear()
+  state.serviceInitialized = false
+  state.initializationInProgress = false
+  state.lastFullRefresh = 0
+  state.currentTokenPrice = null
+  state.currentPoolUsd = null
+}
+
+/** Re-index from chain when DB rankings are missing or empty. */
+export async function ensureRankingsIndexed(): Promise<boolean> {
+  const existing = await loadRankingsFromDb()
+  if (existing && existing.totalHolders > 0 && existing.rankings.length > 0) {
+    return true
+  }
+
+  console.log('[HolderService] Rankings missing/empty — re-indexing from chain...')
+  resetHolderServiceState()
+  state.currentPoolUsd = await resolvePoolUsd()
+  const ok = await initializeHolderService()
+  if (!ok || holders.size === 0) {
+    return false
+  }
+
+  await saveRankingsToDb()
+  return true
 }
 

@@ -13,6 +13,7 @@ import {
   PoolBalance,
 } from '@/lib/db/models'
 import { config } from '@/lib/config'
+import { resetHolderServiceState } from '@/lib/tracker/holderService'
 
 const TIMER_KEY = 'payout_timer'
 
@@ -55,6 +56,8 @@ export async function resetDeploymentState(): Promise<DeploymentResetResult> {
     },
     { upsert: true }
   )
+
+  resetHolderServiceState()
 
   return {
     tokenMint: config.tokenMint,

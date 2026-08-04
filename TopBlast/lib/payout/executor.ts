@@ -10,7 +10,7 @@ import { transferEth, getPayoutWalletBalance } from '@/lib/evm/transfer'
 import { getEthPrice } from '@/lib/evm/price'
 import { getTxExplorerUrl } from '@/lib/evm/explorer'
 import { config } from '@/lib/config'
-import { saveRankingsToDb, loadRankingsFromDb, getRankedLosers, markWinnersCooldown } from '@/lib/tracker/holderService'
+import { saveRankingsToDb, loadRankingsFromDb, getRankedLosers, markWinnersCooldown, getServiceStatus } from '@/lib/tracker/holderService'
 
 const MIN_TRANSFER_ETH = 0.001
 const TIMER_KEY = 'payout_timer'
@@ -213,6 +213,12 @@ export async function maybeStartPayoutTimer(eligibleCount: number): Promise<bool
   return true
 }
 
+/** Pause timer when stuck at 0 with nobody eligible (e.g. after DB wipe). */
+export async function pausePayoutTimerToWaiting(): Promise<void> {
+  await saveTimerState(null, timerCache.currentCycle, 'waiting')
+  console.log('[Payout] Timer paused — waiting for eligible holders')
+}
+
 export async function resetTimerForNextInterval(): Promise<void> {
   const now = Date.now()
   await saveTimerState(now, timerCache.currentCycle, 'active')
@@ -320,9 +326,6 @@ export async function executePayout(): Promise<PayoutResult> {
       return { success: false, error: 'Pool below minimum' }
     }
 
-    console.log('[Payout] Saving rankings to database...')
-    await saveRankingsToDb()
-
     let eligibleWinners: any[] = []
 
     const inMemoryRankings = getRankedLosers()
@@ -338,8 +341,9 @@ export async function executePayout(): Promise<PayoutResult> {
     }
 
     if (eligibleWinners.length === 0) {
-      console.log('[Payout] No eligible winners — timer stays at zero until someone qualifies')
+      console.log('[Payout] No eligible winners — pausing timer until someone qualifies')
       await releasePayoutLock()
+      await pausePayoutTimerToWaiting()
       return { success: true, data: { skipped: true, reason: 'No eligible winners' } }
     }
 
@@ -473,7 +477,9 @@ export async function executePayout(): Promise<PayoutResult> {
       console.log(`[Payout] Updated ${successfulWinnerWallets.length} winners with cooldown in memory`)
     }
 
-    await saveRankingsToDb()
+    if (getServiceStatus().holderCount > 0) {
+      await saveRankingsToDb()
+    }
 
     console.log('')
     console.log('[Payout] ╔════════════════════════════════════════════════════════╗')

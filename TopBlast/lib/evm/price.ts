@@ -2,7 +2,7 @@ import axios from 'axios'
 import { createPublicClient, http, parseAbi, formatUnits, isAddress } from 'viem'
 import { config } from '@/lib/config'
 import { getChainConfig, getEvmRpcUrl } from './chain'
-import { getTokenMetadata } from './indexer'
+import { deriveTokenPriceFromRecentSwaps, getTokenMetadata } from './indexer'
 
 export interface TokenPriceData {
   price: number
@@ -65,6 +65,18 @@ export async function getTokenPrice(tokenAddress?: string): Promise<number | nul
     }
   } catch {
     // not listed on coingecko
+  }
+
+  // 3. Recent on-chain swaps (unlisted / new tokens on Robinhood Chain)
+  try {
+    const derived = await deriveTokenPriceFromRecentSwaps(address)
+    if (derived && derived > 0) {
+      priceCache = { price: derived, timestamp: now }
+      console.log(`[Price] ${address.slice(0, 10)}... = $${derived} (from recent swap)`)
+      return derived
+    }
+  } catch {
+    // continue
   }
 
   if (priceCache.price !== null) return priceCache.price

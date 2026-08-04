@@ -204,7 +204,7 @@ export async function getWalletTransactions(
       const to = item.to?.hash?.toLowerCase()
       const walletLower = wallet.toLowerCase()
       const rawAmount = item.total?.value || item.amount || '0'
-      const decimals = item.total?.decimals ?? config.tokenDecimals
+      const decimals = Number(item.total?.decimals ?? config.tokenDecimals)
       const tokenAmount = parseFloat(formatUnits(BigInt(rawAmount), decimals))
       if (tokenAmount <= 0) continue
 
@@ -281,7 +281,15 @@ async function estimateSwapValue(
     if (isBuy && tx.from.toLowerCase() === wallet.toLowerCase() && tx.value > 0n) {
       const ethAmount = parseFloat(formatUnits(tx.value, 18))
       if (ethAmount > 0.00001) {
-        return { ethAmount, usdValue: 0, pricePerToken: 0, isStablecoinSwap: false }
+        const { getEthPrice } = await import('./price')
+        const ethPrice = (await getEthPrice()) || 3500
+        const usdValue = ethAmount * ethPrice
+        return {
+          ethAmount,
+          usdValue,
+          pricePerToken: usdValue / tokenAmount,
+          isStablecoinSwap: false,
+        }
       }
     }
 
@@ -323,6 +331,67 @@ async function estimateSwapValue(
   }
 
   return { ethAmount: 0, usdValue: 0, pricePerToken: 0, isStablecoinSwap: false }
+}
+
+const SWAP_METHODS = new Set([
+  'exactinputsingle',
+  'exactinput',
+  'swapexactethfortokens',
+  'swap',
+  'execute',
+  'buy',
+  'launchtoken',
+])
+
+/**
+ * Derive spot price from recent DEX swaps when Blockscout has no exchange_rate.
+ */
+export async function deriveTokenPriceFromRecentSwaps(
+  tokenAddress: string
+): Promise<number | null> {
+  if (!isAddress(tokenAddress)) return null
+
+  const base = getBlockscoutApiBase()
+  try {
+    const response = await axios.get(
+      `${base}/tokens/${tokenAddress.toLowerCase()}/transfers`,
+      { timeout: 15000, headers: { Accept: 'application/json' } }
+    )
+
+    const items = response.data?.items || []
+    const seenTx = new Set<string>()
+
+    for (const item of items) {
+      const txHash = item.transaction_hash
+      const method = (item.method || '').toLowerCase()
+      if (!txHash || seenTx.has(txHash)) continue
+      if (!SWAP_METHODS.has(method)) continue
+
+      // Buys: tokens received by an EOA from a contract (DEX pool/router)
+      const toWallet = item.to?.hash
+      const fromWallet = item.from?.hash
+      const tokensToEoa = item.to?.is_contract === false
+      const tokensFromContract = item.from?.is_contract === true
+      if (!toWallet || !tokensToEoa || !tokensFromContract) continue
+
+      seenTx.add(txHash)
+
+      const rawAmount = item.total?.value || '0'
+      const decimals = Number(item.total?.decimals ?? config.tokenDecimals)
+      const tokenAmount = parseFloat(formatUnits(BigInt(rawAmount), decimals))
+      if (tokenAmount <= 0) continue
+
+      const { pricePerToken } = await estimateSwapValue(txHash, tokenAmount, toWallet, true)
+      if (pricePerToken > 0) {
+        console.log(`[EVM] Derived price from swap ${txHash.slice(0, 10)}... = $${pricePerToken}`)
+        return pricePerToken
+      }
+    }
+  } catch (error: any) {
+    console.error('[EVM] deriveTokenPriceFromRecentSwaps failed:', error.message)
+  }
+
+  return null
 }
 
 export async function getTokenMetadata(tokenAddress: string): Promise<{

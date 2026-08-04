@@ -1,21 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { formatPrice, formatUsd, getEthPrice } from '@/lib/evm/price'
 import { formatWallet } from '@/lib/evm/holders'
-import { initializeTracker, getTrackerStatus } from '@/lib/tracker/init'
-import { loadRankingsFromDb, saveRankingsToDb, getServiceStatus } from '@/lib/tracker/holderService'
+import { initializeTracker } from '@/lib/tracker/init'
+import {
+  loadRankingsFromDb,
+  getServiceStatus,
+  ensureRankingsIndexed,
+} from '@/lib/tracker/holderService'
 import { config } from '@/lib/config'
 import { getPayoutWalletBalance } from '@/lib/evm/transfer'
-import { executePayout, isPayoutDue, getPayoutTimerInfo, maybeStartPayoutTimer, ensureTimerStateSync } from '@/lib/payout/executor'
+import {
+  executePayout,
+  isPayoutDue,
+  getPayoutTimerInfo,
+  maybeStartPayoutTimer,
+  ensureTimerStateSync,
+  pausePayoutTimerToWaiting,
+} from '@/lib/payout/executor'
 import { getPayoutForEligibleRank } from '@/lib/payout/shares'
 
 export const dynamic = 'force-dynamic'
 
-// Track initialization state (per-instance, but that's OK - just prevents double init)
-let initStarted = false
-
 export async function GET(request: NextRequest) {
   try {
-    // Validate configuration
     if (!config.tokenMint) {
       return NextResponse.json({
         success: false,
@@ -30,34 +37,31 @@ export async function GET(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // CRITICAL: Sync timer state from database for cross-instance consistency
     await ensureTimerStateSync()
-
-    // Start tracker initialization in background (if not already started on this instance)
-    // This populates the rankings in the database
-    if (!initStarted) {
-      initStarted = true
-      initializeTracker().catch(err => {
-        console.error('[Leaderboard] Tracker init error:', err)
-        initStarted = false
-      })
-    }
 
     const { searchParams } = new URL(request.url)
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
 
-    // Get pool balance = 99% of wallet balance
     const ethPrice = await getEthPrice() || 3500
     const walletBalance = await getPayoutWalletBalance()
     const walletEth = walletBalance?.eth || walletBalance?.sol || 0
     const poolEth = walletEth * config.poolPercentage
     const poolUsd = poolEth * ethPrice
 
-    // Auto-trigger payout when timer hits 0 AND service is ready
-    // The executor has atomic locking to prevent duplicate concurrent payouts
     const serviceStatus = getServiceStatus()
 
-    const dbRankings = await loadRankingsFromDb()
+    let dbRankings = await loadRankingsFromDb()
+
+    const needsReindex =
+      !dbRankings ||
+      dbRankings.totalHolders === 0 ||
+      dbRankings.rankings.length === 0
+
+    if (needsReindex) {
+      initializeTracker().catch(err => console.error('[Leaderboard] Tracker init error:', err))
+      await ensureRankingsIndexed()
+      dbRankings = await loadRankingsFromDb()
+    }
 
     if (dbRankings) {
       await maybeStartPayoutTimer(dbRankings.eligibleCount)
@@ -65,13 +69,25 @@ export async function GET(request: NextRequest) {
     await ensureTimerStateSync()
 
     const timer = getPayoutTimerInfo()
+    const eligibleCount = dbRankings?.eligibleCount ?? 0
 
-    // Trigger payout from DB state — do not require in-memory tracker (serverless cold starts)
+    // Unstick timer when due but nobody is eligible (e.g. after accidental DB wipe)
+    if (
+      timer.timer_status === 'active' &&
+      isPayoutDue() &&
+      eligibleCount === 0
+    ) {
+      await pausePayoutTimerToWaiting()
+      await ensureTimerStateSync()
+    }
+
+    const timerAfterPause = getPayoutTimerInfo()
+
     if (
       isPayoutDue() &&
-      timer.timer_status === 'active' &&
+      timerAfterPause.timer_status === 'active' &&
       dbRankings &&
-      dbRankings.eligibleCount > 0
+      eligibleCount > 0
     ) {
       try {
         const result = await executePayout()
@@ -80,6 +96,7 @@ export async function GET(request: NextRequest) {
         } else if (result.error !== 'Payout already in progress') {
           console.log(`[Leaderboard] ❌ Payout failed: ${result.error}`)
         }
+        dbRankings = (await loadRankingsFromDb()) ?? dbRankings
       } catch (err) {
         console.error('[Leaderboard] Payout error:', err)
       }
@@ -88,8 +105,6 @@ export async function GET(request: NextRequest) {
 
     const timerAfterPayout = getPayoutTimerInfo()
 
-    // If no data in DB at all, show initializing state
-    // But if we have holders (even with no eligible losers), show "ready" with empty rankings
     if (!dbRankings) {
       return NextResponse.json({
         success: true,
@@ -120,16 +135,13 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Format rankings from database
     const poolBal = poolUsd
     const minLoss = poolBal * (config.minLossThresholdPct / 100)
 
-    // Get eligible holders to calculate their payout rank (not overall rank)
     const eligibleWallets = dbRankings.rankings
       .filter(h => h.isEligible)
       .map(h => h.wallet)
-    
-    // Calculate payout based on position among ELIGIBLE holders, not overall rank
+
     const getPayoutForWallet = (wallet: string): number => {
       const eligibleRank = eligibleWallets.indexOf(wallet)
       return getPayoutForEligibleRank(poolBal, eligibleRank)
@@ -149,7 +161,6 @@ export async function GET(request: NextRequest) {
       loss_usd_raw: holder.lossUsd,
       is_eligible: holder.isEligible,
       ineligible_reason: holder.ineligibleReason,
-      // Show payout based on eligible rank, not overall rank
       payout_usd: formatUsd(getPayoutForWallet(holder.wallet)),
       eligible_rank: holder.isEligible ? eligibleWallets.indexOf(holder.wallet) + 1 : null,
     }))
@@ -176,9 +187,8 @@ export async function GET(request: NextRequest) {
         total_losers: dbRankings.rankings.length,
         min_loss_threshold_usd: formatUsd(minLoss),
         ws_connected: false,
-        tracker_initialized: true,
+        tracker_initialized: serviceStatus.initialized,
         rankings,
-        // Convenience: pre-filtered eligible winners (top 3)
         eligible_winners: rankings.filter(r => r.is_eligible).slice(0, 3),
         last_updated: dbRankings.lastCalculated.toISOString(),
       },

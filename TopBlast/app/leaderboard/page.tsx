@@ -161,9 +161,14 @@ export default function LeaderboardPage() {
   // Always show the page - use inline loading states for data
   const isLoading = loading && !data
   const isInitializing = data?.status === 'initializing'
-  const isWaitingForEligible = timerStatus === 'waiting' || data?.timer_status === 'waiting'
+  const isSyncingHolders = !isInitializing && (data?.tracked_holders ?? 0) === 0
+  const isWaitingForEligible =
+    isSyncingHolders ||
+    timerStatus === 'waiting' ||
+    data?.timer_status === 'waiting'
   const isPayoutDueNow =
     !isWaitingForEligible &&
+    (data?.eligible_count ?? 0) > 0 &&
     ((countdown !== null && countdown <= 0) || data?.seconds_remaining === 0)
   
   // IMPORTANT: Filter for ELIGIBLE holders first, then take top 3
@@ -252,9 +257,22 @@ export default function LeaderboardPage() {
                 >
                   {isWaitingForEligible ? '⏳' : '⏱️'}
                 </motion.div>
-                {isWaitingForEligible ? 'WAITING FOR FIRST ELIGIBLE HOLDER' : isPayoutDueNow ? 'PAYOUT PROCESSING' : 'NEXT PAYOUT IN'}
+                {isSyncingHolders
+                  ? 'SYNCING HOLDERS'
+                  : isWaitingForEligible
+                    ? 'WAITING FOR FIRST ELIGIBLE HOLDER'
+                    : isPayoutDueNow
+                      ? 'PAYOUT PROCESSING'
+                      : 'NEXT PAYOUT IN'}
               </div>
-              {isWaitingForEligible ? (
+              {isSyncingHolders ? (
+                <div className="py-4">
+                  <p className="text-2xl md:text-3xl font-bold text-rh-lime font-mono mb-3">Indexing chain…</p>
+                  <p className="text-gray-400 text-sm leading-relaxed">
+                    Loading holders and swap history for this token from Robinhood Chain.
+                  </p>
+                </div>
+              ) : isWaitingForEligible ? (
                 <div className="py-4">
                   <p className="text-2xl md:text-3xl font-bold text-rh-lime font-mono mb-3">Launch limbo</p>
                   <p className="text-gray-400 text-sm leading-relaxed">
