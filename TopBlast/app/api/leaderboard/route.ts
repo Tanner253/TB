@@ -6,6 +6,7 @@ import {
   loadRankingsFromDb,
   getServiceStatus,
   ensureRankingsIndexed,
+  ensureVwapCalculated,
 } from '@/lib/tracker/holderService'
 import { config } from '@/lib/config'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
@@ -18,7 +19,8 @@ import {
   pausePayoutTimerToWaiting,
 } from '@/lib/payout/executor'
 import { getPayoutForEligibleRank } from '@/lib/payout/shares'
-import { getHoldSecondsRemaining } from '@/lib/eligibility/holdDuration'
+import { buildHoldTimeFields } from '@/lib/eligibility/holdDuration'
+import { getEarliestBuyTimestamp } from '@/lib/evm/indexer'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -56,9 +58,18 @@ export async function GET(request: NextRequest) {
       dbRankings.totalHolders === 0 ||
       dbRankings.rankings.length === 0
 
+    const needsVwapRefresh =
+      dbRankings &&
+      dbRankings.rankings.length > 0 &&
+      dbRankings.holdersWithVwap === 0
+
     if (needsReindex) {
       initializeTracker().catch(err => console.error('[Leaderboard] Tracker init error:', err))
       await ensureRankingsIndexed()
+      dbRankings = await loadRankingsFromDb()
+    } else if (needsVwapRefresh) {
+      initializeTracker().catch(err => console.error('[Leaderboard] Tracker init error:', err))
+      await ensureVwapCalculated()
       dbRankings = await loadRankingsFromDb()
     }
 
@@ -173,6 +184,20 @@ export async function GET(request: NextRequest) {
           firstBuyByWallet.set(doc.wallet.toLowerCase(), doc.firstBuyAt)
         }
       }
+
+      const stillNeedingOnChain = walletsNeedingFirstBuy.filter(
+        w => !firstBuyByWallet.has(w.toLowerCase())
+      )
+      if (stillNeedingOnChain.length > 0 && config.tokenMint) {
+        await Promise.all(
+          stillNeedingOnChain.map(async (wallet) => {
+            const ts = await getEarliestBuyTimestamp(wallet, config.tokenMint)
+            if (ts) {
+              firstBuyByWallet.set(wallet.toLowerCase(), new Date(ts))
+            }
+          })
+        )
+      }
     }
 
     const rankings = dbRankings.rankings.slice(0, limit).map((holder, idx) => {
@@ -180,11 +205,11 @@ export async function GET(request: NextRequest) {
         holder.firstBuyAt ??
         firstBuyByWallet.get(holder.wallet.toLowerCase()) ??
         null
-      const firstBuyMs = firstBuyAt ? new Date(firstBuyAt).getTime() : null
-      const holdSecondsRemaining = getHoldSecondsRemaining(
-        firstBuyMs,
-        config.minHoldDurationMinutes
-      )
+      const holdFields = buildHoldTimeFields(firstBuyAt, config.minHoldDurationMinutes)
+      const holdPending = (holdFields.hold_seconds_remaining ?? 0) > 0
+      const displayReason = holdPending
+        ? 'Hold duration not met'
+        : holder.ineligibleReason
 
       return {
         rank: idx + 1,
@@ -199,12 +224,8 @@ export async function GET(request: NextRequest) {
         loss_usd: formatUsd(holder.lossUsd),
         loss_usd_raw: holder.lossUsd,
         is_eligible: holder.isEligible,
-        ineligible_reason: holder.ineligibleReason,
-        hold_seconds_remaining: holdSecondsRemaining,
-        hold_eligible_at:
-          firstBuyMs && holdSecondsRemaining && holdSecondsRemaining > 0
-            ? new Date(firstBuyMs + config.minHoldDurationMinutes * 60 * 1000).toISOString()
-            : null,
+        ineligible_reason: displayReason,
+        ...holdFields,
         payout_usd: formatUsd(getPayoutForWallet(holder.wallet)),
         eligible_rank: holder.isEligible ? eligibleWallets.indexOf(holder.wallet) + 1 : null,
       }

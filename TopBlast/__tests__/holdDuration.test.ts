@@ -1,4 +1,4 @@
-import { MIN_HOLD_DURATION_MINUTES, formatHoldDuration, getHoldSecondsRemaining, getHoldEligibleAt, formatHoldCountdown } from '@/lib/eligibility/holdDuration'
+import { MIN_HOLD_DURATION_MINUTES, formatHoldDuration, getHoldSecondsRemaining, getHoldEligibleAt, formatHoldCountdown, buildHoldTimeFields } from '@/lib/eligibility/holdDuration'
 
 describe('holdDuration', () => {
   it('is hardcoded to 15 minutes', () => {
@@ -27,5 +27,14 @@ describe('holdDuration', () => {
   it('formats countdown display', () => {
     expect(formatHoldCountdown(125)).toBe('2:05')
     expect(formatHoldCountdown(9)).toBe('0:09')
+  })
+
+  it('builds hold time API fields from first buy', () => {
+    const now = Date.now()
+    const firstBuy = new Date(now - 5 * 60 * 1000).toISOString()
+    const fields = buildHoldTimeFields(firstBuy, 15)
+    expect(fields.first_buy_at).toBe(firstBuy)
+    expect(fields.hold_seconds_remaining).toBeGreaterThan(9 * 60)
+    expect(fields.hold_eligible_at).not.toBeNull()
   })
 })

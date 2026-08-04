@@ -29,6 +29,35 @@ export function getHoldSecondsRemaining(
   return Math.max(0, Math.ceil(remainingMs / 1000))
 }
 
+export function buildHoldTimeFields(
+  firstBuyAt: Date | string | number | null | undefined,
+  minHoldMinutes: number = MIN_HOLD_DURATION_MINUTES
+): {
+  first_buy_at: string | null
+  hold_seconds_remaining: number | null
+  hold_eligible_at: string | null
+} {
+  if (!firstBuyAt) {
+    return {
+      first_buy_at: null,
+      hold_seconds_remaining: null,
+      hold_eligible_at: null,
+    }
+  }
+
+  const firstBuyMs = new Date(firstBuyAt).getTime()
+  const holdSecondsRemaining = getHoldSecondsRemaining(firstBuyMs, minHoldMinutes)
+
+  return {
+    first_buy_at: new Date(firstBuyMs).toISOString(),
+    hold_seconds_remaining: holdSecondsRemaining,
+    hold_eligible_at:
+      holdSecondsRemaining != null && holdSecondsRemaining > 0
+        ? new Date(getHoldEligibleAt(firstBuyMs, minHoldMinutes)).toISOString()
+        : null,
+  }
+}
+
 export function formatHoldCountdown(totalSeconds: number): string {
   const mins = Math.floor(totalSeconds / 60)
   const secs = totalSeconds % 60

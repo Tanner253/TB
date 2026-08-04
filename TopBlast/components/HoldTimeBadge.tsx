@@ -60,6 +60,20 @@ interface HolderStatusProps {
   ineligibleReason?: string | null
   holdEligibleAt?: string | null
   holdSecondsRemaining?: number | null
+  firstBuyAt?: string | null
+  minHoldMinutes?: number
+}
+
+function resolveHoldEligibleAt(
+  holdEligibleAt?: string | null,
+  firstBuyAt?: string | null,
+  minHoldMinutes: number = 15
+): string | null {
+  if (holdEligibleAt) return holdEligibleAt
+  if (!firstBuyAt) return null
+  const eligibleMs = new Date(firstBuyAt).getTime() + minHoldMinutes * 60 * 1000
+  if (eligibleMs <= Date.now()) return null
+  return new Date(eligibleMs).toISOString()
 }
 
 export function HolderStatus({
@@ -67,10 +81,17 @@ export function HolderStatus({
   ineligibleReason,
   holdEligibleAt,
   holdSecondsRemaining,
+  firstBuyAt,
+  minHoldMinutes = 15,
 }: HolderStatusProps) {
+  const resolvedHoldEligibleAt = resolveHoldEligibleAt(
+    holdEligibleAt,
+    firstBuyAt,
+    minHoldMinutes
+  )
   const showHoldCountdown =
     (holdSecondsRemaining ?? 0) > 0 ||
-    (holdEligibleAt != null && secondsUntil(holdEligibleAt) > 0)
+    (resolvedHoldEligibleAt != null && secondsUntil(resolvedHoldEligibleAt) > 0)
 
   if (isEligible) {
     return (
@@ -80,21 +101,21 @@ export function HolderStatus({
     )
   }
 
+  if (ineligibleReason === 'Loading transaction history...' || ineligibleReason === 'Recalculating...') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-500/15 text-blue-300 text-xs rounded-full">
+        Analyzing wallet...
+      </span>
+    )
+  }
+
   if (showHoldCountdown) {
     return (
       <div className="flex flex-col items-center gap-1">
         <HoldTimeBadge
-          holdEligibleAt={holdEligibleAt}
+          holdEligibleAt={resolvedHoldEligibleAt}
           holdSecondsRemaining={holdSecondsRemaining}
         />
-        {ineligibleReason && ineligibleReason !== 'Hold duration not met' && (
-          <span
-            className="text-[10px] text-gray-500 max-w-[140px] truncate"
-            title={ineligibleReason}
-          >
-            {ineligibleReason}
-          </span>
-        )}
       </div>
     )
   }

@@ -168,6 +168,52 @@ async function getTokenDecimals(tokenAddress: string): Promise<number> {
 }
 
 /**
+ * Earliest on-chain buy timestamp for hold-time display (no RPC swap estimation).
+ */
+export async function getEarliestBuyTimestamp(
+  wallet: string,
+  tokenAddress: string,
+  limit: number = 100
+): Promise<number | null> {
+  if (!isAddress(wallet) || !isAddress(tokenAddress)) {
+    return null
+  }
+
+  const base = getBlockscoutApiBase()
+  const walletLower = wallet.toLowerCase()
+  let earliest: number | null = null
+
+  try {
+    const response = await axios.get(
+      `${base}/addresses/${walletLower}/token-transfers`,
+      {
+        params: { token: tokenAddress.toLowerCase() },
+        timeout: 15000,
+        headers: { Accept: 'application/json' },
+      }
+    )
+
+    if (response.data?.errors?.length) {
+      return null
+    }
+
+    const items = (response.data?.items || []).slice(0, Math.min(limit, 100))
+    for (const item of items) {
+      if (classifyIncomingTokenTransfer(item, walletLower) !== 'BUY') continue
+      const timestamp = item.timestamp ? new Date(item.timestamp).getTime() : null
+      if (!timestamp) continue
+      if (earliest === null || timestamp < earliest) {
+        earliest = timestamp
+      }
+    }
+  } catch {
+    return null
+  }
+
+  return earliest
+}
+
+/**
  * Get wallet token transfer history for VWAP calculation
  */
 export async function getWalletTransactions(
@@ -213,13 +259,19 @@ export async function getWalletTransactions(
       if (tokenAmount <= 0) continue
 
       const timestamp = item.timestamp ? new Date(item.timestamp).getTime() : Date.now()
-      const isContractInteraction = item.transaction?.to?.is_contract ?? false
 
       let type: ParsedTransaction['type']
-      if (to === walletLower && from !== walletLower) {
-        type = from === ZERO_ADDRESS ? 'BUY' : isContractInteraction ? 'BUY' : 'TRANSFER_IN'
-      } else if (from === walletLower && to !== walletLower) {
-        type = isContractInteraction ? 'SELL' : 'TRANSFER_OUT'
+      const incoming = classifyIncomingTokenTransfer(item, walletLower)
+      const outgoing = classifyOutgoingTokenTransfer(item, walletLower)
+
+      if (incoming === 'BUY') {
+        type = 'BUY'
+      } else if (incoming === 'TRANSFER_IN') {
+        type = 'TRANSFER_IN'
+      } else if (outgoing === 'SELL') {
+        type = 'SELL'
+      } else if (outgoing === 'TRANSFER_OUT') {
+        type = 'TRANSFER_OUT'
       } else {
         continue
       }
@@ -345,7 +397,67 @@ const SWAP_METHODS = new Set([
   'execute',
   'buy',
   'launchtoken',
+  // Pons / Robinhood DEX router selector
+  '0x4d819a2a',
 ])
+
+/** Classify an incoming token transfer for a wallet (used by VWAP indexer). */
+export function classifyIncomingTokenTransfer(
+  item: {
+    from?: { hash?: string; is_contract?: boolean }
+    to?: { hash?: string; is_contract?: boolean }
+    method?: string
+    transaction?: { to?: { is_contract?: boolean } }
+  },
+  walletLower: string
+): 'BUY' | 'TRANSFER_IN' | 'SKIP' {
+  const from = item.from?.hash?.toLowerCase()
+  const to = item.to?.hash?.toLowerCase()
+  if (!from || !to || to !== walletLower || from === walletLower) {
+    return 'SKIP'
+  }
+
+  const fromIsContract = item.from?.is_contract === true
+  const txToIsContract = item.transaction?.to?.is_contract === true
+  const method = (item.method || '').toLowerCase()
+  const methodIsSwap = SWAP_METHODS.has(method)
+
+  if (
+    from === ZERO_ADDRESS ||
+    fromIsContract ||
+    txToIsContract ||
+    methodIsSwap
+  ) {
+    return 'BUY'
+  }
+
+  return 'TRANSFER_IN'
+}
+
+/** Classify an outgoing token transfer for a wallet. */
+export function classifyOutgoingTokenTransfer(
+  item: {
+    from?: { hash?: string }
+    to?: { hash?: string; is_contract?: boolean }
+    transaction?: { to?: { is_contract?: boolean } }
+  },
+  walletLower: string
+): 'SELL' | 'TRANSFER_OUT' | 'SKIP' {
+  const from = item.from?.hash?.toLowerCase()
+  const to = item.to?.hash?.toLowerCase()
+  if (!from || !to || from !== walletLower || to === walletLower) {
+    return 'SKIP'
+  }
+
+  const toIsContract = item.to?.is_contract === true
+  const txToIsContract = item.transaction?.to?.is_contract === true
+
+  if (toIsContract || txToIsContract) {
+    return 'SELL'
+  }
+
+  return 'TRANSFER_OUT'
+}
 
 /**
  * Derive spot price from recent DEX swaps when Blockscout has no exchange_rate.

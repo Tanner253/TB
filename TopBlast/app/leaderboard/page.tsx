@@ -44,6 +44,7 @@ interface Winner {
   ineligible_reason?: string | null
   hold_seconds_remaining?: number | null
   hold_eligible_at?: string | null
+  first_buy_at?: string | null
   // Keep these for API compatibility even if not displayed
   drawdown_pct?: number
   loss_usd?: string
@@ -570,6 +571,8 @@ export default function LeaderboardPage() {
                           ineligibleReason={holder.ineligible_reason}
                           holdEligibleAt={holder.hold_eligible_at}
                           holdSecondsRemaining={holder.hold_seconds_remaining}
+                          firstBuyAt={holder.first_buy_at}
+                          minHoldMinutes={data?.min_hold_minutes ?? 15}
                         />
                       </td>
                       <td className="px-6 py-4 text-right">

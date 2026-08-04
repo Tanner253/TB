@@ -202,7 +202,12 @@ export async function initializeHolderService(): Promise<boolean> {
     
     if (holdersNeedingVwap.length > 0) {
       console.log(`[HolderService] Need to fetch ${holdersNeedingVwap.length} VWAPs...`)
-      fetchVwapsInBackground(holdersNeedingVwap)
+      const sortedForVwap = sortedHolders.filter(h =>
+        holdersNeedingVwap.some(n => n.wallet.toLowerCase() === h.wallet.toLowerCase())
+      )
+      await fetchPriorityVwaps(sortedForVwap)
+      await saveRankingsToDb()
+      fetchRemainingVwapsInBackground(sortedForVwap.slice(PRIORITY_HOLDER_COUNT))
     } else {
       console.log(`[HolderService] All VWAPs loaded from cache!`)
     }
@@ -217,33 +222,25 @@ export async function initializeHolderService(): Promise<boolean> {
 }
 
 /**
- * Fetch VWAPs in background without blocking
- * Processes PRIORITY holders first (top by balance) with no delay
+ * Fetch VWAPs for top holders synchronously (leaderboard-critical path).
  */
-async function fetchVwapsInBackground(sortedHolders: Array<{ wallet: string; balance: number }>): Promise<void> {
+async function fetchPriorityVwaps(
+  sortedHolders: Array<{ wallet: string; balance: number }>
+): Promise<void> {
   if (!state.currentTokenPrice) {
     state.currentTokenPrice = await getTokenPrice(config.tokenMint)
   }
   if (!state.currentTokenPrice) {
-    console.warn('[HolderService] Background VWAP: still no token price — eligibility may be delayed')
+    console.warn('[HolderService] Priority VWAP: no token price yet')
     return
   }
-  
-  console.log(`[HolderService] Background: fetching VWAPs for ${sortedHolders.length} holders...`)
-  
-  // Fetch current SOL price ONCE at the start for consistent calculations
-  const currentSolPrice = (await getEthPrice()) || 220
-  console.log(`[HolderService] Using SOL price: $${currentSolPrice}`)
-  
-  // PHASE 1: Priority holders (top 50) - fast, no delay between batches
+
+  const currentEthPrice = (await getEthPrice()) || 220
   const priorityHolders = sortedHolders.slice(0, PRIORITY_HOLDER_COUNT)
-  const remainingHolders = sortedHolders.slice(PRIORITY_HOLDER_COUNT)
-  
-  console.log(`[HolderService] PRIORITY: Processing top ${priorityHolders.length} holders first...`)
-  
+  console.log(`[HolderService] PRIORITY: Processing top ${priorityHolders.length} holders...`)
+
   for (let i = 0; i < priorityHolders.length; i += VWAP_BATCH_SIZE) {
     const batch = priorityHolders.slice(i, i + VWAP_BATCH_SIZE)
-    
     await Promise.all(
       batch.map(async (h) => {
         try {
@@ -253,7 +250,7 @@ async function fetchVwapsInBackground(sortedHolders: Array<{ wallet: string; bal
             balance,
             h.balance,
             state.currentTokenPrice!,
-            currentSolPrice
+            currentEthPrice
           )
           holders.set(h.wallet, holderData)
         } catch {
@@ -261,57 +258,62 @@ async function fetchVwapsInBackground(sortedHolders: Array<{ wallet: string; bal
         }
       })
     )
-    // NO delay for priority holders - go as fast as possible
   }
-  
-  const priorityEligible = Array.from(holders.values()).filter(h => h.isEligible).length
-  const priorityWithVwap = Array.from(holders.values()).filter(h => h.vwapSource === 'real').length
-  console.log(`[HolderService] ✅ PRIORITY complete: ${priorityWithVwap} with VWAP, ${priorityEligible} eligible`)
-  
-  // Save rankings to DB after priority holders (so UI has data quickly)
-  await saveRankingsToDb()
-  
-  // PHASE 2: Remaining holders - with small delays to not overwhelm API
-  if (remainingHolders.length > 0) {
-    console.log(`[HolderService] Processing remaining ${remainingHolders.length} holders...`)
-    
-    for (let i = 0; i < remainingHolders.length; i += VWAP_BATCH_SIZE) {
-      const batch = remainingHolders.slice(i, i + VWAP_BATCH_SIZE)
-      
-      await Promise.all(
-        batch.map(async (h) => {
-          try {
-            const balance = h.balance / Math.pow(10, config.tokenDecimals)
-            const holderData = await calculateHolderData(
-              h.wallet,
-              balance,
-              h.balance,
-              state.currentTokenPrice!,
-              currentSolPrice
-            )
-            holders.set(h.wallet, holderData)
-          } catch {
-            // Keep basic data on error
-          }
-        })
-      )
-      
-      const total = PRIORITY_HOLDER_COUNT + i + batch.length
-      if (total % 50 === 0) {
-        console.log(`[HolderService] Background: ${total}/${sortedHolders.length} VWAPs`)
-      }
-      
-      await sleep(VWAP_BATCH_DELAY) // Small delay for remaining
-    }
-  }
-  
-  state.lastFullRefresh = Date.now()
-  const eligible = Array.from(holders.values()).filter(h => h.isEligible).length
+
   const withVwap = Array.from(holders.values()).filter(h => h.vwapSource === 'real').length
-  console.log(`[HolderService] ✅ Background complete: ${withVwap} with VWAP, ${eligible} eligible`)
-  
-  // Save rankings to DB for cross-instance consistency
+  const eligible = Array.from(holders.values()).filter(h => h.isEligible).length
+  console.log(`[HolderService] ✅ PRIORITY complete: ${withVwap} with VWAP, ${eligible} eligible`)
+}
+
+/**
+ * Fetch remaining VWAPs in background without blocking API responses.
+ */
+async function fetchRemainingVwapsInBackground(
+  remainingHolders: Array<{ wallet: string; balance: number }>
+): Promise<void> {
+  if (remainingHolders.length === 0) return
+
+  if (!state.currentTokenPrice) {
+    state.currentTokenPrice = await getTokenPrice(config.tokenMint)
+  }
+  if (!state.currentTokenPrice) return
+
+  const currentEthPrice = (await getEthPrice()) || 220
+  console.log(`[HolderService] Background: fetching ${remainingHolders.length} remaining VWAPs...`)
+
+  for (let i = 0; i < remainingHolders.length; i += VWAP_BATCH_SIZE) {
+    const batch = remainingHolders.slice(i, i + VWAP_BATCH_SIZE)
+    await Promise.all(
+      batch.map(async (h) => {
+        try {
+          const balance = h.balance / Math.pow(10, config.tokenDecimals)
+          const holderData = await calculateHolderData(
+            h.wallet,
+            balance,
+            h.balance,
+            state.currentTokenPrice!,
+            currentEthPrice
+          )
+          holders.set(h.wallet, holderData)
+        } catch {
+          // Keep basic data on error
+        }
+      })
+    )
+    await sleep(VWAP_BATCH_DELAY)
+  }
+
+  state.lastFullRefresh = Date.now()
   await saveRankingsToDb()
+  const withVwap = Array.from(holders.values()).filter(h => h.vwapSource === 'real').length
+  console.log(`[HolderService] ✅ Background VWAP complete: ${withVwap} with real VWAP`)
+}
+
+/** @deprecated use fetchPriorityVwaps + fetchRemainingVwapsInBackground */
+async function fetchVwapsInBackground(sortedHolders: Array<{ wallet: string; balance: number }>): Promise<void> {
+  await fetchPriorityVwaps(sortedHolders)
+  await saveRankingsToDb()
+  await fetchRemainingVwapsInBackground(sortedHolders.slice(PRIORITY_HOLDER_COUNT))
 }
 
 /**
@@ -334,6 +336,7 @@ async function calculateHolderData(
   let firstBuyTimestamp: number | null = null
   let lastActivityTimestamp: number | null = null
   let buyCount = 0
+  let transferInCount = 0
   let hasSold = false
   let hasTransferredOut = false
 
@@ -350,17 +353,16 @@ async function calculateHolderData(
       
       totalTokensBought += tx.tokenAmount
       
-      // Track SOL and stablecoin amounts separately
-      if (tx.isStablecoinSwap && tx.usdValue > 0) {
-        // Direct stablecoin swap - already in USD
+      if (tx.usdValue > 0) {
         totalStablecoinSpent += tx.usdValue
       } else if (tx.ethAmount > 0) {
-        // SOL swap - store raw SOL amount
         totalEthSpent += tx.ethAmount
+      } else if (tx.pricePerToken > 0 && tx.tokenAmount > 0) {
+        totalStablecoinSpent += tx.pricePerToken * tx.tokenAmount
       }
-      // Note: If neither, we can't determine cost basis for this transaction
-      
       buyCount++
+    } else if (tx.type === 'TRANSFER_IN') {
+      transferInCount++
     } else if (tx.type === 'SELL') {
       hasSold = true
     } else if (tx.type === 'TRANSFER_OUT') {
@@ -398,6 +400,19 @@ async function calculateHolderData(
     totalTokensBought
   )
 
+  let ineligibleReason = reason
+  if (!isEligible) {
+    if (buyCount > 0 && !vwap) {
+      ineligibleReason = 'Cost basis unavailable'
+    } else if (buyCount === 0 && transferInCount > 0) {
+      ineligibleReason = 'Received via transfer'
+    } else if (reason === 'No buy history' && transactions.length === 0) {
+      ineligibleReason = 'No on-chain activity'
+    } else if (reason === 'Hold duration not met') {
+      ineligibleReason = 'Hold duration not met'
+    }
+  }
+
   return {
     wallet,
     balance,
@@ -413,7 +428,7 @@ async function calculateHolderData(
     hasTransferredOut,
     lastWinCycle,
     isEligible,
-    ineligibleReason: reason,
+    ineligibleReason,
     drawdownPct,
     lossUsd,
     updatedAt: Date.now(),
@@ -1082,11 +1097,16 @@ export function resetHolderServiceState(): void {
   state.currentPoolUsd = null
 }
 
-/** Re-index from chain when DB rankings are missing or empty. */
+/** Re-index from chain when DB rankings are missing, empty, or have no VWAP data. */
 export async function ensureRankingsIndexed(): Promise<boolean> {
   const existing = await loadRankingsFromDb()
-  if (existing && existing.totalHolders > 0 && existing.rankings.length > 0) {
+  if (existing && existing.totalHolders > 0 && existing.rankings.length > 0 && existing.holdersWithVwap > 0) {
     return true
+  }
+
+  if (existing && existing.rankings.length > 0 && existing.holdersWithVwap === 0) {
+    console.log('[HolderService] Rankings stale (0 VWAP) — refreshing buy history...')
+    return ensureVwapCalculated()
   }
 
   console.log('[HolderService] Rankings missing/empty — re-indexing from chain...')
@@ -1099,5 +1119,52 @@ export async function ensureRankingsIndexed(): Promise<boolean> {
 
   await saveRankingsToDb()
   return true
+}
+
+/**
+ * Calculate VWAP for tracked holders when rankings exist but buy history was never resolved.
+ */
+export async function ensureVwapCalculated(): Promise<boolean> {
+  try {
+    await connectDB()
+    state.currentPoolUsd = await resolvePoolUsd()
+    if (!state.currentTokenPrice) {
+      state.currentTokenPrice = await getTokenPrice(config.tokenMint)
+    }
+
+    if (!state.serviceInitialized) {
+      const ok = await initializeHolderService()
+      if (!ok) return false
+    }
+
+    if (getHoldersWithRealVwapCount() > 0) {
+      return true
+    }
+
+    const rawHolders = await getTokenHolders(
+      config.tokenMint,
+      Math.min(config.maxHoldersToProcess, MAX_INITIAL_HOLDERS)
+    )
+    if (rawHolders.length === 0) {
+      return false
+    }
+
+    const sortedHolders = [...rawHolders].sort((a, b) => b.balance - a.balance)
+    for (const h of sortedHolders) {
+      const balance = h.balance / Math.pow(10, config.tokenDecimals)
+      if (!holders.has(h.wallet)) {
+        holders.set(h.wallet, createBasicHolder(h.wallet, balance, h.balance))
+      }
+    }
+
+    await fetchPriorityVwaps(sortedHolders)
+    await saveRankingsToDb()
+    fetchRemainingVwapsInBackground(sortedHolders.slice(PRIORITY_HOLDER_COUNT))
+
+    return getHoldersWithRealVwapCount() > 0
+  } catch (error: any) {
+    console.error('[HolderService] ensureVwapCalculated failed:', error.message)
+    return false
+  }
 }
 
