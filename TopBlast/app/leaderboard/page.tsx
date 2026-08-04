@@ -6,7 +6,6 @@ import { motion } from 'framer-motion'
 import { useRealtimeLeaderboard, useRealtimePrice, useTimeSince, useRealtime } from '@/hooks/useRealtime'
 import { AnimatedNumber, Countdown, PriceTicker } from '@/components/ui/AnimatedNumber'
 import { LeaderboardCardSkeleton, TableRowSkeleton } from '@/components/ui/Skeleton'
-import { RobinhoodBadge } from '@/components/ui/RobinhoodBadge'
 import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
 import { getWinnerSharePercents, getPayoutForEligibleRank } from '@/lib/payout/shares'
 
@@ -600,7 +599,6 @@ function Header({
                 <span className="text-white">BLAST</span>
               </span>
             </Link>
-            <RobinhoodBadge compact />
             <ConnectionIndicator state={connectionState} wsConnected={wsConnected} />
           </div>
 

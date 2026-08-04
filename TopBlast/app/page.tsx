@@ -1,11 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { useRealtimePrice } from '@/hooks/useRealtime'
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
-import { RobinhoodBadge } from '@/components/ui/RobinhoodBadge'
 import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
 import { getWinnerSharePercents, getDevFeePercent } from '@/lib/payout/shares'
 
@@ -52,7 +50,6 @@ export default function Home() {
               <span className="text-rh-green">TOP</span>
               <span className="text-white">BLAST</span>
             </span>
-            <RobinhoodBadge compact />
           </div>
           <nav className="flex items-center gap-6">
             <Link href="/leaderboard" className="text-gray-400 hover:text-rh-green transition-colors text-sm font-medium">Leaderboard</Link>
@@ -66,27 +63,6 @@ export default function Home() {
 
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-16">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center max-w-4xl w-full">
-          <div className="flex flex-col items-center gap-4 mb-6">
-            <RobinhoodBadge />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-rh-green/10 border border-rh-green/30 rounded-full text-rh-lime text-sm font-medium"
-            >
-              <motion.div className="w-2 h-2 bg-rh-green rounded-full" animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }} transition={{ duration: 1.5, repeat: Infinity }} />
-              Live on Robinhood Chain · Native ETH Payouts
-            </motion.div>
-          </div>
-
-          <motion.div initial={{ scale: 0.85 }} animate={{ scale: 1 }} transition={{ delay: 0.1, type: 'spring', stiffness: 200 }} className="mx-auto mb-6 shadow-rh-glow">
-            <TopBlastLogo size="xl" />
-          </motion.div>
-
-          <div className="relative mx-auto mb-8 max-w-3xl hidden md:block">
-            <Image src="/banner.png" alt="TopBlast — The Loss-Mining Protocol" width={900} height={280} className="w-full h-auto rounded-xl opacity-90" priority />
-          </div>
-
           <h1 className="text-5xl md:text-7xl font-bold mb-4 tracking-tight">
             <span className="text-rh-green">TOP</span>
             <span className="text-white">BLAST</span>

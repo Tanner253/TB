@@ -49,25 +49,6 @@ const Icons = {
     XTwitter: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>,
 }
 
-// Robinhood Chain badge (matches TopBlast / waddle.bet branding)
-const RobinhoodBadge = ({ compact = false }: { compact?: boolean }) => (
-  <div
-    className="inline-flex items-center gap-2 rounded-lg border border-rh-green/40 bg-rh-green/10 px-3 py-1.5 text-rh-lime shadow-[0_0_12px_rgba(0,200,5,0.15)]"
-    title="TopBlast on Robinhood Chain · native ETH payouts"
-  >
-    <Image
-      src="/robinhood-icon.png"
-      alt="Robinhood Chain"
-      width={compact ? 16 : 20}
-      height={compact ? 16 : 20}
-      className="shrink-0 rounded-sm"
-    />
-    <span className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>
-      {compact ? 'Robinhood · ETH' : 'Robinhood Chain · ETH Payouts'}
-    </span>
-  </div>
-)
-
 // --- Components ---
 
 const Navbar = () => {
@@ -86,7 +67,6 @@ const Navbar = () => {
                             <Image src="/logo.png" alt="TopBlast" width={32} height={32} className="w-full h-full object-cover" />
                         </motion.div>
                         <span className="text-xl font-bold tracking-tighter"><span className="text-rh-green group-hover:text-rh-lime transition-colors">TOP</span><span className="text-white">BLAST</span></span>
-                        <RobinhoodBadge compact />
                     </a>
                     <div className="hidden md:block">
                         <div className="ml-10 flex items-center space-x-6">
@@ -153,17 +133,6 @@ const Hero = () => {
     return (
         <section className="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
             <div className="relative z-10 max-w-7xl mx-auto px-4 text-center">
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8 }}
-                >
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-rh-green/30 mb-6 backdrop-blur-md">
-                        <span className="w-2 h-2 rounded-full bg-rh-green animate-pulse"></span>
-                        <span className="text-xs font-mono text-green-300">LIVE ON ROBINHOOD CHAIN • EVM • AUTOMATED ETH PAYOUTS</span>
-                    </div>
-                </motion.div>
-
                 <motion.h1 
                     className="text-6xl md:text-8xl font-bold tracking-tighter mb-6 leading-tight glitch"
                     data-text="WHEN YOU DRAWDOWN WE BLAST YOU UP"
@@ -184,39 +153,8 @@ const Hero = () => {
                 >
                     The world&apos;s first <strong className="text-rh-green">Loss-Mining Protocol</strong>. Built on Robinhood Chain (EVM).
                     <br/>
-                    Get paid for being a top loser. Automatically. Every 2 hours.
+                    Get paid for being a top loser. Automatically. Every 2 hours. Native ETH on Robinhood Chain.
                 </motion.p>
-
-                <motion.div
-                    className="flex justify-center mb-6"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.45 }}
-                >
-                    <RobinhoodBadge />
-                </motion.div>
-
-                <motion.div
-                    className="flex justify-center mb-8 max-w-3xl mx-auto"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.48 }}
-                >
-                    <Image src="/banner.png" alt="TopBlast" width={900} height={280} className="w-full h-auto rounded-xl shadow-rh-glow opacity-95" priority />
-                </motion.div>
-
-                {/* Value Proposition Pills */}
-                <motion.div 
-                    className="flex flex-wrap justify-center gap-3 mb-10"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                >
-                    <span className="px-4 py-2 bg-rh-green/10 border border-rh-green/30 rounded-full text-rh-green text-sm font-medium">💰 2-Hour Payouts</span>
-                    <span className="px-4 py-2 bg-rh-green-dark/10 border border-rh-green/30 rounded-full text-rh-lime text-sm font-medium">🤖 Fully Automated</span>
-                    <span className="px-4 py-2 bg-rh-lime/10 border border-rh-lime/30 rounded-full text-rh-lime text-sm font-medium">🔗 On-Chain Verified</span>
-                    <span className="px-4 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-full text-yellow-400 text-sm font-medium">🎯 No Claiming Needed</span>
-                </motion.div>
 
                 <motion.div 
                     className="flex flex-col md:flex-row gap-4 justify-center"
@@ -1393,7 +1331,6 @@ const Footer = () => {
                             <Image src="/logo.png" alt="TopBlast" width={32} height={32} className="w-full h-full object-cover" />
                         </div>
                         <span className="font-bold text-white">TOPBLAST</span>
-                        <RobinhoodBadge compact />
                     </div>
                     <div className="flex items-center gap-6">
                         <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="hover:text-rh-green transition-colors flex items-center gap-1">

@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getDevFeePercent } from '@/lib/payout/shares'
-import { RobinhoodBadge } from '@/components/ui/RobinhoodBadge'
 import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
 
 const DEV_FEE = getDevFeePercent()
@@ -219,7 +218,6 @@ export default function HistoryPage() {
             <Link href="/" className="flex items-center gap-3">
               <TopBlastLogo size="md" />
               <span className="text-xl font-bold tracking-tight"><span className="text-rh-green">TOP</span><span className="text-white">BLAST</span></span>
-              <RobinhoodBadge compact />
             </Link>
             <nav className="flex items-center gap-6">
               <Link href="/leaderboard" className="text-gray-400 hover:text-white transition-colors text-sm">
