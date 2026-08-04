@@ -72,6 +72,7 @@ const Navbar = () => {
                         <div className="ml-10 flex items-center space-x-6">
                             <a href="#why-invest" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Why $TBLAST</a>
                             <a href="#how-it-works" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Mechanism</a>
+                            <a href="#who-gets-paid" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Who Gets Paid</a>
                             <a href="#tokenomics" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Tokenomics</a>
                             <a href="#whitepaper" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Whitepaper</a>
                             <a href="#updates" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Updates</a>
@@ -110,6 +111,7 @@ const Navbar = () => {
                     <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
                         <a href="#why-invest" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Why $TBLAST</a>
                         <a href="#how-it-works" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Mechanism</a>
+                        <a href="#who-gets-paid" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Who Gets Paid</a>
                         <a href="#tokenomics" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Tokenomics</a>
                         <a href="#whitepaper" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Whitepaper</a>
                         <a href="#roadmap" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">🗺️ Roadmap</a>
@@ -479,6 +481,80 @@ const Mechanism = () => {
                             </motion.button>
                         </a>
                     </motion.div>
+                </div>
+            </div>
+        </section>
+    )
+}
+
+const WhoGetsPaid = () => {
+    const requirements = [
+        { n: 1, title: 'Minimum token balance', body: 'Hold at least the configured minimum (shown on the live app Stats & Leaderboard pages).' },
+        { n: 2, title: '15 minutes minimum hold', body: 'Counted from your first on-chain buy. Hardcoded at 15 minutes — not env-configurable.' },
+        { n: 3, title: 'In a loss position', body: 'Current token price must be below your VWAP (volume-weighted average buy price from on-chain history).' },
+        { n: 4, title: 'Loss ≥ 10% of the live pool', body: 'Your USD loss must meet the dynamic threshold on the leaderboard (scales with payout wallet balance).' },
+        { n: 5, title: 'Has not sold tokens', body: 'Any sell or transfer-out disqualifies the wallet immediately.' },
+        { n: 6, title: 'Not on winner cooldown', body: 'Winners from the previous payout cycle cannot win again until the next cycle.' },
+    ]
+
+    return (
+        <section id="who-gets-paid" className="py-24 relative">
+            <div className="glass-section-bg">
+                <div className="max-w-4xl mx-auto px-4">
+                    <div className="text-center mb-12">
+                        <span className="inline-block px-4 py-1 bg-amber-900/30 border border-amber-500/30 rounded-full text-amber-300 text-sm font-medium mb-4">
+                            READ THIS FIRST
+                        </span>
+                        <h2 className="text-4xl font-bold mb-4">Who Gets Paid</h2>
+                        <p className="text-gray-400 max-w-2xl mx-auto">
+                            Payouts are automatic but <strong className="text-white">not</strong> based on wallet size alone.
+                        </p>
+                    </div>
+
+                    <div className="glass-panel rounded-2xl p-8 border border-amber-500/20 mb-8">
+                        <p className="text-lg text-gray-200 leading-relaxed">
+                            <span className="text-white font-bold">Biggest balance does not win.</span> Only wallets that pass{' '}
+                            <span className="text-rh-lime font-semibold">every rule below</span> are ranked. Winners are the{' '}
+                            <span className="text-red-400 font-semibold">top eligible losers by drawdown %</span> — most underwater first,
+                            with absolute USD loss as the tiebreaker.
+                        </p>
+                    </div>
+
+                    <ol className="space-y-4 mb-8">
+                        {requirements.map((req) => (
+                            <li key={req.n} className="flex gap-4 glass-panel rounded-xl p-5 border border-rh-green/15">
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rh-green/20 text-rh-lime font-bold">
+                                    {req.n}
+                                </span>
+                                <div>
+                                    <h3 className="text-white font-bold mb-1">{req.title}</h3>
+                                    <p className="text-gray-400 text-sm leading-relaxed">{req.body}</p>
+                                </div>
+                            </li>
+                        ))}
+                    </ol>
+
+                    <div className="glass-panel rounded-2xl p-8 border border-rh-green/25">
+                        <h3 className="text-xl font-bold text-rh-lime mb-3">Payout split</h3>
+                        <p className="text-gray-300 mb-4 leading-relaxed">
+                            The <strong className="text-white">top 3 eligible</strong> wallets receive{' '}
+                            <strong className="text-rh-green">{PAYOUT.community}%</strong> of the payout pool after a {PAYOUT.dev}% dev fee,
+                            split <span className="font-mono text-rh-lime">{PAYOUT.first}/{PAYOUT.second}/{PAYOUT.third}</span> of the winner pool.
+                            Native ETH is sent directly to wallets — no claiming step.
+                        </p>
+                        <p className="text-sm text-gray-500 border-t border-white/10 pt-4">
+                            The payout countdown stays in <strong className="text-gray-400">&quot;launch limbo&quot;</strong> until the first eligible holder appears.
+                            Simply holding tokens does not start a payout cycle.
+                        </p>
+                        <a
+                            href={`${APP_URL}/leaderboard`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 mt-6 text-rh-green hover:text-rh-lime font-medium text-sm transition-colors"
+                        >
+                            Check live eligibility on the app <Icons.ExternalLink />
+                        </a>
+                    </div>
                 </div>
             </div>
         </section>
@@ -1134,21 +1210,36 @@ const Whitepaper = () => {
             )
         },
         {
-            title: "3.0 Eligibility Rules",
+            title: "3.0 Eligibility Rules & Who Gets Paid",
             content: (
                 <>
-                    <p className="mb-4">These rules prevent gaming and ensure genuine diamond hands are rewarded.</p>
+                    <div className="mb-6 p-4 bg-amber-900/20 border border-amber-500/30 rounded-lg">
+                        <p className="text-amber-200 font-bold mb-2">⚠️ Not biggest balance wins</p>
+                        <p className="text-gray-300 text-sm">
+                            Rankings use <strong className="text-white">drawdown % among eligible wallets only</strong>. A large holder who sold, is in profit, or has not held long enough will <strong className="text-red-400">not</strong> appear as a winner.
+                        </p>
+                    </div>
+
+                    <p className="mb-4">A wallet must meet <strong className="text-white">all six requirements</strong> to be eligible:</p>
+                    <ol className="list-decimal pl-5 space-y-3 mb-6 text-gray-300">
+                        <li><strong className="text-white">Minimum token balance</strong> — configured per deployment (see live app).</li>
+                        <li><strong className="text-white">15 minutes minimum hold</strong> — from first buy; hardcoded, not env-configurable.</li>
+                        <li><strong className="text-white">In a loss position</strong> — current price below VWAP.</li>
+                        <li><strong className="text-white">Loss ≥ 10% of live pool USD</strong> — dynamic threshold on the leaderboard.</li>
+                        <li><strong className="text-white">Has not sold</strong> — any sell or transfer-out disqualifies.</li>
+                        <li><strong className="text-white">Not on winner cooldown</strong> — previous cycle winners sit out one cycle.</li>
+                    </ol>
                     
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                         <div className="bg-green-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
                             <div className="text-xs text-gray-400 uppercase">Min Balance</div>
-                            <div className="text-xl font-bold text-rh-green font-mono">100K</div>
-                            <div className="text-xs text-gray-500">$TBLAST</div>
+                            <div className="text-xl font-bold text-rh-green font-mono">Live</div>
+                            <div className="text-xs text-gray-500">on app</div>
                         </div>
                         <div className="bg-green-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
                             <div className="text-xs text-gray-400 uppercase">Hold Time</div>
                             <div className="text-xl font-bold text-rh-green font-mono">15 min</div>
-                            <div className="text-xs text-gray-500">minimum</div>
+                            <div className="text-xs text-gray-500">hardcoded</div>
                         </div>
                         <div className="bg-green-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
                             <div className="text-xs text-gray-400 uppercase">Min Loss</div>
@@ -1156,9 +1247,9 @@ const Whitepaper = () => {
                             <div className="text-xs text-gray-500">of pool</div>
                         </div>
                         <div className="bg-green-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
-                            <div className="text-xs text-gray-400 uppercase">Min Pool</div>
-                            <div className="text-xl font-bold text-rh-green font-mono">$50</div>
-                            <div className="text-xs text-gray-500">for payout</div>
+                            <div className="text-xs text-gray-400 uppercase">Winners</div>
+                            <div className="text-xl font-bold text-rh-green font-mono">Top 3</div>
+                            <div className="text-xs text-gray-500">eligible only</div>
                         </div>
                     </div>
 
@@ -1186,7 +1277,10 @@ const Whitepaper = () => {
             title: "4.0 Payout Distribution",
             content: (
                 <>
-                    <p className="mb-4">Every 2 hours, the reward pool is distributed to the top 3 losers automatically. A {PAYOUT.dev}% dev fee is taken first; the remaining {PAYOUT.community}% is split {PAYOUT.first}/{PAYOUT.second}/{PAYOUT.third}.</p>
+                    <p className="mb-4">
+                        When the countdown completes, only the <strong className="text-white">top 3 eligible</strong> wallets receive payouts.
+                        A {PAYOUT.dev}% dev fee is taken first; the remaining {PAYOUT.community}% goes to winners, split {PAYOUT.first}/{PAYOUT.second}/{PAYOUT.third} of the winner pool.
+                    </p>
                     <div className="flex gap-2 h-20 mb-6">
                         <div className="h-full bg-yellow-400/80 rounded flex flex-col items-center justify-center text-black font-bold" style={{width: `${PAYOUT.first}%`}}>
                             <span>🥇 1st Place</span>
@@ -1226,8 +1320,8 @@ const Whitepaper = () => {
                         <div className="flex items-start gap-4 p-4 bg-gray-900/50 rounded-lg">
                             <div className="w-10 h-10 bg-rh-green rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">2</div>
                             <div>
-                                <h4 className="text-white font-bold mb-1">Hold for 2+ Hours</h4>
-                                <p className="text-gray-400 text-sm">Your tokens must be held for at least 15 minutes before eligibility. Don&apos;t sell. Don&apos;t transfer.</p>
+                                <h4 className="text-white font-bold mb-1">Hold & stay eligible</h4>
+                                <p className="text-gray-400 text-sm">Hold at least 15 minutes from your first buy. Stay in loss. Do not sell or transfer out. See <a href="#who-gets-paid" className="text-rh-green underline">Who Gets Paid</a> for the full checklist.</p>
                             </div>
                         </div>
                         
@@ -1247,6 +1341,10 @@ const Whitepaper = () => {
             content: (
                 <>
                     <div className="space-y-6">
+                        <div>
+                            <h4 className="text-white font-bold mb-2">Does the biggest wallet always win?</h4>
+                            <p className="text-gray-400">No. <strong className="text-white">Balance size does not determine winners.</strong> Only wallets that pass all eligibility rules are ranked by drawdown %. See <a href="#who-gets-paid" className="text-rh-green underline">Who Gets Paid</a>.</p>
+                        </div>
                         <div>
                             <h4 className="text-white font-bold mb-2">How do I check my ranking?</h4>
                             <p className="text-gray-400">Visit the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-rh-green underline">live leaderboard</a>. All data is public—no wallet connection needed.</p>
@@ -1366,6 +1464,7 @@ export default function Home() {
                 <RektTicker />
                 <WhyInvest />
                 <Mechanism />
+                <WhoGetsPaid />
                 <Tokenomics />
                 <Whitepaper />
                 <UpdateLog />

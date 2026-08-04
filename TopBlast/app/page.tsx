@@ -5,8 +5,8 @@ import { motion } from 'framer-motion'
 import { useRealtimePrice } from '@/hooks/useRealtime'
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
 import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
+import { WhoGetsPaidRules } from '@/components/WhoGetsPaidRules'
 import { getWinnerSharePercents, getDevFeePercent, getCommunityPercent } from '@/lib/payout/shares'
-import { MIN_HOLD_DURATION_MINUTES, formatHoldDuration } from '@/lib/eligibility/holdDuration'
 
 const SHARES = getWinnerSharePercents()
 const DEV_FEE = getDevFeePercent()
@@ -73,7 +73,7 @@ export default function Home() {
           <p className="text-xl md:text-2xl text-gray-300 mb-2 font-light">The Loss-Mining Protocol</p>
           <p className="text-gray-400 max-w-2xl mx-auto mb-10 text-lg leading-relaxed">
             Get paid in <span className="text-rh-green font-semibold">native ETH</span> for being a{' '}
-            <span className="text-red-400 font-semibold">top loser</span>. Every 2 hours, the top 3 drawdowns win from the pool.
+            <span className="text-red-400 font-semibold">top eligible loser</span> — ranked by drawdown %, not wallet size.
           </p>
 
           {(price || marketCap) && (
@@ -125,30 +125,25 @@ export default function Home() {
               </motion.div>
             ))}
           </motion.div>
-          <p className="text-xs text-gray-500 mb-12 text-center max-w-lg mx-auto">
-            {COMMUNITY}% of pool to top 3 losers (split {SHARES.first}/{SHARES.second}/{SHARES.third} of winner pool) · {DEV_FEE}% dev fee · native ETH on Robinhood Chain
+          <p className="text-xs text-gray-500 mb-8 text-center max-w-lg mx-auto">
+            {COMMUNITY}% of pool to top 3 <span className="text-rh-lime">eligible</span> losers (split {SHARES.first}/{SHARES.second}/{SHARES.third} of winner pool) · {DEV_FEE}% dev fee · native ETH on Robinhood Chain
           </p>
 
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="glass-panel rounded-2xl p-8 max-w-2xl mx-auto border-rh-green/20">
-            <h2 className="text-xl font-bold mb-6 flex items-center gap-2 justify-center text-rh-lime"><span>📋</span> Eligibility Requirements</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              {[
-                { label: 'Min Balance', value: '100K', sub: 'tokens' },
-                { label: 'Hold Duration', value: formatHoldDuration(MIN_HOLD_DURATION_MINUTES), sub: 'minimum' },
-                { label: 'Min Loss', value: '10%', sub: 'of pool' },
-                { label: 'Min Pool', value: '$50', sub: 'ETH payout' },
-              ].map((item) => (
-                <div key={item.label} className="bg-rh-green/5 border border-rh-green/10 rounded-xl p-4 text-center">
-                  <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">{item.label}</div>
-                  <div className="text-2xl font-bold text-rh-green font-mono">{item.value}</div>
-                  <div className="text-xs text-gray-500">{item.sub}</div>
-                </div>
-              ))}
-            </div>
-            <div className="border-t border-rh-green/10 pt-4">
-              <p className="text-sm text-gray-400">
-                <span className="text-red-400 font-semibold">Disqualifiers:</span> Sold tokens · Transferred out · Won last cycle
-              </p>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="glass-panel rounded-2xl p-8 max-w-3xl mx-auto border-rh-green/20 text-left">
+            <h2 className="text-2xl font-bold mb-2 flex items-center gap-2 justify-center text-rh-lime">
+              <span>🎯</span> Who Gets Paid
+            </h2>
+            <p className="text-center text-gray-400 text-sm mb-6 max-w-xl mx-auto">
+              Read this before expecting a payout — eligibility is strict and automatic.
+            </p>
+            <WhoGetsPaidRules variant="homepage" />
+            <div className="mt-6 pt-6 border-t border-rh-green/10 flex flex-col sm:flex-row gap-3 justify-center">
+              <Link href="/leaderboard" className="text-center text-sm text-rh-green hover:text-rh-lime transition-colors font-medium">
+                See live rankings & eligibility →
+              </Link>
+              <Link href="/stats" className="text-center text-sm text-gray-500 hover:text-gray-300 transition-colors">
+                Current thresholds on Stats →
+              </Link>
             </div>
           </motion.div>
         </motion.div>
