@@ -9,7 +9,9 @@ import { resetDeploymentState } from '@/lib/payout/resetDeployment'
 import { transferEth } from '@/lib/evm/transfer'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
-import { getEthPrice } from '@/lib/evm/price'
+import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
+import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
+import { getTokenHolders } from '@/lib/evm/indexer'
 import { getTxExplorerUrl } from '@/lib/evm/explorer'
 import { config } from '@/lib/config'
 import { saveRankingsToDb, loadRankingsFromDb, getRankedLosers, markWinnersCooldown, getServiceStatus, refreshPoolUsdCache } from '@/lib/tracker/holderService'
@@ -235,6 +237,73 @@ export function isPayoutDue(): boolean {
   return secondsUntil !== null && secondsUntil <= 0
 }
 
+export interface PayableWinner {
+  wallet: string
+  drawdownPct: number
+  lossUsd: number
+}
+
+/** Live eligibility for payout — do not trust stale Mongo isEligible flags. */
+export async function resolveLivePayableWinners(limit = 3): Promise<PayableWinner[]> {
+  const dbRankings = await loadRankingsFromDb()
+  if (!dbRankings?.rankings?.length || !config.tokenMint) {
+    return []
+  }
+
+  const [tokenPrice, livePool] = await Promise.all([
+    getTokenPrice(config.tokenMint),
+    getLivePoolBalance(),
+  ])
+  if (!tokenPrice || tokenPrice <= 0) {
+    return []
+  }
+
+  const contractWallets = new Set(
+    (await getTokenHolders(config.tokenMint, 100))
+      .filter(h => h.isContract)
+      .map(h => h.wallet.toLowerCase())
+  )
+
+  const currentCycle = getCurrentPayoutCycle()
+
+  return dbRankings.rankings
+    .filter(
+      h =>
+        !h.isContract &&
+        !contractWallets.has(h.wallet.toLowerCase()) &&
+        !isExcludedParticipantWallet(h.wallet)
+    )
+    .map(h => {
+      const firstBuyMs = h.firstBuyAt ? new Date(h.firstBuyAt).getTime() : null
+      const live = evaluateHolderEligibility({
+        wallet: h.wallet,
+        balance: h.balance,
+        vwap: h.vwap || null,
+        tokenPrice,
+        firstBuyTimestamp: firstBuyMs,
+        hasSold: h.hasSold ?? false,
+        hasTransferredOut: h.hasTransferredOut ?? false,
+        lastWinCycle: h.lastWinCycle ?? null,
+        totalTokensBought: h.totalTokensBought ?? 0,
+        poolUsd: livePool.poolUsd,
+        currentCycle,
+      })
+      return {
+        wallet: h.wallet,
+        drawdownPct: live.drawdownPct,
+        lossUsd: live.lossUsd,
+        isEligible: live.isEligible,
+      }
+    })
+    .filter(h => h.isEligible)
+    .sort((a, b) => {
+      if (a.drawdownPct !== b.drawdownPct) return a.drawdownPct - b.drawdownPct
+      return b.lossUsd - a.lossUsd
+    })
+    .slice(0, limit)
+    .map(({ wallet, drawdownPct, lossUsd }) => ({ wallet, drawdownPct, lossUsd }))
+}
+
 async function acquirePayoutLock(cycle: number): Promise<boolean> {
   try {
     const result = await TimerState.findOneAndUpdate(
@@ -316,33 +385,38 @@ export async function executePayout(): Promise<PayoutResult> {
     console.log(`[Payout] Pool: ${poolEth.toFixed(6)} ETH ($${poolUsd.toFixed(2)})`)
 
     if (!livePool.available || livePool.walletEth <= 0) {
-      console.log('[Payout] No balance — skipping without advancing cycle')
+      console.log('[Payout] No balance — skipping and resetting timer')
       await releasePayoutLock()
+      await resetTimerForNextInterval()
       return { success: false, error: 'No wallet balance' }
     }
 
     if (poolEth < config.minPoolEth) {
-      console.log(`[Payout] Pool below minimum ${config.minPoolEth} ETH — skipping without advancing cycle`)
+      console.log(
+        `[Payout] Pool ${poolEth.toFixed(6)} ETH below minimum ${config.minPoolEth} ETH — skipping and resetting timer`
+      )
       await releasePayoutLock()
+      await resetTimerForNextInterval()
       return { success: false, error: 'Pool below minimum' }
     }
 
-    const isPayableWinner = (h: { wallet: string; isEligible: boolean }) =>
-      h.isEligible && !isExcludedParticipantWallet(h.wallet)
+    let eligibleWinners: PayableWinner[] = await resolveLivePayableWinners(3)
 
-    let eligibleWinners: any[] = []
-
-    const inMemoryRankings = getRankedLosers()
-    if (inMemoryRankings.length > 0) {
-      eligibleWinners = inMemoryRankings.filter(isPayableWinner).slice(0, 3)
-      console.log(`[Payout] Using in-memory: ${inMemoryRankings.length} total, ${eligibleWinners.length} eligible`)
-    } else {
-      const dbRankings = await loadRankingsFromDb()
-      if (dbRankings && dbRankings.rankings.length > 0) {
-        eligibleWinners = dbRankings.rankings.filter(isPayableWinner).slice(0, 3)
-        console.log(`[Payout] Using database: ${dbRankings.rankings.length} total, ${eligibleWinners.length} eligible`)
+    if (eligibleWinners.length === 0) {
+      const inMemoryRankings = getRankedLosers()
+      if (inMemoryRankings.length > 0) {
+        eligibleWinners = inMemoryRankings
+          .filter(h => h.isEligible && !isExcludedParticipantWallet(h.wallet))
+          .slice(0, 3)
+          .map(h => ({
+            wallet: h.wallet,
+            drawdownPct: h.drawdownPct,
+            lossUsd: h.lossUsd,
+          }))
       }
     }
+
+    console.log(`[Payout] Live eligible winners: ${eligibleWinners.length}`)
 
     if (eligibleWinners.length === 0) {
       console.log('[Payout] No eligible winners — pausing timer until someone qualifies')

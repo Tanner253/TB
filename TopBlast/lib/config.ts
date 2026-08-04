@@ -20,8 +20,9 @@ export const config = {
 
   // Pool Configuration — 99% of payout wallet ETH balance
   poolPercentage: 0.99,
-  minPoolSol: parseFloat(process.env.MIN_POOL_SOL || '0.025'),
-  minPoolEth: parseFloat(process.env.MIN_POOL_SOL || '0.025'),
+  // Minimum pool (ETH) before executing a payout cycle (default = one min transfer)
+  minPoolSol: parseFloat(process.env.MIN_POOL_ETH || process.env.MIN_POOL_SOL || '0.001'),
+  minPoolEth: parseFloat(process.env.MIN_POOL_ETH || process.env.MIN_POOL_SOL || '0.001'),
 
   // @deprecated — not used for live pool. Pool = payout wallet ETH balance on-chain.
   poolBalanceUsd: parseFloat(process.env.POOL_BALANCE_USD || '500'),
