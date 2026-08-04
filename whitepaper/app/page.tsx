@@ -52,18 +52,18 @@ const Icons = {
 // Robinhood Chain badge (matches TopBlast / waddle.bet branding)
 const RobinhoodBadge = ({ compact = false }: { compact?: boolean }) => (
   <div
-    className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-emerald-100 shadow-md"
-    title="TopBlast on Robinhood Chain (EVM)"
+    className="inline-flex items-center gap-2 rounded-lg border border-rh-green/40 bg-rh-green/10 px-3 py-1.5 text-rh-lime shadow-[0_0_12px_rgba(0,200,5,0.15)]"
+    title="TopBlast on Robinhood Chain · native ETH payouts"
   >
     <Image
-      src="/robinhood-feather.svg"
+      src="/robinhood-icon.png"
       alt="Robinhood Chain"
       width={compact ? 16 : 20}
       height={compact ? 16 : 20}
-      className="shrink-0"
+      className="shrink-0 rounded-sm"
     />
     <span className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>
-      {compact ? 'Robinhood EVM' : 'Robinhood Chain · EVM'}
+      {compact ? 'Robinhood · ETH' : 'Robinhood Chain · ETH Payouts'}
     </span>
   </div>
 )
@@ -83,19 +83,19 @@ const Navbar = () => {
                             transition={{ duration: 0.5 }}
                             className="w-8 h-8 rounded overflow-hidden"
                         >
-                            <Image src="/logo.jpg" alt="TopBlast" width={32} height={32} className="w-full h-full object-cover" />
+                            <Image src="/logo.png" alt="TopBlast" width={32} height={32} className="w-full h-full object-cover" />
                         </motion.div>
-                        <span className="text-xl font-bold tracking-tighter group-hover:text-green-400 transition-colors">TOPBLAST</span>
+                        <span className="text-xl font-bold tracking-tighter"><span className="text-rh-green group-hover:text-rh-lime transition-colors">TOP</span><span className="text-white">BLAST</span></span>
                         <RobinhoodBadge compact />
                     </a>
                     <div className="hidden md:block">
                         <div className="ml-10 flex items-center space-x-6">
-                            <a href="#why-invest" className="hover:text-green-400 transition-colors px-2 py-2 rounded-md text-sm font-medium">Why $TBLAST</a>
-                            <a href="#how-it-works" className="hover:text-green-400 transition-colors px-2 py-2 rounded-md text-sm font-medium">Mechanism</a>
-                            <a href="#tokenomics" className="hover:text-green-400 transition-colors px-2 py-2 rounded-md text-sm font-medium">Tokenomics</a>
-                            <a href="#whitepaper" className="hover:text-green-400 transition-colors px-2 py-2 rounded-md text-sm font-medium">Whitepaper</a>
-                            <a href="#updates" className="hover:text-green-400 transition-colors px-2 py-2 rounded-md text-sm font-medium">Updates</a>
-                            <a href="#roadmap" className="hover:text-purple-400 transition-colors px-2 py-2 rounded-md text-sm font-medium flex items-center gap-1">
+                            <a href="#why-invest" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Why $TBLAST</a>
+                            <a href="#how-it-works" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Mechanism</a>
+                            <a href="#tokenomics" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Tokenomics</a>
+                            <a href="#whitepaper" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Whitepaper</a>
+                            <a href="#updates" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Updates</a>
+                            <a href="#roadmap" className="hover:text-rh-lime transition-colors px-2 py-2 rounded-md text-sm font-medium flex items-center gap-1">
                                 <span className="text-xs">🗺️</span> Roadmap
                             </a>
                             
@@ -110,7 +110,7 @@ const Navbar = () => {
                                 <motion.button 
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
-                                    className="bg-gradient-to-r from-green-400 to-emerald-500 text-black px-4 py-2 rounded font-bold hover:from-green-300 hover:to-emerald-400 transition-all shadow-[0_0_15px_rgba(20,241,149,0.4)] hover:shadow-[0_0_25px_rgba(20,241,149,0.6)] flex items-center gap-2"
+                                    className="bg-rh-green hover:bg-rh-green-bright text-black px-4 py-2 rounded font-bold transition-all shadow-rh-glow flex items-center gap-2"
                                 >
                                     Launch App <Icons.ExternalLink />
                                 </motion.button>
@@ -139,7 +139,7 @@ const Navbar = () => {
                                 <Icons.XTwitter /> @TOPBLASTX
                             </a>
                         </div>
-                        <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="block bg-green-500 text-black px-3 py-2 rounded-md text-base font-bold mt-2">
+                        <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="block bg-rh-green text-black px-3 py-2 rounded-md text-base font-bold mt-2">
                             Launch App →
                         </a>
                     </div>
@@ -158,8 +158,8 @@ const Hero = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8 }}
                 >
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-green-500/30 mb-6 backdrop-blur-md">
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-rh-green/30 mb-6 backdrop-blur-md">
+                        <span className="w-2 h-2 rounded-full bg-rh-green animate-pulse"></span>
                         <span className="text-xs font-mono text-green-300">LIVE ON ROBINHOOD CHAIN • EVM • AUTOMATED ETH PAYOUTS</span>
                     </div>
                 </motion.div>
@@ -173,7 +173,7 @@ const Hero = () => {
                 >
                     WHEN YOU <span className="text-red-500 neon-red italic">DRAWDOWN</span>
                     <br />
-                    WE <span className="hero-text-gradient neon-purple">BLAST</span> YOU UP
+                    WE <span className="hero-text-gradient neon-green">BLAST</span> YOU UP
                 </motion.h1>
 
                 <motion.p 
@@ -182,7 +182,7 @@ const Hero = () => {
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.4 }}
                 >
-                    The world&apos;s first <strong className="text-green-400">Loss-Mining Protocol</strong>. Built on Robinhood Chain (EVM).
+                    The world&apos;s first <strong className="text-rh-green">Loss-Mining Protocol</strong>. Built on Robinhood Chain (EVM).
                     <br/>
                     Get paid for being a top loser. Automatically. Every 2 hours.
                 </motion.p>
@@ -196,6 +196,15 @@ const Hero = () => {
                     <RobinhoodBadge />
                 </motion.div>
 
+                <motion.div
+                    className="flex justify-center mb-8 max-w-3xl mx-auto"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.48 }}
+                >
+                    <Image src="/banner.png" alt="TopBlast" width={900} height={280} className="w-full h-auto rounded-xl shadow-rh-glow opacity-95" priority />
+                </motion.div>
+
                 {/* Value Proposition Pills */}
                 <motion.div 
                     className="flex flex-wrap justify-center gap-3 mb-10"
@@ -203,9 +212,9 @@ const Hero = () => {
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.5 }}
                 >
-                    <span className="px-4 py-2 bg-green-500/10 border border-green-500/30 rounded-full text-green-400 text-sm font-medium">💰 2-Hour Payouts</span>
-                    <span className="px-4 py-2 bg-purple-500/10 border border-purple-500/30 rounded-full text-purple-400 text-sm font-medium">🤖 Fully Automated</span>
-                    <span className="px-4 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded-full text-cyan-400 text-sm font-medium">🔗 On-Chain Verified</span>
+                    <span className="px-4 py-2 bg-rh-green/10 border border-rh-green/30 rounded-full text-rh-green text-sm font-medium">💰 2-Hour Payouts</span>
+                    <span className="px-4 py-2 bg-rh-green-dark/10 border border-rh-green/30 rounded-full text-rh-lime text-sm font-medium">🤖 Fully Automated</span>
+                    <span className="px-4 py-2 bg-rh-lime/10 border border-rh-lime/30 rounded-full text-rh-lime text-sm font-medium">🔗 On-Chain Verified</span>
                     <span className="px-4 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-full text-yellow-400 text-sm font-medium">🎯 No Claiming Needed</span>
                 </motion.div>
 
@@ -219,7 +228,7 @@ const Hero = () => {
                         <motion.button 
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            className="bg-gradient-to-r from-green-400 to-emerald-500 text-black px-8 py-4 rounded-lg font-bold text-lg hover:from-green-300 hover:to-emerald-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(20,241,149,0.3)]"
+                            className="bg-rh-green hover:bg-rh-green-bright text-black px-8 py-4 rounded-lg font-bold text-lg transition-all flex items-center justify-center gap-2 shadow-rh-glow"
                         >
                             <Icons.Rocket /> View Live Leaderboard
                         </motion.button>
@@ -243,15 +252,15 @@ const Hero = () => {
                     transition={{ delay: 0.8 }}
                 >
                     <div className="glass-panel rounded-xl p-4 text-center">
-                        <div className="text-3xl font-bold text-green-400 font-mono">{PAYOUT.first}%</div>
+                        <div className="text-3xl font-bold text-rh-green font-mono">{PAYOUT.first}%</div>
                         <div className="text-xs text-gray-400 mt-1">1st Place Payout</div>
                     </div>
                     <div className="glass-panel rounded-xl p-4 text-center">
-                        <div className="text-3xl font-bold text-cyan-400 font-mono">2hr</div>
+                        <div className="text-3xl font-bold text-rh-lime font-mono">2hr</div>
                         <div className="text-xs text-gray-400 mt-1">Payout Frequency</div>
                     </div>
                     <div className="glass-panel rounded-xl p-4 text-center">
-                        <div className="text-3xl font-bold text-purple-400 font-mono">{PAYOUT.community}%</div>
+                        <div className="text-3xl font-bold text-rh-lime font-mono">{PAYOUT.community}%</div>
                         <div className="text-xs text-gray-400 mt-1">To Community</div>
                     </div>
                     <div className="glass-panel rounded-xl p-4 text-center">
@@ -274,13 +283,13 @@ const RektTicker = () => {
     ]
     
     return (
-        <div className="w-full bg-green-900/20 border-y border-green-500/30 overflow-hidden py-3 relative z-20 backdrop-blur-sm">
+        <div className="w-full bg-green-900/20 border-y border-rh-green/30 overflow-hidden py-3 relative z-20 backdrop-blur-sm">
             <div className="flex animate-slide whitespace-nowrap gap-12 px-4">
                 {[...LIVE_FEED, ...LIVE_FEED, ...LIVE_FEED, ...LIVE_FEED].map((item, i) => (
                     <div key={i} className="flex items-center gap-2 text-sm font-mono">
                         <span className="text-gray-400">{item.wallet}</span>
                         <span className="text-red-500 font-bold">{item.loss}</span>
-                        <span className="text-green-400 bg-green-900/30 px-2 py-0.5 rounded text-xs">{item.payout}</span>
+                        <span className="text-rh-green bg-green-900/30 px-2 py-0.5 rounded text-xs">{item.payout}</span>
                     </div>
                 ))}
             </div>
@@ -327,10 +336,10 @@ const WhyInvest = () => {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                     >
-                        <span className="inline-block px-4 py-1 bg-green-500/20 border border-green-500/30 rounded-full text-green-400 text-sm font-medium mb-4">
+                        <span className="inline-block px-4 py-1 bg-rh-green/20 border border-rh-green/30 rounded-full text-rh-green text-sm font-medium mb-4">
                             INVESTOR VALUE
                         </span>
-                        <h2 className="text-4xl md:text-5xl font-bold mb-4">Why Buy <span className="text-green-400">$TBLAST</span>?</h2>
+                        <h2 className="text-4xl md:text-5xl font-bold mb-4">Why Buy <span className="text-rh-green">$TBLAST</span>?</h2>
                         <p className="text-gray-400 max-w-2xl mx-auto text-lg">
                             The only token where being wrong about price direction can still make you money.
                         </p>
@@ -340,7 +349,7 @@ const WhyInvest = () => {
                         {benefits.map((benefit, idx) => (
                             <motion.div
                                 key={idx}
-                                className="glass-panel p-8 rounded-2xl hover:border-green-500/50 transition-all group"
+                                className="glass-panel p-8 rounded-2xl hover:border-rh-green/50 transition-all group"
                                 initial={{ opacity: 0, y: 20 }}
                                 whileInView={{ opacity: 1, y: 0 }}
                                 viewport={{ once: true }}
@@ -348,13 +357,13 @@ const WhyInvest = () => {
                                 whileHover={{ y: -5 }}
                             >
                                 <div className="flex items-start gap-4">
-                                    <div className="w-14 h-14 bg-green-500/20 rounded-xl flex items-center justify-center text-green-400 shrink-0 group-hover:scale-110 transition-transform">
+                                    <div className="w-14 h-14 bg-rh-green/20 rounded-xl flex items-center justify-center text-rh-green shrink-0 group-hover:scale-110 transition-transform">
                                         {benefit.icon}
                                     </div>
                                     <div>
                                         <h3 className="text-xl font-bold mb-2">{benefit.title}</h3>
                                         <p className="text-gray-400 mb-3">{benefit.desc}</p>
-                                        <span className="inline-block px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full text-green-400 text-xs font-medium">
+                                        <span className="inline-block px-3 py-1 bg-rh-green/10 border border-rh-green/20 rounded-full text-rh-green text-xs font-medium">
                                             ✓ {benefit.highlight}
                                         </span>
                                     </div>
@@ -365,25 +374,25 @@ const WhyInvest = () => {
 
                     {/* Investment Thesis */}
                     <motion.div
-                        className="glass-panel rounded-2xl p-8 border-2 border-green-500/30 relative overflow-hidden"
+                        className="glass-panel rounded-2xl p-8 border-2 border-rh-green/30 relative overflow-hidden"
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                     >
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/10 rounded-full blur-3xl"></div>
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-rh-green/10 rounded-full blur-3xl"></div>
                         <div className="relative">
                             <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
                                 <span className="text-3xl">💡</span>
                                 The Win-Win Investment Thesis
                             </h3>
                             <div className="grid md:grid-cols-2 gap-8">
-                                <div className="bg-green-900/20 border border-green-500/30 rounded-xl p-6">
-                                    <div className="text-green-400 font-bold mb-2 flex items-center gap-2">
+                                <div className="bg-green-900/20 border border-rh-green/30 rounded-xl p-6">
+                                    <div className="text-rh-green font-bold mb-2 flex items-center gap-2">
                                         <span className="text-2xl">📈</span> Scenario A: Price Pumps
                                     </div>
                                     <p className="text-gray-300">
                                         Your tokens appreciate in value. You profit from standard price appreciation. 
-                                        <span className="text-green-400 font-bold"> You win.</span>
+                                        <span className="text-rh-green font-bold"> You win.</span>
                                     </p>
                                 </div>
                                 <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-6">
@@ -392,7 +401,7 @@ const WhyInvest = () => {
                                     </div>
                                     <p className="text-gray-300">
                                         Your drawdown increases. You climb the leaderboard. You win {PAYOUT.first}% of the winner pool each cycle. 
-                                        <span className="text-green-400 font-bold"> You still win.</span>
+                                        <span className="text-rh-green font-bold"> You still win.</span>
                                     </p>
                                 </div>
                             </div>
@@ -401,7 +410,7 @@ const WhyInvest = () => {
                                     <motion.button
                                         whileHover={{ scale: 1.03 }}
                                         whileTap={{ scale: 0.98 }}
-                                        className="bg-gradient-to-r from-green-400 to-emerald-500 text-black px-8 py-3 rounded-lg font-bold text-lg shadow-[0_0_20px_rgba(20,241,149,0.3)] hover:shadow-[0_0_30px_rgba(20,241,149,0.5)] transition-all"
+                                        className="bg-gradient-to-r from-rh-green to-rh-lime text-black px-8 py-3 rounded-lg font-bold text-lg shadow-[0_0_20px_rgba(20,241,149,0.3)] hover:shadow-[0_0_30px_rgba(20,241,149,0.5)] transition-all"
                                     >
                                         Check Live Rankings on App →
                                     </motion.button>
@@ -441,11 +450,11 @@ const CountDown = () => {
     return (
         <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer">
             <motion.div 
-                className="fixed bottom-10 right-10 glass-panel p-4 rounded-lg hidden md:block z-30 border-l-4 border-green-400 shadow-[0_0_20px_rgba(74,222,128,0.2)] cursor-pointer hover:shadow-[0_0_30px_rgba(74,222,128,0.4)] transition-all"
+                className="fixed bottom-10 right-10 glass-panel p-4 rounded-lg hidden md:block z-30 border-l-4 border-rh-green shadow-[0_0_20px_rgba(74,222,128,0.2)] cursor-pointer hover:shadow-[0_0_30px_rgba(74,222,128,0.4)] transition-all"
                 whileHover={{ scale: 1.05 }}
             >
                 <div className="flex items-center gap-3">
-                    <div className="bg-green-500/20 p-2 rounded-full text-green-400 animate-pulse">
+                    <div className="bg-rh-green/20 p-2 rounded-full text-rh-green animate-pulse">
                         <Icons.Clock />
                     </div>
                     <div>
@@ -453,7 +462,7 @@ const CountDown = () => {
                         <p className="text-2xl font-mono font-bold">{timeLeft}</p>
                     </div>
                 </div>
-                <div className="mt-2 text-xs text-green-400 flex items-center gap-1">
+                <div className="mt-2 text-xs text-rh-green flex items-center gap-1">
                     View Leaderboard <Icons.ExternalLink />
                 </div>
             </motion.div>
@@ -464,15 +473,15 @@ const CountDown = () => {
 const FeatureCard = ({ icon, title, desc, delay }: { icon: React.ReactNode; title: string; desc: string; delay: number }) => {
     return (
         <motion.div 
-            className="glass-panel p-8 rounded-xl hover:border-green-500/50 transition-colors group relative overflow-hidden"
+            className="glass-panel p-8 rounded-xl hover:border-rh-green/50 transition-colors group relative overflow-hidden"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: delay }}
             whileHover={{ y: -5 }}
         >
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-purple-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
-            <div className="w-12 h-12 bg-white/5 rounded-lg flex items-center justify-center mb-6 text-green-400 group-hover:scale-110 group-hover:text-white transition-all duration-300">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-rh-green to-rh-green-dark transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+            <div className="w-12 h-12 bg-white/5 rounded-lg flex items-center justify-center mb-6 text-rh-green group-hover:scale-110 group-hover:text-white transition-all duration-300">
                 {icon}
             </div>
             <h3 className="text-xl font-bold mb-3">{title}</h3>
@@ -487,7 +496,7 @@ const Mechanism = () => {
             <div className="glass-section-bg">
                 <div className="max-w-7xl mx-auto px-4">
                     <div className="text-center mb-16">
-                        <span className="inline-block px-4 py-1 bg-purple-500/20 border border-purple-500/30 rounded-full text-purple-400 text-sm font-medium mb-4">
+                        <span className="inline-block px-4 py-1 bg-rh-green-dark/20 border border-rh-green/30 rounded-full text-rh-lime text-sm font-medium mb-4">
                             PROTOCOL MECHANICS
                         </span>
                         <h2 className="text-4xl font-bold mb-4">How It Works</h2>
@@ -549,12 +558,12 @@ const Simulator = () => {
      const roi = ((parseFloat(winFirst) / investment) * 100).toFixed(0)
 
      return (
-         <div className="mt-8 glass-panel p-6 rounded-lg border border-purple-500/30">
+         <div className="mt-8 glass-panel p-6 rounded-lg border border-rh-green/30">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Icons.Trophy /> ROI Calculator: The &quot;Win-Win&quot; Simulator</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
                 <div>
                     <label className="block text-gray-400 mb-2">My Investment ($)</label>
-                    <input type="number" value={investment} onChange={(e) => setInvestment(Number(e.target.value))} className="w-full bg-black/50 border border-gray-700 rounded px-3 py-2 text-white focus:border-green-500 outline-none"/>
+                    <input type="number" value={investment} onChange={(e) => setInvestment(Number(e.target.value))} className="w-full bg-black/50 border border-gray-700 rounded px-3 py-2 text-white focus:border-rh-green outline-none"/>
                 </div>
                 <div>
                     <label className="block text-gray-400 mb-2">My Drawdown (%)</label>
@@ -563,7 +572,7 @@ const Simulator = () => {
                 </div>
                 <div>
                     <label className="block text-gray-400 mb-2">Est. 2-Hour Pool ($)</label>
-                    <input type="number" value={poolSize} onChange={(e) => setPoolSize(Number(e.target.value))} className="w-full bg-black/50 border border-gray-700 rounded px-3 py-2 text-white focus:border-green-500 outline-none"/>
+                    <input type="number" value={poolSize} onChange={(e) => setPoolSize(Number(e.target.value))} className="w-full bg-black/50 border border-gray-700 rounded px-3 py-2 text-white focus:border-rh-green outline-none"/>
                 </div>
             </div>
             <div className="mt-6 pt-6 border-t border-white/10 grid md:grid-cols-3 gap-4">
@@ -573,17 +582,17 @@ const Simulator = () => {
                 </div>
                 <div className="bg-green-900/20 rounded-lg p-4 text-center">
                     <div className="text-xs text-gray-400 uppercase">1st Place Win</div>
-                    <div className="text-2xl font-bold text-green-400 neon-green font-mono">+${winFirst}</div>
+                    <div className="text-2xl font-bold text-rh-green neon-green font-mono">+${winFirst}</div>
                 </div>
-                <div className="bg-purple-900/20 rounded-lg p-4 text-center">
+                <div className="bg-green-950/20 rounded-lg p-4 text-center">
                     <div className="text-xs text-gray-400 uppercase">Net Profit</div>
-                    <div className={`text-2xl font-bold font-mono ${parseFloat(netProfit) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    <div className={`text-2xl font-bold font-mono ${parseFloat(netProfit) >= 0 ? 'text-rh-green' : 'text-red-400'}`}>
                         {parseFloat(netProfit) >= 0 ? '+' : ''}${netProfit}
                     </div>
                 </div>
             </div>
             <div className="mt-4 text-center text-sm text-gray-400">
-                Potential ROI if you rank #1: <span className="text-green-400 font-bold">{roi}%</span>
+                Potential ROI if you rank #1: <span className="text-rh-green font-bold">{roi}%</span>
             </div>
          </div>
      )
@@ -593,8 +602,8 @@ const Tokenomics = () => {
      const [hoveredRekt, setHoveredRekt] = useState(false)
      
      const data = [
-        { id: 'rekt', label: 'Community Rewards (Rekt Pool)', value: PAYOUT.community, color: 'bg-green-500', interactive: true },
-        { id: 'dev', label: 'Development & Maintenance', value: PAYOUT.dev, color: 'bg-purple-500', interactive: false },
+        { id: 'rekt', label: 'Community Rewards (Rekt Pool)', value: PAYOUT.community, color: 'bg-rh-green', interactive: true },
+        { id: 'dev', label: 'Development & Maintenance', value: PAYOUT.dev, color: 'bg-rh-green-dark', interactive: false },
     ]
 
     return (
@@ -602,7 +611,7 @@ const Tokenomics = () => {
             <div className="glass-section-bg">
                 <div className="max-w-7xl mx-auto px-4 grid md:grid-cols-2 gap-12 items-center relative z-10">
                     <div>
-                        <span className="inline-block px-4 py-1 bg-cyan-500/20 border border-cyan-500/30 rounded-full text-cyan-400 text-sm font-medium mb-4">
+                        <span className="inline-block px-4 py-1 bg-rh-lime/20 border border-rh-lime/30 rounded-full text-rh-lime text-sm font-medium mb-4">
                             ECONOMICS
                         </span>
                         <h2 className="text-4xl font-bold mb-8">Tokenomics</h2>
@@ -612,16 +621,16 @@ const Tokenomics = () => {
                         
                         <div className="space-y-4 mb-8">
                             <div className="flex items-center gap-3">
-                                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                <span className="text-gray-300"><span className="text-green-400 font-bold">{PAYOUT.community}%</span> of fees → Community Rewards (Top 3 Losers)</span>
+                                <div className="w-3 h-3 bg-rh-green rounded-full"></div>
+                                <span className="text-gray-300"><span className="text-rh-green font-bold">{PAYOUT.community}%</span> of fees → Community Rewards (Top 3 Losers)</span>
                             </div>
                             <div className="flex items-center gap-3">
-                                <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                                <span className="text-gray-300"><span className="text-purple-400 font-bold">{PAYOUT.dev}%</span> of fees → Protocol Development</span>
+                                <div className="w-3 h-3 bg-rh-green-dark rounded-full"></div>
+                                <span className="text-gray-300"><span className="text-rh-lime font-bold">{PAYOUT.dev}%</span> of fees → Protocol Development</span>
                             </div>
                         </div>
 
-                        <div className="p-4 bg-green-900/20 border border-green-500/30 rounded-lg mb-8">
+                        <div className="p-4 bg-green-900/20 border border-rh-green/30 rounded-lg mb-8">
                             <p className="text-green-300 text-sm">
                                 <strong>💡 Flywheel Effect:</strong> More trading → More fees → Bigger pool → Bigger payouts → More attention → More trading
                             </p>
@@ -659,9 +668,9 @@ const Tokenomics = () => {
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 exit={{ opacity: 0, y: 10 }}
-                                                className="absolute top-full left-0 w-full mt-4 bg-gray-900 p-4 rounded-lg border border-green-500/50 z-50 shadow-2xl"
+                                                className="absolute top-full left-0 w-full mt-4 bg-gray-900 p-4 rounded-lg border border-rh-green/50 z-50 shadow-2xl"
                                             >
-                                                <h4 className="text-sm font-bold text-green-400 mb-2">2-Hour Payout Split</h4>
+                                                <h4 className="text-sm font-bold text-rh-green mb-2">2-Hour Payout Split</h4>
                                                 <div className="flex gap-2 h-16">
                                                     <div className="h-full bg-yellow-400/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: `${PAYOUT.first}%`}}>
                                                         <span>🥇 1st</span>
@@ -771,18 +780,18 @@ const UpdateLog = () => {
                         {updates.map((update, idx) => (
                             <motion.div
                                 key={idx}
-                                className="glass-panel rounded-xl p-6 border-l-4 border-green-500"
+                                className="glass-panel rounded-xl p-6 border-l-4 border-rh-green"
                                 initial={{ opacity: 0, x: -20 }}
                                 whileInView={{ opacity: 1, x: 0 }}
                                 viewport={{ once: true }}
                                 transition={{ delay: idx * 0.1 }}
                             >
                                 <div className="flex items-center gap-4 mb-4">
-                                    <span className="text-2xl font-bold text-green-400 font-mono">{update.version}</span>
+                                    <span className="text-2xl font-bold text-rh-green font-mono">{update.version}</span>
                                     <span className="text-sm text-gray-400">{update.date}</span>
                                     <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                                        update.tag === 'CURRENT' ? 'bg-green-500 text-black' :
-                                        update.tag === 'MAJOR' ? 'bg-purple-500 text-white' :
+                                        update.tag === 'CURRENT' ? 'bg-rh-green text-black' :
+                                        update.tag === 'MAJOR' ? 'bg-rh-green-dark text-white' :
                                         'bg-gray-600 text-white'
                                     }`}>
                                         {update.tag}
@@ -791,7 +800,7 @@ const UpdateLog = () => {
                                 <ul className="space-y-2">
                                     {update.changes.map((change, i) => (
                                         <li key={i} className="flex items-start gap-2 text-gray-300">
-                                            <span className="text-green-400 mt-1">✓</span>
+                                            <span className="text-rh-green mt-1">✓</span>
                                             {change}
                                         </li>
                                     ))}
@@ -893,18 +902,18 @@ const Roadmap = () => {
     ]
     
     const getStatusColor = (status: string, color: string) => {
-        if (status === 'complete') return 'bg-green-500'
+        if (status === 'complete') return 'bg-rh-green'
         if (status === 'in-progress') return 'bg-yellow-500 animate-pulse'
         return `bg-${color}-500/30`
     }
     
     const getPhaseColor = (color: string) => {
         const colors: Record<string, string> = {
-            purple: 'from-purple-500 to-purple-600',
+            purple: 'from-rh-green-dark to-rh-green-dark',
             blue: 'from-blue-500 to-blue-600',
             orange: 'from-orange-500 to-orange-600',
-            green: 'from-green-500 to-green-600',
-            emerald: 'from-emerald-500 to-emerald-600',
+            green: 'from-rh-green to-green-600',
+            emerald: 'from-rh-green to-emerald-600',
         }
         return colors[color] || 'from-gray-500 to-gray-600'
     }
@@ -912,8 +921,8 @@ const Roadmap = () => {
     return (
         <section id="roadmap" className="py-24 relative overflow-hidden">
             {/* Background effects */}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-900/5 to-transparent" />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-500/5 rounded-full blur-3xl" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-green-950/5 to-transparent" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-rh-green-dark/5 rounded-full blur-3xl" />
             
             <div className="glass-section-bg relative z-10">
                 <div className="max-w-6xl mx-auto px-4">
@@ -923,15 +932,15 @@ const Roadmap = () => {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                     >
-                        <span className="inline-block px-4 py-1 bg-gradient-to-r from-purple-500/20 to-green-500/20 border border-purple-500/30 rounded-full text-purple-400 text-sm font-medium mb-4">
+                        <span className="inline-block px-4 py-1 bg-gradient-to-r from-rh-green-dark/20 to-rh-green/20 border border-rh-green/30 rounded-full text-rh-lime text-sm font-medium mb-4">
                             🗺️ SHAREHOLDER ROADMAP
                         </span>
                         <h2 className="text-4xl md:text-5xl font-bold mb-4">
-                            Platform <span className="bg-gradient-to-r from-purple-400 to-green-400 bg-clip-text text-transparent">Evolution</span>
+                            Platform <span className="bg-gradient-to-r from-rh-lime to-rh-green bg-clip-text text-transparent">Evolution</span>
                         </h2>
                         <p className="text-gray-400 max-w-2xl mx-auto text-lg">
                             From single-token protocol to Loss-Mining as a Service. 
-                            <span className="text-green-400 font-semibold"> Target: End of Q1 2026</span>
+                            <span className="text-rh-green font-semibold"> Target: End of Q1 2026</span>
                         </p>
                     </motion.div>
 
@@ -940,7 +949,7 @@ const Roadmap = () => {
                         {/* Progress Line */}
                         <div className="absolute top-6 left-0 right-0 h-1 bg-gray-800 rounded-full hidden md:block">
                             <motion.div 
-                                className="h-full bg-gradient-to-r from-purple-500 via-blue-500 to-green-500 rounded-full"
+                                className="h-full bg-gradient-to-r from-rh-green-dark via-rh-green-bright to-rh-green rounded-full"
                                 initial={{ width: '0%' }}
                                 whileInView={{ width: `${((activePhase + 1) / phases.length) * 100}%` }}
                                 viewport={{ once: true }}
@@ -998,14 +1007,14 @@ const Roadmap = () => {
                                             <p className="text-gray-400 text-sm">{phases[activePhase].date}</p>
                                         </div>
                                     </div>
-                                    <p className="text-lg text-green-400 font-semibold mb-3">
+                                    <p className="text-lg text-rh-green font-semibold mb-3">
                                         {phases[activePhase].summary}
                                     </p>
                                     <p className="text-gray-400 mb-6">
                                         {phases[activePhase].description}
                                     </p>
-                                    <div className="p-4 bg-gradient-to-r from-green-900/30 to-emerald-900/30 rounded-lg border border-green-500/30">
-                                        <p className="text-xs text-green-400 uppercase tracking-wider mb-1">Deliverable</p>
+                                    <div className="p-4 bg-gradient-to-r from-green-900/30 to-emerald-900/30 rounded-lg border border-rh-green/30">
+                                        <p className="text-xs text-rh-green uppercase tracking-wider mb-1">Deliverable</p>
                                         <p className="text-white font-medium">{phases[activePhase].deliverable}</p>
                                     </div>
                                 </div>
@@ -1053,7 +1062,7 @@ const Roadmap = () => {
                                 <button
                                     key={idx}
                                     onClick={() => setActivePhase(idx)}
-                                    className={`w-2 h-2 rounded-full transition-all ${idx === activePhase ? 'bg-green-400 w-6' : 'bg-gray-600 hover:bg-gray-500'}`}
+                                    className={`w-2 h-2 rounded-full transition-all ${idx === activePhase ? 'bg-rh-green w-6' : 'bg-gray-600 hover:bg-gray-500'}`}
                                 />
                             ))}
                         </div>
@@ -1080,12 +1089,12 @@ const Roadmap = () => {
                             <h4 className="font-bold text-lg mb-2">Deflationary Pressure</h4>
                             <p className="text-gray-400 text-sm">Every token that joins = TBLAST bought and burned forever</p>
                         </div>
-                        <div className="glass-panel rounded-xl p-6 text-center border border-green-500/30 bg-gradient-to-b from-green-900/10 to-transparent">
+                        <div className="glass-panel rounded-xl p-6 text-center border border-rh-green/30 bg-gradient-to-b from-green-900/10 to-transparent">
                             <div className="text-4xl mb-3">💰</div>
                             <h4 className="font-bold text-lg mb-2">Revenue Sharing</h4>
                             <p className="text-gray-400 text-sm">Platform fees flow back to TBLAST reward pool</p>
                         </div>
-                        <div className="glass-panel rounded-xl p-6 text-center border border-purple-500/30 bg-gradient-to-b from-purple-900/10 to-transparent">
+                        <div className="glass-panel rounded-xl p-6 text-center border border-rh-green/30 bg-gradient-to-b from-green-950/10 to-transparent">
                             <div className="text-4xl mb-3">🗳️</div>
                             <h4 className="font-bold text-lg mb-2">Future Governance</h4>
                             <p className="text-gray-400 text-sm">TBLAST holders vote on new token listings</p>
@@ -1094,12 +1103,12 @@ const Roadmap = () => {
 
                     {/* Q1 Target Banner */}
                     <motion.div 
-                        className="mt-12 text-center p-6 rounded-xl bg-gradient-to-r from-green-900/30 via-emerald-900/30 to-green-900/30 border border-green-500/30"
+                        className="mt-12 text-center p-6 rounded-xl bg-gradient-to-r from-green-900/30 via-emerald-900/30 to-green-900/30 border border-rh-green/30"
                         initial={{ opacity: 0 }}
                         whileInView={{ opacity: 1 }}
                         viewport={{ once: true }}
                     >
-                        <p className="text-green-400 font-mono text-lg">
+                        <p className="text-rh-green font-mono text-lg">
                             📅 TARGET COMPLETION: <span className="text-white font-bold">MARCH 31, 2026</span>
                         </p>
                         <p className="text-gray-400 text-sm mt-2">Full SaaS platform with 10+ integrated tokens</p>
@@ -1114,7 +1123,7 @@ const AccordionItem = ({ title, children, isOpen, onClick }: { title: string; ch
     return (
         <div className="border-b border-gray-800">
             <button 
-                className="w-full py-4 flex items-center justify-between text-left hover:text-green-400 transition-colors"
+                className="w-full py-4 flex items-center justify-between text-left hover:text-rh-green transition-colors"
                 onClick={onClick}
             >
                 <span className="text-lg font-bold font-mono">{title}</span>
@@ -1154,10 +1163,10 @@ const Whitepaper = () => {
                     <p className="mb-4">Most tokens are a PVP battle where you only win if the price goes up. <strong className="text-white">Topblast flips this dynamic.</strong> It acts as volatility insurance for your portfolio, creating an asymmetric bet where downside volatility can result in upside payouts.</p>
                     <p className="mb-4 text-white"><strong>The Win-Win Scenario:</strong></p>
                     <ul className="list-disc pl-5 space-y-2 mb-4">
-                        <li><strong className="text-green-400">Scenario A (Price Pumps):</strong> You hold the token, the value increases, and you sell for profit. Standard moon mission. You win.</li>
+                        <li><strong className="text-rh-green">Scenario A (Price Pumps):</strong> You hold the token, the value increases, and you sell for profit. Standard moon mission. You win.</li>
                         <li><strong className="text-red-400">Scenario B (Price Dumps):</strong> The market crashes. Paper hands sell. But you hold. Your drawdown % increases, shooting you up the Blaster Leaderboard. You win {PAYOUT.first}% of the winner pool each cycle.</li>
                     </ul>
-                    <div className="mt-4 p-4 bg-green-900/20 border border-green-500/30 rounded text-sm text-green-300 italic">
+                    <div className="mt-4 p-4 bg-green-900/20 border border-rh-green/30 rounded text-sm text-green-300 italic">
                         &quot;In a market of gambling, be the casino. If you can&apos;t be the casino, be the player who gets paid to lose.&quot;
                     </div>
                 </>
@@ -1170,12 +1179,12 @@ const Whitepaper = () => {
                     <p className="mb-4">Topblast uses real on-chain data to calculate your position. Everything is transparent and verifiable.</p>
                     <h4 className="text-white font-bold mt-4 mb-2">Volume-Weighted Average Price (VWAP)</h4>
                     <p className="mb-4">The system tracks every wallet&apos;s entry price from on-chain buy transactions. Your VWAP updates as you buy more tokens.</p>
-                    <code className="block bg-gray-900 p-3 rounded text-xs mb-4 text-green-400 font-mono">
+                    <code className="block bg-gray-900 p-3 rounded text-xs mb-4 text-rh-green font-mono">
                         VWAP = Total Cost Basis / Total Tokens Bought<br/>
                         Total Cost Basis = Σ(ETH spent × ETH price) + Σ(stablecoin spent)
                     </code>
                     <h4 className="text-white font-bold mt-4 mb-2">Drawdown Calculation</h4>
-                    <code className="block bg-gray-900 p-3 rounded text-xs mb-4 text-green-400 font-mono">
+                    <code className="block bg-gray-900 p-3 rounded text-xs mb-4 text-rh-green font-mono">
                         Drawdown % = ((Current Price - VWAP) / VWAP) × 100
                     </code>
                     <h4 className="text-white font-bold mt-4 mb-2">Ranking Logic</h4>
@@ -1193,24 +1202,24 @@ const Whitepaper = () => {
                     <p className="mb-4">These rules prevent gaming and ensure genuine diamond hands are rewarded.</p>
                     
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                        <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-3 text-center">
+                        <div className="bg-green-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
                             <div className="text-xs text-gray-400 uppercase">Min Balance</div>
-                            <div className="text-xl font-bold text-green-400 font-mono">100K</div>
+                            <div className="text-xl font-bold text-rh-green font-mono">100K</div>
                             <div className="text-xs text-gray-500">$TBLAST</div>
                         </div>
-                        <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-3 text-center">
+                        <div className="bg-green-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
                             <div className="text-xs text-gray-400 uppercase">Hold Time</div>
-                            <div className="text-xl font-bold text-green-400 font-mono">2 hr</div>
+                            <div className="text-xl font-bold text-rh-green font-mono">2 hr</div>
                             <div className="text-xs text-gray-500">minimum</div>
                         </div>
-                        <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-3 text-center">
+                        <div className="bg-green-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
                             <div className="text-xs text-gray-400 uppercase">Min Loss</div>
-                            <div className="text-xl font-bold text-green-400 font-mono">10%</div>
+                            <div className="text-xl font-bold text-rh-green font-mono">10%</div>
                             <div className="text-xs text-gray-500">of pool</div>
                         </div>
-                        <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-3 text-center">
+                        <div className="bg-green-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
                             <div className="text-xs text-gray-400 uppercase">Min Pool</div>
-                            <div className="text-xl font-bold text-green-400 font-mono">$50</div>
+                            <div className="text-xl font-bold text-rh-green font-mono">$50</div>
                             <div className="text-xs text-gray-500">for payout</div>
                         </div>
                     </div>
@@ -1254,9 +1263,9 @@ const Whitepaper = () => {
                             <span>{PAYOUT.third}%</span>
                         </div>
                     </div>
-                    <div className="p-4 bg-green-900/20 border border-green-500/30 rounded">
+                    <div className="p-4 bg-green-900/20 border border-rh-green/30 rounded">
                         <p className="text-green-300 font-bold mb-2">🎯 Zero Interaction Required</p>
-                        <p className="text-gray-400 text-sm">Just buy and hold. Winners receive native ETH directly in their wallets. Check your ranking on the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-green-400 underline hover:text-green-300">live leaderboard</a>.</p>
+                        <p className="text-gray-400 text-sm">Just buy and hold. Winners receive native ETH directly in their wallets. Check your ranking on the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-rh-green underline hover:text-green-300">live leaderboard</a>.</p>
                     </div>
                 </>
             )
@@ -1269,7 +1278,7 @@ const Whitepaper = () => {
                     
                     <div className="space-y-4">
                         <div className="flex items-start gap-4 p-4 bg-gray-900/50 rounded-lg">
-                            <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">1</div>
+                            <div className="w-10 h-10 bg-rh-green rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">1</div>
                             <div>
                                 <h4 className="text-white font-bold mb-1">Buy $TBLAST</h4>
                                 <p className="text-gray-400 text-sm">Purchase $TBLAST on Robinhood Chain via any supported DEX. Hold in your EVM wallet — no app connection required.</p>
@@ -1277,7 +1286,7 @@ const Whitepaper = () => {
                         </div>
                         
                         <div className="flex items-start gap-4 p-4 bg-gray-900/50 rounded-lg">
-                            <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">2</div>
+                            <div className="w-10 h-10 bg-rh-green rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">2</div>
                             <div>
                                 <h4 className="text-white font-bold mb-1">Hold for 2+ Hours</h4>
                                 <p className="text-gray-400 text-sm">Your tokens must be held for at least 2 hours before eligibility. Don&apos;t sell. Don&apos;t transfer.</p>
@@ -1285,10 +1294,10 @@ const Whitepaper = () => {
                         </div>
                         
                         <div className="flex items-start gap-4 p-4 bg-gray-900/50 rounded-lg">
-                            <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">3</div>
+                            <div className="w-10 h-10 bg-rh-green rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">3</div>
                             <div>
                                 <h4 className="text-white font-bold mb-1">Watch &amp; Win</h4>
-                                <p className="text-gray-400 text-sm">Check the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-green-400 underline">live leaderboard</a>. If you&apos;re top 3, ETH is sent automatically.</p>
+                                <p className="text-gray-400 text-sm">Check the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-rh-green underline">live leaderboard</a>. If you&apos;re top 3, ETH is sent automatically.</p>
                             </div>
                         </div>
                     </div>
@@ -1302,7 +1311,7 @@ const Whitepaper = () => {
                     <div className="space-y-6">
                         <div>
                             <h4 className="text-white font-bold mb-2">How do I check my ranking?</h4>
-                            <p className="text-gray-400">Visit the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-green-400 underline">live leaderboard</a>. All data is public—no wallet connection needed.</p>
+                            <p className="text-gray-400">Visit the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-rh-green underline">live leaderboard</a>. All data is public—no wallet connection needed.</p>
                         </div>
                         <div>
                             <h4 className="text-white font-bold mb-2">Is this gambling?</h4>
@@ -1314,7 +1323,7 @@ const Whitepaper = () => {
                         </div>
                         <div>
                             <h4 className="text-white font-bold mb-2">How big can payouts get?</h4>
-                            <p className="text-gray-400">The pool grows with trading volume. More volume = more fees = bigger pool. Check current pool size on the <a href={`${APP_URL}/stats`} target="_blank" rel="noopener noreferrer" className="text-green-400 underline">stats page</a>.</p>
+                            <p className="text-gray-400">The pool grows with trading volume. More volume = more fees = bigger pool. Check current pool size on the <a href={`${APP_URL}/stats`} target="_blank" rel="noopener noreferrer" className="text-rh-green underline">stats page</a>.</p>
                         </div>
                     </div>
                 </>
@@ -1327,10 +1336,10 @@ const Whitepaper = () => {
             <div className="glass-section-bg">
                 <div className="max-w-4xl mx-auto px-4">
                     <div className="text-center mb-12">
-                        <span className="inline-block px-4 py-1 bg-purple-500/20 border border-purple-500/30 rounded-full text-purple-400 text-sm font-medium mb-4">
+                        <span className="inline-block px-4 py-1 bg-rh-green-dark/20 border border-rh-green/30 rounded-full text-rh-lime text-sm font-medium mb-4">
                             DOCUMENTATION
                         </span>
-                        <h2 className="text-4xl font-bold mb-4">Whitepaper <span className="text-green-500 text-sm align-top">v3.0</span></h2>
+                        <h2 className="text-4xl font-bold mb-4">Whitepaper <span className="text-rh-green text-sm align-top">v3.0</span></h2>
                         <p className="text-gray-400">Complete technical documentation of the Topblast protocol.</p>
                     </div>
                     <div className="glass-panel rounded-xl p-2 md:p-8">
@@ -1357,7 +1366,7 @@ const Footer = () => {
             <div className="max-w-7xl mx-auto px-4">
                 {/* CTA Banner */}
                 <motion.div 
-                    className="glass-panel rounded-2xl p-8 mb-12 text-center border border-green-500/30 bg-gradient-to-r from-green-900/20 to-purple-900/20"
+                    className="glass-panel rounded-2xl p-8 mb-12 text-center border border-rh-green/30 bg-gradient-to-r from-green-900/20 to-green-950/20"
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
@@ -1370,7 +1379,7 @@ const Footer = () => {
                         <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            className="bg-gradient-to-r from-green-400 to-emerald-500 text-black px-10 py-4 rounded-lg font-bold text-lg shadow-[0_0_30px_rgba(20,241,149,0.4)] hover:shadow-[0_0_40px_rgba(20,241,149,0.6)] transition-all"
+                            className="bg-gradient-to-r from-rh-green to-rh-lime text-black px-10 py-4 rounded-lg font-bold text-lg shadow-[0_0_30px_rgba(20,241,149,0.4)] hover:shadow-[0_0_40px_rgba(20,241,149,0.6)] transition-all"
                         >
                             Launch App at topblastweb3.xyz →
                         </motion.button>
@@ -1381,18 +1390,18 @@ const Footer = () => {
                 <div className="flex flex-col md:flex-row justify-between items-center gap-6 text-sm text-gray-500">
                     <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded overflow-hidden">
-                            <Image src="/logo.jpg" alt="TopBlast" width={32} height={32} className="w-full h-full object-cover" />
+                            <Image src="/logo.png" alt="TopBlast" width={32} height={32} className="w-full h-full object-cover" />
                         </div>
                         <span className="font-bold text-white">TOPBLAST</span>
                         <RobinhoodBadge compact />
                     </div>
                     <div className="flex items-center gap-6">
-                        <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors flex items-center gap-1">
+                        <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="hover:text-rh-green transition-colors flex items-center gap-1">
                             App <Icons.ExternalLink />
                         </a>
-                        <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors">Leaderboard</a>
-                        <a href={`${APP_URL}/history`} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors">History</a>
-                        <a href={`${APP_URL}/stats`} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors">Stats</a>
+                        <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="hover:text-rh-green transition-colors">Leaderboard</a>
+                        <a href={`${APP_URL}/history`} target="_blank" rel="noopener noreferrer" className="hover:text-rh-green transition-colors">History</a>
+                        <a href={`${APP_URL}/stats`} target="_blank" rel="noopener noreferrer" className="hover:text-rh-green transition-colors">Stats</a>
                         {/* Social Links */}
                         <div className="flex items-center gap-4 border-l border-white/10 pl-4">
                             <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors flex items-center gap-1" title="Follow on X">
@@ -1409,7 +1418,7 @@ const Footer = () => {
 
 export default function Home() {
     return (
-        <div className="antialiased selection:bg-green-500 selection:text-black">
+        <div className="antialiased selection:bg-rh-green selection:text-black">
             {/* Fixed 3D Candlestick Background */}
             <CandlestickBackground />
             

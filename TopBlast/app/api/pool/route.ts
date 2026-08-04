@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/db'
 import { PoolBalance } from '@/lib/db/models'
 import { formatUsd } from '@/lib/evm/price'
-import { formatUsd } from '@/lib/evm/price'
 import { getPayoutSplitLabels } from '@/lib/payout/shares'
 import { config } from '@/lib/config'
 

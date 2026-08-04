@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getDevFeePercent } from '@/lib/payout/shares'
+import { RobinhoodBadge } from '@/components/ui/RobinhoodBadge'
+import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
 
 const DEV_FEE = getDevFeePercent()
 
@@ -36,12 +38,12 @@ interface PayoutEntry {
   type: 'dev_fee' | 'winner'
   wallet: string
   wallet_display: string
-  amount_sol: string
+  amount_eth: string
   amount_usd: string
   drawdown_pct: string | null
   loss_usd: string | null
   tx_hash: string | null
-  solscan_url: string | null
+  explorer_url: string | null
   status: 'success' | 'failed'
   error: string | null
 }
@@ -50,7 +52,7 @@ interface PayoutCycle {
   cycle: number
   timestamp: string
   payouts: PayoutEntry[]
-  total_sol: string
+  total_eth: string
   total_usd: string
   success_count: number
   failed_count: number
@@ -60,7 +62,7 @@ interface PayoutCycle {
 interface HistoryStats {
   total_cycles: number
   total_payouts: number
-  total_distributed_sol: string
+  total_distributed_eth: string
   failed_payouts: number
 }
 
@@ -76,7 +78,7 @@ function getRankBadge(rank: number, type: string) {
     return (
       <div className="flex items-center gap-2">
         <span className="text-2xl">🔧</span>
-        <span className="bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded text-xs font-medium">
+        <span className="bg-rh-green-dark/30 text-rh-lime px-2 py-0.5 rounded text-xs font-medium">
           DEV
         </span>
       </div>
@@ -108,9 +110,9 @@ function getStatusBadge(status: string) {
         <motion.span
           initial={{ scale: 0.9 }}
           animate={{ scale: 1 }}
-          className="inline-flex items-center gap-1.5 bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-xs font-medium"
+          className="inline-flex items-center gap-1.5 bg-rh-green/20 text-rh-green px-3 py-1 rounded-full text-xs font-medium"
         >
-          <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+          <span className="w-1.5 h-1.5 bg-rh-green rounded-full" />
           Success
         </motion.span>
       )
@@ -177,7 +179,7 @@ export default function HistoryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#06060a] flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -186,7 +188,7 @@ export default function HistoryPage() {
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-            className="w-12 h-12 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full mx-auto mb-4"
+            className="w-12 h-12 border-2 border-rh-green/30 border-t-rh-green rounded-full mx-auto mb-4"
           />
           <p className="text-gray-400">Loading history...</p>
         </motion.div>
@@ -196,29 +198,28 @@ export default function HistoryPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#06060a] flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-xl text-red-400">{error}</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#06060a] text-white">
+    <div className="min-h-screen bg-black text-white">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-20 right-20 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 left-20 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-20 right-20 w-80 h-80 bg-rh-green/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 left-20 w-80 h-80 bg-rh-green-dark/5 rounded-full blur-3xl" />
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#06060a]/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-rh-green/10 bg-black/80 backdrop-blur-xl">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-emerald-500/25">
-                <Image src="/logo.jpg" alt="TopBlast" width={40} height={40} className="w-full h-full object-cover" />
-              </div>
-              <span className="text-xl font-bold">TOPBLAST</span>
+              <TopBlastLogo size="md" />
+              <span className="text-xl font-bold tracking-tight"><span className="text-rh-green">TOP</span><span className="text-white">BLAST</span></span>
+              <RobinhoodBadge compact />
             </Link>
             <nav className="flex items-center gap-6">
               <Link href="/leaderboard" className="text-gray-400 hover:text-white transition-colors text-sm">
@@ -227,7 +228,7 @@ export default function HistoryPage() {
               <Link href="/stats" className="text-gray-400 hover:text-white transition-colors text-sm">
                 Stats
               </Link>
-              <a href={LINKS.whitepaper} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-emerald-400 transition-colors" title="Whitepaper">
+              <a href={LINKS.whitepaper} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-rh-green transition-colors" title="Whitepaper">
                 <DocsIcon />
               </a>
               <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors" title="Follow on X">
@@ -245,9 +246,9 @@ export default function HistoryPage() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-3xl font-bold mb-2">Payout History</h1>
+          <h1 className="text-3xl font-bold mb-2">Payout History <span className="text-rh-green text-lg font-normal">· ETH</span></h1>
           <p className="text-gray-400">
-            {data?.stats.total_cycles || 0} cycles • {data?.stats.total_payouts || 0} successful payouts • {data?.stats.total_distributed_eth || data?.stats.total_distributed_sol || '0'} ETH distributed
+            Native ETH payouts on Robinhood Chain · {data?.stats.total_cycles || 0} cycles · {data?.stats.total_payouts || 0} successful · {data?.stats.total_distributed_eth || '0'} ETH distributed
             {data?.network === 'devnet' && (
               <span className="ml-2 text-amber-400">(Devnet)</span>
             )}
@@ -267,7 +268,7 @@ export default function HistoryPage() {
           </div>
           <div className="bg-white/5 border border-white/10 rounded-xl p-4">
             <div className="text-sm text-gray-400">Successful</div>
-            <div className="text-2xl font-bold text-emerald-400">{data?.stats.total_payouts || 0}</div>
+            <div className="text-2xl font-bold text-rh-green">{data?.stats.total_payouts || 0}</div>
           </div>
           <div className="bg-white/5 border border-white/10 rounded-xl p-4">
             <div className="text-sm text-gray-400">Failed</div>
@@ -275,7 +276,7 @@ export default function HistoryPage() {
           </div>
           <div className="bg-white/5 border border-white/10 rounded-xl p-4">
             <div className="text-sm text-gray-400">Distributed</div>
-            <div className="text-2xl font-bold text-purple-400">{data?.stats.total_distributed_eth || data?.stats.total_distributed_sol || '0'} ETH</div>
+            <div className="text-2xl font-bold text-rh-lime">{data?.stats.total_distributed_eth || '0'} ETH</div>
           </div>
         </motion.div>
 
@@ -288,13 +289,13 @@ export default function HistoryPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: cycleIdx * 0.1 }}
-                className="bg-[#0a0a10] border border-white/10 rounded-2xl mb-6 overflow-hidden"
+                className="bg-rh-black border border-white/10 rounded-2xl mb-6 overflow-hidden"
               >
                 {/* Cycle Header */}
                 <div className="p-5 bg-white/5 border-b border-white/10 flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-bold flex items-center gap-3">
-                      <span className="text-emerald-400">Cycle #{cycle.cycle}</span>
+                      <span className="text-rh-green">Cycle #{cycle.cycle}</span>
                       {getStatusBadge(cycle.status)}
                     </h2>
                     <p className="text-sm text-gray-400 mt-1">
@@ -303,7 +304,7 @@ export default function HistoryPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-sm text-gray-400">Total Paid</div>
-                    <div className="text-lg font-bold text-white">{cycle.total_eth || cycle.total_sol} ETH</div>
+                    <div className="text-lg font-bold text-white">{cycle.total_eth} ETH</div>
                     <div className="text-xs text-gray-500">${cycle.total_usd}</div>
                   </div>
                 </div>
@@ -325,12 +326,12 @@ export default function HistoryPage() {
                             <div>
                               <div className="font-mono text-white font-medium flex items-center gap-2">
                                 {payout.wallet_display}
-                                {payout.solscan_url && (
+                                {payout.explorer_url && (
                                   <a 
-                                    href={payout.solscan_url} 
+                                    href={payout.explorer_url} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="text-emerald-400 hover:text-emerald-300 transition-colors"
+                                    className="text-rh-green hover:text-rh-lime transition-colors"
                                     title="View on Blockscout"
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -357,8 +358,8 @@ export default function HistoryPage() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className={`text-xl font-bold ${payout.status === 'success' ? 'text-emerald-400' : 'text-red-400 line-through'}`}>
-                              {payout.amount_eth || payout.amount_sol} ETH
+                            <div className={`text-xl font-bold ${payout.status === 'success' ? 'text-rh-green' : 'text-red-400 line-through'}`}>
+                              {payout.amount_eth} ETH
                             </div>
                             <div className="text-sm text-gray-500 mt-1">${payout.amount_usd}</div>
                           </div>
@@ -369,10 +370,10 @@ export default function HistoryPage() {
                           <div className="mt-3 pt-3 border-t border-white/5">
                             <span className="text-xs text-gray-500">TX: </span>
                             <a 
-                              href={payout.solscan_url || '#'} 
+                              href={payout.explorer_url || '#'} 
                               target="_blank" 
                               rel="noopener noreferrer"
-                              className="text-xs font-mono text-emerald-400/70 hover:text-emerald-400 transition-colors"
+                              className="text-xs font-mono text-rh-green/70 hover:text-rh-green transition-colors"
                             >
                               {payout.tx_hash.slice(0, 20)}...{payout.tx_hash.slice(-8)}
                             </a>
@@ -382,12 +383,12 @@ export default function HistoryPage() {
                     ))}
                     
                     {/* Summary */}
-                    <div className="p-5 bg-emerald-500/5 border-t border-emerald-500/20">
+                    <div className="p-5 bg-rh-green/5 border-t border-rh-green/20">
                       <div className="flex items-center justify-between">
                         <span className="text-gray-400">
                           {cycle.success_count} successful, {cycle.failed_count} failed
                         </span>
-                        <span className="text-xl font-bold text-emerald-400">{cycle.total_eth || cycle.total_sol} ETH</span>
+                        <span className="text-xl font-bold text-rh-green">{cycle.total_eth} ETH</span>
                       </div>
                     </div>
                   </div>
@@ -403,7 +404,7 @@ export default function HistoryPage() {
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-[#0a0a10] border border-white/10 rounded-2xl p-12 text-center"
+              className="bg-rh-black border border-white/10 rounded-2xl p-12 text-center"
             >
               <motion.div
                 className="text-6xl mb-4"
@@ -421,7 +422,7 @@ export default function HistoryPage() {
                 <motion.button
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.98 }}
-                  className="px-6 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 rounded-xl text-emerald-400 font-medium transition-all"
+                  className="px-6 py-3 bg-rh-green/20 hover:bg-rh-green/30 border border-rh-green/30 rounded-xl text-rh-green font-medium transition-all"
                 >
                   View Leaderboard
                 </motion.button>

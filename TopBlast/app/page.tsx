@@ -6,14 +6,17 @@ import { motion } from 'framer-motion'
 import { useRealtimePrice } from '@/hooks/useRealtime'
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
 import { RobinhoodBadge } from '@/components/ui/RobinhoodBadge'
+import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
+import { getWinnerSharePercents, getDevFeePercent } from '@/lib/payout/shares'
 
-// External Links
+const SHARES = getWinnerSharePercents()
+const DEV_FEE = getDevFeePercent()
+
 const LINKS = {
   twitter: 'https://x.com/TOPBLASTX',
   whitepaper: 'https://topblastx100.vercel.app',
 }
 
-// Social Icons
 const XIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
@@ -26,7 +29,6 @@ const DocsIcon = () => (
     <polyline points="14 2 14 8 20 8"></polyline>
     <line x1="16" y1="13" x2="8" y2="13"></line>
     <line x1="16" y1="17" x2="8" y2="17"></line>
-    <polyline points="10 9 9 9 8 9"></polyline>
   </svg>
 )
 
@@ -34,231 +36,152 @@ export default function Home() {
   const { price, marketCap } = useRealtimePrice(15000)
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden">
-      {/* Animated background */}
+    <div className="min-h-screen flex flex-col relative overflow-hidden bg-black">
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-emerald-500/10 rounded-full blur-[100px]" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-[100px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-[120px]" />
-        <div className="absolute inset-0 bg-grid-pattern opacity-30" />
+        <div className="absolute top-20 left-10 w-72 h-72 bg-rh-green/15 rounded-full blur-[100px]" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-rh-green/10 rounded-full blur-[100px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-rh-lime/5 rounded-full blur-[120px]" />
+        <div className="absolute inset-0 bg-grid-pattern opacity-40" />
       </div>
 
-      {/* Header */}
-      <header className="relative z-10 border-b border-white/5">
+      <header className="relative z-10 border-b border-rh-green/10 bg-black/80 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <motion.div
-              initial={{ rotate: -10 }}
-              animate={{ rotate: 0 }}
-              className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-emerald-500/25"
-            >
-              <Image src="/logo.jpg" alt="TopBlast" width={40} height={40} className="w-full h-full object-cover" />
-            </motion.div>
-            <span className="text-xl font-bold">TOPBLAST</span>
+            <TopBlastLogo size="md" className="shadow-rh-glow-sm" />
+            <span className="text-xl font-bold tracking-tight">
+              <span className="text-rh-green">TOP</span>
+              <span className="text-white">BLAST</span>
+            </span>
+            <RobinhoodBadge compact />
           </div>
           <nav className="flex items-center gap-6">
-            <Link href="/leaderboard" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">
-              Leaderboard
-            </Link>
-            <Link href="/stats" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">
-              Stats
-            </Link>
-            <Link href="/history" className="text-gray-400 hover:text-white transition-colors text-sm font-medium">
-              History
-            </Link>
-            <a href={LINKS.whitepaper} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-emerald-400 transition-colors" title="Whitepaper">
-              <DocsIcon />
-            </a>
-            <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors" title="Follow on X">
-              <XIcon />
-            </a>
+            <Link href="/leaderboard" className="text-gray-400 hover:text-rh-green transition-colors text-sm font-medium">Leaderboard</Link>
+            <Link href="/stats" className="text-gray-400 hover:text-rh-green transition-colors text-sm font-medium">Stats</Link>
+            <Link href="/history" className="text-gray-400 hover:text-rh-green transition-colors text-sm font-medium">History</Link>
+            <a href={LINKS.whitepaper} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-rh-green transition-colors" title="Whitepaper"><DocsIcon /></a>
+            <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors" title="Follow on X"><XIcon /></a>
           </nav>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-20">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center max-w-4xl"
-        >
-          <div className="flex flex-col items-center gap-3 mb-8">
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-16">
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center max-w-4xl w-full">
+          <div className="flex flex-col items-center gap-4 mb-6">
             <RobinhoodBadge />
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2 }}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-400 text-sm font-medium"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-rh-green/10 border border-rh-green/30 rounded-full text-rh-lime text-sm font-medium"
             >
-              <motion.div
-                className="w-2 h-2 bg-emerald-400 rounded-full"
-                animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-              />
-              Live on Robinhood Chain · Automated ETH Payouts
+              <motion.div className="w-2 h-2 bg-rh-green rounded-full" animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }} transition={{ duration: 1.5, repeat: Infinity }} />
+              Live on Robinhood Chain · Native ETH Payouts
             </motion.div>
           </div>
 
-          {/* Logo */}
-          <motion.div
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
-            className="w-24 h-24 rounded-2xl overflow-hidden mx-auto mb-8 shadow-2xl shadow-emerald-500/30"
-          >
-            <Image src="/logo.jpg" alt="TopBlast" width={96} height={96} className="w-full h-full object-cover" />
+          <motion.div initial={{ scale: 0.85 }} animate={{ scale: 1 }} transition={{ delay: 0.1, type: 'spring', stiffness: 200 }} className="mx-auto mb-6 shadow-rh-glow">
+            <TopBlastLogo size="xl" />
           </motion.div>
 
-          {/* Title */}
-          <h1 className="text-6xl md:text-7xl font-bold mb-6">
-            <span className="gradient-text-accent">TOPBLAST</span>
+          <div className="relative mx-auto mb-8 max-w-3xl hidden md:block">
+            <Image src="/banner.png" alt="TopBlast — The Loss-Mining Protocol" width={900} height={280} className="w-full h-auto rounded-xl opacity-90" priority />
+          </div>
+
+          <h1 className="text-5xl md:text-7xl font-bold mb-4 tracking-tight">
+            <span className="text-rh-green">TOP</span>
+            <span className="text-white">BLAST</span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-gray-300 mb-4 font-light">
-            The Loss-Mining Protocol
+          <p className="text-xl md:text-2xl text-gray-300 mb-2 font-light">The Loss-Mining Protocol</p>
+          <p className="text-gray-400 max-w-2xl mx-auto mb-10 text-lg leading-relaxed">
+            Get paid in <span className="text-rh-green font-semibold">native ETH</span> for being a{' '}
+            <span className="text-red-400 font-semibold">top loser</span>. Every 2 hours, the top 3 drawdowns win from the pool.
           </p>
 
-          <p className="text-gray-400 max-w-2xl mx-auto mb-12 text-lg leading-relaxed">
-            Get paid for being a <span className="text-red-400 font-semibold">top loser</span>. 
-            Every hour, the top 3 wallets with the biggest drawdowns win from the reward pool.
-          </p>
-
-          {/* Live Stats */}
           {(price || marketCap) && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="flex items-center justify-center gap-8 mb-12 py-4 px-8 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 mx-auto w-fit"
-            >
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+              className="flex items-center justify-center gap-8 mb-10 py-4 px-8 glass-panel rounded-2xl mx-auto w-fit border-rh-green/20">
               {price && (
                 <div className="text-center">
                   <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Price</div>
-                  <div className="text-xl font-bold font-mono text-white">
-                    ${price < 0.0001 ? price.toPrecision(2) : price.toFixed(6)}
-                  </div>
+                  <div className="text-xl font-bold font-mono text-rh-lime">${price < 0.0001 ? price.toPrecision(2) : price.toFixed(6)}</div>
                 </div>
               )}
               {marketCap && (
                 <>
-                  <div className="w-px h-10 bg-white/10" />
+                  <div className="w-px h-10 bg-rh-green/20" />
                   <div className="text-center">
                     <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Market Cap</div>
-                    <div className="text-xl font-bold font-mono text-white">
-                      <AnimatedNumber value={marketCap} format="currency" />
-                    </div>
+                    <div className="text-xl font-bold font-mono text-white"><AnimatedNumber value={marketCap} format="currency" /></div>
                   </div>
                 </>
               )}
             </motion.div>
           )}
 
-          {/* CTA Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center mb-16"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <Link href="/leaderboard">
-              <motion.button
-                whileHover={{ scale: 1.03, y: -2 }}
-                whileTap={{ scale: 0.98 }}
-                className="relative px-8 py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 text-black rounded-xl font-bold text-lg shadow-lg shadow-emerald-500/25 overflow-hidden group"
-              >
-                <span className="relative z-10">View Leaderboard</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <motion.button whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.98 }}
+                className="px-8 py-4 bg-rh-green hover:bg-rh-green-bright text-black rounded-xl font-bold text-lg shadow-rh-glow transition-colors">
+                View Leaderboard
               </motion.button>
             </Link>
-
             <Link href="/history">
-              <motion.button
-                whileHover={{ scale: 1.03, y: -2 }}
-                whileTap={{ scale: 0.98 }}
-                className="px-8 py-4 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 rounded-xl font-bold text-lg transition-all"
-              >
-                Payout History
+              <motion.button whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.98 }}
+                className="px-8 py-4 bg-white/5 border border-rh-green/25 hover:bg-rh-green/10 hover:border-rh-green/40 rounded-xl font-bold text-lg transition-all text-rh-lime">
+                ETH Payout History
               </motion.button>
             </Link>
           </motion.div>
 
-          {/* Payout Distribution */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="grid grid-cols-3 gap-6 max-w-lg mx-auto mb-16"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="grid grid-cols-3 gap-4 max-w-lg mx-auto mb-4">
             {[
-              { place: '1st', pct: 80, color: 'from-yellow-500 to-amber-400', emoji: '🥇' },
-              { place: '2nd', pct: 15, color: 'from-gray-400 to-gray-300', emoji: '🥈' },
-              { place: '3rd', pct: 5, color: 'from-orange-500 to-amber-500', emoji: '🥉' },
-            ].map((item, idx) => (
-              <motion.div
-                key={item.place}
-                whileHover={{ y: -4 }}
-                className="text-center p-4 bg-white/5 rounded-xl border border-white/5"
-              >
+              { place: '1st', pct: SHARES.first, emoji: '🥇' },
+              { place: '2nd', pct: SHARES.second, emoji: '🥈' },
+              { place: '3rd', pct: SHARES.third, emoji: '🥉' },
+            ].map((item) => (
+              <motion.div key={item.place} whileHover={{ y: -4 }} className="text-center p-4 glass-panel rounded-xl border-rh-green/15">
                 <div className="text-3xl mb-2">{item.emoji}</div>
-                <div className={`text-3xl font-bold bg-gradient-to-r ${item.color} bg-clip-text text-transparent`}>
-                  {item.pct}%
-                </div>
-                <div className="text-xs text-gray-500 mt-1">{item.place} Place</div>
+                <div className="text-3xl font-bold text-rh-green">{item.pct}%</div>
+                <div className="text-xs text-gray-500 mt-1">{item.place} · ETH share</div>
               </motion.div>
             ))}
           </motion.div>
+          <p className="text-xs text-gray-500 mb-12 text-center max-w-lg mx-auto">
+            Winner pool {SHARES.first}/{SHARES.second}/{SHARES.third} after {DEV_FEE}% dev fee · all payouts sent as native ETH on Robinhood Chain
+          </p>
 
-          {/* Eligibility Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className="glass-panel rounded-2xl p-8 max-w-2xl mx-auto"
-          >
-            <h2 className="text-xl font-bold mb-6 flex items-center gap-2 justify-center">
-              <span>📋</span> Eligibility Requirements
-            </h2>
-            
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="glass-panel rounded-2xl p-8 max-w-2xl mx-auto border-rh-green/20">
+            <h2 className="text-xl font-bold mb-6 flex items-center gap-2 justify-center text-rh-lime"><span>📋</span> Eligibility Requirements</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               {[
                 { label: 'Min Balance', value: '100K', sub: 'tokens' },
-                { label: 'Hold Duration', value: '1 hr', sub: 'minimum' },
+                { label: 'Hold Duration', value: '2 hr', sub: 'minimum' },
                 { label: 'Min Loss', value: '10%', sub: 'of pool' },
-                { label: 'Min Pool', value: '$50', sub: 'for payout' },
+                { label: 'Min Pool', value: '$50', sub: 'ETH payout' },
               ].map((item) => (
-                <div key={item.label} className="bg-white/5 rounded-xl p-4 text-center">
+                <div key={item.label} className="bg-rh-green/5 border border-rh-green/10 rounded-xl p-4 text-center">
                   <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">{item.label}</div>
-                  <div className="text-2xl font-bold text-emerald-400 font-mono">{item.value}</div>
+                  <div className="text-2xl font-bold text-rh-green font-mono">{item.value}</div>
                   <div className="text-xs text-gray-500">{item.sub}</div>
                 </div>
               ))}
             </div>
-
-            <div className="border-t border-white/10 pt-4">
+            <div className="border-t border-rh-green/10 pt-4">
               <p className="text-sm text-gray-400">
-                <span className="text-red-400 font-semibold">Disqualifiers:</span>{' '}
-                Sold tokens • Transferred out (1hr cooldown) • Won last cycle
+                <span className="text-red-400 font-semibold">Disqualifiers:</span> Sold tokens · Transferred out (2hr cooldown) · Won last cycle
               </p>
             </div>
           </motion.div>
         </motion.div>
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 border-t border-white/5 py-6">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-gray-500">Powered by Robinhood Chain • Real-time on-chain data</p>
-            <div className="flex items-center gap-4">
-              <a href={LINKS.whitepaper} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-emerald-400 transition-colors flex items-center gap-2 text-sm">
-                <DocsIcon /> Whitepaper
-              </a>
-              <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors flex items-center gap-2 text-sm">
-                <XIcon /> @TOPBLASTX
-              </a>
-            </div>
+      <footer className="relative z-10 border-t border-rh-green/10 py-6 bg-black/80">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-gray-500">Robinhood Chain · Native ETH payouts · Blockscout verified</p>
+          <div className="flex items-center gap-4">
+            <a href={LINKS.whitepaper} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-rh-green transition-colors flex items-center gap-2 text-sm"><DocsIcon /> Whitepaper</a>
+            <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors flex items-center gap-2 text-sm"><XIcon /> @TOPBLASTX</a>
           </div>
         </div>
       </footer>

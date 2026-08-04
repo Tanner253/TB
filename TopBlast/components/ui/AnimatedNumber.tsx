@@ -190,7 +190,7 @@ export function PriceTicker({ price, change, symbol = '', size = 'md' }: PriceTi
       {symbol && <span className="text-gray-400">{symbol}</span>}
       <motion.span
         className={`font-bold font-mono transition-colors ${
-          flash ? 'text-cyan-400' : 'text-white'
+          flash ? 'text-rh-lime' : 'text-white'
         }`}
         animate={flash ? { scale: [1, 1.05, 1] } : {}}
         transition={{ duration: 0.2 }}

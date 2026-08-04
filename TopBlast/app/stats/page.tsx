@@ -1,11 +1,13 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRealtimePrice, useTimeSince } from '@/hooks/useRealtime'
 import { AnimatedNumber, PriceTicker } from '@/components/ui/AnimatedNumber'
 import { RobinhoodBadge } from '@/components/ui/RobinhoodBadge'
+import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
 import { getWinnerSharePercents, getDevFeePercent } from '@/lib/payout/shares'
 
 const SHARES = getWinnerSharePercents()
@@ -134,7 +136,7 @@ export default function StatsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#06060a] flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -143,7 +145,7 @@ export default function StatsPage() {
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-            className="w-12 h-12 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full mx-auto mb-4"
+            className="w-12 h-12 border-2 border-rh-green/30 border-t-rh-green rounded-full mx-auto mb-4"
           />
           <p className="text-gray-400">Loading statistics...</p>
         </motion.div>
@@ -153,29 +155,28 @@ export default function StatsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#06060a] flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-xl text-red-400">{error}</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#06060a] text-white">
+    <div className="min-h-screen bg-black text-white">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-rh-green-dark/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-rh-lime/5 rounded-full blur-3xl" />
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#06060a]/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-rh-green/10 bg-black/80 backdrop-blur-xl">
         <div className="max-w-5xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-emerald-500/25">
-                <Image src="/logo.jpg" alt="TopBlast" width={40} height={40} className="w-full h-full object-cover" />
-              </div>
-              <span className="text-xl font-bold">TOPBLAST</span>
+              <TopBlastLogo size="md" />
+              <span className="text-xl font-bold tracking-tight"><span className="text-rh-green">TOP</span><span className="text-white">BLAST</span></span>
+              <RobinhoodBadge compact />
             </Link>
             <nav className="flex items-center gap-6">
               <Link href="/leaderboard" className="text-gray-400 hover:text-white transition-colors text-sm">
@@ -184,7 +185,7 @@ export default function StatsPage() {
               <Link href="/history" className="text-gray-400 hover:text-white transition-colors text-sm">
                 History
               </Link>
-              <a href={LINKS.whitepaper} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-emerald-400 transition-colors" title="Whitepaper">
+              <a href={LINKS.whitepaper} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-rh-green transition-colors" title="Whitepaper">
                 <DocsIcon />
               </a>
               <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors" title="Follow on X">
@@ -213,8 +214,8 @@ export default function StatsPage() {
             )}
             {stats?.service?.initialized && (
               <>
-                <span className="w-1 h-1 bg-emerald-500 rounded-full" />
-                <span className="text-emerald-400">Service Ready</span>
+                <span className="w-1 h-1 bg-rh-green rounded-full" />
+                <span className="text-rh-green">Service Ready</span>
               </>
             )}
           </div>
@@ -232,7 +233,7 @@ export default function StatsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Symbol</div>
-              <div className="text-2xl font-bold text-cyan-400">${stats?.token.symbol}</div>
+              <div className="text-2xl font-bold text-rh-lime">${stats?.token.symbol}</div>
             </div>
             <div>
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Price</div>
@@ -272,7 +273,7 @@ export default function StatsPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
             <div>
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Current Balance</div>
-              <div className="text-3xl font-bold text-emerald-400">{pool?.balance_usd || stats?.protocol.current_pool_usd || '$0'}</div>
+              <div className="text-3xl font-bold text-rh-green">{pool?.balance_usd || stats?.protocol.current_pool_usd || '$0'}</div>
             </div>
             <div>
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Total Distributed</div>
@@ -285,7 +286,7 @@ export default function StatsPage() {
           </div>
           <div className="mt-6 flex items-center gap-3">
             <motion.div
-              className={`w-3 h-3 rounded-full ${pool?.payout_enabled ? 'bg-emerald-400' : 'bg-red-400'}`}
+              className={`w-3 h-3 rounded-full ${pool?.payout_enabled ? 'bg-rh-green' : 'bg-red-400'}`}
               animate={pool?.payout_enabled ? { scale: [1, 1.2, 1] } : {}}
               transition={{ duration: 1.5, repeat: Infinity }}
             />
@@ -312,19 +313,19 @@ export default function StatsPage() {
             </div>
             <div>
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Tracked</div>
-              <div className="text-3xl font-bold font-mono text-cyan-400">{stats?.holders.tracked?.toLocaleString() || 0}</div>
+              <div className="text-3xl font-bold font-mono text-rh-lime">{stats?.holders.tracked?.toLocaleString() || 0}</div>
             </div>
             <div>
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">With VWAP</div>
-              <div className="text-3xl font-bold font-mono text-purple-400">{stats?.holders.with_vwap?.toLocaleString() || 0}</div>
+              <div className="text-3xl font-bold font-mono text-rh-lime">{stats?.holders.with_vwap?.toLocaleString() || 0}</div>
             </div>
             <div>
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Eligible</div>
-              <div className="text-3xl font-bold text-emerald-400 font-mono">{stats?.holders.eligible || 0}</div>
+              <div className="text-3xl font-bold text-rh-green font-mono">{stats?.holders.eligible || 0}</div>
             </div>
             <div>
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">In Profit</div>
-              <div className="text-3xl font-bold text-emerald-400 font-mono">{stats?.holders.in_profit || 0}</div>
+              <div className="text-3xl font-bold text-rh-green font-mono">{stats?.holders.in_profit || 0}</div>
             </div>
             <div>
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">In Loss</div>
@@ -348,7 +349,7 @@ export default function StatsPage() {
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Most Wins</div>
               {stats?.leaderboard.most_wins ? (
                 <>
-                  <div className="text-3xl font-bold text-emerald-400 mb-1">
+                  <div className="text-3xl font-bold text-rh-green mb-1">
                     {stats.leaderboard.most_wins.win_count} wins
                   </div>
                   <div className="text-sm text-gray-500 font-mono">
@@ -361,7 +362,7 @@ export default function StatsPage() {
             </div>
             <div className="bg-white/5 rounded-xl p-5">
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Total Cycles</div>
-              <div className="text-3xl font-bold text-cyan-400 mb-1">
+              <div className="text-3xl font-bold text-rh-lime mb-1">
                 {stats?.protocol.total_cycles || 0}
               </div>
               <div className="text-sm text-gray-500">
@@ -390,7 +391,7 @@ export default function StatsPage() {
             ].map((item) => (
               <div key={item.label} className="bg-white/5 rounded-xl p-4 text-center">
                 <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">{item.label}</div>
-                <div className="text-xl font-bold text-emerald-400 font-mono">{item.value}</div>
+                <div className="text-xl font-bold text-rh-green font-mono">{item.value}</div>
                 <div className="text-xs text-gray-500">{item.sub}</div>
               </div>
             ))}

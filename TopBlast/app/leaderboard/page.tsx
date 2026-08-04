@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { useRealtimeLeaderboard, useRealtimePrice, useTimeSince, useRealtime } from '@/hooks/useRealtime'
 import { AnimatedNumber, Countdown, PriceTicker } from '@/components/ui/AnimatedNumber'
 import { LeaderboardCardSkeleton, TableRowSkeleton } from '@/components/ui/Skeleton'
 import { RobinhoodBadge } from '@/components/ui/RobinhoodBadge'
+import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
 import { getWinnerSharePercents, getPayoutForEligibleRank } from '@/lib/payout/shares'
 
 const WINNER_SHARES = getWinnerSharePercents()
@@ -96,14 +96,14 @@ function ConnectionIndicator({ state, wsConnected }: { state: string; wsConnecte
     <motion.div
       className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm ${
         isConnected
-          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+          ? 'bg-rh-green/10 text-rh-green border border-rh-green/30'
           : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
       }`}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
     >
       <motion.div
-        className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-amber-400'}`}
+        className={`w-2 h-2 rounded-full ${isConnected ? 'bg-rh-green' : 'bg-amber-400'}`}
         animate={{
           scale: [1, 1.3, 1],
           opacity: [1, 0.6, 1],
@@ -142,7 +142,7 @@ function InlineSpinner() {
     <motion.div
       animate={{ rotate: 360 }}
       transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-      className="w-5 h-5 border-2 border-gray-600 border-t-emerald-500 rounded-full inline-block"
+      className="w-5 h-5 border-2 border-gray-600 border-t-rh-green rounded-full inline-block"
     />
   )
 }
@@ -168,17 +168,17 @@ export default function LeaderboardPage() {
   const eligibleWinners = (data?.rankings || []).filter((h: Winner) => h.is_eligible === true)
   const top3 = eligibleWinners.slice(0, 3)
   
-  // Pool is now in SOL - parse the USD value for display
+  // Pool balance in USD for payout estimates
   const poolValue = parseFloat(data?.pool_balance_usd?.replace(/[$,]/g, '') || '0')
   const wsConnected = data?.ws_connected
 
   return (
-    <div className="min-h-screen bg-[#06060a] text-white overflow-hidden">
+    <div className="min-h-screen bg-black text-white overflow-hidden">
       {/* Animated background */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-cyan-500/5 to-transparent rounded-full" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-rh-green/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-rh-green-dark/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-rh-lime/5 to-transparent rounded-full" />
       </div>
 
       <Header
@@ -198,7 +198,7 @@ export default function LeaderboardPage() {
         >
           <div className="flex items-center gap-3">
             <span className="text-gray-400 text-sm">Token:</span>
-            <span className="text-cyan-400 font-bold">${data?.token_symbol || 'TOKEN'}</span>
+            <span className="text-rh-lime font-bold">${data?.token_symbol || 'TOKEN'}</span>
           </div>
           <div className="w-px h-5 bg-white/20" />
           <div className="flex items-center gap-3">
@@ -235,11 +235,11 @@ export default function LeaderboardPage() {
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="relative bg-gradient-to-br from-emerald-900/30 to-emerald-800/10 border border-emerald-500/30 rounded-2xl p-6 overflow-hidden"
+            className="relative bg-gradient-to-br from-green-950/30 to-green-900/10 border border-rh-green/30 rounded-2xl p-6 overflow-hidden"
           >
-            <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl" />
+            <div className="absolute top-0 right-0 w-40 h-40 bg-rh-green/10 rounded-full blur-3xl" />
             <div className="relative">
-              <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium mb-4">
+              <div className="flex items-center gap-2 text-rh-green text-sm font-medium mb-4">
                 <motion.div
                   animate={{ rotate: 360 }}
                   transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
@@ -249,9 +249,9 @@ export default function LeaderboardPage() {
                 </motion.div>
                 NEXT PAYOUT IN
               </div>
-              <Countdown seconds={countdown} size="xl" className="text-emerald-400" />
+              <Countdown seconds={countdown} size="xl" className="text-rh-green" />
               <p className="text-gray-400 text-sm mt-4">
-                Top 3 losers will be paid automatically
+                Top 3 losers receive native ETH automatically
               </p>
             </div>
           </motion.div>
@@ -260,11 +260,11 @@ export default function LeaderboardPage() {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="relative bg-gradient-to-br from-purple-900/20 to-purple-800/5 border border-purple-500/20 rounded-2xl p-6 overflow-hidden"
+            className="relative bg-gradient-to-br from-green-950/20 to-green-900/5 border border-rh-green-dark/20 rounded-2xl p-6 overflow-hidden"
           >
-            <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-40 h-40 bg-rh-green-dark/10 rounded-full blur-3xl" />
             <div className="relative">
-              <div className="flex items-center gap-2 text-purple-400 text-sm font-medium mb-4">
+              <div className="flex items-center gap-2 text-rh-lime text-sm font-medium mb-4">
                 <span>💰</span>
                 REWARD POOL
               </div>
@@ -272,7 +272,7 @@ export default function LeaderboardPage() {
                 <AnimatedNumber value={poolValue} format="currency" showChange />
               </div>
               <p className="text-gray-400 text-sm">
-                {data?.pool_balance_eth || data?.pool_balance_sol || data?.pool_balance_tokens} ETH
+                {data?.pool_balance_eth || '0'} ETH in pool
               </p>
             </div>
           </motion.div>
@@ -316,7 +316,7 @@ export default function LeaderboardPage() {
                     initial={false}
                       animate={{ opacity: 1, y: 0 }}
                       whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                      className={`relative bg-[#0a0a10] border ${style.border} rounded-2xl p-6 ${style.glow} overflow-hidden ${!isEligible ? 'opacity-70' : ''}`}
+                      className={`relative bg-rh-black border ${style.border} rounded-2xl p-6 ${style.glow} overflow-hidden ${!isEligible ? 'opacity-70' : ''}`}
                     >
                       {/* Rank badge */}
                       {idx === 0 && isEligible && (
@@ -350,7 +350,7 @@ export default function LeaderboardPage() {
                         <div className="text-right">
                           <div className="text-sm text-gray-400 font-mono">{winner.wallet_display}</div>
                           {isEligible ? (
-                            <div className="text-emerald-400 font-bold text-lg">
+                            <div className="text-rh-green font-bold text-lg">
                               <AnimatedNumber value={payoutAmount} format="currency" />
                             </div>
                           ) : (
@@ -381,7 +381,7 @@ export default function LeaderboardPage() {
                         </div>
                         <div className="flex justify-between py-2">
                           <span className="text-gray-500">Share</span>
-                          <span className="text-emerald-400 font-bold">{shareLabel}</span>
+                          <span className="text-rh-green font-bold">{shareLabel}</span>
                         </div>
                       </div>
                     </motion.div>
@@ -392,14 +392,14 @@ export default function LeaderboardPage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="bg-[#0a0a10] border border-white/10 rounded-2xl p-12 text-center"
+              className="bg-rh-black border border-white/10 rounded-2xl p-12 text-center"
             >
               {isLoading || isInitializing ? (
                 <>
                   <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                    className="w-12 h-12 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full mx-auto mb-4"
+                    className="w-12 h-12 border-2 border-rh-green/30 border-t-rh-green rounded-full mx-auto mb-4"
                   />
                   <h3 className="text-xl font-bold mb-2">Loading Winners</h3>
                   <p className="text-gray-400">
@@ -434,7 +434,7 @@ export default function LeaderboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-[#0a0a10] border border-white/10 rounded-2xl overflow-hidden"
+          className="bg-rh-black border border-white/10 rounded-2xl overflow-hidden"
         >
           <div className="p-6 border-b border-white/10 flex items-center justify-between">
             <div>
@@ -500,7 +500,7 @@ export default function LeaderboardPage() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         {isEligible ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-full">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-rh-green/20 text-rh-green text-xs rounded-full">
                             ✓ Eligible
                           </span>
                         ) : (
@@ -511,7 +511,7 @@ export default function LeaderboardPage() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         {payoutPct > 0 && isEligible ? (
-                          <span className="text-emerald-400 font-bold font-mono">
+                          <span className="text-rh-green font-bold font-mono">
                             ${payoutAmount.toFixed(2)}
                           </span>
                         ) : (
@@ -529,7 +529,7 @@ export default function LeaderboardPage() {
                           <motion.div
                             animate={{ rotate: 360 }}
                             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                            className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full"
+                            className="w-8 h-8 border-2 border-rh-green/30 border-t-rh-green rounded-full"
                           />
                           <span>Loading holder data...</span>
                         </div>
@@ -557,9 +557,9 @@ export default function LeaderboardPage() {
           transition={{ delay: 0.4 }}
           className="mt-10 text-center space-y-2"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-sm text-emerald-400">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-rh-green/10 border border-rh-green/20 rounded-full text-sm text-rh-green">
             <motion.div
-              className="w-2 h-2 bg-emerald-400 rounded-full"
+              className="w-2 h-2 bg-rh-green rounded-full"
               animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
               transition={{ duration: 1.5, repeat: Infinity }}
             />
@@ -589,21 +589,18 @@ function Header({
   lastUpdate?: Date | null
 }) {
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#06060a]/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-rh-green/10 bg-black/80 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/" className="flex items-center gap-3 group">
-              <motion.div
-                whileHover={{ scale: 1.05, rotate: 5 }}
-                className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-emerald-500/25"
-              >
-                <Image src="/logo.jpg" alt="TopBlast" width={40} height={40} className="w-full h-full object-cover" />
-              </motion.div>
-              <span className="text-xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-                TOPBLAST
+              <TopBlastLogo size="md" className="shadow-rh-glow-sm" />
+              <span className="text-xl font-bold tracking-tight">
+                <span className="text-rh-green">TOP</span>
+                <span className="text-white">BLAST</span>
               </span>
             </Link>
+            <RobinhoodBadge compact />
             <ConnectionIndicator state={connectionState} wsConnected={wsConnected} />
           </div>
 
@@ -637,7 +634,7 @@ function Header({
             >
               Stats
             </Link>
-            <a href={LINKS.whitepaper} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-emerald-400 transition-colors" title="Whitepaper">
+            <a href={LINKS.whitepaper} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-rh-green transition-colors" title="Whitepaper">
               <DocsIcon />
             </a>
             <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors" title="Follow on X">

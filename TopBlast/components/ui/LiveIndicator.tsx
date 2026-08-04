@@ -15,10 +15,10 @@ const sizeConfig = {
 }
 
 const variantConfig = {
-  success: { bg: 'bg-emerald-400', text: 'text-emerald-400', glow: 'shadow-emerald-400/50' },
+  success: { bg: 'bg-rh-green', text: 'text-rh-green', glow: 'shadow-rh-green/50' },
   warning: { bg: 'bg-amber-400', text: 'text-amber-400', glow: 'shadow-amber-400/50' },
   error: { bg: 'bg-red-400', text: 'text-red-400', glow: 'shadow-red-400/50' },
-  info: { bg: 'bg-cyan-400', text: 'text-cyan-400', glow: 'shadow-cyan-400/50' },
+  info: { bg: 'bg-rh-lime', text: 'text-rh-lime', glow: 'shadow-rh-lime/50' },
 }
 
 export function LiveIndicator({ label = 'LIVE', size = 'md', variant = 'success' }: LiveIndicatorProps) {
@@ -58,10 +58,10 @@ export function ConnectionStatus({ connected = true, connecting = false }: Conne
 
   const stateConfig = {
     connected: {
-      bg: 'bg-emerald-500/10',
-      border: 'border-emerald-500/20',
-      text: 'text-emerald-400',
-      dot: 'bg-emerald-400',
+      bg: 'bg-rh-green/10',
+      border: 'border-rh-green/20',
+      text: 'text-rh-green',
+      dot: 'bg-rh-green',
       label: 'Connected',
     },
     connecting: {
@@ -135,7 +135,7 @@ export function ActivityPulse({ active = false }: { active?: boolean }) {
 
   return (
     <motion.div
-      className="w-2 h-2 bg-cyan-400 rounded-full"
+      className="w-2 h-2 bg-rh-lime rounded-full"
       initial={{ scale: 0, opacity: 1 }}
       animate={{ scale: 2, opacity: 0 }}
       transition={{ duration: 0.5 }}
