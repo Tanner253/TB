@@ -9,6 +9,7 @@ import { getTokenHolders, getWalletTransactions } from '@/lib/evm/indexer'
 import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
 import connectDB from '@/lib/db'
 import { Holder } from '@/lib/db/models'
+import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 
 // Types
 export interface HolderData {
@@ -29,6 +30,7 @@ export interface HolderData {
   ineligibleReason: string | null
   drawdownPct: number       // Current drawdown percentage
   lossUsd: number           // Current loss in USD
+  isContract: boolean       // LP / pool contracts excluded from leaderboard
   updatedAt: number
 }
 
@@ -177,8 +179,12 @@ export async function initializeHolderService(): Promise<boolean> {
     // Sort by balance descending
     const sortedHolders = [...rawHolders].sort((a, b) => b.balance - a.balance)
     
-    // Add holders not already in cache
+    // Add holders not already in cache (skip LP/contracts)
     for (const h of sortedHolders) {
+      if (h.isContract) {
+        console.log(`[HolderService] Skip contract holder ${h.wallet.slice(0, 10)}...`)
+        continue
+      }
       const balance = h.balance / Math.pow(10, config.tokenDecimals)
       if (!holders.has(h.wallet)) {
         holders.set(h.wallet, createBasicHolder(h.wallet, balance, h.balance))
@@ -431,6 +437,7 @@ async function calculateHolderData(
     ineligibleReason,
     drawdownPct,
     lossUsd,
+    isContract: false,
     updatedAt: Date.now(),
   }
 }
@@ -457,6 +464,7 @@ function createBasicHolder(wallet: string, balance: number, balanceRaw: number):
     ineligibleReason: 'Loading transaction history...',
     drawdownPct: 0,
     lossUsd: 0,
+    isContract: false,
     updatedAt: Date.now(),
   }
 }
@@ -475,71 +483,25 @@ function checkEligibility(
   lastWinCycle: number | null = null,
   totalTokensBought: number = 0
 ): { isEligible: boolean; reason: string | null; drawdownPct: number; lossUsd: number } {
-  // Calculate drawdown using eligible balance (min of current balance and tokens actually bought)
-  let drawdownPct = 0
-  let lossUsd = 0
-  const eligibleBalance = totalTokensBought > 0 ? Math.min(balance, totalTokensBought) : balance
+  const result = evaluateHolderEligibility({
+    balance,
+    vwap,
+    tokenPrice,
+    firstBuyTimestamp,
+    hasSold,
+    hasTransferredOut,
+    lastWinCycle,
+    totalTokensBought,
+    poolUsd: getEffectivePoolUsd(),
+    currentCycle: state.currentCycle,
+  })
 
-  if (vwap && vwap > 0) {
-    drawdownPct = ((tokenPrice - vwap) / vwap) * 100
-    if (tokenPrice < vwap) {
-      lossUsd = (vwap - tokenPrice) * eligibleBalance
-    }
+  return {
+    isEligible: result.isEligible,
+    reason: result.ineligibleReason,
+    drawdownPct: result.drawdownPct,
+    lossUsd: result.lossUsd,
   }
-
-  if (!tokenPrice || tokenPrice <= 0) {
-    return { isEligible: false, reason: 'Price loading', drawdownPct, lossUsd }
-  }
-
-  // Check minimum balance
-  if (balance < config.minTokenHolding) {
-    return { isEligible: false, reason: 'Insufficient balance', drawdownPct, lossUsd }
-  }
-
-  // Must have VWAP (bought tokens)
-  if (!vwap || vwap === 0) {
-    return { isEligible: false, reason: 'No buy history', drawdownPct, lossUsd }
-  }
-
-  // Check hold duration
-  if (firstBuyTimestamp) {
-    const holdMs = Date.now() - firstBuyTimestamp
-    const minHoldMs = config.minHoldDurationMinutes * 60 * 1000
-    if (holdMs < minHoldMs) {
-      return { isEligible: false, reason: 'Hold duration not met', drawdownPct, lossUsd }
-    }
-  } else {
-    return { isEligible: false, reason: 'No buy history', drawdownPct, lossUsd }
-  }
-
-  // Check if sold (disqualified)
-  if (hasSold) {
-    return { isEligible: false, reason: 'Sold tokens', drawdownPct, lossUsd }
-  }
-
-  // Check if transferred out (disqualified)
-  if (hasTransferredOut) {
-    return { isEligible: false, reason: 'Transferred out', drawdownPct, lossUsd }
-  }
-
-  // Check winner cooldown - cannot win if won in the previous cycle
-  if (lastWinCycle !== null && lastWinCycle >= state.currentCycle - 1) {
-    return { isEligible: false, reason: 'Winner cooldown', drawdownPct, lossUsd }
-  }
-
-  // Must be in loss position
-  if (drawdownPct >= 0) {
-    return { isEligible: false, reason: 'In profit', drawdownPct, lossUsd }
-  }
-
-  // Check minimum loss threshold (uses live payout wallet pool when available)
-  const poolBal = getEffectivePoolUsd()
-  const minLoss = poolBal * (config.minLossThresholdPct / 100)
-  if (lossUsd < minLoss) {
-    return { isEligible: false, reason: 'Loss below threshold', drawdownPct, lossUsd }
-  }
-
-  return { isEligible: true, reason: null, drawdownPct, lossUsd }
 }
 
 /**
@@ -989,17 +951,41 @@ export async function saveRankingsToDb(): Promise<void> {
     const { CurrentRankings } = await import('@/lib/db/models')
     await connectDB()
     
-    // Include all tracked holders for leaderboard display; VWAP may still be loading
-    const allHolders = Array.from(holders.values())
-      .filter(h => h.balance >= config.minTokenHolding)
-      .sort((a, b) => {
-        if (a.drawdownPct !== b.drawdownPct) {
-          return a.drawdownPct - b.drawdownPct
-        }
-        return b.lossUsd - a.lossUsd
-      })
-    
-    const rankings = allHolders.slice(0, 50).map(h => ({
+    // Include EOA holders only; leaderboard ranks eligible losers by drawdown
+    const eoaHolders = Array.from(holders.values()).filter(
+      h => !h.isContract && h.balance >= config.minTokenHolding
+    )
+
+    for (const h of eoaHolders) {
+      if (!state.currentTokenPrice) continue
+      const { isEligible, reason, drawdownPct, lossUsd } = checkEligibility(
+        h.wallet,
+        h.balance,
+        h.vwap,
+        state.currentTokenPrice,
+        h.firstBuyTimestamp,
+        h.hasSold,
+        h.hasTransferredOut,
+        h.lastWinCycle,
+        h.totalTokensBought
+      )
+      h.isEligible = isEligible
+      h.ineligibleReason = reason
+      h.drawdownPct = drawdownPct
+      h.lossUsd = lossUsd
+    }
+
+    const rankedHolders = [...eoaHolders].sort((a, b) => {
+      if (a.isEligible !== b.isEligible) {
+        return a.isEligible ? -1 : 1
+      }
+      if (a.drawdownPct !== b.drawdownPct) {
+        return a.drawdownPct - b.drawdownPct
+      }
+      return b.lossUsd - a.lossUsd
+    })
+
+    const rankings = rankedHolders.slice(0, 50).map(h => ({
       wallet: h.wallet,
       balance: h.balance,
       vwap: h.vwap || 0,
@@ -1008,9 +994,14 @@ export async function saveRankingsToDb(): Promise<void> {
       isEligible: h.isEligible,
       ineligibleReason: h.ineligibleReason,
       firstBuyAt: h.firstBuyTimestamp ? new Date(h.firstBuyTimestamp) : null,
+      hasSold: h.hasSold,
+      hasTransferredOut: h.hasTransferredOut,
+      totalTokensBought: h.totalTokensBought,
+      lastWinCycle: h.lastWinCycle,
+      isContract: false,
     }))
     
-    const eligibleCount = getEligibleCount()
+    const eligibleCount = eoaHolders.filter(h => h.isEligible).length
 
     await CurrentRankings.findOneAndUpdate(
       { key: 'current_rankings' },
@@ -1018,7 +1009,7 @@ export async function saveRankingsToDb(): Promise<void> {
         $set: {
           tokenMint: config.tokenMint,
           rankings,
-          totalHolders: holders.size,
+          totalHolders: eoaHolders.length,
           eligibleCount,
           holdersWithVwap: getHoldersWithRealVwapCount(),
           tokenPrice: state.currentTokenPrice || 0,
@@ -1051,6 +1042,11 @@ export async function loadRankingsFromDb(): Promise<{
     isEligible: boolean
     ineligibleReason: string | null
     firstBuyAt?: Date | string | null
+    hasSold?: boolean
+    hasTransferredOut?: boolean
+    totalTokensBought?: number
+    lastWinCycle?: number | null
+    isContract?: boolean
   }>
   totalHolders: number
   eligibleCount: number
@@ -1151,6 +1147,7 @@ export async function ensureVwapCalculated(): Promise<boolean> {
 
     const sortedHolders = [...rawHolders].sort((a, b) => b.balance - a.balance)
     for (const h of sortedHolders) {
+      if (h.isContract) continue
       const balance = h.balance / Math.pow(10, config.tokenDecimals)
       if (!holders.has(h.wallet)) {
         holders.set(h.wallet, createBasicHolder(h.wallet, balance, h.balance))

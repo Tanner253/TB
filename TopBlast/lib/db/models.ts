@@ -169,6 +169,11 @@ export interface ICurrentRankings extends Document {
     isEligible: boolean
     ineligibleReason: string | null
     firstBuyAt?: Date | string | null
+    hasSold?: boolean
+    hasTransferredOut?: boolean
+    totalTokensBought?: number
+    lastWinCycle?: number | null
+    isContract?: boolean
   }>
   totalHolders: number
   eligibleCount: number

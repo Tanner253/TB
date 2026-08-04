@@ -53,13 +53,13 @@ export interface ParsedTransaction {
 export async function getTokenHolders(
   tokenAddress: string,
   limit: number = 1000
-): Promise<{ wallet: string; balance: number }[]> {
+): Promise<{ wallet: string; balance: number; isContract: boolean }[]> {
   if (!isAddress(tokenAddress)) {
     console.error('[EVM] Invalid token address')
     return []
   }
 
-  const holders: { wallet: string; balance: number }[] = []
+  const holders: { wallet: string; balance: number; isContract: boolean }[] = []
   const base = getBlockscoutApiBase()
   let nextPage: string | null = `${base}/tokens/${tokenAddress.toLowerCase()}/holders`
 
@@ -78,7 +78,11 @@ export async function getTokenHolders(
 
         const balance = typeof rawValue === 'string' ? BigInt(rawValue) : BigInt(Math.floor(Number(rawValue)))
         if (balance > 0n) {
-          holders.push({ wallet, balance: Number(balance) })
+          holders.push({
+            wallet,
+            balance: Number(balance),
+            isContract: item.address?.is_contract === true,
+          })
         }
         if (holders.length >= limit) break
       }
@@ -104,7 +108,7 @@ export async function getTokenHolders(
 async function getTokenHoldersViaRpc(
   tokenAddress: string,
   limit: number
-): Promise<{ wallet: string; balance: number }[]> {
+): Promise<{ wallet: string; balance: number; isContract: boolean }[]> {
   try {
     const client = getPublicClient()
     const decimals = await getTokenDecimals(tokenAddress)
@@ -145,6 +149,7 @@ async function getTokenHoldersViaRpc(
       .map(([wallet, bal]) => ({
         wallet,
         balance: Number(bal),
+        isContract: false,
       }))
       .filter(h => h.balance > 0)
   } catch (error: any) {

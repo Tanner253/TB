@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { formatPrice, formatUsd } from '@/lib/evm/price'
+import { formatPrice, formatUsd, getTokenPrice } from '@/lib/evm/price'
 import { formatWallet } from '@/lib/evm/holders'
 import { initializeTracker } from '@/lib/tracker/init'
 import {
@@ -17,10 +17,12 @@ import {
   maybeStartPayoutTimer,
   ensureTimerStateSync,
   pausePayoutTimerToWaiting,
+  getCurrentPayoutCycle,
 } from '@/lib/payout/executor'
 import { getPayoutForEligibleRank } from '@/lib/payout/shares'
 import { buildHoldTimeFields } from '@/lib/eligibility/holdDuration'
-import { getEarliestBuyTimestamp } from '@/lib/evm/indexer'
+import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
+import { getEarliestBuyTimestamp, getTokenHolders } from '@/lib/evm/indexer'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -73,13 +75,38 @@ export async function GET(request: NextRequest) {
       dbRankings = await loadRankingsFromDb()
     }
 
+    const liveTokenPrice =
+      (await getTokenPrice(config.tokenMint)) ??
+      dbRankings?.tokenPrice ??
+      0
+
+    let liveEligibleCount = 0
     if (dbRankings) {
-      await maybeStartPayoutTimer(dbRankings.eligibleCount)
+      liveEligibleCount = dbRankings.rankings.filter(h => {
+        if (h.isContract) return false
+        const firstBuyMs = h.firstBuyAt ? new Date(h.firstBuyAt).getTime() : null
+        const live = evaluateHolderEligibility({
+          balance: h.balance,
+          vwap: h.vwap || null,
+          tokenPrice: liveTokenPrice,
+          firstBuyTimestamp: firstBuyMs,
+          hasSold: h.hasSold ?? false,
+          hasTransferredOut: h.hasTransferredOut ?? false,
+          lastWinCycle: h.lastWinCycle ?? null,
+          totalTokensBought: h.totalTokensBought ?? 0,
+          poolUsd: poolUsd,
+          currentCycle: getCurrentPayoutCycle(),
+        })
+        return live.isEligible
+      }).length
+      await maybeStartPayoutTimer(liveEligibleCount)
+    } else {
+      await maybeStartPayoutTimer(0)
     }
     await ensureTimerStateSync()
 
     const timer = getPayoutTimerInfo()
-    const eligibleCount = dbRankings?.eligibleCount ?? 0
+    const eligibleCount = liveEligibleCount
 
     // Unstick timer when due but nobody is eligible (e.g. after accidental DB wipe)
     if (
@@ -156,17 +183,17 @@ export async function GET(request: NextRequest) {
 
     const poolBal = poolUsd
 
-    const eligibleWallets = dbRankings.rankings
-      .filter(h => h.isEligible)
-      .map(h => h.wallet)
+    const contractWallets = new Set(
+      (await getTokenHolders(config.tokenMint, 100))
+        .filter(h => h.isContract)
+        .map(h => h.wallet.toLowerCase())
+    )
 
-    const getPayoutForWallet = (wallet: string): number => {
-      const eligibleRank = eligibleWallets.indexOf(wallet)
-      return getPayoutForEligibleRank(poolBal, eligibleRank)
-    }
+    const sourceRankings = dbRankings.rankings.filter(
+      h => !h.isContract && !contractWallets.has(h.wallet.toLowerCase())
+    )
 
-    const walletsNeedingFirstBuy = dbRankings.rankings
-      .slice(0, limit)
+    const walletsNeedingFirstBuy = sourceRankings
       .filter(h => !h.firstBuyAt)
       .map(h => h.wallet.toLowerCase())
 
@@ -200,16 +227,48 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const rankings = dbRankings.rankings.slice(0, limit).map((holder, idx) => {
+    const liveEvaluated = sourceRankings.map(holder => {
       const firstBuyAt =
         holder.firstBuyAt ??
         firstBuyByWallet.get(holder.wallet.toLowerCase()) ??
         null
+      const firstBuyMs = firstBuyAt ? new Date(firstBuyAt).getTime() : null
+      const live = evaluateHolderEligibility({
+        balance: holder.balance,
+        vwap: holder.vwap || null,
+        tokenPrice: liveTokenPrice,
+        firstBuyTimestamp: firstBuyMs,
+        hasSold: holder.hasSold ?? false,
+        hasTransferredOut: holder.hasTransferredOut ?? false,
+        lastWinCycle: holder.lastWinCycle ?? null,
+        totalTokensBought: holder.totalTokensBought ?? 0,
+        poolUsd: poolBal,
+        currentCycle: getCurrentPayoutCycle(),
+      })
       const holdFields = buildHoldTimeFields(firstBuyAt, config.minHoldDurationMinutes)
-      const holdPending = (holdFields.hold_seconds_remaining ?? 0) > 0
-      const displayReason = holdPending
-        ? 'Hold duration not met'
-        : holder.ineligibleReason
+
+      return {
+        holder,
+        firstBuyAt,
+        live,
+        holdFields,
+      }
+    })
+
+    const eligibleSorted = liveEvaluated
+      .filter(entry => entry.live.isEligible)
+      .sort((a, b) => {
+        if (a.live.drawdownPct !== b.live.drawdownPct) {
+          return a.live.drawdownPct - b.live.drawdownPct
+        }
+        return b.live.lossUsd - a.live.lossUsd
+      })
+
+    const getPayoutForRank = (eligibleRank: number): number =>
+      getPayoutForEligibleRank(poolBal, eligibleRank)
+
+    const rankings = eligibleSorted.slice(0, limit).map((entry, idx) => {
+      const { holder, firstBuyAt, live, holdFields } = entry
 
       return {
         rank: idx + 1,
@@ -220,14 +279,14 @@ export async function GET(request: NextRequest) {
         vwap: holder.vwap ? formatPrice(holder.vwap) : 'N/A',
         vwap_raw: holder.vwap,
         vwap_source: 'real',
-        drawdown_pct: Math.round(holder.drawdownPct * 100) / 100,
-        loss_usd: formatUsd(holder.lossUsd),
-        loss_usd_raw: holder.lossUsd,
-        is_eligible: holder.isEligible,
-        ineligible_reason: displayReason,
+        drawdown_pct: Math.round(live.drawdownPct * 100) / 100,
+        loss_usd: formatUsd(live.lossUsd),
+        loss_usd_raw: live.lossUsd,
+        is_eligible: true,
+        ineligible_reason: null,
         ...holdFields,
-        payout_usd: formatUsd(getPayoutForWallet(holder.wallet)),
-        eligible_rank: holder.isEligible ? eligibleWallets.indexOf(holder.wallet) + 1 : null,
+        payout_usd: formatUsd(getPayoutForRank(idx)),
+        eligible_rank: idx + 1,
       }
     })
 
@@ -239,15 +298,15 @@ export async function GET(request: NextRequest) {
         cycle: timerAfterPayout.next_cycle,
         seconds_remaining: timerAfterPayout.seconds_remaining,
         ...poolFields,
-        token_price: formatPrice(dbRankings.tokenPrice),
-        token_price_raw: dbRankings.tokenPrice,
+        token_price: formatPrice(liveTokenPrice),
+        token_price_raw: liveTokenPrice,
         token_symbol: config.tokenSymbol,
         token_mint: config.tokenMint,
         total_holders: dbRankings.totalHolders,
-        tracked_holders: dbRankings.totalHolders,
+        tracked_holders: sourceRankings.length,
         holders_with_real_vwap: dbRankings.holdersWithVwap,
-        eligible_count: dbRankings.eligibleCount,
-        total_losers: dbRankings.rankings.length,
+        eligible_count: eligibleCount,
+        total_losers: eligibleSorted.length,
         ws_connected: false,
         tracker_initialized: serviceStatus.initialized,
         min_hold_minutes: config.minHoldDurationMinutes,

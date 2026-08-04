@@ -599,11 +599,14 @@ export default function LeaderboardPage() {
                           />
                           <span>Loading holder data...</span>
                         </div>
-                      ) : data?.total_holders && data.total_holders > 0 ? (
-                        <div className="flex flex-col items-center gap-2">
-                          <span className="text-3xl">📈</span>
-                          <span className="text-white font-medium">Everyone is in profit!</span>
-                          <span className="text-sm">No holders currently in loss. The leaderboard will populate when the price drops.</span>
+                      ) : data?.eligible_count === 0 && (data?.tracked_holders || 0) > 0 ? (
+                        <div className="flex flex-col items-center gap-2 max-w-md mx-auto">
+                          <span className="text-3xl">⏳</span>
+                          <span className="text-white font-medium">No eligible losers yet</span>
+                          <span className="text-sm">
+                            Holders need 15 min hold, must be in loss (below VWAP), and meet the min loss threshold.
+                            The payout timer starts when the first holder qualifies.
+                          </span>
                         </div>
                       ) : (
                         <span>No eligible holders found yet</span>
