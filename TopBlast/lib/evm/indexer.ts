@@ -188,11 +188,15 @@ export async function getWalletTransactions(
     const response = await axios.get(url, {
       params: {
         token: tokenAddress.toLowerCase(),
-        filter: 'to | from',
       },
       timeout: 15000,
       headers: { Accept: 'application/json' },
     })
+
+    if (response.data?.errors?.length) {
+      console.error(`[EVM] Blockscout token-transfers error for ${wallet.slice(0, 8)}:`, response.data.errors[0]?.detail)
+      return []
+    }
 
     const items = (response.data?.items || []).slice(0, Math.min(limit, 100))
 
