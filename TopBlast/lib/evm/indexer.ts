@@ -24,6 +24,9 @@ const ERC20_ABI = parseAbi([
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
+/** Wrapped native asset on Robinhood Chain (used to parse swap ETH in/out from receipts). */
+const ROBINHOOD_WETH = '0x0bd7d308f8e1639fab988df18a8011f41eacad73'
+
 let _publicClient: ReturnType<typeof createPublicClient> | null = null
 
 function getPublicClient() {
@@ -338,15 +341,44 @@ async function estimateSwapValue(
     const client = getPublicClient()
     const tx = await client.getTransaction({ hash: txHash as `0x${string}` })
     const receipt = await client.getTransactionReceipt({ hash: txHash as `0x${string}` })
+    const walletLower = wallet.toLowerCase()
+    const { getEthPrice } = await import('./price')
+    const ethPrice = (await getEthPrice()) || 3500
 
-    if (isBuy && tx.from.toLowerCase() === wallet.toLowerCase() && tx.value > 0n) {
+    if (isBuy && tx.from.toLowerCase() === walletLower && tx.value > 0n) {
       const ethAmount = parseFloat(formatUnits(tx.value, 18))
       if (ethAmount > 0.00001) {
-        const { getEthPrice } = await import('./price')
-        const ethPrice = (await getEthPrice()) || 3500
         const usdValue = ethAmount * ethPrice
         return {
           ethAmount,
+          usdValue,
+          pricePerToken: usdValue / tokenAmount,
+          isStablecoinSwap: false,
+        }
+      }
+    }
+
+    // Sells often route through WETH (tx.value = 0) — parse pool/router WETH out
+    if (!isBuy && tx.from.toLowerCase() === walletLower) {
+      const wethOut = parseWethSwapEthFromReceipt(receipt, walletLower)
+      if (wethOut > 0.0000001) {
+        const usdValue = wethOut * ethPrice
+        return {
+          ethAmount: wethOut,
+          usdValue,
+          pricePerToken: usdValue / tokenAmount,
+          isStablecoinSwap: false,
+        }
+      }
+    }
+
+    // Buys may also pay via WETH when tx.value is zero
+    if (isBuy && tx.from.toLowerCase() === walletLower) {
+      const wethIn = parseWethPaidByWallet(receipt, walletLower)
+      if (wethIn > 0.0000001) {
+        const usdValue = wethIn * ethPrice
+        return {
+          ethAmount: wethIn,
           usdValue,
           pricePerToken: usdValue / tokenAmount,
           isStablecoinSwap: false,
@@ -370,7 +402,7 @@ async function estimateSwapValue(
           })
           if (decoded.eventName === 'Transfer') {
             const { from, value } = decoded.args as { from: string; value: bigint }
-            if (from.toLowerCase() === wallet.toLowerCase()) {
+            if (from.toLowerCase() === walletLower) {
               const usd = parseFloat(formatUnits(value, 6))
               if (usd > 0) {
                 return {
@@ -392,6 +424,58 @@ async function estimateSwapValue(
   }
 
   return { ethAmount: 0, usdValue: 0, pricePerToken: 0, isStablecoinSwap: false }
+}
+
+/** Largest WETH leg in a swap receipt not sent by the trader (pool/router → user path). */
+function parseWethSwapEthFromReceipt(
+  receipt: { logs: readonly { address: string; data: `0x${string}`; topics: readonly `0x${string}`[] }[] },
+  walletLower: string
+): number {
+  let maxOut = 0
+  for (const log of receipt.logs) {
+    if (log.address.toLowerCase() !== ROBINHOOD_WETH.toLowerCase()) continue
+    try {
+      const decoded = decodeEventLog({
+        abi: ERC20_ABI,
+        data: log.data,
+        topics: log.topics,
+      })
+      if (decoded.eventName !== 'Transfer') continue
+      const { from, value } = decoded.args as { from: string; value: bigint }
+      const fromLower = from.toLowerCase()
+      if (fromLower === walletLower || fromLower === ZERO_ADDRESS) continue
+      const amt = parseFloat(formatUnits(value, 18))
+      if (amt > maxOut) maxOut = amt
+    } catch {
+      // skip
+    }
+  }
+  return maxOut
+}
+
+/** WETH spent by wallet in a buy (when native ETH is not attached to tx). */
+function parseWethPaidByWallet(
+  receipt: { logs: readonly { address: string; data: `0x${string}`; topics: readonly `0x${string}`[] }[] },
+  walletLower: string
+): number {
+  let totalIn = 0
+  for (const log of receipt.logs) {
+    if (log.address.toLowerCase() !== ROBINHOOD_WETH.toLowerCase()) continue
+    try {
+      const decoded = decodeEventLog({
+        abi: ERC20_ABI,
+        data: log.data,
+        topics: log.topics,
+      })
+      if (decoded.eventName !== 'Transfer') continue
+      const { from, value } = decoded.args as { from: string; value: bigint }
+      if (from.toLowerCase() !== walletLower) continue
+      totalIn += parseFloat(formatUnits(value, 18))
+    } catch {
+      // skip
+    }
+  }
+  return totalIn
 }
 
 const SWAP_METHODS = new Set([
@@ -466,6 +550,7 @@ export function classifyOutgoingTokenTransfer(
 
 /**
  * Derive spot price from recent DEX swaps when Blockscout has no exchange_rate.
+ * Uses the most recent buy OR sell so price reflects post-trade pool state.
  */
 export async function deriveTokenPriceFromRecentSwaps(
   tokenAddress: string
@@ -481,6 +566,7 @@ export async function deriveTokenPriceFromRecentSwaps(
 
     const items = response.data?.items || []
     const seenTx = new Set<string>()
+    const candidates: { timestamp: number; price: number }[] = []
 
     for (const item of items) {
       const txHash = item.transaction_hash
@@ -488,26 +574,47 @@ export async function deriveTokenPriceFromRecentSwaps(
       if (!txHash || seenTx.has(txHash)) continue
       if (!SWAP_METHODS.has(method)) continue
 
-      // Buys: tokens received by an EOA from a contract (DEX pool/router)
-      const toWallet = item.to?.hash
       const fromWallet = item.from?.hash
+      const toWallet = item.to?.hash
       const tokensToEoa = item.to?.is_contract === false
+      const tokensFromEoa = item.from?.is_contract === false
       const tokensFromContract = item.from?.is_contract === true
-      if (!toWallet || !tokensToEoa || !tokensFromContract) continue
-
-      seenTx.add(txHash)
+      const tokensToContract = item.to?.is_contract === true
 
       const rawAmount = item.total?.value || '0'
       const decimals = Number(item.total?.decimals ?? config.tokenDecimals)
       const tokenAmount = parseFloat(formatUnits(BigInt(rawAmount), decimals))
       if (tokenAmount <= 0) continue
 
-      const { pricePerToken } = await estimateSwapValue(txHash, tokenAmount, toWallet, true)
-      if (pricePerToken > 0) {
-        console.log(`[EVM] Derived price from swap ${txHash.slice(0, 10)}... = $${pricePerToken}`)
-        return pricePerToken
+      const timestamp = item.timestamp ? new Date(item.timestamp).getTime() : 0
+      seenTx.add(txHash)
+
+      // Buy: LP/router → EOA
+      if (toWallet && tokensToEoa && tokensFromContract) {
+        const { pricePerToken } = await estimateSwapValue(txHash, tokenAmount, toWallet, true)
+        if (pricePerToken > 0) {
+          candidates.push({ timestamp, price: pricePerToken })
+        }
+        continue
+      }
+
+      // Sell: EOA → LP/router
+      if (fromWallet && tokensFromEoa && tokensToContract) {
+        const { pricePerToken } = await estimateSwapValue(txHash, tokenAmount, fromWallet, false)
+        if (pricePerToken > 0) {
+          candidates.push({ timestamp, price: pricePerToken })
+        }
       }
     }
+
+    if (candidates.length === 0) return null
+
+    candidates.sort((a, b) => b.timestamp - a.timestamp)
+    const spot = candidates[0].price
+    console.log(
+      `[EVM] Derived spot price from ${candidates[0].timestamp ? 'recent swap' : 'swap'} = $${spot}`
+    )
+    return spot
   } catch (error: any) {
     console.error('[EVM] deriveTokenPriceFromRecentSwaps failed:', error.message)
   }
