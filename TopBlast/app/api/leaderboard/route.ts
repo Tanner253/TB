@@ -66,20 +66,27 @@ export async function GET(request: NextRequest) {
 
     const timer = getPayoutTimerInfo()
 
-    if (isPayoutDue() && serviceStatus.initialized && serviceStatus.holderCount > 0 && timer.timer_status === 'active') {
-      // Fire and forget - don't wait for payout to complete
-      // The atomic lock in executePayout prevents duplicates
-      executePayout()
-        .then(result => {
-          if (result.success) {
-            console.log(`[Leaderboard] ✅ Payout triggered successfully`)
-          } else if (result.error !== 'Payout already in progress') {
-            console.log(`[Leaderboard] ❌ Payout failed: ${result.error}`)
-          }
-          // Don't log "already in progress" - that's expected for concurrent requests
-        })
-        .catch(err => console.error(`[Leaderboard] Payout error:`, err))
+    // Trigger payout from DB state — do not require in-memory tracker (serverless cold starts)
+    if (
+      isPayoutDue() &&
+      timer.timer_status === 'active' &&
+      dbRankings &&
+      dbRankings.eligibleCount > 0
+    ) {
+      try {
+        const result = await executePayout()
+        if (result.success) {
+          console.log('[Leaderboard] ✅ Payout cycle processed')
+        } else if (result.error !== 'Payout already in progress') {
+          console.log(`[Leaderboard] ❌ Payout failed: ${result.error}`)
+        }
+      } catch (err) {
+        console.error('[Leaderboard] Payout error:', err)
+      }
+      await ensureTimerStateSync()
     }
+
+    const timerAfterPayout = getPayoutTimerInfo()
 
     // If no data in DB at all, show initializing state
     // But if we have holders (even with no eligible losers), show "ready" with empty rankings
@@ -87,13 +94,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         data: {
-          status: timer.timer_status === 'waiting' ? 'waiting' : 'initializing',
-          message: timer.timer_status === 'waiting'
+          status: timerAfterPayout.timer_status === 'waiting' ? 'waiting' : 'initializing',
+          message: timerAfterPayout.timer_status === 'waiting'
             ? 'Waiting for the first eligible holder (15 min hold + in loss)...'
             : 'Loading holder data and calculating VWAPs...',
-          timer_status: timer.timer_status,
-          cycle: timer.next_cycle,
-          seconds_remaining: timer.seconds_remaining,
+          timer_status: timerAfterPayout.timer_status,
+          cycle: timerAfterPayout.next_cycle,
+          seconds_remaining: timerAfterPayout.seconds_remaining,
           pool_balance_eth: poolEth.toFixed(4),
           pool_balance_usd: formatUsd(poolUsd),
           pool_balance_tokens: `${poolEth.toFixed(4)} ETH`,
@@ -150,10 +157,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        status: timer.timer_status === 'waiting' ? 'waiting' : 'ready',
-        timer_status: timer.timer_status,
-        cycle: timer.next_cycle,
-        seconds_remaining: timer.seconds_remaining,
+        status: timerAfterPayout.timer_status === 'waiting' ? 'waiting' : 'ready',
+        timer_status: timerAfterPayout.timer_status,
+        cycle: timerAfterPayout.next_cycle,
+        seconds_remaining: timerAfterPayout.seconds_remaining,
         pool_balance_eth: poolEth.toFixed(4),
         pool_balance_usd: formatUsd(poolUsd),
         pool_balance_tokens: `${poolEth.toFixed(4)} ETH`,

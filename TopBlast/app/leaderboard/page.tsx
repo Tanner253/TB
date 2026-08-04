@@ -162,6 +162,9 @@ export default function LeaderboardPage() {
   const isLoading = loading && !data
   const isInitializing = data?.status === 'initializing'
   const isWaitingForEligible = timerStatus === 'waiting' || data?.timer_status === 'waiting'
+  const isPayoutDueNow =
+    !isWaitingForEligible &&
+    ((countdown !== null && countdown <= 0) || data?.seconds_remaining === 0)
   
   // IMPORTANT: Filter for ELIGIBLE holders first, then take top 3
   // This ensures only eligible holders appear in "Current Winners"
@@ -249,7 +252,7 @@ export default function LeaderboardPage() {
                 >
                   {isWaitingForEligible ? '⏳' : '⏱️'}
                 </motion.div>
-                {isWaitingForEligible ? 'WAITING FOR FIRST ELIGIBLE HOLDER' : 'NEXT PAYOUT IN'}
+                {isWaitingForEligible ? 'WAITING FOR FIRST ELIGIBLE HOLDER' : isPayoutDueNow ? 'PAYOUT PROCESSING' : 'NEXT PAYOUT IN'}
               </div>
               {isWaitingForEligible ? (
                 <div className="py-4">
@@ -263,13 +266,20 @@ export default function LeaderboardPage() {
                     </p>
                   )}
                 </div>
+              ) : isPayoutDueNow ? (
+                <div className="py-4">
+                  <p className="text-4xl md:text-5xl font-bold text-rh-lime font-mono mb-3 animate-pulse">00:00</p>
+                  <p className="text-gray-400 text-sm">Sending ETH to top losers…</p>
+                </div>
               ) : (
                 <Countdown seconds={countdown ?? 0} size="xl" className="text-rh-green" />
               )}
               <p className="text-gray-400 text-sm mt-4">
                 {isWaitingForEligible
                   ? 'No payout cycle until someone qualifies'
-                  : 'Top 3 losers receive native ETH automatically'}
+                  : isPayoutDueNow
+                    ? 'Payout runs automatically — timer resets after completion'
+                    : 'Top 3 losers receive native ETH automatically'}
               </p>
             </div>
           </motion.div>
