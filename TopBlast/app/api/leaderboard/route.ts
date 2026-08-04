@@ -18,6 +18,7 @@ import {
   pausePayoutTimerToWaiting,
 } from '@/lib/payout/executor'
 import { getPayoutForEligibleRank } from '@/lib/payout/shares'
+import { getHoldSecondsRemaining } from '@/lib/eligibility/holdDuration'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -153,23 +154,61 @@ export async function GET(request: NextRequest) {
       return getPayoutForEligibleRank(poolBal, eligibleRank)
     }
 
-    const rankings = dbRankings.rankings.slice(0, limit).map((holder, idx) => ({
-      rank: idx + 1,
-      wallet: holder.wallet,
-      wallet_display: formatWallet(holder.wallet),
-      balance: holder.balance.toLocaleString('en-US', { maximumFractionDigits: 0 }),
-      balance_raw: holder.balance,
-      vwap: holder.vwap ? formatPrice(holder.vwap) : 'N/A',
-      vwap_raw: holder.vwap,
-      vwap_source: 'real',
-      drawdown_pct: Math.round(holder.drawdownPct * 100) / 100,
-      loss_usd: formatUsd(holder.lossUsd),
-      loss_usd_raw: holder.lossUsd,
-      is_eligible: holder.isEligible,
-      ineligible_reason: holder.ineligibleReason,
-      payout_usd: formatUsd(getPayoutForWallet(holder.wallet)),
-      eligible_rank: holder.isEligible ? eligibleWallets.indexOf(holder.wallet) + 1 : null,
-    }))
+    const walletsNeedingFirstBuy = dbRankings.rankings
+      .slice(0, limit)
+      .filter(h => !h.firstBuyAt)
+      .map(h => h.wallet.toLowerCase())
+
+    const firstBuyByWallet = new Map<string, Date>()
+    if (walletsNeedingFirstBuy.length > 0) {
+      const { Holder } = await import('@/lib/db/models')
+      const holderDocs = await Holder.find({
+        wallet: { $in: walletsNeedingFirstBuy },
+        firstBuyAt: { $ne: null },
+      })
+        .select('wallet firstBuyAt')
+        .lean()
+      for (const doc of holderDocs) {
+        if (doc.firstBuyAt) {
+          firstBuyByWallet.set(doc.wallet.toLowerCase(), doc.firstBuyAt)
+        }
+      }
+    }
+
+    const rankings = dbRankings.rankings.slice(0, limit).map((holder, idx) => {
+      const firstBuyAt =
+        holder.firstBuyAt ??
+        firstBuyByWallet.get(holder.wallet.toLowerCase()) ??
+        null
+      const firstBuyMs = firstBuyAt ? new Date(firstBuyAt).getTime() : null
+      const holdSecondsRemaining = getHoldSecondsRemaining(
+        firstBuyMs,
+        config.minHoldDurationMinutes
+      )
+
+      return {
+        rank: idx + 1,
+        wallet: holder.wallet,
+        wallet_display: formatWallet(holder.wallet),
+        balance: holder.balance.toLocaleString('en-US', { maximumFractionDigits: 0 }),
+        balance_raw: holder.balance,
+        vwap: holder.vwap ? formatPrice(holder.vwap) : 'N/A',
+        vwap_raw: holder.vwap,
+        vwap_source: 'real',
+        drawdown_pct: Math.round(holder.drawdownPct * 100) / 100,
+        loss_usd: formatUsd(holder.lossUsd),
+        loss_usd_raw: holder.lossUsd,
+        is_eligible: holder.isEligible,
+        ineligible_reason: holder.ineligibleReason,
+        hold_seconds_remaining: holdSecondsRemaining,
+        hold_eligible_at:
+          firstBuyMs && holdSecondsRemaining && holdSecondsRemaining > 0
+            ? new Date(firstBuyMs + config.minHoldDurationMinutes * 60 * 1000).toISOString()
+            : null,
+        payout_usd: formatUsd(getPayoutForWallet(holder.wallet)),
+        eligible_rank: holder.isEligible ? eligibleWallets.indexOf(holder.wallet) + 1 : null,
+      }
+    })
 
     return NextResponse.json({
       success: true,
@@ -190,6 +229,7 @@ export async function GET(request: NextRequest) {
         total_losers: dbRankings.rankings.length,
         ws_connected: false,
         tracker_initialized: serviceStatus.initialized,
+        min_hold_minutes: config.minHoldDurationMinutes,
         rankings,
         eligible_winners: rankings.filter(r => r.is_eligible).slice(0, 3),
         last_updated: dbRankings.lastCalculated.toISOString(),

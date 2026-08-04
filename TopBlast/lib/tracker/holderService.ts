@@ -992,6 +992,7 @@ export async function saveRankingsToDb(): Promise<void> {
       lossUsd: h.lossUsd,
       isEligible: h.isEligible,
       ineligibleReason: h.ineligibleReason,
+      firstBuyAt: h.firstBuyTimestamp ? new Date(h.firstBuyTimestamp) : null,
     }))
     
     const eligibleCount = getEligibleCount()
@@ -1034,6 +1035,7 @@ export async function loadRankingsFromDb(): Promise<{
     lossUsd: number
     isEligible: boolean
     ineligibleReason: string | null
+    firstBuyAt?: Date | string | null
   }>
   totalHolders: number
   eligibleCount: number

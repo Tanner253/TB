@@ -8,6 +8,7 @@ import { AnimatedNumber, Countdown, PriceTicker } from '@/components/ui/Animated
 import { LeaderboardCardSkeleton, TableRowSkeleton } from '@/components/ui/Skeleton'
 import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
 import { getWinnerSharePercents, getPayoutForEligibleRank } from '@/lib/payout/shares'
+import { HolderStatus, HoldTimeBadge } from '@/components/HoldTimeBadge'
 
 const WINNER_SHARES = getWinnerSharePercents()
 
@@ -41,6 +42,8 @@ interface Winner {
   balance_raw?: number
   is_eligible?: boolean
   ineligible_reason?: string | null
+  hold_seconds_remaining?: number | null
+  hold_eligible_at?: string | null
   // Keep these for API compatibility even if not displayed
   drawdown_pct?: number
   loss_usd?: string
@@ -383,9 +386,17 @@ export default function LeaderboardPage() {
                       )}
                       {!isEligible && (
                         <div className="absolute top-0 right-0">
-                          <div className="bg-gray-600 text-white text-xs font-medium px-3 py-1 rounded-bl-lg">
-                            {winner.ineligible_reason || 'Not eligible'}
-                          </div>
+                          {(winner.hold_seconds_remaining ?? 0) > 0 || winner.hold_eligible_at ? (
+                            <HoldTimeBadge
+                              holdEligibleAt={winner.hold_eligible_at}
+                              holdSecondsRemaining={winner.hold_seconds_remaining}
+                              className="rounded-bl-lg rounded-tr-2xl px-3 py-1"
+                            />
+                          ) : (
+                            <div className="bg-gray-600 text-white text-xs font-medium px-3 py-1 rounded-bl-lg">
+                              {winner.ineligible_reason || 'Not eligible'}
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -554,15 +565,12 @@ export default function LeaderboardPage() {
                         {formatNumber(holder.balance)}
                       </td>
                       <td className="px-6 py-4 text-center">
-                        {isEligible ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-rh-green/20 text-rh-green text-xs rounded-full">
-                            ✓ Eligible
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-500/20 text-gray-400 text-xs rounded-full" title={holder.ineligible_reason || 'Not eligible'}>
-                            {holder.ineligible_reason || 'Not eligible'}
-                          </span>
-                        )}
+                        <HolderStatus
+                          isEligible={isEligible}
+                          ineligibleReason={holder.ineligible_reason}
+                          holdEligibleAt={holder.hold_eligible_at}
+                          holdSecondsRemaining={holder.hold_seconds_remaining}
+                        />
                       </td>
                       <td className="px-6 py-4 text-right">
                         {payoutAmount > 0 && isEligible ? (

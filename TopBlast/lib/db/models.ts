@@ -168,6 +168,7 @@ export interface ICurrentRankings extends Document {
     lossUsd: number
     isEligible: boolean
     ineligibleReason: string | null
+    firstBuyAt?: Date | string | null
   }>
   totalHolders: number
   eligibleCount: number
