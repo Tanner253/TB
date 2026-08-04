@@ -5,6 +5,7 @@
 
 import connectDB from '@/lib/db'
 import { Payout, Holder, Disqualification, TimerState, CurrentRankings } from '@/lib/db/models'
+import { resetDeploymentState } from '@/lib/payout/resetDeployment'
 import { transferEth, getPayoutWalletBalance } from '@/lib/evm/transfer'
 import { getEthPrice } from '@/lib/evm/price'
 import { getTxExplorerUrl } from '@/lib/evm/explorer'
@@ -50,31 +51,8 @@ function getExplorerLink(txHash: string | null): string | null {
 }
 
 async function resetForNewToken(tokenMint: string): Promise<void> {
-  console.log(`[Payout] New token detected (${tokenMint.slice(0, 10)}...) — resetting holder/timer state`)
-
-  await Holder.deleteMany({})
-  await CurrentRankings.deleteMany({})
-  await Disqualification.deleteMany({})
-
-  const now = new Date()
-  await TimerState.findOneAndUpdate(
-    { key: TIMER_KEY },
-    {
-      $set: {
-        tokenMint,
-        timerStatus: 'waiting',
-        lastPayoutTime: null,
-        currentCycle: 0,
-        failedAttempts: 0,
-        isPayoutInProgress: false,
-        lockAcquiredAt: null,
-        lockCycle: null,
-        updatedAt: now,
-      },
-    },
-    { upsert: true }
-  )
-
+  console.log(`[Payout] New token detected (${tokenMint.slice(0, 10)}...) — resetting deployment state`)
+  await resetDeploymentState()
   timerCache = {
     lastPayoutTime: null,
     currentCycle: 0,
@@ -115,7 +93,9 @@ async function loadTimerState(): Promise<void> {
     const expectedMint = normalizeMint(config.tokenMint)
     let state = await TimerState.findOne({ key: TIMER_KEY }).lean()
 
-    if (state && state.tokenMint && normalizeMint(state.tokenMint) !== expectedMint) {
+    const storedMint = normalizeMint(state?.tokenMint || '')
+
+    if (state && storedMint !== expectedMint) {
       await resetForNewToken(config.tokenMint)
       return
     }
@@ -139,14 +119,6 @@ async function loadTimerState(): Promise<void> {
       }
       console.log('[Payout] Timer initialized in waiting state (starts when first holder is eligible)')
       return
-    }
-
-    if (!state.tokenMint) {
-      await TimerState.updateOne(
-        { key: TIMER_KEY },
-        { $set: { tokenMint: config.tokenMint } }
-      )
-      state = { ...state, tokenMint: config.tokenMint }
     }
 
     applyTimerDoc(state)

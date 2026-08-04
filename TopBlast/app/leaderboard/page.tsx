@@ -528,7 +528,7 @@ export default function LeaderboardPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        {payoutPct > 0 && isEligible ? (
+                        {payoutAmount > 0 && isEligible ? (
                           <span className="text-rh-green font-bold font-mono">
                             ${payoutAmount.toFixed(2)}
                           </span>
