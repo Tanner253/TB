@@ -744,7 +744,7 @@ const UpdateLog = () => {
             date: "December 2025",
             tag: "LEGACY",
             changes: [
-                "Live automated payouts on Solana mainnet (preserved on sol-build branch)",
+                "Automated payout cycles and real-time leaderboard prototype",
                 "Real-time leaderboard with 5-second polling",
                 "VWAP calculation from on-chain transaction history",
             ]
@@ -756,8 +756,8 @@ const UpdateLog = () => {
             changes: [
                 "Complete rewrite with Next.js 14",
                 "MongoDB for holder caching and payout history",
-                "EVM indexer integration for blockchain data",
-                "Real-time token pricing via Blockscout / CoinGecko",
+                "On-chain indexer integration for holder data",
+                "Real-time token pricing",
                 "Framer Motion animations"
             ]
         },
@@ -830,29 +830,45 @@ const UpdateLog = () => {
 
 // Roadmap Section - Interactive Timeline for Shareholders
 const Roadmap = () => {
-    const [activePhase, setActivePhase] = useState(0)
+    const [activePhase, setActivePhase] = useState(1)
     
     const phases = [
         {
             phase: 1,
-            title: "Foundation",
-            date: "Dec '25 - Jan '26",
-            status: "upcoming",
+            title: "Robinhood EVM Launch",
+            date: "Jun – Aug 2026",
+            status: "complete",
+            icon: "✅",
+            color: "green",
+            summary: "Live on Robinhood Chain",
+            description: "Production Loss-Mining protocol with native ETH payouts, Blockscout indexing, eligibility-gated timer, and on-chain reward pool.",
+            milestones: [
+                { task: "Robinhood Chain deployment", detail: "ERC-20 tokens, viem RPC, Blockscout holder data" },
+                { task: "Automated ETH payouts", detail: "12% dev fee, 88% to top 3 eligible losers (60/25/15)" },
+                { task: "Live app & leaderboard", detail: "Real-time rankings, payout history, eligibility rules" },
+            ],
+            deliverable: "topblastweb3.xyz live on Robinhood Chain mainnet"
+        },
+        {
+            phase: 2,
+            title: "Multi-Token Foundation",
+            date: "Aug – Sep 2026",
+            status: "in-progress",
             icon: "🏗️",
             color: "purple",
             summary: "Building the Multi-Token Engine",
             description: "Transform TopBlast from a single-token protocol into a platform capable of supporting any token.",
             milestones: [
                 { task: "Multi-token architecture", detail: "Platform tracks multiple tokens simultaneously" },
-                { task: "Isolated reward pools", detail: "Each token gets its own independent reward pool" },
+                { task: "Isolated reward pools", detail: "Each token gets its own independent payout wallet & pool" },
                 { task: "Shared infrastructure", detail: "Common VWAP and eligibility calculation engine" },
             ],
             deliverable: "Internal demo with 2+ tokens running Loss-Mining"
         },
         {
-            phase: 2,
+            phase: 3,
             title: "Onboarding Flow",
-            date: "Jan 6 - Jan 26, 2026",
+            date: "Sep – Oct 2026",
             status: "upcoming",
             icon: "🚀",
             color: "blue",
@@ -866,9 +882,9 @@ const Roadmap = () => {
             deliverable: "Working 'Create Your TopBlast Pool' wizard"
         },
         {
-            phase: 3,
+            phase: 4,
             title: "Payment & Burn",
-            date: "Jan 27 - Feb 16, 2026",
+            date: "Oct – Nov 2026",
             status: "upcoming",
             icon: "🔥",
             color: "orange",
@@ -882,37 +898,21 @@ const Roadmap = () => {
             deliverable: "First external token pays to join, TBLAST burned on-chain"
         },
         {
-            phase: 4,
-            title: "Public Launch",
-            date: "Feb 17 - Mar 9, 2026",
+            phase: 5,
+            title: "Public Launch & Scale",
+            date: "Nov 2026 – Q1 2027",
             status: "upcoming",
             icon: "🌍",
-            color: "green",
+            color: "emerald",
             summary: "Opening the Platform",
-            description: "Full public launch with marketing push and partner tokens.",
+            description: "Full public launch with marketing push, partner tokens, analytics, and API access.",
             milestones: [
                 { task: "Public dashboard", detail: "Browse all TopBlast-enabled tokens" },
-                { task: "Documentation & guides", detail: "Complete integration tutorials" },
                 { task: "Launch partners", detail: "5+ tokens debut with TopBlast mechanics" },
+                { task: "Analytics & public API", detail: "Burn stats, pool metrics, third-party integrations" },
             ],
-            deliverable: "Public platform with 5+ integrated tokens"
+            deliverable: "Full SaaS platform with 10+ integrated tokens"
         },
-        {
-            phase: 5,
-            title: "Scale & Optimize",
-            date: "Mar 10 - Mar 31, 2026",
-            status: "upcoming",
-            icon: "📈",
-            color: "emerald",
-            summary: "Ready for Growth",
-            description: "Analytics, API access, and infrastructure for mass adoption.",
-            milestones: [
-                { task: "Analytics dashboard", detail: "Burn stats, total value distributed, active pools" },
-                { task: "Public API", detail: "Let other platforms integrate TopBlast" },
-                { task: "Performance optimization", detail: "Handle 100+ concurrent pools" },
-            ],
-            deliverable: "Full SaaS platform live - Q1 Complete ✅"
-        }
     ]
     
     const getStatusColor = (status: string, color: string) => {
@@ -954,7 +954,7 @@ const Roadmap = () => {
                         </h2>
                         <p className="text-gray-400 max-w-2xl mx-auto text-lg">
                             From single-token protocol to Loss-Mining as a Service. 
-                            <span className="text-rh-green font-semibold"> Target: End of Q1 2026</span>
+                            <span className="text-rh-green font-semibold"> Target: Q1 2027</span>
                         </p>
                     </motion.div>
 
@@ -1123,7 +1123,7 @@ const Roadmap = () => {
                         viewport={{ once: true }}
                     >
                         <p className="text-rh-green font-mono text-lg">
-                            📅 TARGET COMPLETION: <span className="text-white font-bold">MARCH 31, 2026</span>
+                            📅 TARGET COMPLETION: <span className="text-white font-bold">MARCH 31, 2027</span>
                         </p>
                         <p className="text-gray-400 text-sm mt-2">Full SaaS platform with 10+ integrated tokens</p>
                     </motion.div>
@@ -1444,7 +1444,7 @@ const Footer = () => {
                             </a>
                         </div>
                     </div>
-                    <p>&copy; 2025 Topblast Protocol. Built on Robinhood Chain (EVM).</p>
+                    <p>&copy; 2026 Topblast Protocol. Built on Robinhood Chain (EVM).</p>
                 </div>
             </div>
         </footer>
