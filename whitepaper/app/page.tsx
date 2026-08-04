@@ -155,7 +155,7 @@ const Hero = () => {
                 >
                     The world&apos;s first <strong className="text-rh-green">Loss-Mining Protocol</strong>. Built on Robinhood Chain (EVM).
                     <br/>
-                    Get paid for being a top loser. Automatically. Every 2 hours. Native ETH on Robinhood Chain.
+                    Get paid for being a top loser. Automatically. Every 15 minutes. Native ETH on Robinhood Chain.
                 </motion.p>
 
                 <motion.div 
@@ -196,7 +196,7 @@ const Hero = () => {
                         <div className="text-xs text-gray-400 mt-1">1st Place Payout</div>
                     </div>
                     <div className="glass-panel rounded-xl p-4 text-center">
-                        <div className="text-3xl font-bold text-rh-lime font-mono">2hr</div>
+                        <div className="text-3xl font-bold text-rh-lime font-mono">15m</div>
                         <div className="text-xs text-gray-400 mt-1">Payout Frequency</div>
                     </div>
                     <div className="glass-panel rounded-xl p-4 text-center">
@@ -365,24 +365,19 @@ const WhyInvest = () => {
 }
 
 const CountDown = () => {
-    const [timeLeft, setTimeLeft] = useState("1:59:59")
+    const [timeLeft, setTimeLeft] = useState("14:59")
     
     useEffect(() => {
         const interval = setInterval(() => {
             const now = new Date()
-            // 2-hour cycle: calculate position within 2-hour window
-            const totalMinutesInCycle = now.getHours() % 2 === 0 
-                ? now.getMinutes() 
-                : 60 + now.getMinutes()
-            const totalSecondsElapsed = totalMinutesInCycle * 60 + now.getSeconds()
-            const totalSecondsInCycle = 2 * 60 * 60 // 2 hours in seconds
-            const secondsRemaining = totalSecondsInCycle - totalSecondsElapsed - 1
+            const totalSecondsInCycle = 15 * 60 // 15 minutes in seconds
+            const totalSecondsElapsed = (now.getMinutes() % 15) * 60 + now.getSeconds()
+            const secondsRemaining = Math.max(0, totalSecondsInCycle - totalSecondsElapsed - 1)
             
-            const hours = Math.floor(secondsRemaining / 3600)
-            const minutes = Math.floor((secondsRemaining % 3600) / 60)
+            const minutes = Math.floor(secondsRemaining / 60)
             const seconds = secondsRemaining % 60
             
-            setTimeLeft(`${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`)
+            setTimeLeft(`${minutes}:${seconds.toString().padStart(2, '0')}`)
         }, 1000)
         return () => clearInterval(interval)
     }, [])
@@ -453,7 +448,7 @@ const Mechanism = () => {
                         <FeatureCard 
                             icon={<Icons.ShieldAlert />} 
                             title="2. Calculate Drawdown" 
-                            desc="Every 2 hours, the system scans all holders to find the biggest percentage losers. Ranked by drawdown %, with USD loss as tiebreaker."
+                            desc="Every 15 minutes, the system scans all holders to find the biggest percentage losers. Ranked by drawdown %, with USD loss as tiebreaker."
                             delay={0.2}
                         />
                         <FeatureCard 
@@ -585,7 +580,7 @@ const Simulator = () => {
                     <div className="text-right text-red-500 font-mono mt-1">-{drawdown}%</div>
                 </div>
                 <div>
-                    <label className="block text-gray-400 mb-2">Est. 2-Hour Pool ($)</label>
+                    <label className="block text-gray-400 mb-2">Est. Payout Pool ($)</label>
                     <input type="number" value={poolSize} onChange={(e) => setPoolSize(Number(e.target.value))} className="w-full bg-black/50 border border-gray-700 rounded px-3 py-2 text-white focus:border-rh-green outline-none"/>
                 </div>
             </div>
@@ -684,7 +679,7 @@ const Tokenomics = () => {
                                                 exit={{ opacity: 0, y: 10 }}
                                                 className="absolute top-full left-0 w-full mt-4 bg-gray-900 p-4 rounded-lg border border-rh-green/50 z-50 shadow-2xl"
                                             >
-                                                <h4 className="text-sm font-bold text-rh-green mb-2">2-Hour Payout Split</h4>
+                                                <h4 className="text-sm font-bold text-rh-green mb-2">Payout Split</h4>
                                                 <div className="flex gap-2 h-16">
                                                     <div className="h-full bg-yellow-400/80 rounded flex flex-col items-center justify-center text-black font-bold text-xs" style={{width: `${PAYOUT.first}%`}}>
                                                         <span>🥇 1st</span>

@@ -635,7 +635,7 @@ export default function LeaderboardPage() {
             Real-time tracking via Blockscout
           </div>
           <p className="text-xs text-gray-500">
-            {data?.tracked_holders || 0} holders tracked • Top 3 losers paid automatically every hour
+            {data?.tracked_holders || 0} holders tracked • Top 3 losers paid automatically every 15 minutes
           </p>
         </motion.div>
       </main>

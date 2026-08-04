@@ -3,18 +3,18 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'TopBlast | The Loss-Mining Protocol',
-  description: 'The Loss-Mining Protocol on Robinhood Chain. Top 3 losers win native ETH payouts every 2 hours.',
+  description: 'The Loss-Mining Protocol on Robinhood Chain. Top 3 losers win native ETH payouts every 15 minutes.',
   keywords: ['robinhood chain', 'evm', 'defi', 'loss-mining', 'crypto', 'topblast', 'ethereum'],
   authors: [{ name: 'TopBlast' }],
   openGraph: {
     title: 'TopBlast | The Loss-Mining Protocol',
-    description: 'Get paid in native ETH for being a top loser. Robinhood Chain · automated payouts every 2 hours.',
+    description: 'Get paid in native ETH for being a top loser. Robinhood Chain · automated payouts every 15 minutes.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'TopBlast | The Loss-Mining Protocol',
-    description: 'Get paid in native ETH for being a top loser. Robinhood Chain · automated payouts every 2 hours.',
+    description: 'Get paid in native ETH for being a top loser. Robinhood Chain · automated payouts every 15 minutes.',
     site: '@topblasteth',
   },
 }
