@@ -11,7 +11,7 @@ describe('Configuration', () => {
 
   it('should have valid thresholds', () => {
     expect(config.minTokenHolding).toBeGreaterThan(0)
-    expect(config.minHoldDurationHours).toBeGreaterThanOrEqual(0)
+    expect(config.minHoldDurationMinutes).toBe(15)
     expect(config.minLossThresholdPct).toBeGreaterThan(0)
   })
 })

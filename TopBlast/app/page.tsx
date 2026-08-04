@@ -6,6 +6,7 @@ import { useRealtimePrice } from '@/hooks/useRealtime'
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
 import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
 import { getWinnerSharePercents, getDevFeePercent } from '@/lib/payout/shares'
+import { MIN_HOLD_DURATION_MINUTES, formatHoldDuration } from '@/lib/eligibility/holdDuration'
 
 const SHARES = getWinnerSharePercents()
 const DEV_FEE = getDevFeePercent()
@@ -132,7 +133,7 @@ export default function Home() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               {[
                 { label: 'Min Balance', value: '100K', sub: 'tokens' },
-                { label: 'Hold Duration', value: '2 hr', sub: 'minimum' },
+                { label: 'Hold Duration', value: formatHoldDuration(MIN_HOLD_DURATION_MINUTES), sub: 'minimum' },
                 { label: 'Min Loss', value: '10%', sub: 'of pool' },
                 { label: 'Min Pool', value: '$50', sub: 'ETH payout' },
               ].map((item) => (

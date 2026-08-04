@@ -1147,7 +1147,7 @@ const Whitepaper = () => {
                         </div>
                         <div className="bg-green-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
                             <div className="text-xs text-gray-400 uppercase">Hold Time</div>
-                            <div className="text-xl font-bold text-rh-green font-mono">2 hr</div>
+                            <div className="text-xl font-bold text-rh-green font-mono">15 min</div>
                             <div className="text-xs text-gray-500">minimum</div>
                         </div>
                         <div className="bg-green-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
@@ -1227,7 +1227,7 @@ const Whitepaper = () => {
                             <div className="w-10 h-10 bg-rh-green rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">2</div>
                             <div>
                                 <h4 className="text-white font-bold mb-1">Hold for 2+ Hours</h4>
-                                <p className="text-gray-400 text-sm">Your tokens must be held for at least 2 hours before eligibility. Don&apos;t sell. Don&apos;t transfer.</p>
+                                <p className="text-gray-400 text-sm">Your tokens must be held for at least 15 minutes before eligibility. Don&apos;t sell. Don&apos;t transfer.</p>
                             </div>
                         </div>
                         

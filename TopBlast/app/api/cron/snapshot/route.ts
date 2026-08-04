@@ -162,7 +162,7 @@ async function runSnapshot(_request: NextRequest) {
       // Check hold duration
       if (vwapData.firstBuyTimestamp) {
         const holdMs = Date.now() - vwapData.firstBuyTimestamp
-        const minHoldMs = config.minHoldDurationHours * 60 * 60 * 1000
+        const minHoldMs = config.minHoldDurationMinutes * 60 * 1000
         if (holdMs < minHoldMs) {
           await updateHolder(holder.wallet, holder.balance, effectiveVwap, false, 'Hold duration not met')
           continue

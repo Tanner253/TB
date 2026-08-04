@@ -1,6 +1,7 @@
 // Environment configuration — Robinhood Chain (EVM)
 // Env var names kept compatible with existing Vercel deployment
 
+import { MIN_HOLD_DURATION_MINUTES } from '@/lib/eligibility/holdDuration'
 import { getEvmChainId, getEvmRpcUrl } from '@/lib/evm/chain'
 
 export const config = {
@@ -27,7 +28,7 @@ export const config = {
 
   // Eligibility Thresholds
   minTokenHolding: parseInt(process.env.MIN_TOKEN_HOLDING || '1000'),
-  minHoldDurationHours: parseFloat(process.env.MIN_HOLD_DURATION_HOURS || '0'),
+  minHoldDurationMinutes: MIN_HOLD_DURATION_MINUTES,
   minLossThresholdPct: parseFloat(process.env.MIN_LOSS_THRESHOLD_PCT || '10'),
   minPoolForPayout: parseFloat(process.env.MIN_POOL_FOR_PAYOUT || '50'),
 

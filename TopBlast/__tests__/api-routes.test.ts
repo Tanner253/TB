@@ -33,7 +33,7 @@ jest.mock('@/lib/config', () => ({
     tokenSymbol: 'TEST',
     tokenDecimals: 6,
     minTokenHolding: 100000,
-    minHoldDurationHours: 1,
+    minHoldDurationMinutes: 60,
     minLossThresholdPct: 10,
     poolBalanceUsd: 500,
     minPoolForPayout: 50,

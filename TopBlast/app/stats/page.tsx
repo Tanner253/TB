@@ -71,7 +71,8 @@ interface StatsData {
   }
   thresholds: {
     min_balance: string
-    min_hold_hours: number
+    min_hold_minutes: number
+    min_hold_display: string
     min_loss_pct: number
   }
   service: {
@@ -383,7 +384,7 @@ export default function StatsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             {[
               { label: 'Min Balance', value: stats?.thresholds?.min_balance || '100,000', sub: 'tokens' },
-              { label: 'Hold Duration', value: `${stats?.thresholds?.min_hold_hours || 1} hour`, sub: 'minimum' },
+              { label: 'Hold Duration', value: stats?.thresholds?.min_hold_display || '15 min', sub: 'minimum' },
               { label: 'Min Loss', value: `${stats?.thresholds?.min_loss_pct || 10}%`, sub: 'of pool value' },
               { label: 'Min Pool', value: pool?.minimum_pool_usd || '$50', sub: 'for payouts' },
             ].map((item) => (

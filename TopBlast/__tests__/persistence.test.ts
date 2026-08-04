@@ -31,7 +31,7 @@ import {
 jest.mock('@/lib/config', () => ({
   config: {
     minTokenHolding: 100000,
-    minHoldDurationHours: 1,
+    minHoldDurationMinutes: 60,
     minLossThresholdPct: 10,
     poolBalanceUsd: 500,
     payoutSplit: {

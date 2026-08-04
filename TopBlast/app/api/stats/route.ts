@@ -11,6 +11,7 @@ import {
 } from '@/lib/tracker/holderService'
 import { initializeTracker, isTrackerInitialized } from '@/lib/tracker/init'
 import { config } from '@/lib/config'
+import { formatHoldDuration } from '@/lib/eligibility/holdDuration'
 import { getPayoutSplitLabels } from '@/lib/payout/shares'
 
 export const dynamic = 'force-dynamic'
@@ -102,7 +103,8 @@ export async function GET() {
         },
         thresholds: {
           min_balance: config.minTokenHolding.toLocaleString(),
-          min_hold_hours: config.minHoldDurationHours,
+          min_hold_minutes: config.minHoldDurationMinutes,
+          min_hold_display: formatHoldDuration(config.minHoldDurationMinutes),
           min_loss_pct: config.minLossThresholdPct,
         },
         service: {

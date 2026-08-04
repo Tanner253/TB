@@ -459,7 +459,7 @@ function checkEligibility(
   // Check hold duration
   if (firstBuyTimestamp) {
     const holdMs = Date.now() - firstBuyTimestamp
-    const minHoldMs = config.minHoldDurationHours * 60 * 60 * 1000
+    const minHoldMs = config.minHoldDurationMinutes * 60 * 1000
     if (holdMs < minHoldMs) {
       return { isEligible: false, reason: 'Hold duration not met', drawdownPct, lossUsd }
     }
