@@ -13,7 +13,7 @@ const DEV_FEE = getDevFeePercent()
 const COMMUNITY = getCommunityPercent()
 
 const LINKS = {
-  twitter: 'https://x.com/TOPBLASTX',
+  twitter: 'https://x.com/topblasteth',
   whitepaper: 'https://topblastx100.vercel.app',
 }
 
@@ -154,7 +154,7 @@ export default function Home() {
           <p className="text-sm text-gray-500">Robinhood Chain · Native ETH payouts · Blockscout verified</p>
           <div className="flex items-center gap-4">
             <a href={LINKS.whitepaper} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-rh-green transition-colors flex items-center gap-2 text-sm"><DocsIcon /> Whitepaper</a>
-            <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors flex items-center gap-2 text-sm"><XIcon /> @TOPBLASTX</a>
+            <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors flex items-center gap-2 text-sm"><XIcon /> @topblasteth</a>
           </div>
         </div>
       </footer>

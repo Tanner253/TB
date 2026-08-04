@@ -68,6 +68,11 @@ export function WhoGetsPaidRules({ variant = 'homepage', className = '' }: WhoGe
       title: 'Not on winner cooldown',
       body: 'If you won the previous payout cycle, you sit out until the next one.',
     },
+    {
+      n: 7,
+      title: 'Not a protocol wallet',
+      body: 'The payout pool wallet and dev fee wallet cannot rank or receive loss-mining payouts.',
+    },
   ]
 
   const isHomepage = variant === 'homepage'

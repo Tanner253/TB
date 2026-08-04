@@ -1,6 +1,11 @@
 import { config } from '@/lib/config'
+import {
+  getProtocolWalletExclusionReason,
+  isExcludedParticipantWallet,
+} from '@/lib/eligibility/excludedWallets'
 
 export interface HolderEligibilityInput {
+  wallet?: string
   balance: number
   vwap: number | null
   tokenPrice: number
@@ -24,6 +29,7 @@ export function evaluateHolderEligibility(
   input: HolderEligibilityInput
 ): HolderEligibilityResult {
   const {
+    wallet,
     balance,
     vwap,
     tokenPrice,
@@ -35,6 +41,15 @@ export function evaluateHolderEligibility(
     poolUsd,
     currentCycle = 1,
   } = input
+
+  if (wallet && isExcludedParticipantWallet(wallet)) {
+    return {
+      isEligible: false,
+      ineligibleReason: getProtocolWalletExclusionReason(),
+      drawdownPct: 0,
+      lossUsd: 0,
+    }
+  }
 
   let drawdownPct = 0
   let lossUsd = 0

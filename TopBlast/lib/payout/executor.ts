@@ -8,6 +8,7 @@ import { Payout, Holder, Disqualification, TimerState, CurrentRankings } from '@
 import { resetDeploymentState } from '@/lib/payout/resetDeployment'
 import { transferEth } from '@/lib/evm/transfer'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
+import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
 import { getEthPrice } from '@/lib/evm/price'
 import { getTxExplorerUrl } from '@/lib/evm/explorer'
 import { config } from '@/lib/config'
@@ -326,16 +327,19 @@ export async function executePayout(): Promise<PayoutResult> {
       return { success: false, error: 'Pool below minimum' }
     }
 
+    const isPayableWinner = (h: { wallet: string; isEligible: boolean }) =>
+      h.isEligible && !isExcludedParticipantWallet(h.wallet)
+
     let eligibleWinners: any[] = []
 
     const inMemoryRankings = getRankedLosers()
     if (inMemoryRankings.length > 0) {
-      eligibleWinners = inMemoryRankings.filter(h => h.isEligible).slice(0, 3)
+      eligibleWinners = inMemoryRankings.filter(isPayableWinner).slice(0, 3)
       console.log(`[Payout] Using in-memory: ${inMemoryRankings.length} total, ${eligibleWinners.length} eligible`)
     } else {
       const dbRankings = await loadRankingsFromDb()
       if (dbRankings && dbRankings.rankings.length > 0) {
-        eligibleWinners = dbRankings.rankings.filter((h: any) => h.isEligible).slice(0, 3)
+        eligibleWinners = dbRankings.rankings.filter(isPayableWinner).slice(0, 3)
         console.log(`[Payout] Using database: ${dbRankings.rankings.length} total, ${eligibleWinners.length} eligible`)
       }
     }

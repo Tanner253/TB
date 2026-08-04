@@ -14,7 +14,7 @@ const WINNER_SHARES = getWinnerSharePercents()
 
 // External Links
 const LINKS = {
-  twitter: 'https://x.com/TOPBLASTX',
+  twitter: 'https://x.com/topblasteth',
   whitepaper: 'https://topblastx100.vercel.app',
 }
 

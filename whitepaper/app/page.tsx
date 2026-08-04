@@ -24,7 +24,7 @@ const PAYOUT = {
 
 // External Links
 const LINKS = {
-    twitter: 'https://x.com/TOPBLASTX',
+    twitter: 'https://x.com/topblasteth',
     app: APP_URL,
 }
 
@@ -118,7 +118,7 @@ const Navbar = () => {
                         {/* Mobile Social Links */}
                         <div className="flex items-center gap-4 px-3 py-2">
                             <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors flex items-center gap-2">
-                                <Icons.XTwitter /> @TOPBLASTX
+                                <Icons.XTwitter /> @topblasteth
                             </a>
                         </div>
                         <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="block bg-rh-green text-black px-3 py-2 rounded-md text-base font-bold mt-2">

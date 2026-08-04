@@ -10,6 +10,7 @@ import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
 import connectDB from '@/lib/db'
 import { Holder } from '@/lib/db/models'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
+import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
 
 // Types
 export interface HolderData {
@@ -179,10 +180,14 @@ export async function initializeHolderService(): Promise<boolean> {
     // Sort by balance descending
     const sortedHolders = [...rawHolders].sort((a, b) => b.balance - a.balance)
     
-    // Add holders not already in cache (skip LP/contracts)
+    // Add holders not already in cache (skip LP/contracts and protocol wallets)
     for (const h of sortedHolders) {
       if (h.isContract) {
         console.log(`[HolderService] Skip contract holder ${h.wallet.slice(0, 10)}...`)
+        continue
+      }
+      if (isExcludedParticipantWallet(h.wallet)) {
+        console.log(`[HolderService] Skip protocol wallet ${h.wallet.slice(0, 10)}...`)
         continue
       }
       const balance = h.balance / Math.pow(10, config.tokenDecimals)
@@ -484,6 +489,7 @@ function checkEligibility(
   totalTokensBought: number = 0
 ): { isEligible: boolean; reason: string | null; drawdownPct: number; lossUsd: number } {
   const result = evaluateHolderEligibility({
+    wallet,
     balance,
     vwap,
     tokenPrice,
@@ -953,7 +959,10 @@ export async function saveRankingsToDb(): Promise<void> {
     
     // Include EOA holders only; leaderboard ranks eligible losers by drawdown
     const eoaHolders = Array.from(holders.values()).filter(
-      h => !h.isContract && h.balance >= config.minTokenHolding
+      h =>
+        !h.isContract &&
+        !isExcludedParticipantWallet(h.wallet) &&
+        h.balance >= config.minTokenHolding
     )
 
     for (const h of eoaHolders) {
@@ -1148,6 +1157,7 @@ export async function ensureVwapCalculated(): Promise<boolean> {
     const sortedHolders = [...rawHolders].sort((a, b) => b.balance - a.balance)
     for (const h of sortedHolders) {
       if (h.isContract) continue
+      if (isExcludedParticipantWallet(h.wallet)) continue
       const balance = h.balance / Math.pow(10, config.tokenDecimals)
       if (!holders.has(h.wallet)) {
         holders.set(h.wallet, createBasicHolder(h.wallet, balance, h.balance))

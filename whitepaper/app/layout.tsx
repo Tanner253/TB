@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'TopBlast Whitepaper | The Loss-Mining Protocol',
     description: 'Get paid for being a top loser. Every 2 hours, the top 3 wallets with the biggest drawdowns win.',
-    site: '@TOPBLASTX',
+    site: '@topblasteth',
   },
 }
 

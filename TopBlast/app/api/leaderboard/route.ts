@@ -22,6 +22,7 @@ import {
 import { getPayoutForEligibleRank } from '@/lib/payout/shares'
 import { buildHoldTimeFields } from '@/lib/eligibility/holdDuration'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
+import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
 import { getEarliestBuyTimestamp, getTokenHolders } from '@/lib/evm/indexer'
 
 export const dynamic = 'force-dynamic'
@@ -83,9 +84,10 @@ export async function GET(request: NextRequest) {
     let liveEligibleCount = 0
     if (dbRankings) {
       liveEligibleCount = dbRankings.rankings.filter(h => {
-        if (h.isContract) return false
+        if (h.isContract || isExcludedParticipantWallet(h.wallet)) return false
         const firstBuyMs = h.firstBuyAt ? new Date(h.firstBuyAt).getTime() : null
         const live = evaluateHolderEligibility({
+          wallet: h.wallet,
           balance: h.balance,
           vwap: h.vwap || null,
           tokenPrice: liveTokenPrice,
@@ -190,7 +192,10 @@ export async function GET(request: NextRequest) {
     )
 
     const sourceRankings = dbRankings.rankings.filter(
-      h => !h.isContract && !contractWallets.has(h.wallet.toLowerCase())
+      h =>
+        !h.isContract &&
+        !contractWallets.has(h.wallet.toLowerCase()) &&
+        !isExcludedParticipantWallet(h.wallet)
     )
 
     const walletsNeedingFirstBuy = sourceRankings
@@ -234,6 +239,7 @@ export async function GET(request: NextRequest) {
         null
       const firstBuyMs = firstBuyAt ? new Date(firstBuyAt).getTime() : null
       const live = evaluateHolderEligibility({
+        wallet: holder.wallet,
         balance: holder.balance,
         vwap: holder.vwap || null,
         tokenPrice: liveTokenPrice,

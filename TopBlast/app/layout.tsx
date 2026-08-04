@@ -15,6 +15,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'TopBlast | The Loss-Mining Protocol',
     description: 'Get paid in native ETH for being a top loser. Robinhood Chain · automated payouts every 2 hours.',
+    site: '@topblasteth',
   },
 }
 
