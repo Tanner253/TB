@@ -6,11 +6,12 @@
 import connectDB from '@/lib/db'
 import { Payout, Holder, Disqualification, TimerState, CurrentRankings } from '@/lib/db/models'
 import { resetDeploymentState } from '@/lib/payout/resetDeployment'
-import { transferEth, getPayoutWalletBalance } from '@/lib/evm/transfer'
+import { transferEth } from '@/lib/evm/transfer'
+import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { getEthPrice } from '@/lib/evm/price'
 import { getTxExplorerUrl } from '@/lib/evm/explorer'
 import { config } from '@/lib/config'
-import { saveRankingsToDb, loadRankingsFromDb, getRankedLosers, markWinnersCooldown, getServiceStatus } from '@/lib/tracker/holderService'
+import { saveRankingsToDb, loadRankingsFromDb, getRankedLosers, markWinnersCooldown, getServiceStatus, refreshPoolUsdCache } from '@/lib/tracker/holderService'
 
 const MIN_TRANSFER_ETH = 0.001
 const TIMER_KEY = 'payout_timer'
@@ -303,22 +304,21 @@ export async function executePayout(): Promise<PayoutResult> {
     console.log(`[Payout] ║           STARTING PAYOUT CYCLE ${nextCycle}                      ║`)
     console.log('[Payout] ╚════════════════════════════════════════════════════════╝')
 
-    const ethPrice = await getEthPrice() || 3500
-    console.log(`[Payout] ETH price: $${ethPrice}`)
+    const livePool = await getLivePoolBalance()
+    await refreshPoolUsdCache(livePool.poolUsd)
+    const ethPrice = livePool.ethPrice
+    const poolEth = livePool.poolEth
+    const poolUsd = livePool.poolUsd
 
-    const walletBalance = await getPayoutWalletBalance()
-    const walletEth = walletBalance?.eth || walletBalance?.sol || 0
-    console.log(`[Payout] Wallet balance: ${walletEth.toFixed(6)} ETH`)
+    console.log(`[Payout] Payout wallet: ${livePool.payoutWalletAddress || 'NOT CONFIGURED'}`)
+    console.log(`[Payout] Wallet balance: ${livePool.walletEth.toFixed(6)} ETH`)
+    console.log(`[Payout] Pool: ${poolEth.toFixed(6)} ETH ($${poolUsd.toFixed(2)})`)
 
-    if (walletEth <= 0) {
+    if (!livePool.available || livePool.walletEth <= 0) {
       console.log('[Payout] No balance — skipping without advancing cycle')
       await releasePayoutLock()
       return { success: false, error: 'No wallet balance' }
     }
-
-    const poolEth = walletEth * config.poolPercentage
-    const poolUsd = poolEth * ethPrice
-    console.log(`[Payout] Pool: ${poolEth.toFixed(6)} ETH ($${poolUsd.toFixed(2)})`)
 
     if (poolEth < config.minPoolEth) {
       console.log(`[Payout] Pool below minimum ${config.minPoolEth} ETH — skipping without advancing cycle`)
@@ -410,8 +410,8 @@ export async function executePayout(): Promise<PayoutResult> {
       const isDevFee = pending.rank === 0
       const label = isDevFee ? 'Dev fee' : `#${pending.rank}`
 
-      const currentBalance = await getPayoutWalletBalance()
-      const availableEth = currentBalance?.eth || currentBalance?.sol || 0
+      const currentLive = await getLivePoolBalance()
+      const availableEth = currentLive.walletEth
       const requiredEth = pending.amountEth + 0.001
 
       if (availableEth < requiredEth) {

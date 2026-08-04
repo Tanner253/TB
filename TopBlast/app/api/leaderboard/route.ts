@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { formatPrice, formatUsd, getEthPrice } from '@/lib/evm/price'
+import { formatPrice, formatUsd } from '@/lib/evm/price'
 import { formatWallet } from '@/lib/evm/holders'
 import { initializeTracker } from '@/lib/tracker/init'
 import {
@@ -8,7 +8,7 @@ import {
   ensureRankingsIndexed,
 } from '@/lib/tracker/holderService'
 import { config } from '@/lib/config'
-import { getPayoutWalletBalance } from '@/lib/evm/transfer'
+import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import {
   executePayout,
   isPayoutDue,
@@ -20,6 +20,7 @@ import {
 import { getPayoutForEligibleRank } from '@/lib/payout/shares'
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,11 +43,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
 
-    const ethPrice = await getEthPrice() || 3500
-    const walletBalance = await getPayoutWalletBalance()
-    const walletEth = walletBalance?.eth || walletBalance?.sol || 0
-    const poolEth = walletEth * config.poolPercentage
-    const poolUsd = poolEth * ethPrice
+    const livePool = await getLivePoolBalance()
+    const { poolEth, poolUsd, ethPrice, poolUsdFormatted, poolEthFormatted, minLossUsdFormatted, payoutWalletAddress } = livePool
 
     const serviceStatus = getServiceStatus()
 
@@ -105,6 +103,18 @@ export async function GET(request: NextRequest) {
 
     const timerAfterPayout = getPayoutTimerInfo()
 
+    const poolFields = {
+      pool_balance_eth: poolEthFormatted,
+      pool_balance_usd: poolUsdFormatted,
+      pool_balance_usd_raw: poolUsd,
+      pool_balance_tokens: `${poolEthFormatted} ETH`,
+      payout_wallet_address: payoutWalletAddress,
+      eth_price: ethPrice,
+      min_loss_threshold_usd: minLossUsdFormatted,
+    }
+
+    const noStoreHeaders = { 'Cache-Control': 'no-store, max-age=0' }
+
     if (!dbRankings) {
       return NextResponse.json({
         success: true,
@@ -116,10 +126,7 @@ export async function GET(request: NextRequest) {
           timer_status: timerAfterPayout.timer_status,
           cycle: timerAfterPayout.next_cycle,
           seconds_remaining: timerAfterPayout.seconds_remaining,
-          pool_balance_eth: poolEth.toFixed(4),
-          pool_balance_usd: formatUsd(poolUsd),
-          pool_balance_tokens: `${poolEth.toFixed(4)} ETH`,
-          eth_price: ethPrice,
+          ...poolFields,
           token_price: 'Loading...',
           token_symbol: config.tokenSymbol,
           token_mint: config.tokenMint,
@@ -132,11 +139,10 @@ export async function GET(request: NextRequest) {
           rankings: [],
           last_updated: new Date().toISOString(),
         },
-      })
+      }, { headers: noStoreHeaders })
     }
 
     const poolBal = poolUsd
-    const minLoss = poolBal * (config.minLossThresholdPct / 100)
 
     const eligibleWallets = dbRankings.rankings
       .filter(h => h.isEligible)
@@ -172,10 +178,7 @@ export async function GET(request: NextRequest) {
         timer_status: timerAfterPayout.timer_status,
         cycle: timerAfterPayout.next_cycle,
         seconds_remaining: timerAfterPayout.seconds_remaining,
-        pool_balance_eth: poolEth.toFixed(4),
-        pool_balance_usd: formatUsd(poolUsd),
-        pool_balance_tokens: `${poolEth.toFixed(4)} ETH`,
-        eth_price: ethPrice,
+        ...poolFields,
         token_price: formatPrice(dbRankings.tokenPrice),
         token_price_raw: dbRankings.tokenPrice,
         token_symbol: config.tokenSymbol,
@@ -185,14 +188,13 @@ export async function GET(request: NextRequest) {
         holders_with_real_vwap: dbRankings.holdersWithVwap,
         eligible_count: dbRankings.eligibleCount,
         total_losers: dbRankings.rankings.length,
-        min_loss_threshold_usd: formatUsd(minLoss),
         ws_connected: false,
         tracker_initialized: serviceStatus.initialized,
         rankings,
         eligible_winners: rankings.filter(r => r.is_eligible).slice(0, 3),
         last_updated: dbRankings.lastCalculated.toISOString(),
       },
-    })
+    }, { headers: noStoreHeaders })
   } catch (error: any) {
     console.error('[Leaderboard] Error:', error)
     return NextResponse.json(

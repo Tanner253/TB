@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/db'
-import { Holder, Snapshot, PoolBalance, Disqualification } from '@/lib/db/models'
+import { Holder, Snapshot, Disqualification } from '@/lib/db/models'
+import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { getTokenHolders } from '@/lib/evm/indexer'
 import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
 import { calculateBatchVwaps, VwapData } from '@/lib/tracker/vwap'
@@ -64,10 +65,10 @@ async function runSnapshot(_request: NextRequest) {
     console.log(`[Snapshot] Token Price: $${tokenPrice}`)
     console.log(`[Snapshot] ETH Price: $${ethPrice}`)
 
-    // 2. Get pool balance from database
-    const pool = await PoolBalance.findOne()
-    const poolBal = pool?.balance || config.poolBalanceUsd
-    console.log(`[Snapshot] Pool: $${poolBal}`)
+    // 2. Get pool balance from payout wallet on-chain (single source of truth)
+    const livePool = await getLivePoolBalance()
+    const poolBal = livePool.poolUsd
+    console.log(`[Snapshot] Pool: $${poolBal.toFixed(2)} (${livePool.poolEthFormatted} ETH from ${livePool.payoutWalletAddress?.slice(0, 10) || '?'}...)`)
 
     // 3. Get current cycle number
     const lastSnapshot = await Snapshot.findOne().sort({ cycle: -1 })

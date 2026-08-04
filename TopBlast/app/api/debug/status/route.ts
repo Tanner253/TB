@@ -8,6 +8,7 @@ import connectDB from '@/lib/db'
 import { getServiceStatus, loadRankingsFromDb } from '@/lib/tracker/holderService'
 import { getTrackerStatus } from '@/lib/tracker/init'
 import { checkRpcHealth, getHolderCount } from '@/lib/evm/indexer'
+import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
 import { getEvmChainId, getEvmRpcUrl } from '@/lib/evm/chain'
 
@@ -70,6 +71,19 @@ export async function GET() {
 
   status.holderService = getServiceStatus()
   status.tracker = getTrackerStatus()
+
+  try {
+    const livePool = await getLivePoolBalance()
+    status.livePool = {
+      payoutWalletAddress: livePool.payoutWalletAddress,
+      walletEth: livePool.walletEth,
+      poolEth: livePool.poolEth,
+      poolUsd: livePool.poolUsdFormatted,
+      available: livePool.available,
+    }
+  } catch (error: any) {
+    status.livePool = { error: error.message }
+  }
 
   try {
     const dbRankings = await loadRankingsFromDb()

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/db'
-import { Holder, PoolBalance } from '@/lib/db/models'
+import { Holder } from '@/lib/db/models'
 import { config } from '@/lib/config'
 
 export const dynamic = 'force-dynamic'
@@ -18,22 +18,12 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB()
 
-    // Seed pool balance
-    const existingPool = await PoolBalance.findOne()
-
-    if (!existingPool) {
-      await PoolBalance.create({
-        balance: config.poolBalanceUsd,
-        balanceTokens: config.poolBalanceTokens,
-        totalDistributed: 0,
-        totalCycles: 0,
-      })
-    }
-
+    // Pool balance comes from on-chain payout wallet via getLivePoolBalance() — not seeded here.
     return NextResponse.json({
       success: true,
       data: {
-        pool_seeded: true,
+        pool_seeded: false,
+        note: 'Pool is read from payout wallet on-chain; MongoDB PoolBalance is legacy.',
       },
     })
   } catch (error) {

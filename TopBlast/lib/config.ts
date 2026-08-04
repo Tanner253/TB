@@ -23,6 +23,7 @@ export const config = {
   minPoolSol: parseFloat(process.env.MIN_POOL_SOL || '0.025'),
   minPoolEth: parseFloat(process.env.MIN_POOL_SOL || '0.025'),
 
+  // @deprecated — not used for live pool. Pool = payout wallet ETH balance on-chain.
   poolBalanceUsd: parseFloat(process.env.POOL_BALANCE_USD || '500'),
   poolBalanceTokens: parseInt(process.env.POOL_BALANCE_TOKENS || '1000000000'),
 

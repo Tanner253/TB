@@ -176,8 +176,8 @@ export default function LeaderboardPage() {
   const eligibleWinners = (data?.rankings || []).filter((h: Winner) => h.is_eligible === true)
   const top3 = eligibleWinners.slice(0, 3)
   
-  // Pool balance in USD for payout estimates
-  const poolValue = parseFloat(data?.pool_balance_usd?.replace(/[$,]/g, '') || '0')
+  // Pool balance in USD for payout estimates (prefer raw number from API)
+  const poolValue = data?.pool_balance_usd_raw ?? parseFloat(data?.pool_balance_usd?.replace(/[$,]/g, '') || '0')
   const wsConnected = data?.ws_connected
 
   return (
@@ -315,10 +315,19 @@ export default function LeaderboardPage() {
                 REWARD POOL
               </div>
               <div className="text-5xl font-bold text-white mb-2">
-                <AnimatedNumber value={poolValue} format="currency" showChange />
+                <AnimatedNumber
+                  key={`pool-${data?.pool_balance_eth}-${data?.pool_balance_usd_raw}`}
+                  value={poolValue}
+                  format="currency"
+                />
               </div>
               <p className="text-gray-400 text-sm">
                 {data?.pool_balance_eth || '0'} ETH in pool
+                {data?.payout_wallet_address && (
+                  <span className="block text-xs text-gray-600 mt-1 font-mono">
+                    Wallet {data.payout_wallet_address.slice(0, 6)}…{data.payout_wallet_address.slice(-4)} · live on-chain
+                  </span>
+                )}
               </p>
             </div>
           </motion.div>

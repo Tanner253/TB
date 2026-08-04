@@ -70,21 +70,20 @@ const MAX_INITIAL_HOLDERS = 200 // Process top 200 holders first (sorted by bala
 const PRIORITY_HOLDER_COUNT = 50 // Process top 50 holders FIRST for instant results
 
 async function resolvePoolUsd(): Promise<number> {
-  try {
-    const { getPayoutWalletBalance } = await import('@/lib/evm/transfer')
-    const walletBalance = await getPayoutWalletBalance()
-    const ethPrice = (await getEthPrice()) || 3500
-    const walletEth = walletBalance?.eth || walletBalance?.sol || 0
-    return walletEth * config.poolPercentage * ethPrice
-  } catch {
-    return config.poolBalanceUsd
-  }
+  const { getLivePoolBalance } = await import('@/lib/payout/poolBalance')
+  const live = await getLivePoolBalance()
+  return live.poolUsd
+}
+
+/** Sync eligibility/min-loss calculations to the latest on-chain pool (single source of truth). */
+export async function refreshPoolUsdCache(poolUsd?: number): Promise<number> {
+  const resolved = poolUsd ?? (await resolvePoolUsd())
+  state.currentPoolUsd = resolved
+  return resolved
 }
 
 function getEffectivePoolUsd(): number {
-  return state.currentPoolUsd && state.currentPoolUsd > 0
-    ? state.currentPoolUsd
-    : config.poolBalanceUsd
+  return state.currentPoolUsd ?? 0
 }
 
 /**
@@ -110,7 +109,7 @@ export async function initializeHolderService(): Promise<boolean> {
     await connectDB()
 
     state.currentPoolUsd = await resolvePoolUsd()
-    
+
     // Get current token price (Blockscout, CoinGecko, or recent swap)
     state.currentTokenPrice = await getTokenPrice(config.tokenMint)
     if (!state.currentTokenPrice) {
@@ -969,6 +968,8 @@ export async function saveRankingsToDb(): Promise<void> {
       console.log('[HolderService] Skip rankings save — in-memory holders empty (avoid wiping DB)')
       return
     }
+
+    await refreshPoolUsdCache()
 
     const { CurrentRankings } = await import('@/lib/db/models')
     await connectDB()

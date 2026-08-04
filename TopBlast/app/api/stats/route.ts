@@ -13,6 +13,7 @@ import { initializeTracker, isTrackerInitialized } from '@/lib/tracker/init'
 import { config } from '@/lib/config'
 import { formatHoldDuration } from '@/lib/eligibility/holdDuration'
 import { getPayoutSplitLabels } from '@/lib/payout/shares'
+import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,6 +68,8 @@ export async function GET() {
       }
     }
 
+    const livePool = await getLivePoolBalance()
+
     return NextResponse.json({
       success: true,
       data: {
@@ -88,10 +91,12 @@ export async function GET() {
           in_loss: holdersInLoss,
         },
         protocol: {
-          total_cycles: 0, // Will be populated from DB in production
+          total_cycles: 0,
           total_distributed_usd: formatUsd(0),
-          average_pool_size_usd: formatUsd(config.poolBalanceUsd),
-          current_pool_usd: formatUsd(config.poolBalanceUsd),
+          average_pool_size_usd: livePool.poolUsdFormatted,
+          current_pool_usd: livePool.poolUsdFormatted,
+          current_pool_usd_raw: livePool.poolUsd,
+          payout_wallet_address: livePool.payoutWalletAddress,
           payout_split: getPayoutSplitLabels(),
         },
         leaderboard: {
