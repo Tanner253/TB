@@ -1,12 +1,17 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useRealtimePrice } from '@/hooks/useRealtime'
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
 import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
+import { CopyContractAddress } from '@/components/ui/CopyContractAddress'
 import { WhoGetsPaidRules } from '@/components/WhoGetsPaidRules'
 import { getWinnerSharePercents, getDevFeePercent, getCommunityPercent } from '@/lib/payout/shares'
+
+const FALLBACK_TOKEN_CA = '0x9e4cdd4310b156af711257f2121328013e1de07b'
+const BLOCKSCOUT_ADDRESS = 'https://robinhoodchain.blockscout.com/address'
 
 const SHARES = getWinnerSharePercents()
 const DEV_FEE = getDevFeePercent()
@@ -34,6 +39,22 @@ const DocsIcon = () => (
 
 export default function Home() {
   const { price, marketCap } = useRealtimePrice(15000)
+  const [tokenMint, setTokenMint] = useState(FALLBACK_TOKEN_CA)
+  const [tokenSymbol, setTokenSymbol] = useState('TopBlast')
+
+  useEffect(() => {
+    fetch('/api/stats')
+      .then(res => res.json())
+      .then(json => {
+        if (json.success && json.data?.token?.mint) {
+          setTokenMint(json.data.token.mint)
+        }
+        if (json.success && json.data?.token?.symbol) {
+          setTokenSymbol(json.data.token.symbol)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden bg-black">
@@ -71,10 +92,23 @@ export default function Home() {
           </h1>
 
           <p className="text-xl md:text-2xl text-gray-300 mb-2 font-light">The Loss-Mining Protocol</p>
-          <p className="text-gray-400 max-w-2xl mx-auto mb-10 text-lg leading-relaxed">
+          <p className="text-gray-400 max-w-2xl mx-auto mb-6 text-lg leading-relaxed">
             Get paid in <span className="text-rh-green font-semibold">native ETH</span> for being a{' '}
             <span className="text-red-400 font-semibold">top eligible loser</span> — ranked by drawdown %, not wallet size.
           </p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="mb-8 flex justify-center"
+          >
+            <CopyContractAddress
+              address={tokenMint}
+              symbol={tokenSymbol}
+              explorerUrl={`${BLOCKSCOUT_ADDRESS}/${tokenMint}`}
+            />
+          </motion.div>
 
           {(price || marketCap) && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}

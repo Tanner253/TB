@@ -10,3 +10,10 @@ export function getTxExplorerUrl(txHash: string | null | undefined): string | nu
 export function getExplorerLabel(): string {
   return 'Blockscout'
 }
+
+export function getAddressExplorerUrl(address: string | null | undefined): string | null {
+  if (!address) return null
+  const chainId = getEvmChainId()
+  const base = chainId === ROBINHOOD_TESTNET_CHAIN_ID ? BLOCKSCOUT_TESTNET : BLOCKSCOUT_MAINNET
+  return `${base}/address/${address}`
+}

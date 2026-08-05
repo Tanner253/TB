@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
+import { CopyContractAddress } from './components/CopyContractAddress'
 
 // Dynamically import Three.js component to avoid SSR issues
 const CandlestickBackground = dynamic(() => import('./components/CandlestickBackground'), {
@@ -12,6 +13,8 @@ const CandlestickBackground = dynamic(() => import('./components/CandlestickBack
 
 // App URL
 const APP_URL = 'https://topblasteth.xyz'
+
+const TOKEN_CA = '0x9e4cdd4310b156af711257f2121328013e1de07b'
 
 // Payout structure (winner pool shares after dev fee)
 const PAYOUT = {
@@ -157,6 +160,15 @@ const Hero = () => {
                     <br/>
                     Get paid for being a top loser. Automatically. Every 15 minutes. Native ETH on Robinhood Chain.
                 </motion.p>
+
+                <motion.div
+                    className="mb-6 flex justify-center"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                >
+                    <CopyContractAddress address={TOKEN_CA} symbol="TopBlast" />
+                </motion.div>
 
                 <motion.div 
                     className="flex flex-col md:flex-row gap-4 justify-center"
@@ -1308,7 +1320,8 @@ const Whitepaper = () => {
                             <div className="w-10 h-10 bg-rh-green rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">1</div>
                             <div>
                                 <h4 className="text-white font-bold mb-1">Buy $TopBlast</h4>
-                                <p className="text-gray-400 text-sm">Purchase $TopBlast on Robinhood Chain via any supported DEX. Hold in your EVM wallet — no app connection required.</p>
+                                <p className="text-gray-400 text-sm mb-3">Purchase $TopBlast on Robinhood Chain via any supported DEX. Hold in your EVM wallet — no app connection required.</p>
+                                <CopyContractAddress address={TOKEN_CA} symbol="TopBlast" className="!justify-start" />
                             </div>
                         </div>
                         
