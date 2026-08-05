@@ -70,7 +70,7 @@ const Navbar = () => {
                     </a>
                     <div className="hidden md:block">
                         <div className="ml-10 flex items-center space-x-6">
-                            <a href="#why-invest" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Why $TBLAST</a>
+                            <a href="#why-invest" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Why $TopBlast</a>
                             <a href="#how-it-works" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Mechanism</a>
                             <a href="#who-gets-paid" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Who Gets Paid</a>
                             <a href="#tokenomics" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Tokenomics</a>
@@ -109,7 +109,7 @@ const Navbar = () => {
             {isOpen && (
                 <div className="md:hidden glass-panel border-t border-gray-800">
                     <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                        <a href="#why-invest" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Why $TBLAST</a>
+                        <a href="#why-invest" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Why $TopBlast</a>
                         <a href="#how-it-works" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Mechanism</a>
                         <a href="#who-gets-paid" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Who Gets Paid</a>
                         <a href="#tokenomics" className="block hover:bg-gray-800 px-3 py-2 rounded-md text-base font-medium">Tokenomics</a>
@@ -243,7 +243,7 @@ const WhyInvest = () => {
         {
             icon: <Icons.Shield />,
             title: "Downside Protection",
-            desc: "Unlike traditional tokens where you only win if price goes up, $TBLAST rewards you when price dumps. Your loss becomes your ticket to win.",
+            desc: "Unlike traditional tokens where you only win if price goes up, $TopBlast rewards you when price dumps. Your loss becomes your ticket to win.",
             highlight: "Win when price pumps OR dumps"
         },
         {
@@ -279,7 +279,7 @@ const WhyInvest = () => {
                         <span className="inline-block px-4 py-1 bg-rh-green/20 border border-rh-green/30 rounded-full text-rh-green text-sm font-medium mb-4">
                             INVESTOR VALUE
                         </span>
-                        <h2 className="text-4xl md:text-5xl font-bold mb-4">Why Buy <span className="text-rh-green">$TBLAST</span>?</h2>
+                        <h2 className="text-4xl md:text-5xl font-bold mb-4">Why Buy <span className="text-rh-green">$TopBlast</span>?</h2>
                         <p className="text-gray-400 max-w-2xl mx-auto text-lg">
                             The only token where being wrong about price direction can still make you money.
                         </p>
@@ -883,14 +883,14 @@ const Roadmap = () => {
             status: "upcoming",
             icon: "🔥",
             color: "orange",
-            summary: "TBLAST Deflationary Mechanics",
-            description: "Platform fees automatically buy TBLAST from the market and burn it forever.",
+            summary: "TopBlast Deflationary Mechanics",
+            description: "Platform fees automatically buy TopBlast from the market and burn it forever.",
             milestones: [
                 { task: "Payment integration", detail: "Accept ETH/USDC for platform access on Robinhood Chain" },
-                { task: "Auto-buy mechanism", detail: "Payments swap to TBLAST on Robinhood DEX" },
-                { task: "Burn execution", detail: "Purchased TBLAST sent to burn address" },
+                { task: "Auto-buy mechanism", detail: "Payments swap to TopBlast on Robinhood DEX" },
+                { task: "Burn execution", detail: "Purchased TopBlast sent to burn address" },
             ],
-            deliverable: "First external token pays to join, TBLAST burned on-chain"
+            deliverable: "First external token pays to join, TopBlast burned on-chain"
         },
         {
             phase: 5,
@@ -1086,7 +1086,7 @@ const Roadmap = () => {
                         </motion.button>
                     </div>
 
-                    {/* Value Proposition for TBLAST Holders */}
+                    {/* Value Proposition for TopBlast Holders */}
                     <motion.div 
                         className="mt-16 grid md:grid-cols-3 gap-6"
                         initial={{ opacity: 0, y: 20 }}
@@ -1096,17 +1096,17 @@ const Roadmap = () => {
                         <div className="glass-panel rounded-xl p-6 text-center border border-orange-500/30 bg-gradient-to-b from-orange-900/10 to-transparent">
                             <div className="text-4xl mb-3">🔥</div>
                             <h4 className="font-bold text-lg mb-2">Deflationary Pressure</h4>
-                            <p className="text-gray-400 text-sm">Every token that joins = TBLAST bought and burned forever</p>
+                            <p className="text-gray-400 text-sm">Every token that joins = TopBlast bought and burned forever</p>
                         </div>
                         <div className="glass-panel rounded-xl p-6 text-center border border-rh-green/30 bg-gradient-to-b from-green-900/10 to-transparent">
                             <div className="text-4xl mb-3">💰</div>
                             <h4 className="font-bold text-lg mb-2">Revenue Sharing</h4>
-                            <p className="text-gray-400 text-sm">Platform fees flow back to TBLAST reward pool</p>
+                            <p className="text-gray-400 text-sm">Platform fees flow back to TopBlast reward pool</p>
                         </div>
                         <div className="glass-panel rounded-xl p-6 text-center border border-rh-green/30 bg-gradient-to-b from-green-950/10 to-transparent">
                             <div className="text-4xl mb-3">🗳️</div>
                             <h4 className="font-bold text-lg mb-2">Future Governance</h4>
-                            <p className="text-gray-400 text-sm">TBLAST holders vote on new token listings</p>
+                            <p className="text-gray-400 text-sm">TopBlast holders vote on new token listings</p>
                         </div>
                     </motion.div>
 
@@ -1307,8 +1307,8 @@ const Whitepaper = () => {
                         <div className="flex items-start gap-4 p-4 bg-gray-900/50 rounded-lg">
                             <div className="w-10 h-10 bg-rh-green rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">1</div>
                             <div>
-                                <h4 className="text-white font-bold mb-1">Buy $TBLAST</h4>
-                                <p className="text-gray-400 text-sm">Purchase $TBLAST on Robinhood Chain via any supported DEX. Hold in your EVM wallet — no app connection required.</p>
+                                <h4 className="text-white font-bold mb-1">Buy $TopBlast</h4>
+                                <p className="text-gray-400 text-sm">Purchase $TopBlast on Robinhood Chain via any supported DEX. Hold in your EVM wallet — no app connection required.</p>
                             </div>
                         </div>
                         

@@ -210,7 +210,7 @@ export default function LeaderboardPage() {
         >
           <div className="flex items-center gap-3">
             <span className="text-gray-400 text-sm">Token:</span>
-            <span className="text-rh-lime font-bold">${data?.token_symbol || 'TOKEN'}</span>
+            <span className="text-rh-lime font-bold">${data?.token_symbol || 'TopBlast'}</span>
           </div>
           <div className="w-px h-5 bg-white/20" />
           <div className="flex items-center gap-3">

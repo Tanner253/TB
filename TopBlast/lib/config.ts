@@ -8,7 +8,7 @@ export const config = {
   // Token Configuration (ERC-20 contract address in TOKEN_MINT_ADDRESS)
   tokenMint: process.env.TOKEN_MINT_ADDRESS || '',
   tokenDecimals: parseInt(process.env.TOKEN_DECIMALS || '18'),
-  tokenSymbol: process.env.TOKEN_SYMBOL || 'TOKEN',
+  tokenSymbol: process.env.TOKEN_SYMBOL || 'TopBlast',
 
   // EVM / Robinhood Chain
   evmChainId: getEvmChainId(),
