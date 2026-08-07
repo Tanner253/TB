@@ -42,6 +42,7 @@ export function useRealtimePrice(_pollInterval?: number, tenantSlug?: string) {
     loading: live.loading,
     lastUpdate: live.lastUpdate,
     error: live.error,
+    mint: live.mint,
     refresh: () => {},
   }
 }

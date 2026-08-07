@@ -4,7 +4,11 @@ import { useCallback, useState } from 'react'
 
 function formatAddress(address: string) {
   if (address.length <= 14) return address
-  return `${address.slice(0, 6)}…${address.slice(-4)}`
+  return `${address.slice(0, 4)}…${address.slice(-4)}`
+}
+
+export function solscanTokenUrl(mint: string): string {
+  return `https://solscan.io/token/${mint}`
 }
 
 type CopyContractAddressProps = {
@@ -12,6 +16,8 @@ type CopyContractAddressProps = {
   symbol?: string
   explorerUrl?: string | null
   className?: string
+  /** pill = standalone row; inline = compact control for ticker bars */
+  variant?: 'pill' | 'inline'
 }
 
 export function CopyContractAddress({
@@ -19,8 +25,10 @@ export function CopyContractAddress({
   symbol = 'Token',
   explorerUrl,
   className = '',
+  variant = 'pill',
 }: CopyContractAddressProps) {
   const [copied, setCopied] = useState(false)
+  const resolvedExplorer = explorerUrl ?? solscanTokenUrl(address)
 
   const onCopy = useCallback(async () => {
     try {
@@ -31,6 +39,35 @@ export function CopyContractAddress({
       // clipboard unavailable
     }
   }, [address])
+
+  if (variant === 'inline') {
+    return (
+      <div className={`inline-flex items-center gap-1.5 min-w-0 ${className}`}>
+        <span className="text-[10px] uppercase tracking-wider text-gray-500 shrink-0">CA</span>
+        <button
+          type="button"
+          onClick={onCopy}
+          className="group inline-flex items-center gap-1.5 max-w-full rounded-lg border border-rh-green/30 bg-rh-green/10 px-2 py-1 font-mono text-xs text-rh-lime hover:border-rh-green/60 hover:bg-rh-green/15 transition-colors"
+          title={address}
+          aria-label="Copy contract address"
+        >
+          <span className="truncate">{formatAddress(address)}</span>
+          <span className="shrink-0 text-[10px] font-sans text-gray-400 group-hover:text-rh-green">
+            {copied ? 'Copied!' : 'Copy'}
+          </span>
+        </button>
+        <a
+          href={resolvedExplorer}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 text-[10px] text-gray-500 hover:text-rh-green transition-colors"
+          title="View on Solscan"
+        >
+          ↗
+        </a>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -49,16 +86,14 @@ export function CopyContractAddress({
           {copied ? 'Copied!' : 'Copy'}
         </span>
       </button>
-      {explorerUrl && (
-        <a
-          href={explorerUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-gray-500 hover:text-rh-green transition-colors"
-        >
-          Explorer ↗
-        </a>
-      )}
+      <a
+        href={resolvedExplorer}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-xs text-gray-500 hover:text-rh-green transition-colors"
+      >
+        Solscan ↗
+      </a>
     </div>
   )
 }

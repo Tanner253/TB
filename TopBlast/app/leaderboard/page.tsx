@@ -14,7 +14,7 @@ import { SessionStatusBar } from '@/components/tenant/SessionStatusBar'
 import { LeaderboardHolderCard } from '@/components/leaderboard/LeaderboardHolderCard'
 import { ExternalToolsEligibilityNote } from '@/components/tenant/ExternalToolsEligibilityNote'
 import type { SessionChecklist } from '@/lib/tenant/sessionChecklist'
-import { CopyContractAddress } from '@/components/ui/CopyContractAddress'
+import { CopyContractAddress, solscanTokenUrl } from '@/components/ui/CopyContractAddress'
 
 const WINNER_SHARES = getWinnerSharePercents()
 
@@ -152,7 +152,7 @@ function drawdownLabel(pct: number | undefined, hasVwap: boolean): string {
 export default function LeaderboardPage() {
   const { slug, basePath } = useTenantRouting()
   const { data, loading, error, countdown, timerStatus, lastUpdate, refresh } = useRealtimeLeaderboard(5000, slug)
-  const { price, marketCap, loading: priceLoading, connection, isLive } = useRealtimePrice(undefined, slug)
+  const { price, marketCap, loading: priceLoading, connection, isLive, mint: priceMint } = useRealtimePrice(undefined, slug)
   const { connectionState } = useRealtime({ autoReconnect: true })
   const [refreshing, setRefreshing] = useState(false)
 
@@ -161,6 +161,12 @@ export default function LeaderboardPage() {
     await refresh()
     setTimeout(() => setRefreshing(false), 500)
   }, [refresh])
+
+  const tokenMint = data?.token_mint || priceMint || null
+  const tokenSymbol = data?.token_symbol || 'TopBlast'
+  const tokenExplorerUrl =
+    data?.token_mint_explorer_url ||
+    (tokenMint ? solscanTokenUrl(tokenMint) : null)
 
   // Always show the page - use inline loading states for data
   const isLoading = loading && !data
@@ -228,13 +234,26 @@ export default function LeaderboardPage() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:justify-center gap-3 sm:gap-6 lg:gap-8 mb-6 sm:mb-8 py-3 px-4 sm:px-6 bg-white/5 backdrop-blur-sm rounded-2xl sm:rounded-full border border-white/10 w-full sm:w-fit sm:mx-auto max-w-full"
+          className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-center gap-3 sm:gap-6 lg:gap-8 mb-6 sm:mb-8 py-3 px-4 sm:px-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 w-full sm:w-fit sm:mx-auto max-w-full"
         >
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <span className="text-gray-400 text-xs sm:text-sm shrink-0">Token</span>
-            <span className="text-rh-lime font-bold text-sm sm:text-base truncate">${data?.token_symbol || 'TopBlast'}</span>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <span className="text-gray-400 text-xs sm:text-sm shrink-0">Token</span>
+              <span className="text-rh-lime font-bold text-sm sm:text-base truncate">${tokenSymbol}</span>
+            </div>
+            {tokenMint ? (
+              <CopyContractAddress
+                variant="inline"
+                address={tokenMint}
+                symbol={tokenSymbol}
+                explorerUrl={tokenExplorerUrl}
+              />
+            ) : (
+              <span className="text-xs text-gray-500 font-mono">Loading CA…</span>
+            )}
           </div>
           <div className="hidden sm:block w-px h-5 bg-white/20" />
+          <div className="grid grid-cols-2 sm:contents gap-3 sm:gap-0">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <span className="text-gray-400 text-xs sm:text-sm shrink-0">Price</span>
             {price || data?.token_price_raw ? (
@@ -284,21 +303,8 @@ export default function LeaderboardPage() {
               )}
             </span>
           </div>
+          </div>
         </motion.div>
-
-        {data?.token_mint ? (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex justify-center mb-6 sm:mb-8"
-          >
-            <CopyContractAddress
-              address={data.token_mint}
-              symbol={data.token_symbol || 'Token'}
-              explorerUrl={data.token_mint_explorer_url ?? undefined}
-            />
-          </motion.div>
-        ) : null}
 
         {/* Main Stats */}
         <div className="grid md:grid-cols-2 gap-6 mb-10">
