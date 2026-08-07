@@ -1179,9 +1179,6 @@ export async function ensureRankingsIndexed(): Promise<boolean> {
     console.log(
       `[HolderService] Stale rankings (${trackableInDb} trackable in DB, ${trackableOnChain} on-chain) — re-indexing...`
     )
-    const { CurrentRankings } = await import('@/lib/db/models')
-    await connectDB()
-    await CurrentRankings.deleteOne({ key: getRankingsKey() })
   }
 
   if (existing && existing.rankings.length > 0 && existing.holdersWithVwap === 0 && !isStale) {
@@ -1247,6 +1244,93 @@ export async function ensureVwapCalculated(): Promise<boolean> {
   } catch (error: any) {
     console.error('[HolderService] ensureVwapCalculated failed:', error.message)
     return false
+  }
+}
+
+/**
+ * Build display-only rankings from on-chain holder balances when MongoDB is empty
+ * (common on cold serverless starts or after a failed re-index). Does not persist.
+ */
+export async function buildEphemeralRankingsFromChain(): Promise<{
+  rankings: Array<{
+    wallet: string
+    balance: number
+    vwap: number
+    drawdownPct: number
+    lossUsd: number
+    isEligible: boolean
+    ineligibleReason: string | null
+    firstBuyAt?: Date | null
+    hasSold?: boolean
+    hasTransferredOut?: boolean
+    totalTokensBought?: number
+    lastWinCycle?: number | null
+    isContract?: boolean
+  }>
+  totalHolders: number
+  eligibleCount: number
+  holdersWithVwap: number
+  tokenPrice: number
+  lastCalculated: Date
+} | null> {
+  try {
+    if (!config.tokenMint) return null
+
+    const raw = await getTokenHolders(
+      config.tokenMint,
+      Math.min(config.maxHoldersToProcess, MAX_INITIAL_HOLDERS)
+    )
+
+    const trackable = raw.filter(
+      h =>
+        !h.isContract &&
+        !isExcludedParticipantWallet(h.wallet) &&
+        h.balance >= config.minTokenHolding
+    )
+
+    if (trackable.length === 0) return null
+
+    let tokenPrice = getState().currentTokenPrice
+    if (!tokenPrice) {
+      tokenPrice = await getTokenPrice(config.tokenMint)
+      if (tokenPrice) getState().currentTokenPrice = tokenPrice
+    }
+
+    const rankings = trackable
+      .sort((a, b) => b.balance - a.balance)
+      .slice(0, 50)
+      .map(h => ({
+        wallet: h.wallet,
+        balance: h.balance,
+        vwap: 0,
+        drawdownPct: 0,
+        lossUsd: 0,
+        isEligible: false,
+        ineligibleReason: 'Loading transaction history...',
+        firstBuyAt: null as Date | null,
+        hasSold: false,
+        hasTransferredOut: false,
+        totalTokensBought: 0,
+        lastWinCycle: null as number | null,
+        isContract: false,
+      }))
+
+    console.log(
+      `[HolderService] Ephemeral rankings from chain: ${rankings.length} holder(s) (DB empty/stale)`
+    )
+
+    return {
+      rankings,
+      totalHolders: trackable.length,
+      eligibleCount: 0,
+      holdersWithVwap: 0,
+      tokenPrice: tokenPrice || 0,
+      lastCalculated: new Date(),
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('[HolderService] Ephemeral rankings failed:', message)
+    return null
   }
 }
 

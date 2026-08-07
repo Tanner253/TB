@@ -7,6 +7,7 @@ import {
   getServiceStatus,
   ensureRankingsIndexed,
   ensureVwapCalculated,
+  buildEphemeralRankingsFromChain,
 } from '@/lib/tracker/holderService'
 import { config } from '@/lib/config'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
@@ -81,6 +82,16 @@ export async function GET(request: NextRequest) {
       initializeTracker().catch(err => console.error('[Leaderboard] Tracker init error:', err))
       await ensureVwapCalculated()
       dbRankings = await loadRankingsFromDb()
+    }
+
+    if (!dbRankings || dbRankings.rankings.length === 0 || dbRankings.totalHolders === 0) {
+      const ephemeral = await buildEphemeralRankingsFromChain()
+      if (ephemeral && ephemeral.rankings.length > 0) {
+        dbRankings = ephemeral
+        initializeTracker().catch(err =>
+          console.error('[Leaderboard] Background tracker init error:', err)
+        )
+      }
     }
 
     const resolvedPrice = await getResolvedTokenPrice(config.tokenMint)

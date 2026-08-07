@@ -22,6 +22,7 @@ import {
 import { saveRankingsToDb, loadRankingsFromDb, getRankedLosers, markWinnersCooldown, getServiceStatus, refreshPoolUsdCache } from '@/lib/tracker/holderService'
 
 import { getTimerKey } from '@/lib/tenant/keys'
+import { tenantFields } from '@/lib/tenant/scope'
 
 export type PayoutTimerStatus = 'waiting' | 'active'
 
@@ -491,6 +492,7 @@ export async function executePayout(): Promise<PayoutResult> {
 
     if (devWalletValid && config.executePayouts && totalDevFeeSol >= MIN_TRANSFER_SOL) {
       const devPayout = await Payout.create({
+        ...tenantFields(),
         cycle: nextCycle,
         rank: 0,
         wallet: config.devWalletAddress,
@@ -525,6 +527,7 @@ export async function executePayout(): Promise<PayoutResult> {
       if (amountSol < MIN_TRANSFER_SOL) continue
 
       const winnerPayout = await Payout.create({
+        ...tenantFields(),
         cycle: nextCycle,
         rank: i + 1,
         wallet: winner.wallet,

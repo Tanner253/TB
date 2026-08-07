@@ -27,7 +27,11 @@ interface PayoutEntry {
 }
 
 interface PayoutCycle {
+  id: string
   cycle: number
+  tenant_slug: string
+  session_slug: string
+  token_symbol: string
   timestamp: string
   payouts: PayoutEntry[]
   total_eth: string
@@ -42,6 +46,7 @@ interface HistoryStats {
   total_payouts: number
   total_distributed_eth: string
   failed_payouts: number
+  sessions: number
 }
 
 interface HistoryData {
@@ -128,17 +133,15 @@ function formatTimeAgo(timestamp: string): string {
 }
 
 export default function HistoryPage() {
-  const { slug, basePath } = useTenantRouting()
+  const { basePath } = useTenantRouting()
   const [data, setData] = useState<HistoryData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const historyUrl = slug ? `/api/t/${slug}/leaderboard/history` : '/api/leaderboard/history'
-
     const fetchHistory = async () => {
       try {
-        const res = await fetch(historyUrl)
+        const res = await fetch('/api/history')
         const json = await res.json()
         if (json.success) {
           setData(json.data)
@@ -156,7 +159,7 @@ export default function HistoryPage() {
     fetchHistory()
     const interval = setInterval(fetchHistory, 30000)
     return () => clearInterval(interval)
-  }, [slug])
+  }, [])
 
   if (loading) {
     return (
@@ -204,7 +207,9 @@ export default function HistoryPage() {
         >
           <h1 className="text-3xl font-bold mb-2">Payout History <span className="text-rh-green text-lg font-normal">· SOL</span></h1>
           <p className="text-gray-400">
-            Native SOL payouts on Solana · {data?.stats.total_cycles || 0} cycles · {data?.stats.total_payouts || 0} successful · {data?.stats.total_distributed_eth || '0'} SOL distributed
+            All sessions · {data?.stats.sessions ?? 0} token{data?.stats.sessions === 1 ? '' : 's'} ·{' '}
+            {data?.stats.total_cycles || 0} cycles · {data?.stats.total_payouts || 0} successful ·{' '}
+            {data?.stats.total_distributed_eth || '0'} SOL distributed
             {data?.network === 'devnet' && (
               <span className="ml-2 text-amber-400">(Devnet)</span>
             )}
@@ -216,8 +221,12 @@ export default function HistoryPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
+          className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8"
         >
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="text-sm text-gray-400">Sessions</div>
+            <div className="text-2xl font-bold text-white">{data?.stats.sessions || 0}</div>
+          </div>
           <div className="bg-white/5 border border-white/10 rounded-xl p-4">
             <div className="text-sm text-gray-400">Total Cycles</div>
             <div className="text-2xl font-bold text-white">{data?.stats.total_cycles || 0}</div>
@@ -241,17 +250,23 @@ export default function HistoryPage() {
           {data?.cycles && data.cycles.length > 0 ? (
             data.cycles.map((cycle, cycleIdx) => (
               <motion.div
-                key={cycle.cycle}
+                key={cycle.id || `${cycle.session_slug}-${cycle.cycle}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: cycleIdx * 0.1 }}
                 className="bg-rh-black border border-white/10 rounded-2xl mb-6 overflow-hidden"
               >
                 {/* Cycle Header */}
-                <div className="p-5 bg-white/5 border-b border-white/10 flex items-center justify-between">
+                <div className="p-5 bg-white/5 border-b border-white/10 flex items-center justify-between gap-4 flex-wrap">
                   <div>
-                    <h2 className="text-lg font-bold flex items-center gap-3">
+                    <h2 className="text-lg font-bold flex items-center gap-3 flex-wrap">
                       <span className="text-rh-green">Cycle #{cycle.cycle}</span>
+                      <Link
+                        href={`/${cycle.session_slug}/leaderboard`}
+                        className="text-sm font-medium text-rh-lime/90 hover:text-rh-lime transition-colors"
+                      >
+                        ${cycle.token_symbol}
+                      </Link>
                       {getStatusBadge(cycle.status)}
                     </h2>
                     <p className="text-sm text-gray-400 mt-1">
@@ -371,10 +386,10 @@ export default function HistoryPage() {
               </motion.div>
               <h2 className="text-2xl font-bold mb-3">No Payouts Yet</h2>
               <p className="text-gray-400 mb-6 max-w-md mx-auto">
-                Winners will appear here after the first payout cycle is processed.
+                Winners from every session will appear here after payout cycles complete.
                 All transactions are recorded on-chain with Solscan links.
               </p>
-              <Link href={`${basePath}/leaderboard`}>
+              <Link href={basePath ? `${basePath}/leaderboard` : '/leaderboard'}>
                 <motion.button
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.98 }}
