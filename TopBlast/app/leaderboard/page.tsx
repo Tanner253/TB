@@ -14,7 +14,7 @@ import { SessionStatusBar } from '@/components/tenant/SessionStatusBar'
 import { LeaderboardHolderCard } from '@/components/leaderboard/LeaderboardHolderCard'
 import { ExternalToolsEligibilityNote } from '@/components/tenant/ExternalToolsEligibilityNote'
 import type { SessionChecklist } from '@/lib/tenant/sessionChecklist'
-import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
+import { CopyContractAddress } from '@/components/ui/CopyContractAddress'
 
 const WINNER_SHARES = getWinnerSharePercents()
 
@@ -269,11 +269,36 @@ export default function LeaderboardPage() {
           <div className="hidden sm:block w-px h-5 bg-white/20" />
           <div className="flex items-center gap-2 sm:gap-3">
             <span className="text-gray-400 text-xs sm:text-sm">Holders</span>
-            <span className="font-bold font-mono text-white">
-              {data?.total_holders ? formatNumber(data.total_holders) : <InlineSpinner />}
+            <span
+              className="font-bold font-mono text-white"
+              title={
+                data?.on_chain_holders != null
+                  ? `${data.on_chain_holders} wallets on-chain (excludes LP pool) · min ${data?.min_token_holding?.toLocaleString() ?? '1,000'} tokens to rank`
+                  : undefined
+              }
+            >
+              {data?.on_chain_holders ?? data?.total_holders ? (
+                formatNumber(data.on_chain_holders ?? data.total_holders)
+              ) : (
+                <InlineSpinner />
+              )}
             </span>
           </div>
         </motion.div>
+
+        {data?.token_mint ? (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-center mb-6 sm:mb-8"
+          >
+            <CopyContractAddress
+              address={data.token_mint}
+              symbol={data.token_symbol || 'Token'}
+              explorerUrl={data.token_mint_explorer_url ?? undefined}
+            />
+          </motion.div>
+        ) : null}
 
         {/* Main Stats */}
         <div className="grid md:grid-cols-2 gap-6 mb-10">
@@ -591,9 +616,15 @@ export default function LeaderboardPage() {
               <ExternalToolsEligibilityNote variant="inline" className="mt-2 max-w-2xl" />
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-gray-400">
-              <span>{data?.total_holders || 0} total</span>
+              <span>{data?.on_chain_holders ?? data?.total_holders ?? 0} on-chain</span>
               <span className="hidden sm:inline w-px h-4 bg-white/20" />
-              <span>{data?.tracked_holders || 0} tracked</span>
+              <span>{data?.tracked_holders || 0} on leaderboard</span>
+              {(data?.holders_with_buy_history ?? 0) > 0 ? (
+                <>
+                  <span className="hidden sm:inline w-px h-4 bg-white/20" />
+                  <span>{data.holders_with_buy_history} with buy history</span>
+                </>
+              ) : null}
             </div>
           </div>
 

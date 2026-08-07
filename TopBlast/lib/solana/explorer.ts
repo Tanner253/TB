@@ -24,6 +24,15 @@ export function getAddressExplorerUrl(address: string | null | undefined): strin
   return `${SOLSCAN_MAINNET}/account/${address}`
 }
 
+export function getTokenMintExplorerUrl(mint: string | null | undefined): string | null {
+  if (!mint) return null
+  const network = process.env.SOLANA_NETWORK || 'mainnet'
+  if (network === 'devnet') {
+    return `${SOLSCAN_MAINNET}/token/${mint}?cluster=devnet`
+  }
+  return `${SOLSCAN_MAINNET}/token/${mint}`
+}
+
 export function getExplorerLabel(): string {
   return 'Solscan'
 }

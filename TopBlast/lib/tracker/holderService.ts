@@ -1155,18 +1155,16 @@ function countTrackableRankings(
   return rankings.filter(h => !h.isContract && !isExcludedParticipantWallet(h.wallet)).length
 }
 
-async function countTrackableOnChain(): Promise<number> {
-  const raw = await getTokenHolders(
-    config.tokenMint,
-    Math.min(config.maxHoldersToProcess, MAX_INITIAL_HOLDERS)
-  )
-  return raw.filter(h => !h.isContract && !isExcludedParticipantWallet(h.wallet)).length
+async function countQualifyingOnChain(): Promise<number> {
+  const { getOnChainHolderStats } = await import('@/lib/solana/holderStats')
+  const stats = await getOnChainHolderStats(config.tokenMint)
+  return stats.qualifying
 }
 
 /** Re-index from chain when DB rankings are missing, empty, stale, or have no VWAP data. */
 export async function ensureRankingsIndexed(): Promise<boolean> {
   const existing = await loadRankingsFromDb()
-  const trackableOnChain = await countTrackableOnChain()
+  const qualifyingOnChain = await countQualifyingOnChain()
   const trackableInDb = existing ? countTrackableRankings(existing.rankings) : 0
 
   const looksComplete =
@@ -1177,8 +1175,8 @@ export async function ensureRankingsIndexed(): Promise<boolean> {
     trackableInDb > 0
 
   const isStale =
-    trackableOnChain > 0 &&
-    (trackableInDb === 0 || trackableInDb < trackableOnChain)
+    qualifyingOnChain > 0 &&
+    (existing?.totalHolders ?? 0) < qualifyingOnChain
 
   if (looksComplete && !isStale) {
     return true
@@ -1186,7 +1184,7 @@ export async function ensureRankingsIndexed(): Promise<boolean> {
 
   if (isStale && existing) {
     console.log(
-      `[HolderService] Stale rankings (${trackableInDb} trackable in DB, ${trackableOnChain} on-chain) — re-indexing...`
+      `[HolderService] Stale rankings (${existing.totalHolders} in DB, ${qualifyingOnChain} qualifying on-chain) — re-indexing...`
     )
   }
 

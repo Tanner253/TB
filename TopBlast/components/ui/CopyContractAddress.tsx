@@ -16,7 +16,7 @@ type CopyContractAddressProps = {
 
 export function CopyContractAddress({
   address,
-  symbol = 'TopBlast',
+  symbol = 'Token',
   explorerUrl,
   className = '',
 }: CopyContractAddressProps) {
@@ -41,7 +41,7 @@ export function CopyContractAddress({
         type="button"
         onClick={onCopy}
         className="group flex items-center gap-2 font-mono text-sm text-rh-lime hover:text-rh-green transition-colors"
-        title="Click to copy contract address"
+        title={address}
         aria-label="Copy contract address"
       >
         <span>{formatAddress(address)}</span>

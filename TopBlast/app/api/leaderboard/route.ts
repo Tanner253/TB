@@ -28,12 +28,14 @@ import { isLiquidityPoolWallet } from '@/lib/eligibility/liquidityPools'
 import { ensureLiquidityPoolAddresses } from '@/lib/eligibility/liquidityPools'
 import { loadLastWinCycleByWallet } from '@/lib/payout/winnerPersistence'
 import { getEarliestBuyTimestamp, getTokenHolders } from '@/lib/solana/indexer'
-import { normalizeTokenBalance, formatTokenBalance } from '@/lib/solana/tokenAmount'
+import { normalizeTokenBalance, formatTokenBalance, rawToHumanTokenAmount, meetsMinTokenHoldingFromChain } from '@/lib/solana/tokenAmount'
+import { getOnChainHolderStats } from '@/lib/solana/holderStats'
 import { buildTenantDiagnostics } from '@/lib/tenant/diagnostics'
 import { deriveSessionStatus } from '@/lib/tenant/sessionStatus'
 import { buildSessionChecklist } from '@/lib/tenant/sessionChecklist'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
 import { sortLeaderboardEntries } from '@/lib/leaderboard/sortRankings'
+import { getTokenMintExplorerUrl } from '@/lib/solana/explorer'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -65,6 +67,12 @@ export async function GET(request: NextRequest) {
     const serviceStatus = getServiceStatus()
 
     let dbRankings = await loadRankingsFromDb()
+    const onChainStats = await getOnChainHolderStats(config.tokenMint)
+
+    if (onChainStats.qualifying > (dbRankings?.totalHolders ?? 0)) {
+      await ensureRankingsIndexed()
+      dbRankings = await loadRankingsFromDb()
+    }
 
     const needsReindex =
       !dbRankings ||
@@ -215,6 +223,7 @@ export async function GET(request: NextRequest) {
           token_price: 'Loading...',
           token_symbol: config.tokenSymbol,
           token_mint: config.tokenMint,
+          token_mint_explorer_url: getTokenMintExplorerUrl(config.tokenMint),
           total_holders: 0,
           tracked_holders: 0,
           holders_with_real_vwap: 0,
@@ -237,14 +246,73 @@ export async function GET(request: NextRequest) {
         .map(h => h.wallet)
     )
 
-    const sourceRankings = dbRankings.rankings.filter(
+    const rankingByWallet = new Map(
+      dbRankings.rankings.map(h => [h.wallet, h] as const)
+    )
+
+    const liveHolders = await getTokenHolders(
+      config.tokenMint,
+      Math.min(config.maxHoldersToProcess, 100)
+    )
+    for (const h of liveHolders) {
+      if (rankingByWallet.has(h.wallet)) continue
+      if (
+        h.isContract ||
+        contractWallets.has(h.wallet) ||
+        isExcludedParticipantWallet(h.wallet) ||
+        isLiquidityPoolWallet(h.wallet, config.tokenMint)
+      ) {
+        continue
+      }
+      if (
+        !meetsMinTokenHoldingFromChain(
+          h.balance,
+          config.tokenDecimals,
+          config.minTokenHolding
+        )
+      ) {
+        continue
+      }
+
+      rankingByWallet.set(h.wallet, {
+        wallet: h.wallet,
+        balance: rawToHumanTokenAmount(h.balance, config.tokenDecimals),
+        vwap: 0,
+        drawdownPct: 0,
+        lossUsd: 0,
+        isEligible: false,
+        ineligibleReason: 'Loading buy history...',
+        firstBuyAt: null,
+        hasSold: false,
+        hasTransferredOut: false,
+        totalTokensBought: 0,
+        lastWinCycle: null,
+        isContract: false,
+      })
+    }
+
+    const sourceRankings = Array.from(rankingByWallet.values()).filter(
       h =>
         !h.isContract &&
         !contractWallets.has(h.wallet) &&
         !isExcludedParticipantWallet(h.wallet) &&
         !isLiquidityPoolWallet(h.wallet, config.tokenMint) &&
-        (h.vwap ?? 0) > 0
+        normalizeTokenBalance(h.balance, config.tokenDecimals, config.minTokenHolding) >=
+          config.minTokenHolding
     )
+
+    const walletsNeedingVwap = sourceRankings.filter(h => (h.vwap ?? 0) <= 0)
+    if (walletsNeedingVwap.length > 0) {
+      const hydrated = await hydrateRankingsWithVwap(walletsNeedingVwap, {
+        maxWallets: 25,
+        tokenPrice: liveTokenPrice,
+      })
+      const hydratedByWallet = new Map(hydrated.rankings.map(h => [h.wallet, h]))
+      for (let i = 0; i < sourceRankings.length; i++) {
+        const row = hydratedByWallet.get(sourceRankings[i].wallet)
+        if (row) sourceRankings[i] = row
+      }
+    }
 
     const walletsNeedingFirstBuy = sourceRankings
       .filter(h => !h.firstBuyAt)
@@ -423,8 +491,13 @@ export async function GET(request: NextRequest) {
         token_price_raw: liveTokenPrice,
         token_symbol: config.tokenSymbol,
         token_mint: config.tokenMint,
-        total_holders: dbRankings.totalHolders,
+        token_mint_explorer_url: getTokenMintExplorerUrl(config.tokenMint),
+        total_holders: Math.max(dbRankings.totalHolders, onChainStats.qualifying),
+        on_chain_holders: onChainStats.trackable,
+        on_chain_raw_holders: onChainStats.raw,
+        min_token_holding: config.minTokenHolding,
         tracked_holders: sourceRankings.length,
+        holders_with_buy_history: sourceRankings.filter(h => (h.vwap ?? 0) > 0).length,
         holders_with_real_vwap: dbRankings.holdersWithVwap,
         eligible_count: eligibleCount,
         upcoming_count: upcomingCount,
