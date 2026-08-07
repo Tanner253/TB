@@ -22,6 +22,26 @@ import {
   markFullReindex,
 } from '@/lib/solana/heliusCache'
 
+/** VWAP lookup finished — do not re-hit Helius on every leaderboard poll. */
+const RESOLVED_VWAP_REASONS = new Set([
+  'No buy history',
+  'Received via transfer',
+  'Cost basis unavailable',
+  'Liquidity pool excluded',
+])
+
+export function rankingNeedsVwapHydration(row: {
+  vwap?: number | null
+  ineligibleReason?: string | null
+}): boolean {
+  if ((row.vwap ?? 0) > 0) return false
+  const reason = (row.ineligibleReason ?? '').trim()
+  if (reason && reason !== 'Loading buy history...' && RESOLVED_VWAP_REASONS.has(reason)) {
+    return false
+  }
+  return true
+}
+
 // Types
 export interface HolderData {
   wallet: string
@@ -1137,6 +1157,51 @@ export async function loadRankingsFromDb(): Promise<{
   }
 }
 
+/** Merge hydrated rows into CurrentRankings so later polls skip Helius for those wallets. */
+export async function patchRankingsInDb(
+  patches: Array<{
+    wallet: string
+    balance?: number
+    vwap?: number
+    drawdownPct?: number
+    lossUsd?: number
+    isEligible?: boolean
+    ineligibleReason?: string | null
+    firstBuyAt?: Date | null
+    hasSold?: boolean
+    hasTransferredOut?: boolean
+    totalTokensBought?: number
+  }>
+): Promise<void> {
+  if (patches.length === 0) return
+
+  try {
+    const { CurrentRankings } = await import('@/lib/db/models')
+    await connectDB()
+
+    const doc = await CurrentRankings.findOne({ key: getRankingsKey() })
+    if (!doc?.rankings?.length) return
+
+    const patchByWallet = new Map(patches.map(p => [p.wallet, p]))
+    const updated = doc.rankings.map((row: Record<string, unknown>) => {
+      const patch = patchByWallet.get(String(row.wallet))
+      return patch ? { ...row, ...patch } : row
+    })
+
+    doc.rankings = updated
+    doc.holdersWithVwap = updated.filter(r => (Number(r.vwap) || 0) > 0).length
+    doc.lastCalculated = new Date()
+    await doc.save()
+
+    console.log(
+      `[HolderService] Patched ${patches.length} ranking(s) in DB (${doc.holdersWithVwap} with VWAP)`
+    )
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('[HolderService] patchRankingsInDb failed:', message)
+  }
+}
+
 // Utility functions
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -1302,7 +1367,9 @@ export async function hydrateRankingsWithVwap<
     !isExcludedParticipantWallet(h.wallet) &&
     !isLiquidityPoolWallet(h.wallet, config.tokenMint)
 
-  const needsVwap = rankings.filter(h => isTrackable(h) && !(h.vwap && h.vwap > 0)).slice(0, options?.maxWallets ?? 25)
+  const needsVwap = rankings
+    .filter(h => isTrackable(h) && rankingNeedsVwapHydration(h))
+    .slice(0, options?.maxWallets ?? 25)
 
   if (needsVwap.length === 0) {
     return {
@@ -1355,6 +1422,17 @@ export async function hydrateRankingsWithVwap<
     2
   )
 
+  const patchedRows: Array<{
+    wallet: string
+    balance?: number
+    vwap?: number
+    ineligibleReason?: string | null
+    firstBuyAt?: Date | null
+    hasSold?: boolean
+    hasTransferredOut?: boolean
+    totalTokensBought?: number
+  }> = []
+
   const updated = rankingsWithDb.map(row => {
     const v = vwapMap.get(row.wallet)
     if (!v) return row
@@ -1369,7 +1447,7 @@ export async function hydrateRankingsWithVwap<
       ineligibleReason = 'No buy history'
     }
 
-    return {
+    const merged = {
       ...row,
       balance: humanBalance,
       vwap: v.vwap ?? 0,
@@ -1380,8 +1458,25 @@ export async function hydrateRankingsWithVwap<
       totalTokensBought: v.totalTokensBought,
       ineligibleReason,
       isEligible: false,
-    }
+    } as T
+
+    patchedRows.push({
+      wallet: row.wallet,
+      balance: humanBalance,
+      vwap: v.vwap ?? 0,
+      ineligibleReason,
+      firstBuyAt: merged.firstBuyAt ?? null,
+      hasSold: v.hasSold,
+      hasTransferredOut: v.hasTransferredOut,
+      totalTokensBought: v.totalTokensBought,
+    })
+
+    return merged
   }) as T[]
+
+  if (patchedRows.length > 0) {
+    await patchRankingsInDb(patchedRows)
+  }
 
   return {
     rankings: updated,
@@ -1462,7 +1557,7 @@ export async function buildEphemeralRankingsFromChain(): Promise<{
       }))
 
     const hydrated = await hydrateRankingsWithVwap(rankings, {
-      maxWallets: 25,
+      maxWallets: 2,
       tokenPrice: tokenPrice || 0,
     })
     rankings = hydrated.rankings

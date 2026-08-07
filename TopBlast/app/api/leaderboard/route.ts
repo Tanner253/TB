@@ -9,6 +9,7 @@ import {
   ensureVwapCalculated,
   buildEphemeralRankingsFromChain,
   hydrateRankingsWithVwap,
+  rankingNeedsVwapHydration,
 } from '@/lib/tracker/holderService'
 import { config } from '@/lib/config'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
@@ -109,22 +110,31 @@ export async function GET(request: NextRequest) {
       dbRankings.holdersWithVwap === 0
 
     if (needsReindex) {
-      initializeTracker().catch(err => console.error('[Leaderboard] Tracker init error:', err))
-      await ensureRankingsIndexed()
-      dbRankings = await loadRankingsFromDb()
+      if (!shouldThrottleFullReindex(getRankingsKey())) {
+        initializeTracker().catch(err => console.error('[Leaderboard] Tracker init error:', err))
+        await ensureRankingsIndexed()
+        markFullReindex(getRankingsKey())
+        dbRankings = await loadRankingsFromDb()
+      }
     } else if (needsVwapRefresh) {
-      initializeTracker().catch(err => console.error('[Leaderboard] Tracker init error:', err))
-      await ensureVwapCalculated()
-      dbRankings = await loadRankingsFromDb()
+      if (!shouldThrottleFullReindex(getRankingsKey())) {
+        initializeTracker().catch(err => console.error('[Leaderboard] Tracker init error:', err))
+        await ensureVwapCalculated()
+        markFullReindex(getRankingsKey())
+        dbRankings = await loadRankingsFromDb()
+      }
     }
 
     if (!dbRankings || dbRankings.rankings.length === 0 || dbRankings.totalHolders === 0) {
-      const ephemeral = await buildEphemeralRankingsFromChain()
-      if (ephemeral && ephemeral.rankings.length > 0) {
-        dbRankings = ephemeral
-        initializeTracker().catch(err =>
-          console.error('[Leaderboard] Background tracker init error:', err)
-        )
+      if (!shouldThrottleFullReindex(getRankingsKey())) {
+        const ephemeral = await buildEphemeralRankingsFromChain()
+        if (ephemeral && ephemeral.rankings.length > 0) {
+          dbRankings = ephemeral
+          markFullReindex(getRankingsKey())
+          initializeTracker().catch(err =>
+            console.error('[Leaderboard] Background tracker init error:', err)
+          )
+        }
       }
     }
 
@@ -307,7 +317,7 @@ export async function GET(request: NextRequest) {
           config.minTokenHolding
     )
 
-    const walletsNeedingVwap = sourceRankings.filter(h => (h.vwap ?? 0) <= 0)
+    const walletsNeedingVwap = sourceRankings.filter(rankingNeedsVwapHydration)
     if (walletsNeedingVwap.length > 0) {
       const hydrated = await hydrateRankingsWithVwap(walletsNeedingVwap, {
         maxWallets: VWAP_HYDRATE_BUDGET,
@@ -318,6 +328,7 @@ export async function GET(request: NextRequest) {
         const row = hydratedByWallet.get(sourceRankings[i].wallet)
         if (row) sourceRankings[i] = row
       }
+      dbRankings = (await loadRankingsFromDb()) ?? dbRankings
     }
 
     const walletsNeedingFirstBuy = sourceRankings

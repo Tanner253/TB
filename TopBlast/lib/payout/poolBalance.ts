@@ -27,12 +27,48 @@ export interface LivePoolBalance {
   balanceLookupFailed?: boolean
 }
 
-export async function getLivePoolBalance(): Promise<LivePoolBalance> {
+/** Short TTL so leaderboard polls do not RPC-getBalance on every request. */
+const POOL_BALANCE_CACHE_TTL_MS = 45 * 1000
+
+declare global {
+  // eslint-disable-next-line no-var
+  var _livePoolBalanceCache: { value: LivePoolBalance; expiresAt: number } | undefined
+}
+
+function readPoolBalanceCache(): LivePoolBalance | null {
+  const hit = global._livePoolBalanceCache
+  if (!hit) return null
+  if (Date.now() > hit.expiresAt) {
+    global._livePoolBalanceCache = undefined
+    return null
+  }
+  return hit.value
+}
+
+function writePoolBalanceCache(value: LivePoolBalance) {
+  global._livePoolBalanceCache = {
+    value,
+    expiresAt: Date.now() + POOL_BALANCE_CACHE_TTL_MS,
+  }
+}
+
+export function invalidateLivePoolBalanceCache() {
+  global._livePoolBalanceCache = undefined
+}
+
+export async function getLivePoolBalance(options?: {
+  bypassCache?: boolean
+}): Promise<LivePoolBalance> {
+  if (!options?.bypassCache) {
+    const cached = readPoolBalanceCache()
+    if (cached) return cached
+  }
+
   const solPrice = (await getSolPrice()) || 150
   const walletBalance = await getPayoutWalletBalance()
 
   if (!walletBalance) {
-    return {
+    const result: LivePoolBalance = {
       payoutWalletAddress: null,
       walletSol: 0,
       poolSol: 0,
@@ -49,10 +85,12 @@ export async function getLivePoolBalance(): Promise<LivePoolBalance> {
       available: false,
       balanceLookupFailed: false,
     }
+    writePoolBalanceCache(result)
+    return result
   }
 
   if (walletBalance.rpcError) {
-    return {
+    const result: LivePoolBalance = {
       payoutWalletAddress: walletBalance.address,
       walletSol: 0,
       poolSol: 0,
@@ -69,6 +107,8 @@ export async function getLivePoolBalance(): Promise<LivePoolBalance> {
       available: false,
       balanceLookupFailed: true,
     }
+    writePoolBalanceCache(result)
+    return result
   }
 
   const walletSol = walletBalance.sol
@@ -76,7 +116,7 @@ export async function getLivePoolBalance(): Promise<LivePoolBalance> {
   const poolUsd = poolSol * solPrice
   const minLossUsd = poolUsd * (config.minLossThresholdPct / 100)
 
-  return {
+  const result: LivePoolBalance = {
     payoutWalletAddress: walletBalance.address,
     walletSol,
     poolSol,
@@ -91,5 +131,8 @@ export async function getLivePoolBalance(): Promise<LivePoolBalance> {
     minLossUsd,
     minLossUsdFormatted: formatUsd(minLossUsd),
     available: true,
+    balanceLookupFailed: false,
   }
+  writePoolBalanceCache(result)
+  return result
 }

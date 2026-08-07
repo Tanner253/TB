@@ -152,7 +152,7 @@ function drawdownLabel(pct: number | undefined, hasVwap: boolean): string {
 
 export default function LeaderboardPage() {
   const { slug, basePath } = useTenantRouting()
-  const { data, loading, error, countdown, timerStatus, lastUpdate, refresh } = useRealtimeLeaderboard(15000, slug)
+  const { data, loading, error, countdown, timerStatus, lastUpdate, refresh } = useRealtimeLeaderboard(30000, slug)
   const { price, marketCap, loading: priceLoading, connection, isLive, mint: priceMint } = useRealtimePrice(undefined, slug)
   const { connectionState } = useRealtime({ autoReconnect: true })
   const [refreshing, setRefreshing] = useState(false)

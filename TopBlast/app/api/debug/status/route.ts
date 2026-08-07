@@ -8,7 +8,7 @@ import { config } from '@/lib/config'
 import connectDB from '@/lib/db'
 import { getServiceStatus, loadRankingsFromDb } from '@/lib/tracker/holderService'
 import { getTrackerStatus } from '@/lib/tracker/init'
-import { checkRpcHealth, getHolderCount } from '@/lib/solana/indexer'
+import { checkRpcHealth } from '@/lib/solana/indexer'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
 import { verifyCronSecret } from '@/lib/security/cronAuth'
@@ -61,7 +61,12 @@ export async function GET(request: NextRequest) {
 
   try {
     if (config.tokenMint) {
-      status.holderCount = { total: await getHolderCount(config.tokenMint) }
+      const dbRankings = await loadRankingsFromDb()
+      status.holderCount = {
+        total: dbRankings?.totalHolders ?? 0,
+        source: 'mongodb',
+        note: 'On-chain DAS count omitted to avoid Helius credits on debug polls',
+      }
     } else {
       status.holderCount = { error: 'No token mint configured' }
     }
