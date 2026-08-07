@@ -99,6 +99,8 @@ SnapshotSchema.index({ tenantSlug: 1, cycle: 1 }, { unique: true })
 // Payout Interface
 export interface IPayout extends Document {
   tenantSlug: string
+  tokenMint: string | null
+  tokenSymbol: string | null
   cycle: number
   rank: number
   wallet: string
@@ -114,6 +116,8 @@ export interface IPayout extends Document {
 
 const PayoutSchema = new Schema<IPayout>({
   tenantSlug: { type: String, default: '_legacy', index: true },
+  tokenMint: { type: String, default: null, index: true },
+  tokenSymbol: { type: String, default: null },
   cycle: { type: Number, required: true, index: true },
   rank: { type: Number, required: true },
   wallet: { type: String, required: true },

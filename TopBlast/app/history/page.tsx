@@ -7,6 +7,7 @@ import { useTenantRouting } from '@/hooks/useTenantRouting'
 import Image from 'next/image'
 import { getDevFeePercent } from '@/lib/payout/shares'
 import { AppHeader } from '@/components/platform/AppHeader'
+import { CopyContractAddress } from '@/components/ui/CopyContractAddress'
 
 const DEV_FEE = getDevFeePercent()
 
@@ -32,6 +33,8 @@ interface PayoutCycle {
   tenant_slug: string
   session_slug: string
   token_symbol: string
+  token_mint: string | null
+  token_mint_explorer_url: string | null
   timestamp: string
   payouts: PayoutEntry[]
   total_eth: string
@@ -272,6 +275,16 @@ export default function HistoryPage() {
                     <p className="text-sm text-gray-400 mt-1">
                       {new Date(cycle.timestamp).toLocaleString()} • {formatTimeAgo(cycle.timestamp)}
                     </p>
+                    {cycle.token_mint && (
+                      <div className="mt-2">
+                        <CopyContractAddress
+                          address={cycle.token_mint}
+                          symbol={cycle.token_symbol}
+                          explorerUrl={cycle.token_mint_explorer_url}
+                          variant="inline"
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="text-right">
                     <div className="text-sm text-gray-400">Total Paid</div>

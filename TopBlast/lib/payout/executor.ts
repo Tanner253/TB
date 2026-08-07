@@ -68,6 +68,13 @@ function getExplorerLink(txHash: string | null): string | null {
   return getTxExplorerUrl(txHash)
 }
 
+function payoutTokenFields() {
+  return {
+    tokenMint: config.tokenMint?.trim() || null,
+    tokenSymbol: config.tokenSymbol?.trim() || null,
+  }
+}
+
 async function resetForNewToken(tokenMint: string): Promise<void> {
   console.log(`[Payout] New token detected (${tokenMint.slice(0, 10)}...) — resetting deployment state`)
   await resetDeploymentState()
@@ -517,6 +524,7 @@ export async function executePayout(): Promise<PayoutResult> {
     if (devWalletValid && config.executePayouts && totalDevFeeSol >= MIN_TRANSFER_SOL) {
       const devPayout = await Payout.create({
         ...tenantFields(),
+        ...payoutTokenFields(),
         cycle: nextCycle,
         rank: 0,
         wallet: config.devWalletAddress,
@@ -552,6 +560,7 @@ export async function executePayout(): Promise<PayoutResult> {
 
       const winnerPayout = await Payout.create({
         ...tenantFields(),
+        ...payoutTokenFields(),
         cycle: nextCycle,
         rank: i + 1,
         wallet: winner.wallet,

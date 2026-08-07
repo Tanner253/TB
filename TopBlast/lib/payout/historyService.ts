@@ -1,8 +1,9 @@
 import connectDB from '@/lib/db'
 import { Payout, Tenant } from '@/lib/db/models'
-import { getTxExplorerUrl } from '@/lib/solana/explorer'
+import { getTokenMintExplorerUrl, getTxExplorerUrl } from '@/lib/solana/explorer'
 import {
   getPlatformTenantSlug,
+  getPlatformTokenMint,
   getPlatformTokenSymbol,
   isPlatformTenantSlug,
 } from '@/lib/platform/config'
@@ -28,6 +29,8 @@ export interface PayoutHistoryCycle {
   tenant_slug: string
   session_slug: string
   token_symbol: string
+  token_mint: string | null
+  token_mint_explorer_url: string | null
   timestamp: string
   payouts: PayoutHistoryEntry[]
   total_eth: string
@@ -50,17 +53,24 @@ export interface AppPayoutHistory {
   cycles: PayoutHistoryCycle[]
 }
 
-async function buildTenantLabelMap(): Promise<Map<string, { sessionSlug: string; symbol: string }>> {
-  const map = new Map<string, { sessionSlug: string; symbol: string }>()
+type SessionMeta = { sessionSlug: string; symbol: string; mint: string | null }
+
+async function buildTenantLabelMap(): Promise<Map<string, SessionMeta>> {
+  const map = new Map<string, SessionMeta>()
 
   const platformSlug = getPlatformTenantSlug()
   const platformSymbol = getPlatformTokenSymbol()
-  map.set('_legacy', { sessionSlug: platformSlug, symbol: platformSymbol })
+  const platformMint = getPlatformTokenMint() || null
+  map.set('_legacy', { sessionSlug: platformSlug, symbol: platformSymbol, mint: platformMint })
 
   await connectDB()
-  const rows = await Tenant.find().select('slug symbol').lean()
+  const rows = await Tenant.find().select('slug symbol mint').lean()
   for (const row of rows) {
-    map.set(row.slug, { sessionSlug: row.slug, symbol: row.symbol })
+    map.set(row.slug, {
+      sessionSlug: row.slug,
+      symbol: row.symbol,
+      mint: row.mint?.trim() || null,
+    })
   }
 
   return map
@@ -68,14 +78,33 @@ async function buildTenantLabelMap(): Promise<Map<string, { sessionSlug: string;
 
 function resolveSessionMeta(
   tenantSlug: string,
-  labels: Map<string, { sessionSlug: string; symbol: string }>
-): { sessionSlug: string; symbol: string } {
+  labels: Map<string, SessionMeta>
+): SessionMeta {
   const hit = labels.get(tenantSlug)
   if (hit) return hit
   if (isPlatformTenantSlug(tenantSlug)) {
-    return { sessionSlug: getPlatformTenantSlug(), symbol: getPlatformTokenSymbol() }
+    return {
+      sessionSlug: getPlatformTenantSlug(),
+      symbol: getPlatformTokenSymbol(),
+      mint: getPlatformTokenMint() || null,
+    }
   }
-  return { sessionSlug: tenantSlug, symbol: tenantSlug.toUpperCase() }
+  return { sessionSlug: tenantSlug, symbol: tenantSlug.toUpperCase(), mint: null }
+}
+
+function resolveCycleTokenMeta(
+  payout: {
+    tokenMint?: string | null
+    tokenSymbol?: string | null
+    tenantSlug?: string | null
+  },
+  labels: Map<string, SessionMeta>
+): { symbol: string; mint: string | null } {
+  const tenantSlug = payout.tenantSlug || '_legacy'
+  const session = resolveSessionMeta(tenantSlug, labels)
+  const mint = payout.tokenMint?.trim() || session.mint
+  const symbol = payout.tokenSymbol?.trim() || session.symbol
+  return { symbol, mint }
 }
 
 export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistory> {
@@ -90,6 +119,7 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
     tenant_slug: string
     session_slug: string
     token_symbol: string
+    token_mint: string | null
     timestamp: Date
     payouts: PayoutHistoryEntry[]
     total_eth: number
@@ -100,15 +130,17 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
 
   for (const p of payouts) {
     const tenantSlug = p.tenantSlug || '_legacy'
-    const meta = resolveSessionMeta(tenantSlug, labels)
+    const session = resolveSessionMeta(tenantSlug, labels)
+    const tokenMeta = resolveCycleTokenMeta(p, labels)
     const cycleKey = `${tenantSlug}:${p.cycle}`
 
     if (!cycleMap.has(cycleKey)) {
       cycleMap.set(cycleKey, {
         cycle: p.cycle,
         tenant_slug: tenantSlug,
-        session_slug: meta.sessionSlug,
-        token_symbol: meta.symbol,
+        session_slug: session.sessionSlug,
+        token_symbol: tokenMeta.symbol,
+        token_mint: tokenMeta.mint,
         timestamp: p.createdAt,
         payouts: [],
         total_eth: 0,
@@ -121,6 +153,12 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
     const cycle = cycleMap.get(cycleKey)!
     if (p.createdAt > cycle.timestamp) {
       cycle.timestamp = p.createdAt
+    }
+    if (!cycle.token_mint && tokenMeta.mint) {
+      cycle.token_mint = tokenMeta.mint
+    }
+    if (tokenMeta.symbol) {
+      cycle.token_symbol = tokenMeta.symbol
     }
 
     cycle.payouts.push({
@@ -154,6 +192,8 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
       tenant_slug: c.tenant_slug,
       session_slug: c.session_slug,
       token_symbol: c.token_symbol,
+      token_mint: c.token_mint,
+      token_mint_explorer_url: getTokenMintExplorerUrl(c.token_mint),
       timestamp: new Date(c.timestamp).toISOString(),
       payouts: c.payouts.sort((a, b) => a.rank - b.rank),
       total_eth: c.total_eth.toFixed(6),
