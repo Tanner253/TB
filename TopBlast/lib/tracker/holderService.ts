@@ -7,12 +7,13 @@
 import { config } from '@/lib/config'
 import { getTokenHolders, getWalletTransactions } from '@/lib/solana/indexer'
 import { normalizeTokenBalance, meetsMinTokenHoldingFromChain, rawToHumanTokenAmount } from '@/lib/solana/tokenAmount'
+import { calculateBatchVwaps } from '@/lib/tracker/vwap'
 import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
 import connectDB from '@/lib/db'
 import { Holder } from '@/lib/db/models'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
-import { isLiquidityPoolWallet } from '@/lib/eligibility/liquidityPools'
+import { isLiquidityPoolWallet, ensureLiquidityPoolAddresses } from '@/lib/eligibility/liquidityPools'
 import { getTenantSlug } from '@/lib/tenant/context'
 import { getRankingsKey } from '@/lib/tenant/keys'
 import { tenantFilter } from '@/lib/tenant/scope'
@@ -1256,6 +1257,89 @@ export async function ensureVwapCalculated(): Promise<boolean> {
 }
 
 /**
+ * Fetch Helius buy history for holders missing VWAP (leaderboard-critical path).
+ */
+export async function hydrateRankingsWithVwap<
+  T extends {
+    wallet: string
+    balance: number
+    vwap?: number
+    firstBuyAt?: Date | string | null
+    hasSold?: boolean
+    hasTransferredOut?: boolean
+    totalTokensBought?: number
+    ineligibleReason?: string | null
+    isEligible?: boolean
+    isContract?: boolean
+    hasTransferIn?: boolean
+  },
+>(rankings: T[], options?: { maxWallets?: number; tokenPrice?: number }): Promise<{
+  rankings: T[]
+  holdersWithVwap: number
+}> {
+  if (!config.tokenMint || rankings.length === 0) {
+    return { rankings, holdersWithVwap: 0 }
+  }
+
+  await ensureLiquidityPoolAddresses(config.tokenMint)
+
+  const isTrackable = (h: T) =>
+    !h.isContract &&
+    !isExcludedParticipantWallet(h.wallet) &&
+    !isLiquidityPoolWallet(h.wallet, config.tokenMint)
+
+  const needsVwap = rankings.filter(h => isTrackable(h) && !(h.vwap && h.vwap > 0)).slice(0, options?.maxWallets ?? 25)
+
+  if (needsVwap.length === 0) {
+    return {
+      rankings,
+      holdersWithVwap: rankings.filter(h => isTrackable(h) && (h.vwap ?? 0) > 0).length,
+    }
+  }
+
+  const tokenPrice = options?.tokenPrice ?? (await getTokenPrice(config.tokenMint)) ?? 0
+  const vwapMap = await calculateBatchVwaps(
+    needsVwap.map(h => h.wallet),
+    config.tokenMint,
+    tokenPrice,
+    5
+  )
+
+  const updated = rankings.map(row => {
+    const v = vwapMap.get(row.wallet)
+    if (!v) return row
+
+    const humanBalance = normalizeTokenBalance(row.balance, config.tokenDecimals, config.minTokenHolding)
+    let ineligibleReason = row.ineligibleReason ?? null
+    if (v.buyCount === 0 && v.hasTransferIn) {
+      ineligibleReason = 'Received via transfer'
+    } else if (!v.vwap && v.buyCount > 0) {
+      ineligibleReason = 'Cost basis unavailable'
+    } else if (!v.vwap) {
+      ineligibleReason = 'No buy history'
+    }
+
+    return {
+      ...row,
+      balance: humanBalance,
+      vwap: v.vwap ?? 0,
+      firstBuyAt: v.firstBuyTimestamp ? new Date(v.firstBuyTimestamp) : row.firstBuyAt ?? null,
+      hasSold: v.hasSold,
+      hasTransferredOut: v.hasTransferredOut,
+      hasTransferIn: v.hasTransferIn,
+      totalTokensBought: v.totalTokensBought,
+      ineligibleReason,
+      isEligible: false,
+    }
+  }) as T[]
+
+  return {
+    rankings: updated,
+    holdersWithVwap: updated.filter(h => isTrackable(h) && (h.vwap ?? 0) > 0).length,
+  }
+}
+
+/**
  * Build display-only rankings from on-chain holder balances when MongoDB is empty
  * (common on cold serverless starts or after a failed re-index). Does not persist.
  */
@@ -1289,10 +1373,13 @@ export async function buildEphemeralRankingsFromChain(): Promise<{
       Math.min(config.maxHoldersToProcess, MAX_INITIAL_HOLDERS)
     )
 
+    await ensureLiquidityPoolAddresses(config.tokenMint)
+
     const trackable = raw.filter(
       h =>
         !h.isContract &&
         !isExcludedParticipantWallet(h.wallet) &&
+        !isLiquidityPoolWallet(h.wallet, config.tokenMint) &&
         meetsMinTokenHoldingFromChain(h.balance, config.tokenDecimals, config.minTokenHolding)
     )
 
@@ -1304,7 +1391,7 @@ export async function buildEphemeralRankingsFromChain(): Promise<{
       if (tokenPrice) getState().currentTokenPrice = tokenPrice
     }
 
-    const rankings = trackable
+    let rankings = trackable
       .sort((a, b) => b.balance - a.balance)
       .slice(0, 50)
       .map(h => ({
@@ -1314,24 +1401,31 @@ export async function buildEphemeralRankingsFromChain(): Promise<{
         drawdownPct: 0,
         lossUsd: 0,
         isEligible: false,
-        ineligibleReason: 'Loading transaction history...',
+        ineligibleReason: 'Loading buy history...',
         firstBuyAt: null as Date | null,
         hasSold: false,
         hasTransferredOut: false,
+        hasTransferIn: false,
         totalTokensBought: 0,
         lastWinCycle: null as number | null,
         isContract: false,
       }))
 
+    const hydrated = await hydrateRankingsWithVwap(rankings, {
+      maxWallets: 25,
+      tokenPrice: tokenPrice || 0,
+    })
+    rankings = hydrated.rankings
+
     console.log(
-      `[HolderService] Ephemeral rankings from chain: ${rankings.length} holder(s) (DB empty/stale)`
+      `[HolderService] Ephemeral rankings from chain: ${rankings.length} holder(s), ${hydrated.holdersWithVwap} with VWAP`
     )
 
     return {
       rankings,
       totalHolders: trackable.length,
       eligibleCount: 0,
-      holdersWithVwap: 0,
+      holdersWithVwap: hydrated.holdersWithVwap,
       tokenPrice: tokenPrice || 0,
       lastCalculated: new Date(),
     }

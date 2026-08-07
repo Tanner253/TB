@@ -8,6 +8,7 @@ import {
   ensureRankingsIndexed,
   ensureVwapCalculated,
   buildEphemeralRankingsFromChain,
+  hydrateRankingsWithVwap,
 } from '@/lib/tracker/holderService'
 import { config } from '@/lib/config'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
@@ -23,6 +24,7 @@ import { getPayoutForEligibleRank } from '@/lib/payout/shares'
 import { buildHoldTimeFields } from '@/lib/eligibility/holdDuration'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
+import { isLiquidityPoolWallet } from '@/lib/eligibility/liquidityPools'
 import { ensureLiquidityPoolAddresses } from '@/lib/eligibility/liquidityPools'
 import { loadLastWinCycleByWallet } from '@/lib/payout/winnerPersistence'
 import { getEarliestBuyTimestamp, getTokenHolders } from '@/lib/solana/indexer'
@@ -91,6 +93,18 @@ export async function GET(request: NextRequest) {
         initializeTracker().catch(err =>
           console.error('[Leaderboard] Background tracker init error:', err)
         )
+      }
+    }
+
+    if (dbRankings && dbRankings.rankings.length > 0) {
+      const hydrated = await hydrateRankingsWithVwap(dbRankings.rankings, {
+        maxWallets: 25,
+        tokenPrice: undefined,
+      })
+      dbRankings = {
+        ...dbRankings,
+        rankings: hydrated.rankings,
+        holdersWithVwap: hydrated.holdersWithVwap,
       }
     }
 
@@ -227,7 +241,9 @@ export async function GET(request: NextRequest) {
       h =>
         !h.isContract &&
         !contractWallets.has(h.wallet) &&
-        !isExcludedParticipantWallet(h.wallet)
+        !isExcludedParticipantWallet(h.wallet) &&
+        !isLiquidityPoolWallet(h.wallet, config.tokenMint) &&
+        (h.vwap ?? 0) > 0
     )
 
     const walletsNeedingFirstBuy = sourceRankings
@@ -288,6 +304,7 @@ export async function GET(request: NextRequest) {
         firstBuyTimestamp: firstBuyMs,
         hasSold: holder.hasSold ?? false,
         hasTransferredOut: holder.hasTransferredOut ?? false,
+        hasTransferIn: (holder as { hasTransferIn?: boolean }).hasTransferIn ?? false,
         lastWinCycle: lastWinByWallet.get(holder.wallet) ?? holder.lastWinCycle ?? null,
         totalTokensBought: holder.totalTokensBought ?? 0,
         poolUsd: poolBal,
@@ -337,7 +354,7 @@ export async function GET(request: NextRequest) {
         balance_raw: rowBalance,
         vwap: holder.vwap ? formatPrice(holder.vwap) : 'N/A',
         vwap_raw: holder.vwap,
-        vwap_source: 'real',
+        vwap_source: (holder.vwap ?? 0) > 0 ? 'real' : 'none',
         drawdown_pct: Math.round(live.drawdownPct * 100) / 100,
         loss_usd: formatUsd(live.lossUsd),
         loss_usd_raw: live.lossUsd,

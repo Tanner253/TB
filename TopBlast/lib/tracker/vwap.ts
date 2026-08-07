@@ -12,6 +12,7 @@ export interface VwapData {
   lastActivityTimestamp: number | null
   hasSold: boolean
   hasTransferredOut: boolean
+  hasTransferIn: boolean
   buyCount: number
 }
 
@@ -32,6 +33,7 @@ export async function calculateWalletVwap(
   let lastActivityTimestamp: number | null = null
   let hasSold = false
   let hasTransferredOut = false
+  let hasTransferIn = false
   let buyCount = 0
 
   // Sort transactions by timestamp (oldest first)
@@ -50,14 +52,16 @@ export async function calculateWalletVwap(
       
       // Track SOL and stablecoin amounts separately
       if (tx.isStablecoinSwap && tx.usdValue > 0) {
-        // Direct stablecoin swap - already in USD
         totalStablecoinSpent += tx.usdValue
       } else if (tx.solAmount > 0) {
         totalEthSpent += tx.solAmount
+      } else if (tx.pricePerToken > 0 && tx.tokenAmount > 0) {
+        totalStablecoinSpent += tx.pricePerToken * tx.tokenAmount
       }
-      // Note: If neither, we can't determine cost basis for this transaction
-      
+
       buyCount++
+    } else if (tx.type === 'TRANSFER_IN') {
+      hasTransferIn = true
     } else if (tx.type === 'SELL') {
       hasSold = true
     } else if (tx.type === 'TRANSFER_OUT') {
@@ -86,6 +90,7 @@ export async function calculateWalletVwap(
     lastActivityTimestamp,
     hasSold,
     hasTransferredOut,
+    hasTransferIn,
     buyCount,
   }
 }

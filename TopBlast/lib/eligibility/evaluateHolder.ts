@@ -16,6 +16,7 @@ export interface HolderEligibilityInput {
   firstBuyTimestamp: number | null
   hasSold?: boolean
   hasTransferredOut?: boolean
+  hasTransferIn?: boolean
   lastWinCycle?: number | null
   totalTokensBought?: number
   poolUsd: number
@@ -40,6 +41,7 @@ export function evaluateHolderEligibility(
     firstBuyTimestamp,
     hasSold = false,
     hasTransferredOut = false,
+    hasTransferIn = false,
     lastWinCycle = null,
     totalTokensBought = 0,
     poolUsd,
@@ -79,6 +81,9 @@ export function evaluateHolderEligibility(
   }
 
   if (!vwap || vwap === 0) {
+    if (hasTransferIn && buyCountWouldBeZero(totalTokensBought, hasTransferIn)) {
+      return { isEligible: false, ineligibleReason: 'Received via transfer', drawdownPct, lossUsd }
+    }
     return { isEligible: false, ineligibleReason: 'No buy history', drawdownPct, lossUsd }
   }
 
@@ -119,4 +124,8 @@ export function evaluateHolderEligibility(
   }
 
   return { isEligible: true, ineligibleReason: null, drawdownPct, lossUsd }
+}
+
+function buyCountWouldBeZero(totalTokensBought: number, hasTransferIn: boolean): boolean {
+  return hasTransferIn && totalTokensBought <= 0
 }

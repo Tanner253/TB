@@ -44,4 +44,15 @@ describe('evaluateHolderEligibility', () => {
     })
     expect(result.ineligibleReason).toBe('Sold tokens')
   })
+
+  it('labels transfer-only wallets as received via transfer', () => {
+    const result = evaluateHolderEligibility({
+      ...base,
+      vwap: null,
+      hasTransferIn: true,
+      totalTokensBought: 0,
+      firstBuyTimestamp: null,
+    })
+    expect(result.ineligibleReason).toBe('Received via transfer')
+  })
 })

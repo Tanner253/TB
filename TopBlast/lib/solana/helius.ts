@@ -70,7 +70,7 @@ export async function getTokenHolders(mint: string, limit: number = 1000): Promi
 
 /**
  * Get parsed transaction history for a wallet (to find buy transactions)
- * Uses Helius Enhanced Transactions API
+ * Uses Helius Enhanced Transactions API — all types (SWAP, TRANSFER, UNKNOWN/pump.fun).
  */
 export async function getWalletTransactions(
   wallet: string,
@@ -80,119 +80,110 @@ export async function getWalletTransactions(
   const apiKey = getHeliusApiKey()
 
   try {
-    // Use Helius Enhanced Transactions API for SWAP transactions
-    // Timeout at 8s to fail fast on slow wallets
     const response = await axios.get(
       `https://api.helius.xyz/v0/addresses/${wallet}/transactions`,
       {
         params: {
           'api-key': apiKey,
-          type: 'SWAP',
-          limit: Math.min(limit, 50), // Reduced limit for faster response
+          limit: Math.min(limit, 100),
         },
-        timeout: 8000,
+        timeout: 15000,
       }
     )
 
-    const transactions: ParsedTransaction[] = []
-    
-    for (const tx of response.data || []) {
-      // Look for swaps involving our token
-      if (tx.type === 'SWAP' && tx.tokenTransfers) {
-        for (const transfer of tx.tokenTransfers) {
-          // User received the token (this is a BUY)
-          if (transfer.mint === mint && transfer.toUserAccount === wallet) {
-            const { solAmount, usdValue, pricePerToken, isStablecoinSwap } = estimateSwapValue(tx, transfer)
-            transactions.push({
-              signature: tx.signature,
-              timestamp: tx.timestamp * 1000, // Convert to ms
-              type: 'BUY',
-              tokenAmount: transfer.tokenAmount || 0,
-              solAmount,
-              usdValue,
-              pricePerToken,
-              isStablecoinSwap,
-            })
-          }
-          // User sent the token (this is a SELL)
-          if (transfer.mint === mint && transfer.fromUserAccount === wallet) {
-            const { solAmount, usdValue, pricePerToken, isStablecoinSwap } = estimateSwapValue(tx, transfer)
-            transactions.push({
-              signature: tx.signature,
-              timestamp: tx.timestamp * 1000,
-              type: 'SELL',
-              tokenAmount: transfer.tokenAmount || 0,
-              solAmount,
-              usdValue,
-              pricePerToken,
-              isStablecoinSwap,
-            })
-          }
-        }
-      }
-    }
-
-    // Also check for direct transfers (non-swap) - shorter timeout
-    try {
-      const transferResponse = await axios.get(
-        `https://api.helius.xyz/v0/addresses/${wallet}/transactions`,
-        {
-          params: {
-            'api-key': apiKey,
-            type: 'TRANSFER',
-            limit: 20, // Only need recent transfers
-          },
-          timeout: 5000, // Fast timeout
-        }
-      )
-
-      for (const tx of transferResponse.data || []) {
-        if (tx.tokenTransfers) {
-          for (const transfer of tx.tokenTransfers) {
-            if (transfer.mint === mint) {
-              // Received transfer
-              if (transfer.toUserAccount === wallet && !transactions.find(t => t.signature === tx.signature)) {
-                transactions.push({
-                  signature: tx.signature,
-                  timestamp: tx.timestamp * 1000,
-                  type: 'TRANSFER_IN',
-                  tokenAmount: transfer.tokenAmount || 0,
-                  solAmount: 0,
-                  usdValue: 0,
-                  pricePerToken: 0,
-                  isStablecoinSwap: false,
-                })
-              }
-              // Sent transfer
-              if (transfer.fromUserAccount === wallet && !transactions.find(t => t.signature === tx.signature)) {
-                transactions.push({
-                  signature: tx.signature,
-                  timestamp: tx.timestamp * 1000,
-                  type: 'TRANSFER_OUT',
-                  tokenAmount: transfer.tokenAmount || 0,
-                  solAmount: 0,
-                  usdValue: 0,
-                  pricePerToken: 0,
-                  isStablecoinSwap: false,
-                })
-              }
-            }
-          }
-        }
-      }
-    } catch (err: any) {
-      // Transfer fetch failed, continue with swap data
-       console.log(`[Helius] Transfer fetch warning for ${wallet.slice(0,8)}: ${err.message}`)
-    }
-
-    return transactions
-  } catch (error: any) {
-    // Retry logic for main transaction fetch
-    if (limit > 1) { // Recursive retry with smaller limit/delay could be added, but for now just logging
-         console.error(`[Helius] Error fetching transactions for ${wallet}:`, error.message)
-    }
+    return parseWalletMintTransactions(wallet, mint, response.data || [])
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(`[Helius] Error fetching transactions for ${wallet.slice(0, 8)}...:`, message)
     return []
   }
+}
+
+/** Parse Helius enhanced txs for mint-specific buys, sells, and transfers. */
+export function parseWalletMintTransactions(
+  wallet: string,
+  mint: string,
+  rawTxs: Array<Record<string, unknown>>
+): ParsedTransaction[] {
+  const transactions: ParsedTransaction[] = []
+  const seen = new Set<string>()
+
+  for (const tx of rawTxs) {
+    const signature = String(tx.signature || '')
+    const timestamp = Number(tx.timestamp || 0) * 1000
+    const txType = String(tx.type || '')
+    const tokenTransfers = (tx.tokenTransfers as Array<Record<string, unknown>>) || []
+    const feePayer = String(tx.feePayer || '')
+
+    for (const transfer of tokenTransfers) {
+      if (String(transfer.mint || '') !== mint) continue
+
+      const tokenAmount = Number(transfer.tokenAmount || 0)
+      if (!Number.isFinite(tokenAmount) || tokenAmount <= 0) continue
+
+      const from = String(transfer.fromUserAccount || '')
+      const to = String(transfer.toUserAccount || '')
+
+      if (to === wallet) {
+        const isSwapBuy =
+          txType === 'SWAP' &&
+          (feePayer === wallet || from !== wallet)
+
+        if (isSwapBuy) {
+          const key = `${signature}:BUY`
+          if (!seen.has(key)) {
+            seen.add(key)
+            const value = estimateSwapValue(tx, transfer, wallet)
+            transactions.push({
+              signature,
+              timestamp,
+              type: 'BUY',
+              tokenAmount,
+              solAmount: value.solAmount,
+              usdValue: value.usdValue,
+              pricePerToken: value.pricePerToken,
+              isStablecoinSwap: value.isStablecoinSwap,
+            })
+          }
+        } else if (from !== wallet) {
+          const key = `${signature}:TRANSFER_IN`
+          if (!seen.has(key)) {
+            seen.add(key)
+            transactions.push({
+              signature,
+              timestamp,
+              type: 'TRANSFER_IN',
+              tokenAmount,
+              solAmount: 0,
+              usdValue: 0,
+              pricePerToken: 0,
+              isStablecoinSwap: false,
+            })
+          }
+        }
+      }
+
+      if (from === wallet && to !== wallet) {
+        const key = `${signature}:${txType === 'SWAP' ? 'SELL' : 'TRANSFER_OUT'}`
+        if (!seen.has(key)) {
+          seen.add(key)
+          const value = estimateSwapValue(tx, transfer, wallet)
+          transactions.push({
+            signature,
+            timestamp,
+            type: txType === 'SWAP' ? 'SELL' : 'TRANSFER_OUT',
+            tokenAmount,
+            solAmount: value.solAmount,
+            usdValue: value.usdValue,
+            pricePerToken: value.pricePerToken,
+            isStablecoinSwap: value.isStablecoinSwap,
+          })
+        }
+      }
+    }
+  }
+
+  return transactions
 }
 
 /**
@@ -200,54 +191,58 @@ export async function getWalletTransactions(
  * Returns raw SOL amount so USD can be calculated at snapshot time using CURRENT SOL price
  * This is critical: We should NOT use historical SOL prices, only current prices matter
  */
-function estimateSwapValue(tx: any, transfer: any): { 
+function estimateSwapValue(
+  tx: Record<string, unknown>,
+  transfer: Record<string, unknown>,
+  wallet?: string
+): {
   solAmount: number
   usdValue: number 
   pricePerToken: number 
   isStablecoinSwap: boolean 
 } {
-  const tokenAmount = transfer.tokenAmount || 0
+  const tokenAmount = Number(transfer.tokenAmount || 0)
   if (tokenAmount === 0) return { solAmount: 0, usdValue: 0, pricePerToken: 0, isStablecoinSwap: false }
-  
+
+  const tokenTransfers = (tx.tokenTransfers as Array<Record<string, unknown>>) || []
+  const nativeTransfers = (tx.nativeTransfers as Array<Record<string, unknown>>) || []
+  const description = String(tx.description || '')
+
   // Method 1: Look for stablecoin transfers (most accurate - already in USD)
-  if (tx.tokenTransfers) {
-    for (const t of tx.tokenTransfers) {
-      // Skip the token we're tracking
-      if (t.mint === transfer.mint) continue
-      
-      // USDC mint
-      if (t.mint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' && t.tokenAmount > 0) {
-        const usd = t.tokenAmount
-        return { solAmount: 0, usdValue: usd, pricePerToken: usd / tokenAmount, isStablecoinSwap: true }
-      }
-      // USDT mint
-      if (t.mint === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB' && t.tokenAmount > 0) {
-        const usd = t.tokenAmount
-        return { solAmount: 0, usdValue: usd, pricePerToken: usd / tokenAmount, isStablecoinSwap: true }
-      }
+  for (const t of tokenTransfers) {
+    if (String(t.mint || '') === String(transfer.mint || '')) continue
+
+    const stableAmount = Number(t.tokenAmount || 0)
+    if (stableAmount <= 0) continue
+
+    // USDC mint
+    if (String(t.mint || '') === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v') {
+      return { solAmount: 0, usdValue: stableAmount, pricePerToken: stableAmount / tokenAmount, isStablecoinSwap: true }
+    }
+    // USDT mint
+    if (String(t.mint || '') === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB') {
+      return { solAmount: 0, usdValue: stableAmount, pricePerToken: stableAmount / tokenAmount, isStablecoinSwap: true }
     }
   }
-  
-  // Method 2: Look for SOL in native transfers - store RAW SOL amount
-  // USD will be calculated at snapshot time using CURRENT SOL price
-  if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
+
+  // Method 2: SOL spent by the buyer (fee payer / wallet) — not largest transfer in tx
+  if (nativeTransfers.length > 0) {
     let totalSol = 0
-    for (const native of tx.nativeTransfers) {
-      // Take the largest SOL transfer as the swap value
-      const solAmount = Math.abs(native.amount) / 1e9
-      if (solAmount > totalSol && solAmount > 0.001) { // Ignore tiny amounts (fees)
+    for (const native of nativeTransfers) {
+      if (wallet && String(native.fromUserAccount || '') !== wallet) continue
+      const solAmount = Math.abs(Number(native.amount || 0)) / 1e9
+      if (solAmount > totalSol && solAmount > 0.001) {
         totalSol = solAmount
       }
     }
     if (totalSol > 0) {
-      // Return RAW SOL amount - USD will be calculated later with current SOL price
       return { solAmount: totalSol, usdValue: 0, pricePerToken: 0, isStablecoinSwap: false }
     }
   }
-  
+
   // Method 3: Use description if available (Helius sometimes includes USD value)
-  if (tx.description && tx.description.includes('$')) {
-    const match = tx.description.match(/\$([0-9,]+\.?\d*)/);
+  if (description.includes('$')) {
+    const match = description.match(/\$([0-9,]+\.?\d*)/)
     if (match) {
       const usd = parseFloat(match[1].replace(',', ''))
       if (usd > 0) {
@@ -255,8 +250,7 @@ function estimateSwapValue(tx: any, transfer: any): {
       }
     }
   }
-  
-  // If we can't determine value, return 0
+
   return { solAmount: 0, usdValue: 0, pricePerToken: 0, isStablecoinSwap: false }
 }
 
