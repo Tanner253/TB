@@ -8,13 +8,13 @@ export function getPlatformDevWalletAddress(): string {
 export function requirePlatformDevWalletAddress(): string {
   const address = getPlatformDevWalletAddress()
   if (!address) {
-    throw new Error('DEV_WALLET_ADDRESS must be configured on the server')
+    throw new Error('TopBlast is not fully configured yet. Please try again later.')
   }
   try {
     // eslint-disable-next-line no-new
     new PublicKey(address)
   } catch {
-    throw new Error('DEV_WALLET_ADDRESS must be a valid Solana pubkey')
+    throw new Error('TopBlast platform configuration is invalid. Please contact support.')
   }
   return address
 }

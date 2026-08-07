@@ -7,7 +7,7 @@ function getMasterKey(): Buffer {
   const raw = process.env.TENANT_ENCRYPTION_KEY || process.env.MASTER_ENCRYPTION_KEY
   if (!raw) {
     if (process.env.NODE_ENV === 'production') {
-      throw new Error('TENANT_ENCRYPTION_KEY is required in production to store payout keys')
+      throw new Error('TopBlast is not fully configured to store payout keys securely. Please try again later.')
     }
     // Dev-only fallback — never use in production
     return crypto.createHash('sha256').update('topblast-dev-encryption-key').digest()

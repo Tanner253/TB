@@ -5,7 +5,7 @@ import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
 import { SolanaBadge } from '@/components/ui/SolanaBadge'
 import { WHITEPAPER_URL } from '@/lib/marketing/devValueProp'
 
-export function AppHeader({ active }: { active?: 'catalog' | 'launch' }) {
+export function AppHeader({ active }: { active?: 'home' | 'catalog' | 'launch' }) {
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-black/85 backdrop-blur-xl">
       <div className="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between gap-4">
@@ -20,6 +20,14 @@ export function AppHeader({ active }: { active?: 'catalog' | 'launch' }) {
         <nav className="hidden md:flex items-center gap-1 text-sm">
           <Link
             href="/"
+            className={`px-3 py-1.5 rounded-md transition-colors ${
+              active === 'home' ? 'text-sol-mint bg-sol-mint/10' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Home
+          </Link>
+          <Link
+            href="/catalog"
             className={`px-3 py-1.5 rounded-md transition-colors ${
               active === 'catalog' ? 'text-sol-mint bg-sol-mint/10' : 'text-gray-400 hover:text-white'
             }`}

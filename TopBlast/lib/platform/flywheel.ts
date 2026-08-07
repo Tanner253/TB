@@ -19,7 +19,7 @@ export const DEV_FEE_OPS_SHARE_PCT = 100 - DEV_FEE_BUYBACK_SHARE_PCT
 export const FLYWHEEL_BURN_STATUS = 'planned' as const
 
 export const FLYWHEEL_TREE = {
-  root: `Every tenant cycle → ${DEV_FEE_PCT}% SOL to DEV_WALLET_ADDRESS`,
+  root: `Every tenant cycle → ${DEV_FEE_PCT}% SOL to the platform treasury`,
   buyback: `${PLATFORM_BUYBACK_PCT_OF_POOL}% of original pool (${DEV_FEE_BUYBACK_SHARE_PCT}% of fee) → market-buy platform token`,
   ops: `${PLATFORM_OPS_PCT_OF_POOL}% of original pool (${DEV_FEE_OPS_SHARE_PCT}% of fee) → ops / infra / growth`,
   burn: 'Purchased tokens → burn address / incinerator',
@@ -28,7 +28,7 @@ export const FLYWHEEL_TREE = {
 } as const
 
 export const FLYWHEEL_INTRO =
-  'Every SaaS listing pays a flat 12% protocol fee in SOL on each payout cycle. Fees route to the platform treasury (DEV_WALLET_ADDRESS — server env, not set by launchers). Half funds platform-token buyback; half funds ops and growth.'
+  'Every SaaS listing pays a flat 12% protocol fee in SOL on each payout cycle. Fees route to the TopBlast platform treasury — half funds platform-token buyback, half funds ops and growth.'
 
 export const FLYWHEEL_STEPS = [
   'Projects launch loss-mining via self-serve TopBlast',

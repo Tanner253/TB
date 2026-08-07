@@ -19,9 +19,9 @@ export const LAUNCH_KEY_HELP = {
     body: `How often winners are paid after the timer starts. Choose at launch — ${PAYOUT_OPTIONS}. Default is ${DEFAULT_PAYOUT_LABEL}. Cannot be changed after listing creation.`,
   },
   tenantEncryptionKey: {
-    title: 'TENANT_ENCRYPTION_KEY (platform server only)',
+    title: 'Key encryption (TopBlast operators only)',
     body:
-      'Set by TopBlast operators in server env — not by launchers. It encrypts your payout private key before storage in the database so keys are not saved in plain text. It is not used to send transactions; your payout key is decrypted only when executing your listing\'s payouts.',
+      'TopBlast encrypts your payout private key before storing it. Keys are never saved in plain text and are only decrypted when executing your listing\'s payouts.',
   },
 } as const
 

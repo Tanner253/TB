@@ -36,14 +36,14 @@ export async function GET(request: NextRequest) {
     if (!config.tokenMint) {
       return NextResponse.json({
         success: false,
-        error: 'TOKEN_MINT_ADDRESS not configured',
+        error: 'Token mint is not configured for this listing',
       }, { status: 500 })
     }
 
     if (config.tokenMint.startsWith('0x')) {
       return NextResponse.json({
         success: false,
-        error: 'TOKEN_MINT_ADDRESS must be a Solana SPL mint (base58)',
+        error: 'Token mint must be a valid Solana SPL address (base58)',
       }, { status: 500 })
     }
 
