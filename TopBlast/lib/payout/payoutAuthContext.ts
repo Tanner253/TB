@@ -3,7 +3,7 @@ import 'server-only'
 import { AsyncLocalStorage } from 'async_hooks'
 import { config } from '@/lib/config'
 
-/** Payout signing may only run inside an authorized server context (cron/admin). */
+/** Payout signing runs inside runAuthorizedPayout (leaderboard due-cycle or admin/cron). */
 const payoutAuthorized = new AsyncLocalStorage<boolean>()
 
 export function runAuthorizedPayout<T>(fn: () => Promise<T>): Promise<T> {

@@ -23,7 +23,7 @@ import { saveRankingsToDb, loadRankingsFromDb, getRankedLosers, markWinnersCoold
 
 import { getTimerKey } from '@/lib/tenant/keys'
 import { tenantFields } from '@/lib/tenant/scope'
-import { isPayoutExecutionAuthorized } from '@/lib/payout/payoutAuthContext'
+import { isPayoutExecutionAuthorized, runAuthorizedPayout } from '@/lib/payout/payoutAuthContext'
 import {
   assertProductionPayoutConfig,
   assertPayoutTransferAllowed,
@@ -394,7 +394,7 @@ export interface PayoutResult {
 
 export async function executePayout(): Promise<PayoutResult> {
   if (!isPayoutExecutionAuthorized()) {
-    console.error('[Payout] Blocked — not running inside authorized cron/admin context')
+    console.error('[Payout] Blocked — not running inside authorized server context')
     return { success: false, error: 'Payout execution not authorized' }
   }
 
@@ -696,4 +696,30 @@ export async function executePayout(): Promise<PayoutResult> {
 
 export function canExecutePayout(): boolean {
   return isPayoutDue()
+}
+
+/**
+ * Run payout when the timer hits zero — called from leaderboard polls (no external cron).
+ * Mongo payout lock prevents duplicate sends across concurrent requests.
+ */
+export async function maybeExecuteDuePayout(eligibleCount: number): Promise<PayoutResult | null> {
+  await ensureTimerStateSync()
+  const timer = getPayoutTimerInfo()
+
+  if (timer.timer_status !== 'active' || !isPayoutDue() || eligibleCount <= 0) {
+    return null
+  }
+
+  if (!config.executePayouts) {
+    console.log('[Payout] Timer due but EXECUTE_PAYOUTS is false — skipping on-chain transfer')
+    return null
+  }
+
+  const configError = assertProductionPayoutConfig()
+  if (configError) {
+    console.error(`[Payout] Blocked — ${configError}`)
+    return { success: false, error: configError }
+  }
+
+  return runAuthorizedPayout(() => executePayout())
 }

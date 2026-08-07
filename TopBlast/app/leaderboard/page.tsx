@@ -361,7 +361,7 @@ export default function LeaderboardPage() {
                 {isWaitingForEligible
                   ? 'No payout cycle until someone qualifies'
                   : isPayoutDueNow
-                    ? 'Payout runs automatically — timer resets after completion'
+                    ? 'Sending SOL to top losers — timer resets after completion'
                     : 'Top 3 losers receive native SOL automatically'}
               </p>
             </div>

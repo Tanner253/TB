@@ -12,7 +12,8 @@ import type {
 } from './types'
 import { getTimerKey } from './keys'
 import { decorateCatalogTenants } from '@/lib/platform/catalog'
-import { resolvePlatformEnvRuntime } from '@/lib/platform/envPlatform'
+import { resolvePlatformEnvRuntime, isPlatformEnvConfigured } from '@/lib/platform/envPlatform'
+import { getPlatformTenantSlug } from '@/lib/platform/config'
 import { requirePlatformDevWalletAddress } from '@/lib/platform/devWallet'
 import { validatePayoutIntervalMinutes } from '@/lib/platform/payoutIntervals'
 import { validateMinTokenHolding } from '@/lib/platform/minTokenHolding'
@@ -193,7 +194,14 @@ export async function runForTenantSlug<T>(slug: string, fn: () => Promise<T>): P
 export async function listActiveTenantSlugs(): Promise<string[]> {
   await connectDB()
   const rows = await Tenant.find({ status: 'active' }).select('slug').lean()
-  return rows.map(r => r.slug)
+  const slugs = new Set(rows.map(r => r.slug))
+
+  // Env-driven platform token (e.g. /topblast) may have no Mongo row — include for multi-tenant ops.
+  if (isPlatformEnvConfigured()) {
+    slugs.add(getPlatformTenantSlug())
+  }
+
+  return Array.from(slugs)
 }
 
 export { getTimerKey }

@@ -20,6 +20,7 @@ import {
   ensureTimerStateSync,
   pausePayoutTimerToWaiting,
   getCurrentPayoutCycle,
+  maybeExecuteDuePayout,
 } from '@/lib/payout/executor'
 import { getPayoutForEligibleRank } from '@/lib/payout/shares'
 import { buildHoldTimeFields } from '@/lib/eligibility/holdDuration'
@@ -194,9 +195,19 @@ export async function GET(request: NextRequest) {
 
     const timerAfterPause = getPayoutTimerInfo()
 
-    // Payouts run only via POST /api/cron/tenants or /api/cron/payout with CRON_SECRET — never from public leaderboard traffic.
-
-    const timerAfterPayout = timerAfterPause
+    let timerAfterPayout = timerAfterPause
+    if (eligibleCount > 0 && timerAfterPause.timer_status === 'active' && isPayoutDue()) {
+      try {
+        const payoutResult = await maybeExecuteDuePayout(eligibleCount)
+        if (payoutResult && !payoutResult.success) {
+          console.warn('[Leaderboard] Payout attempt:', payoutResult.error)
+        }
+        await ensureTimerStateSync()
+        timerAfterPayout = getPayoutTimerInfo()
+      } catch (err) {
+        console.error('[Leaderboard] Payout error:', err)
+      }
+    }
 
     const poolFields = {
       pool_balance_eth: poolEthFormatted,

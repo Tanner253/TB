@@ -29,10 +29,6 @@ export function isValidSolanaAddress(address: string): boolean {
 export function assertProductionPayoutConfig(): string | null {
   if (!config.isProd || !config.executePayouts) return null
 
-  if (!process.env.CRON_SECRET?.trim()) {
-    return 'CRON_SECRET must be set in production when EXECUTE_PAYOUTS=true'
-  }
-
   if (!process.env.PAYOUT_WALLET_PRIVATE_KEY?.trim()) {
     return 'PAYOUT_WALLET_PRIVATE_KEY is missing'
   }

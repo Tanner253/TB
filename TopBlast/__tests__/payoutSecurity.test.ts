@@ -43,9 +43,9 @@ describe('payoutSecurity', () => {
     expect(isValidSolanaAddress('oBrNjdETmjiGdutugqkHGzwaHnmdpJKhnpkud1GPpd6')).toBe(true)
   })
 
-  it('requires CRON_SECRET when execute payouts in production', () => {
-    delete process.env.CRON_SECRET
-    expect(assertProductionPayoutConfig()).toMatch(/CRON_SECRET/)
+  it('requires payout wallet key when execute payouts in production', () => {
+    delete process.env.PAYOUT_WALLET_PRIVATE_KEY
+    expect(assertProductionPayoutConfig()).toMatch(/PAYOUT_WALLET_PRIVATE_KEY/)
   })
 
   it('caps distributable SOL by wallet reserve', () => {

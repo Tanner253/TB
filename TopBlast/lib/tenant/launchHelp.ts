@@ -48,7 +48,7 @@ export const LAUNCH_FLOW = {
     },
     {
       title: 'Cycles run automatically',
-      body: `Winners are paid on the interval you selected (${PAYOUT_OPTIONS}). Platform cron keeps timers in sync — no manual cycle start.`,
+      body: `Winners are paid on the interval you selected (${PAYOUT_OPTIONS}). The timer runs automatically when someone qualifies — payouts send when it hits zero.`,
     },
     {
       title: 'You stay in control',

@@ -223,7 +223,7 @@ export function buildTenantDiagnostics(input: TenantDiagnosticsInput): TenantDia
       title: 'Payout timer waiting',
       message:
         eligibleCount > 0
-          ? `At least one holder is eligible — the ${payoutIntervalLabel} timer should start on the next cron check.`
+          ? `At least one holder is eligible — the ${payoutIntervalLabel} timer starts when the first holder qualifies.`
           : `The ${payoutIntervalLabel} payout timer starts automatically when the first holder becomes eligible.`,
       action:
         eligibleCount === 0
