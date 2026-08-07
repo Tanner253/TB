@@ -7,10 +7,17 @@ import { getWinnerSharePercents, getCommunityPercent } from '@/lib/payout/shares
 const SHARES = getWinnerSharePercents()
 const COMMUNITY = getCommunityPercent()
 
-export function DynamicPotExplainer({ compact = false }: { compact?: boolean }) {
+export function DynamicPotExplainer({
+  compact = false,
+  hideTimer = false,
+}: {
+  compact?: boolean
+  hideTimer?: boolean
+}) {
   const ex = DYNAMIC_POT.example
   const winnerPool = ex.poolUsd * (COMMUNITY / 100)
   const firstShare = winnerPool * (SHARES.first / 100)
+  const bullets = hideTimer ? DYNAMIC_POT.bullets.filter(b => b.title !== 'Timer') : DYNAMIC_POT.bullets
 
   return (
     <section
@@ -24,7 +31,7 @@ export function DynamicPotExplainer({ compact = false }: { compact?: boolean }) 
       <p className="text-sm text-gray-400 mb-6">{DYNAMIC_POT.intro}</p>
 
       <ul className={`space-y-4 mb-6 ${compact ? 'text-sm' : ''}`}>
-        {DYNAMIC_POT.bullets.map(item => (
+        {bullets.map(item => (
           <li key={item.title} className="flex gap-3">
             <span className="text-rh-lime font-bold shrink-0">→</span>
             <div>

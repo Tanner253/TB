@@ -4,11 +4,16 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { FlywheelTokenomics } from '@/components/platform/FlywheelTokenomics'
-import { LaunchHowTo } from '@/components/tenant/LaunchHowTo'
+import {
+  LaunchAfterSubmitFlow,
+  LaunchSetupChecklist,
+  LaunchSkippedCyclesNote,
+} from '@/components/tenant/LaunchHowTo'
 import { ForCreatorsSection } from '@/components/platform/ForCreatorsSection'
 import { DynamicPotExplainer } from '@/components/platform/DynamicPotExplainer'
-import { DEV_FEE_PCT, PLATFORM_BUYBACK_PCT_OF_POOL, PLATFORM_OPS_PCT_OF_POOL } from '@/lib/platform/flywheel'
+import { EligibilityRequirements } from '@/components/tenant/EligibilityRequirements'
 import { AppHeader } from '@/components/platform/AppHeader'
+import { LaunchTabBar, LaunchTabPanel, useLaunchTabs } from '@/components/launch/LaunchTabs'
 import { LAUNCH_KEY_HELP } from '@/lib/tenant/launchHelp'
 import { DEV_HERO, TRUST_FOOTER } from '@/lib/marketing/devValueProp'
 import { appHostname } from '@/lib/marketing/urls'
@@ -17,8 +22,10 @@ import {
   PAYOUT_INTERVAL_OPTIONS,
 } from '@/lib/platform/payoutIntervals'
 
+
 export default function LaunchPage() {
   const router = useRouter()
+  const [activeTab, setActiveTab] = useLaunchTabs('create')
   const [form, setForm] = useState({
     slug: '',
     symbol: '',
@@ -56,119 +63,167 @@ export default function LaunchPage() {
     <div className="min-h-screen bg-black text-white">
       <AppHeader active="launch" />
 
-      <main className="max-w-3xl mx-auto px-6 py-12">
+      <main className="max-w-3xl mx-auto px-6 py-10 md:py-12">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-3xl font-bold mb-2">{DEV_HERO.cta}</h1>
-          <p className="text-gray-400 mb-4">{DEV_HERO.subhead}</p>
-          <p className="text-gray-500 text-sm mb-6">
-            Flat {DEV_FEE_PCT}% platform fee per cycle funds the TopBlast flywheel —{' '}
-            {PLATFORM_BUYBACK_PCT_OF_POOL}% of each pool buys platform token (burn), {PLATFORM_OPS_PCT_OF_POOL}% ops.
-            Your creator wallet funds winner SOL only.
-          </p>
+          <header className="mb-8">
+            <p className="text-sol-mint text-xs font-semibold uppercase tracking-[0.14em] mb-2">Self-serve launch</p>
+            <h1 className="text-3xl font-bold mb-2">{DEV_HERO.cta}</h1>
+            <p className="text-gray-400 text-sm md:text-base max-w-2xl">{DEV_HERO.subhead}</p>
+          </header>
 
           <div className="mb-8">
-            <ForCreatorsSection compact showLaunchCta={false} />
+            <LaunchTabBar activeTab={activeTab} onTabChange={setActiveTab} />
           </div>
 
-          <div className="mb-8">
-            <DynamicPotExplainer compact />
-          </div>
-
-          <div className="mb-10">
-            <LaunchHowTo />
-          </div>
-
-          <div className="mb-8">
-            <FlywheelTokenomics compact />
-          </div>
-
-          <h2 className="text-xl font-bold mb-4">Create your listing</h2>
-          <form onSubmit={handleSubmit} className="glass-panel rounded-2xl p-8 border-rh-green/20 space-y-5">
-            <label className="block">
-              <span className="text-sm text-gray-400">URL slug</span>
-              <input
-                required
-                value={form.slug}
-                onChange={e => setForm(f => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
-                placeholder="my-token"
-                className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
-              />
-              <p className="text-xs text-gray-600 mt-1">
-                Your session URL: {appHostname()}/{form.slug || 'your-slug'}
+          <LaunchTabPanel tabId="create" activeTab={activeTab}>
+            <form onSubmit={handleSubmit} className="glass-panel rounded-2xl p-6 md:p-8 border-rh-green/20 space-y-5">
+              <p className="text-sm text-gray-500">
+                Fill in your token details below. Need help first?{' '}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('setup')}
+                  className="text-sol-mint hover:text-rh-lime underline underline-offset-2"
+                >
+                  Open the setup guide
+                </button>
+                .
               </p>
-            </label>
 
-            <label className="block">
-              <span className="text-sm text-gray-400">Ticker symbol</span>
-              <input
-                required
-                value={form.symbol}
-                onChange={e => setForm(f => ({ ...f, symbol: e.target.value.toUpperCase() }))}
-                placeholder="BLAST"
-                maxLength={12}
-                className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 focus:border-rh-green/50 outline-none"
-              />
-            </label>
+              <label className="block">
+                <span className="text-sm text-gray-400">URL slug</span>
+                <input
+                  required
+                  value={form.slug}
+                  onChange={e =>
+                    setForm(f => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))
+                  }
+                  placeholder="my-token"
+                  className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  Session URL: {appHostname()}/{form.slug || 'your-slug'}
+                </p>
+              </label>
 
-            <label className="block">
-              <span className="text-sm text-gray-400">Contract address (SPL mint / CA)</span>
-              <input
-                required
-                value={form.mint}
-                onChange={e => setForm(f => ({ ...f, mint: e.target.value.trim() }))}
-                placeholder="Token mint base58"
-                className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
-              />
-              <p className="text-xs text-gray-600 mt-1">The on-chain mint for your Solana token.</p>
-            </label>
+              <label className="block">
+                <span className="text-sm text-gray-400">Ticker symbol</span>
+                <input
+                  required
+                  value={form.symbol}
+                  onChange={e => setForm(f => ({ ...f, symbol: e.target.value.toUpperCase() }))}
+                  placeholder="BLAST"
+                  maxLength={12}
+                  className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 focus:border-rh-green/50 outline-none"
+                />
+              </label>
 
-            <label className="block">
-              <span className="text-sm text-gray-400">{LAUNCH_KEY_HELP.payoutInterval.title}</span>
-              <select
-                value={form.payoutIntervalMinutes}
-                onChange={e =>
-                  setForm(f => ({ ...f, payoutIntervalMinutes: Number(e.target.value) }))
-                }
-                className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 text-sm focus:border-rh-green/50 outline-none"
+              <label className="block">
+                <span className="text-sm text-gray-400">SPL mint (contract address)</span>
+                <input
+                  required
+                  value={form.mint}
+                  onChange={e => setForm(f => ({ ...f, mint: e.target.value.trim() }))}
+                  placeholder="Token mint base58"
+                  className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm text-gray-400">{LAUNCH_KEY_HELP.payoutInterval.title}</span>
+                <select
+                  value={form.payoutIntervalMinutes}
+                  onChange={e => setForm(f => ({ ...f, payoutIntervalMinutes: Number(e.target.value) }))}
+                  className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 text-sm focus:border-rh-green/50 outline-none"
+                >
+                  {PAYOUT_INTERVAL_OPTIONS.map(opt => (
+                    <option key={opt.minutes} value={opt.minutes}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-2">{LAUNCH_KEY_HELP.payoutInterval.body}</p>
+              </label>
+
+              <label className="block">
+                <span className="text-sm text-gray-400">{LAUNCH_KEY_HELP.payoutWalletPrivateKey.title}</span>
+                <input
+                  required
+                  type="password"
+                  autoComplete="off"
+                  value={form.payoutWalletPrivateKey}
+                  onChange={e => setForm(f => ({ ...f, payoutWalletPrivateKey: e.target.value.trim() }))}
+                  placeholder="Base58 private key — fund with SOL for winner payouts"
+                  className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
+                />
+                <p className="text-xs text-gray-500 mt-2">{LAUNCH_KEY_HELP.payoutWalletPrivateKey.body}</p>
+              </label>
+
+              {error ? <p className="text-red-400 text-sm">{error}</p> : null}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full py-3 bg-sol-gradient text-black rounded-xl font-bold disabled:opacity-50"
               >
-                {PAYOUT_INTERVAL_OPTIONS.map(opt => (
-                  <option key={opt.minutes} value={opt.minutes}>
-                    {opt.label} — {opt.description}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-2">{LAUNCH_KEY_HELP.payoutInterval.body}</p>
-            </label>
+                {submitting ? 'Creating listing…' : 'Create listing & start TopBlast'}
+              </button>
 
-            <label className="block">
-              <span className="text-sm text-gray-400">{LAUNCH_KEY_HELP.payoutWalletPrivateKey.title}</span>
-              <input
-                required
-                type="password"
-                autoComplete="off"
-                value={form.payoutWalletPrivateKey}
-                onChange={e => setForm(f => ({ ...f, payoutWalletPrivateKey: e.target.value.trim() }))}
-                placeholder="Base58 private key — fund this wallet with SOL for winner payouts"
-                className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
-              />
-              <p className="text-xs text-gray-500 mt-2">{LAUNCH_KEY_HELP.payoutWalletPrivateKey.body}</p>
-              <p className="text-xs text-gray-600 mt-2">
-                Encrypted at rest on TopBlast servers. Never shared or logged in plain text.
+              <p className="text-xs text-gray-600 text-center">
+                Keys are encrypted at rest.{' '}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('fees')}
+                  className="text-gray-400 hover:text-sol-mint underline underline-offset-2"
+                >
+                  Platform fee details
+                </button>
               </p>
-            </label>
+            </form>
+          </LaunchTabPanel>
 
-            {error && <p className="text-red-400 text-sm">{error}</p>}
+          <LaunchTabPanel tabId="setup" activeTab={activeTab}>
+            <div className="space-y-6">
+              <LaunchSetupChecklist />
+              <LaunchAfterSubmitFlow />
+              <p className="text-sm text-gray-500 text-center">
+                Ready?{' '}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('create')}
+                  className="text-sol-mint hover:text-rh-lime underline underline-offset-2"
+                >
+                  Go to Create listing
+                </button>
+              </p>
+            </div>
+          </LaunchTabPanel>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full py-3 bg-sol-gradient text-black rounded-xl font-bold disabled:opacity-50"
-            >
-              {submitting ? 'Creating listing…' : 'Create listing & start TopBlast'}
-            </button>
+          <LaunchTabPanel tabId="payouts" activeTab={activeTab}>
+            <div className="space-y-6">
+              <DynamicPotExplainer compact hideTimer />
+              <section className="rounded-2xl border border-white/10 bg-black/40 p-6">
+                <h2 className="text-lg font-bold mb-4">Eligibility requirements</h2>
+                <EligibilityRequirements variant="compact" />
+              </section>
+              <LaunchSkippedCyclesNote className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-6" />
+            </div>
+          </LaunchTabPanel>
 
-            <p className="text-xs text-gray-500 text-center">{TRUST_FOOTER}</p>
-          </form>
+          <LaunchTabPanel tabId="fees" activeTab={activeTab}>
+            <div className="space-y-6">
+              <ForCreatorsSection
+                compact
+                hideHero
+                showLaunchCta={false}
+                showBenefits={false}
+                showTrustFooter={false}
+              />
+              <FlywheelTokenomics compact />
+              <p className="text-xs text-gray-500 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                {TRUST_FOOTER}
+              </p>
+            </div>
+          </LaunchTabPanel>
         </motion.div>
       </main>
     </div>
