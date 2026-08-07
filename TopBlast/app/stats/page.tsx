@@ -9,6 +9,7 @@ import { useTenantRouting } from '@/hooks/useTenantRouting'
 import { AnimatedNumber, PriceTicker } from '@/components/ui/AnimatedNumber'
 import { AppHeader } from '@/components/platform/AppHeader'
 import { TenantStatusPanel } from '@/components/tenant/TenantStatusPanel'
+import { CopyContractAddress } from '@/components/ui/CopyContractAddress'
 import type { TenantDiagnostics } from '@/lib/tenant/diagnostics'
 import { getWinnerSharePercents, getDevFeePercent } from '@/lib/payout/shares'
 import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
@@ -20,6 +21,7 @@ interface StatsData {
   token: {
     symbol: string
     mint: string
+    mint_explorer_url?: string | null
     price: string
     price_raw: number | null
     price_change_24h: number | null
@@ -39,6 +41,7 @@ interface StatsData {
     total_distributed_usd: string
     average_pool_size_usd: string
     current_pool_usd: string
+    average_payout_usd?: string
     payout_split: {
       first: string
       second: string
@@ -50,18 +53,24 @@ interface StatsData {
       wallet_display: string
       win_count: number
     } | null
+    deepest_drawdown: {
+      wallet_display: string
+      drawdown_pct: number
+    } | null
   }
   thresholds: {
     min_balance: string
     min_hold_minutes: number
     min_hold_display: string
     min_loss_pct: number
+    payout_interval_display?: string
   }
   service: {
     initialized: boolean
     init_in_progress: boolean
     last_refresh: string | null
   }
+  diagnostics?: TenantDiagnostics
 }
 
 interface PoolData {
@@ -94,28 +103,20 @@ export default function StatsPage() {
   useEffect(() => {
     const statsUrl = slug ? `/api/t/${slug}/stats` : '/api/stats'
     const poolUrl = slug ? `/api/t/${slug}/pool` : '/api/pool'
-    const statusUrl = slug ? `/api/t/${slug}/status` : null
 
     const fetchData = async () => {
       try {
-        const requests: Promise<Response>[] = [
-          fetch(statsUrl),
-          fetch(poolUrl),
-        ]
-        if (statusUrl) requests.push(fetch(statusUrl))
+        const [statsRes, poolRes] = await Promise.all([fetch(statsUrl), fetch(poolUrl)])
+        const statsJson = await statsRes.json()
+        const poolJson = await poolRes.json()
 
-        const responses = await Promise.all(requests)
-        const statsJson = await responses[0].json()
-        const poolJson = await responses[1].json()
-
-        if (statsJson.success) setStats(statsJson.data)
-        if (poolJson.success) setPool(poolJson.data)
-        if (statusUrl && responses[2]) {
-          const statusJson = await responses[2].json()
-          if (statusJson.success && statusJson.data?.diagnostics) {
-            setDiagnostics(statusJson.data.diagnostics)
+        if (statsJson.success) {
+          setStats(statsJson.data)
+          if (statsJson.data?.diagnostics) {
+            setDiagnostics(statsJson.data.diagnostics)
           }
         }
+        if (poolJson.success) setPool(poolJson.data)
         setLastUpdate(new Date())
         setError(null)
       } catch {
@@ -186,7 +187,7 @@ export default function StatsPage() {
             {stats?.service?.initialized && (
               <>
                 <span className="w-1 h-1 bg-rh-green rounded-full" />
-                <span className="text-rh-green">Service Ready</span>
+                <span className="text-rh-green">Rankings loaded</span>
               </>
             )}
           </div>
@@ -239,6 +240,16 @@ export default function StatsPage() {
               </div>
             </div>
           </div>
+          {stats?.token.mint && (
+            <div className="mt-5 pt-5 border-t border-white/10 flex justify-center">
+              <CopyContractAddress
+                address={stats.token.mint}
+                symbol={stats.token.symbol}
+                explorerUrl={stats.token.mint_explorer_url}
+                variant="inline"
+              />
+            </div>
+          )}
         </motion.div>
 
         {/* Pool Info */}
@@ -258,11 +269,15 @@ export default function StatsPage() {
             </div>
             <div>
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Total Distributed</div>
-              <div className="text-2xl font-bold">{pool?.total_distributed_usd || '$0'}</div>
+              <div className="text-2xl font-bold">
+                {pool?.total_distributed_usd || stats?.protocol.total_distributed_usd || '$0'}
+              </div>
             </div>
             <div>
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Avg Payout</div>
-              <div className="text-2xl font-bold">{pool?.average_payout_usd || '$0'}</div>
+              <div className="text-2xl font-bold">
+                {pool?.average_payout_usd || stats?.protocol.average_payout_usd || '$0'}
+              </div>
             </div>
           </div>
           <div className="mt-6 flex items-center gap-3">
@@ -325,7 +340,7 @@ export default function StatsPage() {
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
             <span>🏆</span> Protocol Records
           </h2>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-3 gap-6">
             <div className="bg-white/5 rounded-xl p-5">
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Most Wins</div>
               {stats?.leaderboard.most_wins ? (
@@ -342,9 +357,24 @@ export default function StatsPage() {
               )}
             </div>
             <div className="bg-white/5 rounded-xl p-5">
+              <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Deepest Drawdown</div>
+              {stats?.leaderboard.deepest_drawdown ? (
+                <>
+                  <div className="text-3xl font-bold text-red-400 mb-1">
+                    {stats.leaderboard.deepest_drawdown.drawdown_pct.toFixed(2)}%
+                  </div>
+                  <div className="text-sm text-gray-500 font-mono">
+                    {stats.leaderboard.deepest_drawdown.wallet_display}
+                  </div>
+                </>
+              ) : (
+                <div className="text-gray-500">No tracked losers yet</div>
+              )}
+            </div>
+            <div className="bg-white/5 rounded-xl p-5">
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Total Cycles</div>
               <div className="text-3xl font-bold text-rh-lime mb-1">
-                {stats?.protocol.total_cycles || 0}
+                {stats?.protocol.total_cycles || pool?.total_cycles || 0}
               </div>
               <div className="text-sm text-gray-500">
                 Completed payout rounds

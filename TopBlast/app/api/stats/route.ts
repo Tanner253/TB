@@ -1,75 +1,39 @@
 import { NextResponse } from 'next/server'
-import { getTokenData, formatPrice, formatUsd } from '@/lib/solana/price'
+import { getTokenData, formatPrice, formatUsd, getResolvedTokenPrice } from '@/lib/solana/price'
 import { formatWallet } from '@/lib/solana/holders'
-import { 
-  getAllHolders, 
-  getEligibleCount, 
-  getCurrentPrice, 
-  isServiceInitialized,
-  getServiceStatus,
-  loadRankingsFromDb,
-} from '@/lib/tracker/holderService'
-import { initializeTracker, isTrackerInitialized } from '@/lib/tracker/init'
+import { getTokenMintExplorerUrl } from '@/lib/solana/explorer'
+import { loadRankingsFromDb } from '@/lib/tracker/holderService'
 import { config } from '@/lib/config'
 import { formatHoldDuration } from '@/lib/eligibility/holdDuration'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
 import { getPayoutSplitLabels } from '@/lib/payout/shares'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
+import { fetchTenantPayoutStats } from '@/lib/payout/payoutStats'
+import { buildSessionHolderStats } from '@/lib/stats/sessionStats'
+import { getTenantDiagnostics } from '@/lib/tenant/getTenantDiagnostics'
 
 export const dynamic = 'force-dynamic'
 
-// Track initialization
-let initStarted = false
-
 export async function GET() {
   try {
-    // Start initialization if not already
-    if (!initStarted && !isServiceInitialized()) {
-      initStarted = true
-      initializeTracker().catch(err => {
-        console.error('[Stats] Tracker init error:', err)
-        initStarted = false
-      })
+    if (!config.tokenMint) {
+      return NextResponse.json(
+        { success: false, error: 'Token mint is not configured for this listing' },
+        { status: 500 }
+      )
     }
 
-    // Get current price and market data
-    const tokenData = await getTokenData(config.tokenMint)
-    const tokenPrice = tokenData?.price || getCurrentPrice()
+    const [tokenData, resolvedPrice, livePool, payoutStats, diagnostics] = await Promise.all([
+      getTokenData(config.tokenMint),
+      getResolvedTokenPrice(config.tokenMint),
+      getLivePoolBalance(),
+      fetchTenantPayoutStats(),
+      getTenantDiagnostics(),
+    ])
 
-    const serviceStatus = getServiceStatus()
+    const tokenPrice = resolvedPrice?.price ?? tokenData?.price ?? null
+    const holderStats = await buildSessionHolderStats(tokenPrice, livePool.poolUsd)
     const dbRankings = await loadRankingsFromDb()
-    const totalHolders = dbRankings?.totalHolders ?? serviceStatus.holderCount ?? 0
-
-    // Get tracked holders data
-    const allHolders = getAllHolders()
-    
-    // Count profit/loss
-    let holdersInProfit = 0
-    let holdersInLoss = 0
-    let holdersWithVwap = 0
-    let deepestDrawdown: { wallet: string; pct: number } | null = null
-
-    if (tokenPrice) {
-      for (const h of allHolders) {
-        if (h.vwap && h.vwap > 0) {
-          holdersWithVwap++
-          if (tokenPrice >= h.vwap) {
-            holdersInProfit++
-          } else {
-            holdersInLoss++
-            // Track deepest drawdown
-            if (!deepestDrawdown || h.drawdownPct < deepestDrawdown.pct) {
-              deepestDrawdown = {
-                wallet: h.wallet,
-                pct: h.drawdownPct,
-              }
-            }
-          }
-        }
-      }
-    }
-
-    const livePool = await getLivePoolBalance()
 
     return NextResponse.json({
       success: true,
@@ -77,35 +41,43 @@ export async function GET() {
         token: {
           symbol: config.tokenSymbol,
           mint: config.tokenMint,
+          mint_explorer_url: getTokenMintExplorerUrl(config.tokenMint),
           price: tokenPrice ? formatPrice(tokenPrice) : 'N/A',
           price_raw: tokenPrice,
-          price_change_24h: tokenData?.priceChange24h || null,
+          price_change_24h: tokenData?.priceChange24h ?? null,
           market_cap: tokenData?.marketCap ? formatUsd(tokenData.marketCap) : 'N/A',
-          market_cap_raw: tokenData?.marketCap || null,
+          market_cap_raw: tokenData?.marketCap ?? null,
+          price_source: resolvedPrice?.source ?? null,
         },
         holders: {
-          total: totalHolders,
-          tracked: serviceStatus.holderCount,
-          with_vwap: holdersWithVwap,
-          eligible: getEligibleCount(),
-          in_profit: holdersInProfit,
-          in_loss: holdersInLoss,
+          total: holderStats.total,
+          tracked: holderStats.tracked,
+          with_vwap: holderStats.with_vwap,
+          eligible: holderStats.eligible,
+          in_profit: holderStats.in_profit,
+          in_loss: holderStats.in_loss,
         },
         protocol: {
-          total_cycles: 0,
-          total_distributed_usd: formatUsd(0),
+          total_cycles: payoutStats.total_cycles,
+          total_distributed_usd: formatUsd(payoutStats.total_distributed_usd),
+          total_distributed_usd_raw: payoutStats.total_distributed_usd,
+          total_distributed_sol: payoutStats.total_distributed_sol.toFixed(6),
+          average_payout_usd: formatUsd(payoutStats.average_payout_usd),
           average_pool_size_usd: livePool.poolUsdFormatted,
           current_pool_usd: livePool.poolUsdFormatted,
           current_pool_usd_raw: livePool.poolUsd,
           payout_wallet_address: livePool.payoutWalletAddress,
           payout_split: getPayoutSplitLabels(),
+          last_payout_at: payoutStats.last_payout_at?.toISOString() ?? null,
         },
         leaderboard: {
-          deepest_drawdown: deepestDrawdown ? {
-            wallet_display: formatWallet(deepestDrawdown.wallet),
-            drawdown_pct: Math.round(deepestDrawdown.pct * 100) / 100,
-          } : null,
-          most_wins: null, // Will be populated from DB in production
+          deepest_drawdown: holderStats.deepest_drawdown,
+          most_wins: payoutStats.most_wins
+            ? {
+                wallet_display: formatWallet(payoutStats.most_wins.wallet),
+                win_count: payoutStats.most_wins.win_count,
+              }
+            : null,
         },
         thresholds: {
           min_balance: config.minTokenHolding.toLocaleString(),
@@ -116,19 +88,20 @@ export async function GET() {
           payout_interval_display: formatPayoutInterval(config.payoutIntervalMinutes),
         },
         service: {
-          initialized: serviceStatus.initialized,
-          init_in_progress: serviceStatus.initInProgress,
-          last_refresh: serviceStatus.lastRefresh 
-            ? new Date(serviceStatus.lastRefresh).toISOString() 
-            : null,
+          initialized: holderStats.has_rankings,
+          init_in_progress: false,
+          last_refresh:
+            holderStats.last_calculated ??
+            (dbRankings?.lastCalculated
+              ? new Date(dbRankings.lastCalculated).toISOString()
+              : null),
         },
+        diagnostics,
       },
     })
-  } catch (error: any) {
-    console.error('[Stats] Error:', error)
-    return NextResponse.json(
-      { success: false, error: error.message || 'Failed to fetch stats' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch stats'
+    console.error('[Stats] Error:', message)
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }

@@ -478,18 +478,13 @@ export default function LeaderboardPage() {
                       )}
 
                       <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <motion.span
-                            className="text-4xl"
-                            animate={{ scale: [1, 1.1, 1] }}
-                            transition={{ duration: 2, repeat: Infinity }}
-                          >
-                            {style.emoji}
-                          </motion.span>
-                          <div className={`${showLimbo ? 'bg-amber-500/80' : style.badge} w-8 h-8 rounded-full flex items-center justify-center text-black font-bold text-lg shadow-lg`}>
-                            {idx + 1}
-                          </div>
-                        </div>
+                        <motion.span
+                          className="text-4xl"
+                          animate={{ scale: [1, 1.1, 1] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                        >
+                          {style.emoji}
+                        </motion.span>
                         <div className="text-right">
                           <div className="text-sm text-gray-400 font-mono">{winner.wallet_display}</div>
                           {isEligible ? (
