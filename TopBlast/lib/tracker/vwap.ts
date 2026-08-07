@@ -100,7 +100,7 @@ export async function calculateBatchVwaps(
   wallets: string[],
   mint: string,
   currentTokenPrice: number,
-  concurrency: number = 5
+  concurrency: number = 3
 ): Promise<Map<string, VwapData>> {
   const results = new Map<string, VwapData>()
   

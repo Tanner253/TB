@@ -78,25 +78,62 @@ export async function getWalletTransactions(
   limit: number = 100
 ): Promise<ParsedTransaction[]> {
   const apiKey = getHeliusApiKey()
+  const url = `https://api.helius.xyz/v0/addresses/${wallet}/transactions`
+  const maxAttempts = 3
 
-  try {
-    const response = await axios.get(
-      `https://api.helius.xyz/v0/addresses/${wallet}/transactions`,
-      {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await axios.get(url, {
         params: {
           'api-key': apiKey,
           limit: Math.min(limit, 100),
         },
         timeout: 15000,
-      }
-    )
+        validateStatus: status => status === 200 || status === 429,
+      })
 
-    return parseWalletMintTransactions(wallet, mint, response.data || [])
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error)
-    console.error(`[Helius] Error fetching transactions for ${wallet.slice(0, 8)}...:`, message)
-    return []
+      if (response.status === 429) {
+        const delayMs = attempt * 400
+        console.warn(
+          `[Helius] Rate limited for ${wallet.slice(0, 8)}... retry ${attempt}/${maxAttempts} in ${delayMs}ms`
+        )
+        await new Promise(r => setTimeout(r, delayMs))
+        continue
+      }
+
+      return parseWalletMintTransactions(wallet, mint, response.data || [])
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (attempt === maxAttempts) {
+        console.error(`[Helius] Error fetching transactions for ${wallet.slice(0, 8)}...:`, message)
+        return []
+      }
+      await new Promise(r => setTimeout(r, attempt * 300))
+    }
   }
+
+  return []
+}
+
+/** SOL sent by wallet in this tx (Pump.fun buys often type TRANSFER, not SWAP). */
+function walletSolOutflow(tx: Record<string, unknown>, wallet: string): number {
+  const nativeTransfers = (tx.nativeTransfers as Array<Record<string, unknown>>) || []
+  let total = 0
+  for (const native of nativeTransfers) {
+    if (String(native.fromUserAccount || '') !== wallet) continue
+    total += Math.abs(Number(native.amount || 0)) / 1e9
+  }
+  return total
+}
+
+function walletSolInflow(tx: Record<string, unknown>, wallet: string): number {
+  const nativeTransfers = (tx.nativeTransfers as Array<Record<string, unknown>>) || []
+  let total = 0
+  for (const native of nativeTransfers) {
+    if (String(native.toUserAccount || '') !== wallet) continue
+    total += Math.abs(Number(native.amount || 0)) / 1e9
+  }
+  return total
 }
 
 /** Parse Helius enhanced txs for mint-specific buys, sells, and transfers. */
@@ -125,11 +162,17 @@ export function parseWalletMintTransactions(
       const to = String(transfer.toUserAccount || '')
 
       if (to === wallet) {
+        const solPaid = walletSolOutflow(tx, wallet)
         const isSwapBuy =
           txType === 'SWAP' &&
           (feePayer === wallet || from !== wallet)
+        // Pump.fun / Raydium often arrive as TRANSFER or UNKNOWN with SOL leaving the buyer
+        const isPaidAcquisition =
+          from !== wallet &&
+          solPaid >= 0.001 &&
+          (txType === 'TRANSFER' || txType === 'UNKNOWN' || txType === '')
 
-        if (isSwapBuy) {
+        if (isSwapBuy || isPaidAcquisition) {
           const key = `${signature}:BUY`
           if (!seen.has(key)) {
             seen.add(key)
@@ -139,7 +182,7 @@ export function parseWalletMintTransactions(
               timestamp,
               type: 'BUY',
               tokenAmount,
-              solAmount: value.solAmount,
+              solAmount: value.solAmount > 0 ? value.solAmount : solPaid,
               usdValue: value.usdValue,
               pricePerToken: value.pricePerToken,
               isStablecoinSwap: value.isStablecoinSwap,
@@ -164,16 +207,23 @@ export function parseWalletMintTransactions(
       }
 
       if (from === wallet && to !== wallet) {
-        const key = `${signature}:${txType === 'SWAP' ? 'SELL' : 'TRANSFER_OUT'}`
+        const solReceived = walletSolInflow(tx, wallet)
+        const isSwapSell = txType === 'SWAP'
+        const isPaidDisposal =
+          solReceived >= 0.001 &&
+          (txType === 'TRANSFER' || txType === 'UNKNOWN' || txType === '')
+        const outType =
+          isSwapSell || isPaidDisposal ? 'SELL' : 'TRANSFER_OUT'
+        const key = `${signature}:${outType}`
         if (!seen.has(key)) {
           seen.add(key)
           const value = estimateSwapValue(tx, transfer, wallet)
           transactions.push({
             signature,
             timestamp,
-            type: txType === 'SWAP' ? 'SELL' : 'TRANSFER_OUT',
+            type: outType,
             tokenAmount,
-            solAmount: value.solAmount,
+            solAmount: value.solAmount > 0 ? value.solAmount : solReceived,
             usdValue: value.usdValue,
             pricePerToken: value.pricePerToken,
             isStablecoinSwap: value.isStablecoinSwap,

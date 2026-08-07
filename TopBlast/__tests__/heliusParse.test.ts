@@ -30,6 +30,36 @@ describe('parseWalletMintTransactions', () => {
     expect(txs.find(t => t.type === 'BUY')?.solAmount).toBeCloseTo(0.05, 4)
   })
 
+  it('detects pump.fun TRANSFER buy when wallet pays SOL (not SWAP type)', () => {
+    const pumpBuyer = '98ZzbYBphzGgoEuWhihc4jFoJc9qidmbASPKv5YSwmnc'
+    const txs = parseWalletMintTransactions(pumpBuyer, mint, [
+      {
+        signature: 'sig-pump-buy',
+        timestamp: 1_700_000_000,
+        type: 'TRANSFER',
+        source: 'SYSTEM_PROGRAM',
+        feePayer: pumpBuyer,
+        tokenTransfers: [
+          {
+            mint,
+            fromUserAccount: pool,
+            toUserAccount: pumpBuyer,
+            tokenAmount: 702_851.446329,
+          },
+        ],
+        nativeTransfers: [
+          { fromUserAccount: pumpBuyer, toUserAccount: pool, amount: 23_274_080 },
+        ],
+      },
+    ])
+
+    const buy = txs.find(t => t.type === 'BUY')
+    expect(buy).toBeTruthy()
+    expect(buy?.tokenAmount).toBeCloseTo(702_851.446329, 3)
+    expect(buy?.solAmount).toBeCloseTo(0.02327408, 5)
+    expect(txs.some(t => t.type === 'TRANSFER_IN')).toBe(false)
+  })
+
   it('marks pool-to-wallet transfer as TRANSFER_IN not BUY', () => {
     const recipient = 'DiiHaXbhwf2HVkyMSNRxkctomAy9jaBxUT1vbPZokgwZ'
     const txs = parseWalletMintTransactions(recipient, mint, [
