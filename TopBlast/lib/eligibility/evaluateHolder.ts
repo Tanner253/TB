@@ -3,6 +3,10 @@ import {
   getProtocolWalletExclusionReason,
   isExcludedParticipantWallet,
 } from '@/lib/eligibility/excludedWallets'
+import {
+  getLiquidityPoolExclusionReason,
+  isLiquidityPoolWallet,
+} from '@/lib/eligibility/liquidityPools'
 
 export interface HolderEligibilityInput {
   wallet?: string
@@ -43,9 +47,12 @@ export function evaluateHolderEligibility(
   } = input
 
   if (wallet && isExcludedParticipantWallet(wallet)) {
+    const reason = isLiquidityPoolWallet(wallet, config.tokenMint)
+      ? getLiquidityPoolExclusionReason()
+      : getProtocolWalletExclusionReason()
     return {
       isEligible: false,
-      ineligibleReason: getProtocolWalletExclusionReason(),
+      ineligibleReason: reason,
       drawdownPct: 0,
       lossUsd: 0,
     }

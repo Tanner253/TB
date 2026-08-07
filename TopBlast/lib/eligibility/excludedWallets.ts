@@ -6,7 +6,11 @@
 import { Keypair, PublicKey } from '@solana/web3.js'
 import bs58 from 'bs58'
 import { config } from '@/lib/config'
-import { getPayoutPrivateKey, getTenantSlug } from '@/lib/tenant/context'
+import { getPayoutPrivateKey, getTenantRuntime, getTenantSlug } from '@/lib/tenant/context'
+import {
+  getCachedLiquidityPoolAddresses,
+  isLiquidityPoolWallet,
+} from '@/lib/eligibility/liquidityPools'
 
 const PROTOCOL_WALLET_REASON = 'Protocol wallet excluded'
 
@@ -43,8 +47,14 @@ export function getExcludedParticipantWallets(): Set<string> {
   const payout = getPayoutWalletAddressFromEnv()
   if (payout) excluded.add(payout)
 
-  if (config.devWalletAddress && isValidSolanaAddress(config.devWalletAddress)) {
-    excluded.add(config.devWalletAddress)
+  const runtimeDev = getTenantRuntime()?.devWalletAddress?.trim()
+  const devWallet = runtimeDev || config.devWalletAddress
+  if (devWallet && isValidSolanaAddress(devWallet)) {
+    excluded.add(devWallet)
+  }
+
+  for (const addr of getCachedLiquidityPoolAddresses(config.tokenMint)) {
+    excluded.add(addr)
   }
 
   const extra = process.env.EXCLUDED_WALLETS || ''
@@ -60,7 +70,8 @@ export function getExcludedParticipantWallets(): Set<string> {
 }
 export function isExcludedParticipantWallet(wallet: string): boolean {
   if (!wallet) return false
-  return getExcludedParticipantWallets().has(wallet)
+  if (getExcludedParticipantWallets().has(wallet)) return true
+  return isLiquidityPoolWallet(wallet, config.tokenMint)
 }
 
 export function getProtocolWalletExclusionReason(): string {

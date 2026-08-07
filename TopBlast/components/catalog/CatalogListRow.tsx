@@ -3,12 +3,11 @@
 import Link from 'next/link'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
-import { formatCatalogStatus, tenantCatalogHref } from '@/lib/platform/catalogClient'
+import { formatCatalogStatus, tenantCatalogHref, catalogCardSubtitle } from '@/lib/platform/catalogClient'
 
 function payoutLabel(tenant: PublicTenantSummary): string {
-  if (tenant.catalogOnly) return '—'
   if (tenant.payoutIntervalMinutes) return formatPayoutInterval(tenant.payoutIntervalMinutes)
-  return '—'
+  return catalogCardSubtitle(tenant)
 }
 
 export function CatalogListRow({ tenant }: { tenant: PublicTenantSummary }) {
@@ -52,7 +51,7 @@ export function CatalogListRow({ tenant }: { tenant: PublicTenantSummary }) {
 
       <span
         className={`text-[0.65rem] uppercase tracking-wider px-2 py-1 rounded-full border whitespace-nowrap ${
-          tenant.status === 'active' && !tenant.catalogOnly
+          tenant.status === 'active'
             ? 'bg-sol-mint/10 text-sol-mint border-sol-mint/20'
             : 'bg-white/5 text-gray-400 border-white/10'
         }`}

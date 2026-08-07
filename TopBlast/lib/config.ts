@@ -85,7 +85,7 @@ function resolveConfig(): ConfigShape {
     tokenMint: tenant.tokenMint,
     tokenDecimals: tenant.tokenDecimals,
     tokenSymbol: tenant.tokenSymbol,
-    devWalletAddress: process.env.DEV_WALLET_ADDRESS || '',
+    devWalletAddress: tenant.devWalletAddress || process.env.DEV_WALLET_ADDRESS || '',
     payoutIntervalMinutes: tenant.payoutIntervalMinutes,
     minTokenHolding: tenant.minTokenHolding,
     minLossThresholdPct: tenant.minLossThresholdPct,

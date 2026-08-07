@@ -11,6 +11,7 @@ import connectDB from '@/lib/db'
 import { Holder } from '@/lib/db/models'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
+import { isLiquidityPoolWallet } from '@/lib/eligibility/liquidityPools'
 import { getTenantSlug } from '@/lib/tenant/context'
 import { getRankingsKey } from '@/lib/tenant/keys'
 import { tenantFilter } from '@/lib/tenant/scope'
@@ -129,6 +130,7 @@ export async function initializeHolderService(): Promise<boolean> {
     await connectDB()
 
     getState().currentPoolUsd = await resolvePoolUsd()
+    await ensureLiquidityPoolAddresses(config.tokenMint)
 
     // Get current token price (Blockscout, CoinGecko, or recent swap)
     getState().currentTokenPrice = await getTokenPrice(config.tokenMint)
@@ -149,13 +151,22 @@ export async function initializeHolderService(): Promise<boolean> {
       
       for (const h of cachedHolders) {
         if (!h.vwap || !h.balance) continue
+        if (isExcludedParticipantWallet(h.wallet)) continue
         
         // Recalculate eligibility with current price
-        const drawdownPct = h.vwap > 0 ? ((getState().currentTokenPrice! - h.vwap) / h.vwap) * 100 : 0
-        const lossUsd = drawdownPct < 0 ? Math.abs(drawdownPct / 100) * h.vwap * h.balance : 0
         const poolUsd = getEffectivePoolUsd()
-        const minLoss = poolUsd * (config.minLossThresholdPct / 100)
-        const isEligible = drawdownPct < 0 && lossUsd >= minLoss && !h.hasSold && h.balance >= config.minTokenHolding
+        const eligibility = evaluateHolderEligibility({
+          wallet: h.wallet,
+          balance: h.balance,
+          vwap: h.vwap,
+          tokenPrice: getState().currentTokenPrice!,
+          firstBuyTimestamp: h.firstBuyAt ? new Date(h.firstBuyAt).getTime() : null,
+          hasSold: h.hasSold || false,
+          lastWinCycle: h.lastWinCycle || null,
+          totalTokensBought: h.totalBought || 0,
+          poolUsd,
+        })
+        const isEligible = eligibility.isEligible
         
         holders().set(h.wallet, {
           wallet: h.wallet,
@@ -172,9 +183,10 @@ export async function initializeHolderService(): Promise<boolean> {
           hasTransferredOut: false,
           lastWinCycle: h.lastWinCycle || null,
           isEligible,
-          ineligibleReason: isEligible ? null : 'Recalculating...',
-          drawdownPct,
-          lossUsd,
+          ineligibleReason: eligibility.ineligibleReason,
+          drawdownPct: eligibility.drawdownPct,
+          lossUsd: eligibility.lossUsd,
+          isContract: false,
           updatedAt: Date.now(),
         })
       }
@@ -209,7 +221,7 @@ export async function initializeHolderService(): Promise<boolean> {
       }
       const balance = h.balance / Math.pow(10, config.tokenDecimals)
       if (!holders().has(h.wallet)) {
-        holders().set(h.wallet, createBasicHolder(h.wallet, balance, h.balance))
+        holders().set(h.wallet, createBasicHolder(h.wallet, balance, h.balance, h.isContract))
       } else {
         // Update balance for cached holder
         const existing = holders().get(h.wallet)!
@@ -459,7 +471,7 @@ async function calculateHolderData(
     ineligibleReason,
     drawdownPct,
     lossUsd,
-    isContract: false,
+    isContract: isLiquidityPoolWallet(wallet, config.tokenMint),
     updatedAt: Date.now(),
   }
 }
@@ -467,7 +479,12 @@ async function calculateHolderData(
 /**
  * Create basic holder entry without VWAP data
  */
-function createBasicHolder(wallet: string, balance: number, balanceRaw: number): HolderData {
+function createBasicHolder(
+  wallet: string,
+  balance: number,
+  balanceRaw: number,
+  isContract = false
+): HolderData {
   return {
     wallet,
     balance,
@@ -483,10 +500,10 @@ function createBasicHolder(wallet: string, balance: number, balanceRaw: number):
     hasTransferredOut: false,
     lastWinCycle: null,
     isEligible: false,
-    ineligibleReason: 'Loading transaction history...',
+    ineligibleReason: isContract ? 'Liquidity pool excluded' : 'Loading transaction history...',
     drawdownPct: 0,
     lossUsd: 0,
-    isContract: false,
+    isContract,
     updatedAt: Date.now(),
   }
 }
@@ -1177,7 +1194,7 @@ export async function ensureVwapCalculated(): Promise<boolean> {
       if (isExcludedParticipantWallet(h.wallet)) continue
       const balance = h.balance / Math.pow(10, config.tokenDecimals)
       if (!holders().has(h.wallet)) {
-        holders().set(h.wallet, createBasicHolder(h.wallet, balance, h.balance))
+        holders().set(h.wallet, createBasicHolder(h.wallet, balance, h.balance, h.isContract))
       }
     }
 

@@ -3,8 +3,7 @@
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
-import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
-import { formatCatalogStatus, tenantCatalogHref } from '@/lib/platform/catalogClient'
+import { formatCatalogStatus, tenantCatalogHref, catalogCardSubtitle } from '@/lib/platform/catalogClient'
 
 interface CatalogCardProps {
   tenant: PublicTenantSummary
@@ -46,7 +45,7 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
           </div>
           <span
             className={`shrink-0 text-[0.65rem] uppercase tracking-wider px-2 py-1 rounded-full border ${
-              tenant.status === 'active' && !tenant.catalogOnly
+              tenant.status === 'active'
                 ? 'bg-sol-mint/10 text-sol-mint border-sol-mint/20'
                 : 'bg-white/5 text-gray-400 border-white/10'
             }`}
@@ -61,15 +60,7 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
           </p>
         ) : null}
 
-        <p className={`text-gray-400 ${compact ? 'text-xs' : 'text-sm'}`}>
-          {tenant.catalogOnly
-            ? 'Platform token mint is set — payout wallet still needed on the server.'
-            : tenant.payoutIntervalMinutes
-              ? `Payouts every ${formatPayoutInterval(tenant.payoutIntervalMinutes)}`
-              : tenant.payoutWalletAddress
-                ? `Pool · ${tenant.payoutWalletAddress.slice(0, 6)}…${tenant.payoutWalletAddress.slice(-4)}`
-                : 'Loss-mining session'}
-        </p>
+        <p className={`text-gray-400 ${compact ? 'text-xs' : 'text-sm'}`}>{catalogCardSubtitle(tenant)}</p>
 
         <p className="mt-3 text-xs font-medium text-sol-mint opacity-0 group-hover:opacity-100 transition-opacity">
           View leaderboard →

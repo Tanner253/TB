@@ -1,13 +1,33 @@
 class PublicKey {
   constructor(value) {
-    if (!value || value.length < 32) {
+    if (Buffer.isBuffer(value)) {
+      this._bytes = value
+      this._key = value.toString('hex').slice(0, 44).padEnd(44, '1')
+      return
+    }
+
+    if (!value || (typeof value === 'string' && value.length < 32)) {
       throw new Error('Invalid public key input')
     }
-    this._key = value
+
+    this._key = String(value)
+    this._bytes = Buffer.alloc(32, 0)
   }
 
   toBase58() {
     return this._key
+  }
+
+  toBuffer() {
+    return this._bytes ?? Buffer.alloc(32, 0)
+  }
+
+  static findProgramAddressSync(seeds, programId) {
+    const seedKey = seeds
+      .map(seed => (Buffer.isBuffer(seed) ? seed.toString('hex') : String(seed)))
+      .join('|')
+    const pda = `PDA${seedKey}${programId.toBase58()}`.slice(0, 44).padEnd(44, '1')
+    return [new PublicKey(pda), 255]
   }
 }
 

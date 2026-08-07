@@ -11,6 +11,7 @@ import {
   checkHeliusHealth,
   ParsedTransaction,
 } from './helius'
+import { ensureLiquidityPoolAddresses, isLiquidityPoolWallet } from '@/lib/eligibility/liquidityPools'
 
 export type { ParsedTransaction }
 
@@ -20,11 +21,12 @@ export async function getTokenHolders(
 ): Promise<{ wallet: string; balance: number; isContract: boolean }[]> {
   if (!mint) return []
 
+  await ensureLiquidityPoolAddresses(mint)
   const raw = await heliusGetTokenHolders(mint, limit)
   return raw.map(h => ({
     wallet: h.wallet,
     balance: h.balance,
-    isContract: false,
+    isContract: isLiquidityPoolWallet(h.wallet, mint),
   }))
 }
 

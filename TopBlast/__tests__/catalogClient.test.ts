@@ -38,14 +38,8 @@ const sample: PublicTenantSummary[] = [
 ]
 
 describe('catalogClient', () => {
-  it('builds tenant href', () => {
+  it('builds tenant leaderboard href', () => {
     expect(tenantCatalogHref(sample[0])).toBe('/alpha/leaderboard')
-    expect(
-      tenantCatalogHref({
-        ...sample[0],
-        catalogOnly: true,
-      })
-    ).toBe('/launch?slug=alpha')
   })
 
   it('filters by slug, symbol, and mint', () => {

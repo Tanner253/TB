@@ -52,7 +52,7 @@ export interface PublicTenantSummary {
   /** Pinned platform token — always first in catalog */
   featured?: boolean
   isPlatformToken?: boolean
-  /** Shown from env when tenant record does not exist yet */
+  /** @deprecated Platform token never uses catalog-only setup UI */
   catalogOnly?: boolean
   /** Live session powered by TOKEN_MINT_ADDRESS + PAYOUT_WALLET_PRIVATE_KEY env */
   runsFromEnv?: boolean

@@ -178,7 +178,7 @@ export async function createTenant(input: CreateTenantInput) {
     status: tenant.status,
     payoutWalletAddress: tenant.payoutWalletAddress,
     payoutIntervalMinutes: tenant.payoutIntervalMinutes,
-    appUrl: `/${tenant.slug}`,
+    appUrl: `/${tenant.slug}/leaderboard`,
   }
 }
 

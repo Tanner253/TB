@@ -10,8 +10,8 @@ import { LeaderboardCardSkeleton, TableRowSkeleton } from '@/components/ui/Skele
 import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
 import { getWinnerSharePercents, getPayoutForEligibleRank } from '@/lib/payout/shares'
 import { HolderStatus, HoldTimeBadge } from '@/components/HoldTimeBadge'
-import { TenantStatusPanel } from '@/components/tenant/TenantStatusPanel'
-import type { TenantDiagnostics } from '@/lib/tenant/diagnostics'
+import { SessionStatusToast } from '@/components/tenant/SessionStatusToast'
+import type { SessionStatus } from '@/lib/tenant/sessionStatus'
 import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 
 const WINNER_SHARES = getWinnerSharePercents()
@@ -299,13 +299,8 @@ export default function LeaderboardPage() {
                 <div className="py-4">
                   <p className="text-2xl md:text-3xl font-bold text-rh-lime font-mono mb-3">Launch limbo</p>
                   <p className="text-gray-400 text-sm leading-relaxed">
-                    Countdown starts once a holder meets all rules: 15 min hold, min balance, in loss, and min loss threshold.
+                    Timer starts when the first holder qualifies.
                   </p>
-                  {data?.eligible_count === 0 && (data?.tracked_holders || 0) > 0 && (
-                    <p className="text-gray-500 text-xs mt-3">
-                      {data.tracked_holders} holder(s) tracked — none eligible yet
-                    </p>
-                  )}
                 </div>
               ) : isPayoutDueNow ? (
                 <div className="py-4">
@@ -355,16 +350,6 @@ export default function LeaderboardPage() {
             </div>
           </motion.div>
         </div>
-
-        {data?.diagnostics ? (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-10"
-          >
-            <TenantStatusPanel diagnostics={data.diagnostics as TenantDiagnostics} slug={slug} />
-          </motion.div>
-        ) : null}
 
         {/* Winners Section */}
         <motion.div
@@ -671,20 +656,12 @@ export default function LeaderboardPage() {
                         <div className="flex flex-col items-center gap-2 max-w-md mx-auto">
                           <span className="text-3xl">📊</span>
                           <span className="text-white font-medium">Calculating rankings…</span>
-                          <span className="text-sm">
-                            {data.tracked_holders} holder(s) indexed — VWAP and hold times loading from chain.
+                          <span className="text-sm text-gray-500">
+                            Buy history loading from chain.
                           </span>
                         </div>
-                      ) : data?.diagnostics ? (
-                        <div className="flex flex-col items-center gap-3 max-w-lg mx-auto text-left">
-                          <span className="text-3xl">📋</span>
-                          <span className="text-white font-medium text-center">{data.diagnostics.headline}</span>
-                          <p className="text-sm text-gray-400 text-center">
-                            See session status above for what to do next.
-                          </p>
-                        </div>
                       ) : (
-                        <span>No holders indexed yet — buys will appear here once detected on-chain.</span>
+                        <span className="text-gray-500">No holders indexed yet.</span>
                       )}
                     </td>
                   </tr>
@@ -715,6 +692,12 @@ export default function LeaderboardPage() {
           </p>
         </motion.div>
       </main>
+
+      <SessionStatusToast
+        status={(data?.session_status as SessionStatus | null) ?? null}
+        eligibleCount={data?.eligible_count}
+        timerStatus={timerStatus ?? data?.timer_status}
+      />
     </div>
   )
 }

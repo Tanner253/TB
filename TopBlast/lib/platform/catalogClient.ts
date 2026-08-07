@@ -1,4 +1,5 @@
 import type { PublicTenantSummary } from '@/lib/tenant/types'
+import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
 
 export type CatalogSortId = 'featured' | 'newest' | 'oldest' | 'name-asc' | 'name-desc'
 
@@ -10,11 +11,26 @@ export const CATALOG_SORT_OPTIONS: { id: CatalogSortId; label: string }[] = [
   { id: 'name-desc', label: 'Name Z–A' },
 ]
 
+/** Every listing card opens the live leaderboard for that token. */
 export function tenantCatalogHref(tenant: PublicTenantSummary): string {
-  if (tenant.catalogOnly) {
-    return `/launch?slug=${encodeURIComponent(tenant.slug)}`
-  }
   return `/${tenant.slug}/leaderboard`
+}
+
+export function formatCatalogStatus(tenant: PublicTenantSummary): string {
+  return tenant.status === 'active' ? 'live' : tenant.status
+}
+
+export function catalogCardSubtitle(tenant: PublicTenantSummary): string {
+  if (tenant.payoutIntervalMinutes) {
+    return `Payouts every ${formatPayoutInterval(tenant.payoutIntervalMinutes)}`
+  }
+  if (tenant.payoutWalletAddress) {
+    return `Pool · ${tenant.payoutWalletAddress.slice(0, 6)}…${tenant.payoutWalletAddress.slice(-4)}`
+  }
+  if (tenant.runsFromEnv) {
+    return 'Live loss-mining session'
+  }
+  return 'Loss-mining session'
 }
 
 export function filterCatalogTenants(
@@ -69,9 +85,4 @@ export function pickTopCatalogTenants(
   limit = 3
 ): PublicTenantSummary[] {
   return sortCatalogTenants(tenants, 'featured').slice(0, limit)
-}
-
-export function formatCatalogStatus(tenant: PublicTenantSummary): string {
-  if (tenant.catalogOnly) return 'Setup'
-  return tenant.status
 }

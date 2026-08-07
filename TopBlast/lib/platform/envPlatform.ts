@@ -1,6 +1,6 @@
 import { Keypair } from '@solana/web3.js'
 import bs58 from 'bs58'
-import type { TenantRuntimeConfig } from '@/lib/tenant/types'
+import type { PublicTenantSummary, TenantRuntimeConfig } from '@/lib/tenant/types'
 import {
   getPlatformTenantSlug,
   getPlatformTokenMint,
@@ -28,6 +28,26 @@ export function getPlatformEnvPayoutAddress(): string {
 
 export function getPlatformEnvPayoutIntervalMinutes(): number {
   return parseInt(process.env.PAYOUT_INTERVAL_MINUTES || '15', 10)
+}
+
+/** Platform mint configured in operator env (TOKEN_MINT_ADDRESS / PLATFORM_TOKEN_MINT). */
+export function isPlatformMintConfigured(): boolean {
+  return !!getPlatformTokenMint()
+}
+
+export function buildPlatformEnvCatalogEntry(): PublicTenantSummary {
+  return {
+    slug: getPlatformTenantSlug(),
+    symbol: getPlatformTokenSymbol(),
+    mint: getPlatformTokenMint(),
+    status: 'active',
+    createdAt: new Date(0).toISOString(),
+    payoutWalletAddress: getPlatformEnvPayoutAddress(),
+    payoutIntervalMinutes: getPlatformEnvPayoutIntervalMinutes(),
+    featured: true,
+    isPlatformToken: true,
+    runsFromEnv: true,
+  }
 }
 
 /**

@@ -23,9 +23,11 @@ import { getPayoutForEligibleRank } from '@/lib/payout/shares'
 import { buildHoldTimeFields } from '@/lib/eligibility/holdDuration'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
+import { ensureLiquidityPoolAddresses } from '@/lib/eligibility/liquidityPools'
 import { loadLastWinCycleByWallet } from '@/lib/payout/winnerPersistence'
 import { getEarliestBuyTimestamp, getTokenHolders } from '@/lib/solana/indexer'
 import { buildTenantDiagnostics } from '@/lib/tenant/diagnostics'
+import { deriveSessionStatus } from '@/lib/tenant/sessionStatus'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
 
 export const dynamic = 'force-dynamic'
@@ -170,7 +172,7 @@ export async function GET(request: NextRequest) {
     const noStoreHeaders = { 'Cache-Control': 'no-store, max-age=0' }
 
     if (!dbRankings) {
-      const diagnostics = buildTenantDiagnostics({
+      const diagnosticsInput = {
         pool: livePool,
         timer: timerAfterPayout,
         trackedHolders: 0,
@@ -181,7 +183,9 @@ export async function GET(request: NextRequest) {
         trackerInitialized: serviceStatus.initialized,
         hasRankings: false,
         ...priceMeta,
-      })
+      }
+      const diagnostics = buildTenantDiagnostics(diagnosticsInput)
+      const session_status = deriveSessionStatus(diagnosticsInput)
 
       return NextResponse.json({
         success: true,
@@ -189,6 +193,7 @@ export async function GET(request: NextRequest) {
           status: timerAfterPayout.timer_status === 'waiting' ? 'waiting' : 'initializing',
           message: diagnostics.headline,
           diagnostics,
+          session_status,
           timer_status: timerAfterPayout.timer_status,
           cycle: timerAfterPayout.next_cycle,
           seconds_remaining: timerAfterPayout.seconds_remaining,
@@ -209,6 +214,8 @@ export async function GET(request: NextRequest) {
     }
 
     const poolBal = poolUsd
+
+    await ensureLiquidityPoolAddresses(config.tokenMint)
 
     const contractWallets = new Set(
       (await getTokenHolders(config.tokenMint, 100))
@@ -362,7 +369,7 @@ export async function GET(request: NextRequest) {
       ineligibleReasons[reason] = (ineligibleReasons[reason] || 0) + 1
     }
 
-    const diagnostics = buildTenantDiagnostics({
+    const diagnosticsInput = {
       pool: livePool,
       timer: timerAfterPayout,
       trackedHolders: sourceRankings.length,
@@ -374,7 +381,10 @@ export async function GET(request: NextRequest) {
       hasRankings: true,
       ineligibleReasons,
       ...priceMeta,
-    })
+    }
+
+    const diagnostics = buildTenantDiagnostics(diagnosticsInput)
+    const session_status = deriveSessionStatus(diagnosticsInput)
 
     return NextResponse.json({
       success: true,
@@ -382,6 +392,7 @@ export async function GET(request: NextRequest) {
         status: timerAfterPayout.timer_status === 'waiting' ? 'waiting' : 'ready',
         message: diagnostics.headline,
         diagnostics,
+        session_status,
         timer_status: timerAfterPayout.timer_status,
         cycle: timerAfterPayout.next_cycle,
         seconds_remaining: timerAfterPayout.seconds_remaining,
