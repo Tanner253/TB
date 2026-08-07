@@ -56,6 +56,7 @@ export default function LaunchPage() {
       if (!json.success) {
         throw new Error(json.error || 'Launch failed')
       }
+      setForm(f => ({ ...f, payoutWalletPrivateKey: '' }))
       router.push(`/${json.data.slug}/leaderboard`)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Launch failed')

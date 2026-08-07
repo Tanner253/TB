@@ -6,6 +6,7 @@
 
 import { config } from '@/lib/config'
 import { getTokenHolders, getWalletTransactions } from '@/lib/solana/indexer'
+import { normalizeTokenBalance, meetsMinTokenHoldingFromChain, rawToHumanTokenAmount } from '@/lib/solana/tokenAmount'
 import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
 import connectDB from '@/lib/db'
 import { Holder } from '@/lib/db/models'
@@ -1111,7 +1112,14 @@ export async function loadRankingsFromDb(): Promise<{
     }
     
     return {
-      rankings: data.rankings || [],
+      rankings: (data.rankings || []).map(r => ({
+        ...r,
+        balance: normalizeTokenBalance(
+          r.balance,
+          config.tokenDecimals,
+          config.minTokenHolding
+        ),
+      })),
       totalHolders: data.totalHolders || 0,
       eligibleCount: data.eligibleCount || 0,
       holdersWithVwap: data.holdersWithVwap || 0,
@@ -1285,7 +1293,7 @@ export async function buildEphemeralRankingsFromChain(): Promise<{
       h =>
         !h.isContract &&
         !isExcludedParticipantWallet(h.wallet) &&
-        h.balance >= config.minTokenHolding
+        meetsMinTokenHoldingFromChain(h.balance, config.tokenDecimals, config.minTokenHolding)
     )
 
     if (trackable.length === 0) return null
@@ -1301,7 +1309,7 @@ export async function buildEphemeralRankingsFromChain(): Promise<{
       .slice(0, 50)
       .map(h => ({
         wallet: h.wallet,
-        balance: h.balance,
+        balance: rawToHumanTokenAmount(h.balance, config.tokenDecimals),
         vwap: 0,
         drawdownPct: 0,
         lossUsd: 0,

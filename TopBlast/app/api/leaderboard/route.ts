@@ -12,7 +12,6 @@ import {
 import { config } from '@/lib/config'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import {
-  executePayout,
   isPayoutDue,
   getPayoutTimerInfo,
   maybeStartPayoutTimer,
@@ -27,6 +26,7 @@ import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
 import { ensureLiquidityPoolAddresses } from '@/lib/eligibility/liquidityPools'
 import { loadLastWinCycleByWallet } from '@/lib/payout/winnerPersistence'
 import { getEarliestBuyTimestamp, getTokenHolders } from '@/lib/solana/indexer'
+import { normalizeTokenBalance, formatTokenBalance } from '@/lib/solana/tokenAmount'
 import { buildTenantDiagnostics } from '@/lib/tenant/diagnostics'
 import { deriveSessionStatus } from '@/lib/tenant/sessionStatus'
 import { buildSessionChecklist } from '@/lib/tenant/sessionChecklist'
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
           lastWinByWallet.get(h.wallet) ?? h.lastWinCycle ?? null
         const live = evaluateHolderEligibility({
           wallet: h.wallet,
-          balance: h.balance,
+          balance: normalizeTokenBalance(h.balance, config.tokenDecimals, config.minTokenHolding),
           vwap: h.vwap || null,
           tokenPrice: liveTokenPrice,
           firstBuyTimestamp: firstBuyMs,
@@ -150,27 +150,9 @@ export async function GET(request: NextRequest) {
 
     const timerAfterPause = getPayoutTimerInfo()
 
-    if (
-      isPayoutDue() &&
-      timerAfterPause.timer_status === 'active' &&
-      dbRankings &&
-      eligibleCount > 0
-    ) {
-      try {
-        const result = await executePayout()
-        if (result.success) {
-          console.log('[Leaderboard] ✅ Payout cycle processed')
-        } else if (result.error !== 'Payout already in progress') {
-          console.log(`[Leaderboard] ❌ Payout failed: ${result.error}`)
-        }
-        dbRankings = (await loadRankingsFromDb()) ?? dbRankings
-      } catch (err) {
-        console.error('[Leaderboard] Payout error:', err)
-      }
-      await ensureTimerStateSync()
-    }
+    // Payouts run only via POST /api/cron/tenants or /api/cron/payout with CRON_SECRET — never from public leaderboard traffic.
 
-    const timerAfterPayout = getPayoutTimerInfo()
+    const timerAfterPayout = timerAfterPause
 
     const poolFields = {
       pool_balance_eth: poolEthFormatted,
@@ -293,9 +275,14 @@ export async function GET(request: NextRequest) {
         firstBuyByWallet.get(holder.wallet) ??
         null
       const firstBuyMs = firstBuyAt ? new Date(firstBuyAt).getTime() : null
+      const humanBalance = normalizeTokenBalance(
+        holder.balance,
+        config.tokenDecimals,
+        config.minTokenHolding
+      )
       const live = evaluateHolderEligibility({
         wallet: holder.wallet,
-        balance: holder.balance,
+        balance: humanBalance,
         vwap: holder.vwap || null,
         tokenPrice: liveTokenPrice,
         firstBuyTimestamp: firstBuyMs,
@@ -336,13 +323,18 @@ export async function GET(request: NextRequest) {
       eligibleRank: number | null
     ) => {
       const { holder, live, holdFields } = entry
+      const rowBalance = normalizeTokenBalance(
+        holder.balance,
+        config.tokenDecimals,
+        config.minTokenHolding
+      )
 
       return {
         rank: displayRank,
         wallet: holder.wallet,
         wallet_display: formatWallet(holder.wallet),
-        balance: holder.balance.toLocaleString('en-US', { maximumFractionDigits: 0 }),
-        balance_raw: holder.balance,
+        balance: formatTokenBalance(rowBalance),
+        balance_raw: rowBalance,
         vwap: holder.vwap ? formatPrice(holder.vwap) : 'N/A',
         vwap_raw: holder.vwap,
         vwap_source: 'real',

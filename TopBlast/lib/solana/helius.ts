@@ -1,13 +1,9 @@
 import axios from 'axios'
 import { config } from '@/lib/config'
+import { getHeliusRpcUrl } from '@/lib/solana/rpcUrl'
 
-// Helius API configuration
 function getHeliusUrl(): string {
-  const apiKey = process.env.HELIUS_API_KEY || config.heliusApiKey
-  if (!apiKey) {
-    throw new Error('HELIUS_API_KEY is required')
-  }
-  return `https://mainnet.helius-rpc.com/?api-key=${apiKey}`
+  return getHeliusRpcUrl()
 }
 
 function getHeliusApiKey(): string {
@@ -26,39 +22,45 @@ export async function getTokenHolders(mint: string, limit: number = 1000): Promi
   balance: number
 }[]> {
   const rpcUrl = getHeliusUrl()
-  const holders: { wallet: string; balance: number }[] = []
-  let cursor: string | undefined
+  const byOwner = new Map<string, number>()
 
   try {
-    do {
+    let page = 1
+    const pageSize = 1000
+
+    while (byOwner.size < limit) {
       const response = await axios.post(rpcUrl, {
         jsonrpc: '2.0',
         id: 'holders',
         method: 'getTokenAccounts',
         params: {
           mint,
-          limit: Math.min(1000, limit - holders.length),
-          cursor,
+          page,
+          limit: pageSize,
         },
       }, { timeout: 30000 })
 
       const result = response.data.result
-      if (!result?.token_accounts) break
+      const accounts = result?.token_accounts ?? []
+      if (accounts.length === 0) break
 
-      for (const account of result.token_accounts) {
-        if (account.amount > 0) {
-          holders.push({
-            wallet: account.owner,
-            balance: account.amount,
-          })
-        }
-        if (holders.length >= limit) break
+      for (const account of accounts) {
+        const amount = Number(account.amount)
+        if (!Number.isFinite(amount) || amount <= 0) continue
+        const owner = account.owner as string
+        byOwner.set(owner, (byOwner.get(owner) ?? 0) + amount)
       }
 
-      cursor = result.cursor
-    } while (cursor && holders.length < limit)
+      const total = result?.total ?? accounts.length
+      if (page * pageSize >= total || accounts.length < pageSize) break
+      page++
+    }
 
-    console.log(`[Helius] Fetched ${holders.length} holders for mint ${mint.slice(0, 8)}...`)
+    const holders = Array.from(byOwner.entries())
+      .slice(0, limit)
+      .map(([wallet, balance]) => ({ wallet, balance }))
+
+    console.log(`[Helius] Fetched ${holders.length} holder wallet(s) for mint ${mint.slice(0, 8)}...`)
     return holders
   } catch (error: any) {
     console.error('[Helius] Error fetching holders:', error.message)
@@ -362,18 +364,8 @@ export async function checkHeliusHealth(): Promise<{ healthy: boolean; latency: 
  */
 export async function getHolderCount(mint: string): Promise<number> {
   try {
-    const rpcUrl = getHeliusUrl()
-    const response = await axios.post(rpcUrl, {
-      jsonrpc: '2.0',
-      id: 'holders-count',
-      method: 'getTokenAccounts',
-      params: {
-        mint,
-        limit: 1,
-      },
-    }, { timeout: 10000 })
-
-    return response.data?.result?.total || 0
+    const holders = await getTokenHolders(mint, 1000)
+    return holders.length
   } catch {
     return 0
   }

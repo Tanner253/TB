@@ -1,5 +1,6 @@
 import { Keypair } from '@solana/web3.js'
 import bs58 from 'bs58'
+import 'server-only'
 import type { PublicTenantSummary, TenantRuntimeConfig } from '@/lib/tenant/types'
 import {
   getPlatformTenantSlug,

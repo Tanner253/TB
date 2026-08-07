@@ -15,9 +15,9 @@ const DEFAULT_MIN_BALANCE_LABEL = formatMinTokenHolding(DEFAULT_MIN_TOKEN_HOLDIN
 /** Keys explained for launch / help UI (client-safe). */
 export const LAUNCH_KEY_HELP = {
   payoutWalletPrivateKey: {
-    title: 'Payout wallet private key (creator rewards wallet)',
+    title: 'Payout wallet private key (dedicated creator wallet only)',
     body:
-      'Your Solana keypair in base58 — usually the wallet that receives creator fees on Pump.fun, Raydium, etc. TopBlast uses it each cycle to send SOL rewards to eligible losers. Fund this wallet with SOL; it is not the TopBlast platform fee wallet.',
+      'Use a dedicated Solana payout wallet — not your personal trading wallet or seed phrase. TopBlast never asks token holders for private keys; only listing creators submit this once at launch. The key is encrypted at rest and only decrypted server-side to run your payout cycles.',
   },
   payoutInterval: {
     title: 'Payout frequency',

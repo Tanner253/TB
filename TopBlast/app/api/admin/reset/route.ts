@@ -6,18 +6,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { config } from '@/lib/config'
 import { resetDeploymentState } from '@/lib/payout/resetDeployment'
+import { verifyCronSecret } from '@/lib/security/cronAuth'
 
 export const dynamic = 'force-dynamic'
 
-function verifySecret(request: NextRequest): boolean {
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) return config.isDev
-  const authHeader = request.headers.get('authorization')
-  return authHeader === `Bearer ${cronSecret}`
-}
-
 export async function POST(request: NextRequest) {
-  if (!verifySecret(request)) {
+  if (!verifyCronSecret(request)) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 

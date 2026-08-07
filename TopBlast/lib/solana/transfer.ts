@@ -6,7 +6,10 @@ import {
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js'
 import bs58 from 'bs58'
+import 'server-only'
 import { getPayoutPrivateKey } from '@/lib/tenant/context'
+import { isPayoutExecutionAuthorized } from '@/lib/payout/payoutAuthContext'
+import { getSolanaRpcUrl } from '@/lib/solana/rpcUrl'
 
 /** Minimum SOL transfer (rent exemption floor for new accounts). */
 export const MIN_TRANSFER_SOL = 0.001
@@ -16,22 +19,7 @@ export const MIN_TRANSFER_SOL = 0.001
  * Supports: devnet, mainnet (via Helius or default)
  */
 function getRpcUrl(): string {
-  const network = process.env.SOLANA_NETWORK || 'mainnet'
-  
-  if (network === 'devnet') {
-    // Use Helius devnet if available, otherwise public devnet
-    if (process.env.HELIUS_API_KEY) {
-      return `https://devnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`
-    }
-    return 'https://api.devnet.solana.com'
-  }
-  
-  // Mainnet - prefer Helius
-  if (process.env.HELIUS_API_KEY) {
-    return `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`
-  }
-  
-  return 'https://api.mainnet-beta.solana.com'
+  return getSolanaRpcUrl()
 }
 
 /**
@@ -152,7 +140,14 @@ export async function transferSol(
   recipientAddress: string,
   amountSol: number
 ): Promise<{ success: boolean; txHash: string | null; error: string | null }> {
-  
+  if (!isPayoutExecutionAuthorized()) {
+    return {
+      success: false,
+      txHash: null,
+      error: 'Transfer blocked — not running inside authorized payout context',
+    }
+  }
+
   const privateKey = getPayoutPrivateKey()
   if (!privateKey) {
     return {

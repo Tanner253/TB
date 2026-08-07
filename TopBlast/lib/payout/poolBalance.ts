@@ -5,6 +5,7 @@
 import { getPayoutWalletBalance } from '@/lib/solana/transfer'
 import { getSolPrice, formatUsd } from '@/lib/solana/price'
 import { config } from '@/lib/config'
+import { maxDistributableSol } from '@/lib/payout/payoutSecurity'
 
 export interface LivePoolBalance {
   payoutWalletAddress: string | null
@@ -48,7 +49,7 @@ export async function getLivePoolBalance(): Promise<LivePoolBalance> {
   }
 
   const walletSol = walletBalance.sol
-  const poolSol = walletSol * config.poolPercentage
+  const poolSol = maxDistributableSol(walletSol)
   const poolUsd = poolSol * solPrice
   const minLossUsd = poolUsd * (config.minLossThresholdPct / 100)
 

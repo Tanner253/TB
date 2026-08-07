@@ -23,6 +23,15 @@ import { saveRankingsToDb, loadRankingsFromDb, getRankedLosers, markWinnersCoold
 
 import { getTimerKey } from '@/lib/tenant/keys'
 import { tenantFields } from '@/lib/tenant/scope'
+import { isPayoutExecutionAuthorized } from '@/lib/payout/payoutAuthContext'
+import {
+  assertProductionPayoutConfig,
+  assertPayoutTransferAllowed,
+  maxDistributableSol,
+} from '@/lib/payout/payoutSecurity'
+import type { PayableWinner } from '@/lib/payout/types'
+
+export type { PayableWinner } from '@/lib/payout/types'
 
 export type PayoutTimerStatus = 'waiting' | 'active'
 
@@ -263,12 +272,6 @@ export function isPayoutDue(): boolean {
   return secondsUntil !== null && secondsUntil <= 0
 }
 
-export interface PayableWinner {
-  wallet: string
-  drawdownPct: number
-  lossUsd: number
-}
-
 /** Live eligibility for payout — do not trust stale Mongo isEligible flags. */
 export async function resolveLivePayableWinners(limit = 3): Promise<PayableWinner[]> {
   const dbRankings = await loadRankingsFromDb()
@@ -383,6 +386,17 @@ export interface PayoutResult {
 }
 
 export async function executePayout(): Promise<PayoutResult> {
+  if (!isPayoutExecutionAuthorized()) {
+    console.error('[Payout] Blocked — not running inside authorized cron/admin context')
+    return { success: false, error: 'Payout execution not authorized' }
+  }
+
+  const configError = assertProductionPayoutConfig()
+  if (configError) {
+    console.error(`[Payout] Blocked — ${configError}`)
+    return { success: false, error: configError }
+  }
+
   await ensureTimerStateSync()
 
   if (timerCache.timerStatus !== 'active') {
@@ -430,6 +444,16 @@ export async function executePayout(): Promise<PayoutResult> {
       await releasePayoutLock()
       await resetTimerForNextInterval()
       return { success: false, error: 'Pool below minimum' }
+    }
+
+    const distributableCap = maxDistributableSol(livePool.walletSol)
+    if (distributableCap < MIN_TRANSFER_SOL) {
+      console.log(
+        `[Payout] Distributable ${distributableCap.toFixed(6)} SOL below minimum after wallet reserve — skipping`
+      )
+      await releasePayoutLock()
+      await resetTimerForNextInterval()
+      return { success: false, error: 'Insufficient balance after reserve' }
     }
 
     let eligibleWinners: PayableWinner[] = await resolveLivePayableWinners(3)
@@ -550,6 +574,25 @@ export async function executePayout(): Promise<PayoutResult> {
 
       const currentLive = await getLivePoolBalance()
       const availableSol = currentLive.walletSol
+
+      const transferCheck = await assertPayoutTransferAllowed({
+        rank: pending.rank,
+        recipient: pending.wallet,
+        amountSol: pending.amountSol,
+        walletSol: availableSol,
+        allowedWinners: eligibleWinners,
+        expectedWinnerAmounts: payoutAmounts,
+      })
+
+      if (!transferCheck.ok) {
+        console.error(`[Payout] ${label} BLOCKED: ${transferCheck.reason}`)
+        await Payout.findByIdAndUpdate(pending.id, {
+          status: 'failed',
+          errorMessage: transferCheck.reason,
+        })
+        continue
+      }
+
       const requiredSol = pending.amountSol + 0.001
 
       if (availableSol < requiredSol) {

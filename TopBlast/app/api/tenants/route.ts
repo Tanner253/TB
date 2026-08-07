@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createTenant, listPublicTenants } from '@/lib/tenant/service'
+import { assertNoPrivateKeyFields, redactSecrets } from '@/lib/security/redactSecrets'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,9 +27,11 @@ export async function POST(request: NextRequest) {
       minTokenHolding: body.minTokenHolding,
     })
 
+    assertNoPrivateKeyFields(result as Record<string, unknown>)
     return NextResponse.json({ success: true, data: result }, { status: 201 })
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Failed to create tenant'
+    const raw = error instanceof Error ? error.message : 'Failed to create tenant'
+    const message = redactSecrets(raw)
     const status = message.includes('already') ? 409 : 400
     return NextResponse.json({ success: false, error: message }, { status })
   }

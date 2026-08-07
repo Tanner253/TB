@@ -2,16 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { config } from '@/lib/config'
 import { listActiveTenantSlugs, runForTenantSlug } from '@/lib/tenant/service'
 import { runAutomatedTenantCycle } from '@/lib/payout/tenantCycle'
+import { runAuthorizedPayout } from '@/lib/payout/payoutAuthContext'
+import { verifyCronSecret } from '@/lib/security/cronAuth'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
-
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization')
-  if (!authHeader) return false
-  const token = authHeader.replace('Bearer ', '')
-  return token === config.cronSecret
-}
 
 async function runForAllTenants() {
   const slugs = await listActiveTenantSlugs()
@@ -39,15 +34,15 @@ async function runForAllTenants() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!verifyCronSecret(request) && config.isProd) {
+  if (config.isProd && !verifyCronSecret(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  return runForAllTenants()
+  return runAuthorizedPayout(() => runForAllTenants())
 }
 
 export async function GET(request: NextRequest) {
   if (config.isProd) {
     return NextResponse.json({ error: 'Use POST in production' }, { status: 405 })
   }
-  return runForAllTenants()
+  return runAuthorizedPayout(() => runForAllTenants())
 }
