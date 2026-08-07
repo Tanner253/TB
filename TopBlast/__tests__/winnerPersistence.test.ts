@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
+import { Keypair } from '@solana/web3.js'
 import { Holder, CurrentRankings } from '@/lib/db/models'
 import {
   persistWinnerAfterPayout,
@@ -27,12 +28,14 @@ describe('winnerPersistence', () => {
   })
 
   it('persists winner cooldown and VWAP reset to Holder and rankings', async () => {
+    const wallet = Keypair.generate().publicKey.toBase58()
+
     await CurrentRankings.create({
       key: 'current_rankings',
-      tokenMint: '0xtoken',
+      tokenMint: 'So11111111111111111111111111111111111111112',
       rankings: [
         {
-          wallet: '0xe52ecc0b8cb032a200301e0e5f79276af77201bd',
+          wallet,
           balance: 1000,
           vwap: 0.000003,
           drawdownPct: -3,
@@ -49,15 +52,9 @@ describe('winnerPersistence', () => {
       lastCalculated: new Date(),
     })
 
-    await persistWinnerAfterPayout(
-      '0xE52ecc0b8cb032a200301E0e5F79276AF77201bd',
-      17,
-      0.000002625
-    )
+    await persistWinnerAfterPayout(wallet, 17, 0.000002625)
 
-    const holder = await Holder.findOne({
-      wallet: '0xe52ecc0b8cb032a200301e0e5f79276af77201bd',
-    })
+    const holder = await Holder.findOne({ wallet })
     expect(holder!.lastWinCycle).toBe(17)
     expect(holder!.vwap).toBe(0.000002625)
     expect(holder!.ineligibleReason).toBe('Winner cooldown')
@@ -69,20 +66,20 @@ describe('winnerPersistence', () => {
   })
 
   it('loads lastWinCycle from Holder collection', async () => {
-    const wallet = '0x1234567890123456789012345678901234567890'
+    const wallet = Keypair.generate().publicKey.toBase58()
     await Holder.create({
-      wallet: wallet.toLowerCase(),
+      wallet,
       balance: 100,
       lastWinCycle: 5,
     })
 
     const map = await loadLastWinCycleByWallet([wallet])
-    expect(map.get(wallet.toLowerCase())).toBe(5)
+    expect(map.get(wallet)).toBe(5)
   })
 
   it('falls back to successful Payout records when Holder is missing', async () => {
     const { Payout } = await import('@/lib/db/models')
-    const wallet = '0xe52ecc0b8cb032a200301e0e5f79276af77201bd'
+    const wallet = Keypair.generate().publicKey.toBase58()
 
     await Payout.create({
       cycle: 16,
@@ -92,11 +89,11 @@ describe('winnerPersistence', () => {
       amountTokens: 0.00162,
       drawdownPct: -3,
       lossUsd: 1.12,
-      txHash: '0xabc',
+      txHash: '5abc',
       status: 'success',
     })
 
     const map = await loadLastWinCycleByWallet([wallet])
-    expect(map.get(wallet.toLowerCase())).toBe(16)
+    expect(map.get(wallet)).toBe(16)
   })
 })

@@ -5,12 +5,15 @@
  */
 
 import { config } from '@/lib/config'
-import { getTokenHolders, getWalletTransactions } from '@/lib/evm/indexer'
-import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
+import { getTokenHolders, getWalletTransactions } from '@/lib/solana/indexer'
+import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
 import connectDB from '@/lib/db'
 import { Holder } from '@/lib/db/models'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
+import { getTenantSlug } from '@/lib/tenant/context'
+import { getRankingsKey } from '@/lib/tenant/keys'
+import { tenantFilter } from '@/lib/tenant/scope'
 
 // Types
 export interface HolderData {
@@ -35,22 +38,23 @@ export interface HolderData {
   updatedAt: number
 }
 
-// Global state (shared across API routes via module caching)
-declare global {
-  var _holderServiceState: {
-    holders: Map<string, HolderData>
-    serviceInitialized: boolean
-    lastFullRefresh: number
-    currentTokenPrice: number | null
-    currentPoolUsd: number | null
-    initializationInProgress: boolean
-    currentCycle: number // Added: track current cycle for cooldown checking
-  } | undefined
+// Global state (per-tenant, shared across API routes via module caching)
+type HolderServiceState = {
+  holders: Map<string, HolderData>
+  serviceInitialized: boolean
+  lastFullRefresh: number
+  currentTokenPrice: number | null
+  currentPoolUsd: number | null
+  initializationInProgress: boolean
+  currentCycle: number
 }
 
-// Initialize global state if needed
-if (!global._holderServiceState) {
-  global._holderServiceState = {
+declare global {
+  var _holderServiceStates: Map<string, HolderServiceState> | undefined
+}
+
+function createEmptyState(): HolderServiceState {
+  return {
     holders: new Map<string, HolderData>(),
     serviceInitialized: false,
     lastFullRefresh: 0,
@@ -61,9 +65,22 @@ if (!global._holderServiceState) {
   }
 }
 
-// Reference to global state
-const state = global._holderServiceState
-const holders = state.holders
+function getState(): HolderServiceState {
+  if (!global._holderServiceStates) {
+    global._holderServiceStates = new Map()
+  }
+  const slug = getTenantSlug()
+  let state = global._holderServiceStates.get(slug)
+  if (!state) {
+    state = createEmptyState()
+    global._holderServiceStates.set(slug, state)
+  }
+  return state
+}
+
+function holders(): Map<string, HolderData> {
+  return getState().holders
+}
 
 // Constants - OPTIMIZED FOR SPEED
 const FULL_REFRESH_INTERVAL = 10 * 60 * 1000 // 10 minutes between refreshes
@@ -81,12 +98,12 @@ async function resolvePoolUsd(): Promise<number> {
 /** Sync eligibility/min-loss calculations to the latest on-chain pool (single source of truth). */
 export async function refreshPoolUsdCache(poolUsd?: number): Promise<number> {
   const resolved = poolUsd ?? (await resolvePoolUsd())
-  state.currentPoolUsd = resolved
+  getState().currentPoolUsd = resolved
   return resolved
 }
 
 function getEffectivePoolUsd(): number {
-  return state.currentPoolUsd ?? 0
+  return getState().currentPoolUsd ?? 0
 }
 
 /**
@@ -96,33 +113,33 @@ function getEffectivePoolUsd(): number {
  * STEP 3: Calculate VWAPs in background, save to DB
  */
 export async function initializeHolderService(): Promise<boolean> {
-  if (state.serviceInitialized) {
+  if (getState().serviceInitialized) {
     return true
   }
 
-  if (state.initializationInProgress) {
+  if (getState().initializationInProgress) {
     return true
   }
 
-  state.initializationInProgress = true
+  getState().initializationInProgress = true
   console.log('[HolderService] Starting initialization...')
 
   try {
     // Connect to MongoDB
     await connectDB()
 
-    state.currentPoolUsd = await resolvePoolUsd()
+    getState().currentPoolUsd = await resolvePoolUsd()
 
     // Get current token price (Blockscout, CoinGecko, or recent swap)
-    state.currentTokenPrice = await getTokenPrice(config.tokenMint)
-    if (!state.currentTokenPrice) {
+    getState().currentTokenPrice = await getTokenPrice(config.tokenMint)
+    if (!getState().currentTokenPrice) {
       console.warn('[HolderService] No market price yet — indexing holders; price will update from swap history')
     } else {
-      console.log(`[HolderService] Current price: $${state.currentTokenPrice}`)
+      console.log(`[HolderService] Current price: $${getState().currentTokenPrice}`)
     }
 
     // STEP 1: Load cached holders from MongoDB (instant results!)
-    const cachedHolders = await Holder.find({ isEligible: true })
+    const cachedHolders = await Holder.find(tenantFilter({ isEligible: true }))
       .sort({ lossUsd: -1 })
       .limit(100)
       .lean()
@@ -134,13 +151,13 @@ export async function initializeHolderService(): Promise<boolean> {
         if (!h.vwap || !h.balance) continue
         
         // Recalculate eligibility with current price
-        const drawdownPct = h.vwap > 0 ? ((state.currentTokenPrice! - h.vwap) / h.vwap) * 100 : 0
+        const drawdownPct = h.vwap > 0 ? ((getState().currentTokenPrice! - h.vwap) / h.vwap) * 100 : 0
         const lossUsd = drawdownPct < 0 ? Math.abs(drawdownPct / 100) * h.vwap * h.balance : 0
         const poolUsd = getEffectivePoolUsd()
         const minLoss = poolUsd * (config.minLossThresholdPct / 100)
         const isEligible = drawdownPct < 0 && lossUsd >= minLoss && !h.hasSold && h.balance >= config.minTokenHolding
         
-        holders.set(h.wallet, {
+        holders().set(h.wallet, {
           wallet: h.wallet,
           balance: h.balance,
           balanceRaw: h.balance * Math.pow(10, config.tokenDecimals),
@@ -162,8 +179,8 @@ export async function initializeHolderService(): Promise<boolean> {
         })
       }
       
-      const eligibleFromCache = Array.from(holders.values()).filter(h => h.isEligible).length
-      console.log(`[HolderService] ✅ Loaded ${holders.size} from cache, ${eligibleFromCache} eligible`)
+      const eligibleFromCache = Array.from(holders().values()).filter(h => h.isEligible).length
+      console.log(`[HolderService] ✅ Loaded ${holders().size} from cache, ${eligibleFromCache} eligible`)
     }
 
     // STEP 2: Fetch fresh holders from blockchain
@@ -171,9 +188,9 @@ export async function initializeHolderService(): Promise<boolean> {
     const rawHolders = await getTokenHolders(config.tokenMint, limit)
     console.log(`[HolderService] Found ${rawHolders.length} holders on-chain`)
 
-    if (rawHolders.length === 0 && holders.size === 0) {
+    if (rawHolders.length === 0 && holders().size === 0) {
       console.warn('[HolderService] No holders found')
-      state.initializationInProgress = false
+      getState().initializationInProgress = false
       return false
     }
 
@@ -191,23 +208,23 @@ export async function initializeHolderService(): Promise<boolean> {
         continue
       }
       const balance = h.balance / Math.pow(10, config.tokenDecimals)
-      if (!holders.has(h.wallet)) {
-        holders.set(h.wallet, createBasicHolder(h.wallet, balance, h.balance))
+      if (!holders().has(h.wallet)) {
+        holders().set(h.wallet, createBasicHolder(h.wallet, balance, h.balance))
       } else {
         // Update balance for cached holder
-        const existing = holders.get(h.wallet)!
+        const existing = holders().get(h.wallet)!
         existing.balance = balance
         existing.balanceRaw = h.balance
       }
     }
 
     // Mark as initialized
-    state.serviceInitialized = true
-    console.log(`[HolderService] ✅ Quick init: ${holders.size} holders (${cachedHolders.length} from cache)`)
+    getState().serviceInitialized = true
+    console.log(`[HolderService] ✅ Quick init: ${holders().size} holders (${cachedHolders.length} from cache)`)
 
     // STEP 3: Fetch VWAPs for holders not in cache
     const holdersNeedingVwap = sortedHolders.filter(h => {
-      const cached = holders.get(h.wallet)
+      const cached = holders().get(h.wallet)
       return !cached?.vwap || cached.vwapSource !== 'real'
     })
     
@@ -223,11 +240,11 @@ export async function initializeHolderService(): Promise<boolean> {
       console.log(`[HolderService] All VWAPs loaded from cache!`)
     }
 
-    state.initializationInProgress = false
+    getState().initializationInProgress = false
     return true
   } catch (error: any) {
     console.error('[HolderService] Initialization error:', error.message)
-    state.initializationInProgress = false
+    getState().initializationInProgress = false
     return false
   }
 }
@@ -238,17 +255,17 @@ export async function initializeHolderService(): Promise<boolean> {
 async function fetchPriorityVwaps(
   sortedHolders: Array<{ wallet: string; balance: number }>
 ): Promise<void> {
-  if (!state.currentTokenPrice) {
-    state.currentTokenPrice = await getTokenPrice(config.tokenMint)
+  if (!getState().currentTokenPrice) {
+    getState().currentTokenPrice = await getTokenPrice(config.tokenMint)
   }
-  if (!state.currentTokenPrice) {
+  if (!getState().currentTokenPrice) {
     console.warn('[HolderService] Priority VWAP: no token price yet')
     return
   }
 
-  const currentEthPrice = (await getEthPrice()) || 220
+  const currentEthPrice = (await getSolPrice()) || 220
   const priorityHolders = sortedHolders.slice(0, PRIORITY_HOLDER_COUNT)
-  console.log(`[HolderService] PRIORITY: Processing top ${priorityHolders.length} holders...`)
+  console.log(`[HolderService] PRIORITY: Processing top ${priorityHolders.length} holders()...`)
 
   for (let i = 0; i < priorityHolders.length; i += VWAP_BATCH_SIZE) {
     const batch = priorityHolders.slice(i, i + VWAP_BATCH_SIZE)
@@ -260,10 +277,10 @@ async function fetchPriorityVwaps(
             h.wallet,
             balance,
             h.balance,
-            state.currentTokenPrice!,
+            getState().currentTokenPrice!,
             currentEthPrice
           )
-          holders.set(h.wallet, holderData)
+          holders().set(h.wallet, holderData)
         } catch {
           // Keep basic data on error
         }
@@ -271,8 +288,8 @@ async function fetchPriorityVwaps(
     )
   }
 
-  const withVwap = Array.from(holders.values()).filter(h => h.vwapSource === 'real').length
-  const eligible = Array.from(holders.values()).filter(h => h.isEligible).length
+  const withVwap = Array.from(holders().values()).filter(h => h.vwapSource === 'real').length
+  const eligible = Array.from(holders().values()).filter(h => h.isEligible).length
   console.log(`[HolderService] ✅ PRIORITY complete: ${withVwap} with VWAP, ${eligible} eligible`)
 }
 
@@ -284,12 +301,12 @@ async function fetchRemainingVwapsInBackground(
 ): Promise<void> {
   if (remainingHolders.length === 0) return
 
-  if (!state.currentTokenPrice) {
-    state.currentTokenPrice = await getTokenPrice(config.tokenMint)
+  if (!getState().currentTokenPrice) {
+    getState().currentTokenPrice = await getTokenPrice(config.tokenMint)
   }
-  if (!state.currentTokenPrice) return
+  if (!getState().currentTokenPrice) return
 
-  const currentEthPrice = (await getEthPrice()) || 220
+  const currentEthPrice = (await getSolPrice()) || 220
   console.log(`[HolderService] Background: fetching ${remainingHolders.length} remaining VWAPs...`)
 
   for (let i = 0; i < remainingHolders.length; i += VWAP_BATCH_SIZE) {
@@ -302,10 +319,10 @@ async function fetchRemainingVwapsInBackground(
             h.wallet,
             balance,
             h.balance,
-            state.currentTokenPrice!,
+            getState().currentTokenPrice!,
             currentEthPrice
           )
-          holders.set(h.wallet, holderData)
+          holders().set(h.wallet, holderData)
         } catch {
           // Keep basic data on error
         }
@@ -314,9 +331,9 @@ async function fetchRemainingVwapsInBackground(
     await sleep(VWAP_BATCH_DELAY)
   }
 
-  state.lastFullRefresh = Date.now()
+  getState().lastFullRefresh = Date.now()
   await saveRankingsToDb()
-  const withVwap = Array.from(holders.values()).filter(h => h.vwapSource === 'real').length
+  const withVwap = Array.from(holders().values()).filter(h => h.vwapSource === 'real').length
   console.log(`[HolderService] ✅ Background VWAP complete: ${withVwap} with real VWAP`)
 }
 
@@ -366,8 +383,8 @@ async function calculateHolderData(
       
       if (tx.usdValue > 0) {
         totalStablecoinSpent += tx.usdValue
-      } else if (tx.ethAmount > 0) {
-        totalEthSpent += tx.ethAmount
+      } else if (tx.solAmount > 0) {
+        totalEthSpent += tx.solAmount
       } else if (tx.pricePerToken > 0 && tx.tokenAmount > 0) {
         totalStablecoinSpent += tx.pricePerToken * tx.tokenAmount
       }
@@ -381,7 +398,7 @@ async function calculateHolderData(
     }
   }
 
-  const ethPrice = currentSolPrice || (await getEthPrice()) || 3500
+  const ethPrice = currentSolPrice || (await getSolPrice()) || 3500
   
   // Calculate total cost basis using CURRENT ETH price
   const totalCostBasis = (totalEthSpent * ethPrice) + totalStablecoinSpent
@@ -395,7 +412,7 @@ async function calculateHolderData(
   const vwapSource: 'real' | 'none' = (vwap !== null && totalCostBasis > 0) ? 'real' : 'none'
 
   // Preserve lastWinCycle from existing holder data if it exists
-  const existingHolder = holders.get(wallet)
+  const existingHolder = holders().get(wallet)
   const lastWinCycle = existingHolder?.lastWinCycle || null
 
   // Check eligibility and calculate drawdown
@@ -499,7 +516,7 @@ function checkEligibility(
     lastWinCycle,
     totalTokensBought,
     poolUsd: getEffectivePoolUsd(),
-    currentCycle: state.currentCycle,
+    currentCycle: getState().currentCycle,
   })
 
   return {
@@ -515,10 +532,10 @@ function checkEligibility(
  * Optionally saves to DB for cross-instance consistency
  */
 export async function updatePrice(newPrice: number, saveToDb: boolean = false): Promise<void> {
-  state.currentTokenPrice = newPrice
+  getState().currentTokenPrice = newPrice
   
   // Recalculate drawdown and eligibility for all holders
-  for (const [wallet, holder] of holders) {
+  for (const [wallet, holder] of holders()) {
     if (holder.vwap && holder.vwap > 0) {
       const drawdownPct = ((newPrice - holder.vwap) / holder.vwap) * 100
       const eligibleBalance = holder.totalTokensBought > 0 
@@ -547,7 +564,7 @@ export async function updatePrice(newPrice: number, saveToDb: boolean = false): 
   }
   
   // Save to DB if requested (for cross-instance consistency)
-  if (saveToDb && holders.size > 0) {
+  if (saveToDb && holders().size > 0) {
     await saveRankingsToDb()
   }
 }
@@ -556,7 +573,7 @@ export async function updatePrice(newPrice: number, saveToDb: boolean = false): 
  * Record a new buy transaction (from WebSocket)
  */
 export function recordBuy(wallet: string, tokenAmount: number, pricePerToken: number, balanceAfter: number): void {
-  const existing = holders.get(wallet)
+  const existing = holders().get(wallet)
   
   if (existing) {
     // Update existing holder
@@ -577,12 +594,12 @@ export function recordBuy(wallet: string, tokenAmount: number, pricePerToken: nu
     }
     
     // Recalculate eligibility
-    if (state.currentTokenPrice) {
+    if (getState().currentTokenPrice) {
       const { isEligible, reason, drawdownPct, lossUsd } = checkEligibility(
         wallet,
         balanceAfter,
         newVwap,
-        state.currentTokenPrice,
+        getState().currentTokenPrice,
         existing.firstBuyTimestamp,
         existing.hasSold,
         existing.hasTransferredOut,
@@ -620,12 +637,12 @@ export function recordBuy(wallet: string, tokenAmount: number, pricePerToken: nu
     }
     
     // Check eligibility
-    if (state.currentTokenPrice) {
+    if (getState().currentTokenPrice) {
       const { isEligible, reason, drawdownPct, lossUsd } = checkEligibility(
         wallet,
         balanceAfter,
         pricePerToken,
-        state.currentTokenPrice,
+        getState().currentTokenPrice,
         newHolder.firstBuyTimestamp,
         false,
         false,
@@ -638,7 +655,7 @@ export function recordBuy(wallet: string, tokenAmount: number, pricePerToken: nu
       newHolder.lossUsd = lossUsd
     }
     
-    holders.set(wallet, newHolder)
+    holders().set(wallet, newHolder)
   }
   
   console.log(`[HolderService] Buy recorded: ${wallet.slice(0, 8)}... bought ${tokenAmount.toLocaleString()} tokens`)
@@ -648,7 +665,7 @@ export function recordBuy(wallet: string, tokenAmount: number, pricePerToken: nu
  * Record a sell transaction (disqualifies holder)
  */
 export function recordSell(wallet: string, balanceAfter: number): void {
-  const existing = holders.get(wallet)
+  const existing = holders().get(wallet)
   
   if (existing) {
     existing.hasSold = true
@@ -666,7 +683,7 @@ export function recordSell(wallet: string, balanceAfter: number): void {
  * Record a transfer out transaction (disqualifies holder)
  */
 export function recordTransferOut(wallet: string, balanceAfter: number): void {
-  const existing = holders.get(wallet)
+  const existing = holders().get(wallet)
   
   if (existing) {
     existing.hasTransferredOut = true
@@ -686,7 +703,7 @@ export function recordTransferOut(wallet: string, balanceAfter: number): void {
  */
 export function markWinnersCooldown(winnerWallets: string[], cycle: number): void {
   for (const wallet of winnerWallets) {
-    const holder = holders.get(wallet)
+    const holder = holders().get(wallet)
     if (holder) {
       // Set winner cooldown - they can't win next round
       holder.lastWinCycle = cycle
@@ -699,7 +716,7 @@ export function markWinnersCooldown(winnerWallets: string[], cycle: number): voi
   }
   
   // Advance cycle
-  state.currentCycle = cycle + 1
+  getState().currentCycle = cycle + 1
 }
 
 /**
@@ -707,8 +724,8 @@ export function markWinnersCooldown(winnerWallets: string[], cycle: number): voi
  * This should ONLY be called when tokens are actually transferred
  */
 export function resetWinnerVwap(wallet: string): void {
-  const holder = holders.get(wallet)
-  const currentPrice = state.currentTokenPrice
+  const holder = holders().get(wallet)
+  const currentPrice = getState().currentTokenPrice
   
   if (holder && currentPrice) {
     // Reset VWAP to current price (so their loss becomes 0)
@@ -738,7 +755,7 @@ export function markWinners(winnerWallets: string[], cycle: number): void {
  * Set the current cycle number (should be called on startup from DB)
  */
 export function setCurrentCycle(cycle: number): void {
-  state.currentCycle = cycle
+  getState().currentCycle = cycle
   console.log(`[HolderService] Current cycle set to ${cycle}`)
 }
 
@@ -746,7 +763,7 @@ export function setCurrentCycle(cycle: number): void {
  * Get the current cycle number
  */
 export function getHolderServiceCycle(): number {
-  return state.currentCycle
+  return getState().currentCycle
 }
 
 /**
@@ -756,7 +773,7 @@ export function getHolderServiceCycle(): number {
 export function getRankedLosers(): HolderData[] {
   const minLossRequired = getEffectivePoolUsd() * (config.minLossThresholdPct / 100)
   
-  const losers = Array.from(holders.values())
+  const losers = Array.from(holders().values())
     .filter(h => 
       h.vwap && 
       h.vwap > 0 && 
@@ -782,7 +799,7 @@ export function getRankedLosers(): HolderData[] {
  * Only includes holders with real VWAP data
  */
 export function getEligibleWinners(): HolderData[] {
-  return Array.from(holders.values())
+  return Array.from(holders().values())
     .filter(h => h.isEligible && h.drawdownPct < 0 && h.vwapSource === 'real')
     .sort((a, b) => {
       if (a.drawdownPct !== b.drawdownPct) {
@@ -796,49 +813,49 @@ export function getEligibleWinners(): HolderData[] {
  * Get all holders (for stats)
  */
 export function getAllHolders(): HolderData[] {
-  return Array.from(holders.values())
+  return Array.from(holders().values())
 }
 
 /**
  * Get holder count
  */
 export function getHolderCount(): number {
-  return holders.size
+  return holders().size
 }
 
 /**
  * Get eligible holder count
  */
 export function getEligibleCount(): number {
-  return Array.from(holders.values()).filter(h => h.isEligible).length
+  return Array.from(holders().values()).filter(h => h.isEligible).length
 }
 
 /**
  * Get count of holders with real VWAP data
  */
 export function getHoldersWithRealVwapCount(): number {
-  return Array.from(holders.values()).filter(h => h.vwapSource === 'real').length
+  return Array.from(holders().values()).filter(h => h.vwapSource === 'real').length
 }
 
 /**
  * Get current token price
  */
 export function getCurrentPrice(): number | null {
-  return state.currentTokenPrice
+  return getState().currentTokenPrice
 }
 
 /**
  * Check if service is initialized
  */
 export function isServiceInitialized(): boolean {
-  return state.serviceInitialized
+  return getState().serviceInitialized
 }
 
 /**
  * Check if refresh is needed
  */
 export function needsRefresh(): boolean {
-  return Date.now() - state.lastFullRefresh > FULL_REFRESH_INTERVAL
+  return Date.now() - getState().lastFullRefresh > FULL_REFRESH_INTERVAL
 }
 
 /**
@@ -853,12 +870,12 @@ export function getServiceStatus(): {
   initInProgress: boolean
 } {
   return {
-    initialized: state.serviceInitialized,
-    holderCount: holders.size,
+    initialized: getState().serviceInitialized,
+    holderCount: holders().size,
     eligibleCount: getEligibleCount(),
-    currentPrice: state.currentTokenPrice,
-    lastRefresh: state.lastFullRefresh,
-    initInProgress: state.initializationInProgress,
+    currentPrice: getState().currentTokenPrice,
+    lastRefresh: getState().lastFullRefresh,
+    initInProgress: getState().initializationInProgress,
   }
 }
 
@@ -867,7 +884,7 @@ export function getServiceStatus(): {
  * Note: This does NOT reset the initialized state - we keep serving data during refresh
  */
 export async function refreshHolders(): Promise<boolean> {
-  if (state.initializationInProgress) {
+  if (getState().initializationInProgress) {
     console.log('[HolderService] Refresh skipped - initialization in progress')
     return false
   }
@@ -875,17 +892,17 @@ export async function refreshHolders(): Promise<boolean> {
   // Don't reset serviceInitialized - keep serving existing data during refresh
   console.log('[HolderService] Starting background refresh...')
   
-  state.initializationInProgress = true
+  getState().initializationInProgress = true
   
   try {
     // Get current token price
     const price = await getTokenPrice(config.tokenMint)
     if (price) {
-      state.currentTokenPrice = price
+      getState().currentTokenPrice = price
     }
     
     // Get current SOL price for consistent calculations
-    const currentSolPrice = (await getEthPrice()) || 220
+    const currentSolPrice = (await getSolPrice()) || 220
     console.log(`[HolderService] Refresh using SOL price: $${currentSolPrice}`)
     
     // Fetch new holder list
@@ -912,10 +929,10 @@ export async function refreshHolders(): Promise<boolean> {
                 holder.wallet,
                 holder.balance,
                 holder.balanceRaw,
-                state.currentTokenPrice!,
+                getState().currentTokenPrice!,
                 currentSolPrice
               )
-              holders.set(holder.wallet, holderData)
+              holders().set(holder.wallet, holderData)
             } catch (error) {
               // Keep existing data on error
             }
@@ -927,15 +944,15 @@ export async function refreshHolders(): Promise<boolean> {
         }
       }
       
-      state.lastFullRefresh = Date.now()
+      getState().lastFullRefresh = Date.now()
     }
     
-    state.initializationInProgress = false
-    console.log(`[HolderService] ✅ Refresh complete: ${holders.size} holders`)
+    getState().initializationInProgress = false
+    console.log(`[HolderService] ✅ Refresh complete: ${holders().size} holders`)
     return true
   } catch (error: any) {
     console.error('[HolderService] Refresh error:', error.message)
-    state.initializationInProgress = false
+    getState().initializationInProgress = false
     return false
   }
 }
@@ -947,7 +964,7 @@ export async function refreshHolders(): Promise<boolean> {
  */
 export async function saveRankingsToDb(): Promise<void> {
   try {
-    if (holders.size === 0) {
+    if (holders().size === 0) {
       console.log('[HolderService] Skip rankings save — in-memory holders empty (avoid wiping DB)')
       return
     }
@@ -958,7 +975,7 @@ export async function saveRankingsToDb(): Promise<void> {
     await connectDB()
     
     // Include EOA holders only; leaderboard ranks eligible losers by drawdown
-    const eoaHolders = Array.from(holders.values()).filter(
+    const eoaHolders = Array.from(holders().values()).filter(
       h =>
         !h.isContract &&
         !isExcludedParticipantWallet(h.wallet) &&
@@ -966,12 +983,12 @@ export async function saveRankingsToDb(): Promise<void> {
     )
 
     for (const h of eoaHolders) {
-      if (!state.currentTokenPrice) continue
+      if (!getState().currentTokenPrice) continue
       const { isEligible, reason, drawdownPct, lossUsd } = checkEligibility(
         h.wallet,
         h.balance,
         h.vwap,
-        state.currentTokenPrice,
+        getState().currentTokenPrice,
         h.firstBuyTimestamp,
         h.hasSold,
         h.hasTransferredOut,
@@ -1013,7 +1030,7 @@ export async function saveRankingsToDb(): Promise<void> {
     const eligibleCount = eoaHolders.filter(h => h.isEligible).length
 
     await CurrentRankings.findOneAndUpdate(
-      { key: 'current_rankings' },
+      { key: getRankingsKey() },
       {
         $set: {
           tokenMint: config.tokenMint,
@@ -1021,7 +1038,7 @@ export async function saveRankingsToDb(): Promise<void> {
           totalHolders: eoaHolders.length,
           eligibleCount,
           holdersWithVwap: getHoldersWithRealVwapCount(),
-          tokenPrice: state.currentTokenPrice || 0,
+          tokenPrice: getState().currentTokenPrice || 0,
           lastCalculated: new Date(),
         }
       },
@@ -1067,7 +1084,7 @@ export async function loadRankingsFromDb(): Promise<{
     const { CurrentRankings } = await import('@/lib/db/models')
     await connectDB()
     
-    const data = await CurrentRankings.findOne({ key: 'current_rankings' }).lean()
+    const data = await CurrentRankings.findOne({ key: getRankingsKey() }).lean()
     
     if (!data) {
       return null
@@ -1094,12 +1111,12 @@ function sleep(ms: number): Promise<void> {
 
 /** Clear in-memory holder cache (after deployment reset or token change). */
 export function resetHolderServiceState(): void {
-  holders.clear()
-  state.serviceInitialized = false
-  state.initializationInProgress = false
-  state.lastFullRefresh = 0
-  state.currentTokenPrice = null
-  state.currentPoolUsd = null
+  holders().clear()
+  getState().serviceInitialized = false
+  getState().initializationInProgress = false
+  getState().lastFullRefresh = 0
+  getState().currentTokenPrice = null
+  getState().currentPoolUsd = null
 }
 
 /** Re-index from chain when DB rankings are missing, empty, or have no VWAP data. */
@@ -1116,9 +1133,9 @@ export async function ensureRankingsIndexed(): Promise<boolean> {
 
   console.log('[HolderService] Rankings missing/empty — re-indexing from chain...')
   resetHolderServiceState()
-  state.currentPoolUsd = await resolvePoolUsd()
+  getState().currentPoolUsd = await resolvePoolUsd()
   const ok = await initializeHolderService()
-  if (!ok || holders.size === 0) {
+  if (!ok || holders().size === 0) {
     return false
   }
 
@@ -1132,12 +1149,12 @@ export async function ensureRankingsIndexed(): Promise<boolean> {
 export async function ensureVwapCalculated(): Promise<boolean> {
   try {
     await connectDB()
-    state.currentPoolUsd = await resolvePoolUsd()
-    if (!state.currentTokenPrice) {
-      state.currentTokenPrice = await getTokenPrice(config.tokenMint)
+    getState().currentPoolUsd = await resolvePoolUsd()
+    if (!getState().currentTokenPrice) {
+      getState().currentTokenPrice = await getTokenPrice(config.tokenMint)
     }
 
-    if (!state.serviceInitialized) {
+    if (!getState().serviceInitialized) {
       const ok = await initializeHolderService()
       if (!ok) return false
     }
@@ -1159,8 +1176,8 @@ export async function ensureVwapCalculated(): Promise<boolean> {
       if (h.isContract) continue
       if (isExcludedParticipantWallet(h.wallet)) continue
       const balance = h.balance / Math.pow(10, config.tokenDecimals)
-      if (!holders.has(h.wallet)) {
-        holders.set(h.wallet, createBasicHolder(h.wallet, balance, h.balance))
+      if (!holders().has(h.wallet)) {
+        holders().set(h.wallet, createBasicHolder(h.wallet, balance, h.balance))
       }
     }
 

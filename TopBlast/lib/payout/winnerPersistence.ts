@@ -4,8 +4,8 @@
 
 import connectDB from '@/lib/db'
 import { Holder, CurrentRankings, Payout } from '@/lib/db/models'
-
-const RANKINGS_KEY = 'current_rankings'
+import { getRankingsKey } from '@/lib/tenant/keys'
+import { tenantFilter, tenantFields } from '@/lib/tenant/scope'
 
 export async function persistWinnerAfterPayout(
   wallet: string,
@@ -15,10 +15,9 @@ export async function persistWinnerAfterPayout(
   if (!wallet || !tokenPrice) return
 
   await connectDB()
-  const walletLower = wallet.toLowerCase()
 
   await Holder.findOneAndUpdate(
-    { wallet: walletLower },
+    tenantFilter({ wallet }),
     {
       $set: {
         lastWinCycle: cycle,
@@ -26,17 +25,18 @@ export async function persistWinnerAfterPayout(
         isEligible: false,
         ineligibleReason: 'Winner cooldown',
         updatedAt: new Date(),
+        ...tenantFields(),
       },
     },
     { upsert: true }
   )
 
-  const doc = await CurrentRankings.findOne({ key: RANKINGS_KEY })
+  const doc = await CurrentRankings.findOne({ key: getRankingsKey() })
   if (!doc?.rankings?.length) return
 
   let changed = false
   for (const row of doc.rankings) {
-    if (row.wallet?.toLowerCase() === walletLower) {
+    if (row.wallet === wallet) {
       row.lastWinCycle = cycle
       row.vwap = tokenPrice
       row.drawdownPct = 0
@@ -55,24 +55,25 @@ export async function persistWinnerAfterPayout(
   }
 }
 
-/** Latest successful winner cycle from Payout records (source of truth after pay). */
 async function loadLastWinCycleFromPayouts(
-  walletsLower: string[]
+  wallets: string[]
 ): Promise<Map<string, number>> {
-  const wanted = new Set(walletsLower)
+  const wanted = new Set(wallets)
   const result = new Map<string, number>()
   if (wanted.size === 0) return result
 
   const payouts = await Payout.find({
+    ...tenantFilter(),
     status: 'success',
     rank: { $gte: 1 },
+    wallet: { $in: [...wanted] },
   })
     .select('wallet cycle')
     .sort({ cycle: -1 })
     .lean()
 
   for (const p of payouts) {
-    const w = p.wallet?.toLowerCase()
+    const w = p.wallet
     if (!w || !wanted.has(w) || result.has(w)) continue
     result.set(w, p.cycle)
   }
@@ -87,22 +88,24 @@ async function loadLastWinCycleFromPayouts(
 export async function loadLastWinCycleByWallet(
   wallets: string[]
 ): Promise<Map<string, number | null>> {
+  const normalized = [...new Set(wallets.filter(Boolean))]
   const result = new Map<string, number | null>()
-  if (wallets.length === 0) return result
+  if (normalized.length === 0) return result
 
   await connectDB()
-  const normalized = [...new Set(wallets.map(w => w.toLowerCase()))]
 
-  const holderDocs = await Holder.find({
-    $or: normalized.map(w => ({
-      wallet: new RegExp(`^${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'),
-    })),
-  })
+  for (const w of normalized) {
+    result.set(w, null)
+  }
+
+  const holderDocs = await Holder.find(tenantFilter({ wallet: { $in: normalized } }))
     .select('wallet lastWinCycle')
     .lean()
 
   for (const doc of holderDocs) {
-    result.set(doc.wallet.toLowerCase(), doc.lastWinCycle ?? null)
+    if (normalized.includes(doc.wallet)) {
+      result.set(doc.wallet, doc.lastWinCycle ?? null)
+    }
   }
 
   const fromPayouts = await loadLastWinCycleFromPayouts(normalized)

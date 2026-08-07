@@ -6,23 +6,22 @@
 import connectDB from '@/lib/db'
 import { Payout, Disqualification, TimerState } from '@/lib/db/models'
 import { resetDeploymentState } from '@/lib/payout/resetDeployment'
-import { transferEth } from '@/lib/evm/transfer'
+import { transferSol, MIN_TRANSFER_SOL } from '@/lib/solana/transfer'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
-import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
-import { getTokenHolders } from '@/lib/evm/indexer'
-import { getTxExplorerUrl } from '@/lib/evm/explorer'
+import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
+import { getTokenHolders } from '@/lib/solana/indexer'
+import { getTxExplorerUrl } from '@/lib/solana/explorer'
 import { config } from '@/lib/config'
-import { isAddress } from 'viem'
+import { PublicKey } from '@solana/web3.js'
 import {
   persistWinnerAfterPayout,
   loadLastWinCycleByWallet,
 } from '@/lib/payout/winnerPersistence'
 import { saveRankingsToDb, loadRankingsFromDb, getRankedLosers, markWinnersCooldown, getServiceStatus, refreshPoolUsdCache } from '@/lib/tracker/holderService'
 
-const MIN_TRANSFER_ETH = 0.001
-const TIMER_KEY = 'payout_timer'
+import { getTimerKey } from '@/lib/tenant/keys'
 
 export type PayoutTimerStatus = 'waiting' | 'active'
 
@@ -52,7 +51,7 @@ function getIntervalSeconds(): number {
 }
 
 function normalizeMint(mint: string): string {
-  return mint.toLowerCase()
+  return mint.trim()
 }
 
 function getExplorerLink(txHash: string | null): string | null {
@@ -100,7 +99,7 @@ async function loadTimerState(): Promise<void> {
     }
 
     const expectedMint = normalizeMint(config.tokenMint)
-    let state = await TimerState.findOne({ key: TIMER_KEY }).lean()
+    let state = await TimerState.findOne({ key: getTimerKey() }).lean()
 
     const storedMint = normalizeMint(state?.tokenMint || '')
 
@@ -111,7 +110,7 @@ async function loadTimerState(): Promise<void> {
 
     if (!state) {
       await TimerState.create({
-        key: TIMER_KEY,
+        key: getTimerKey(),
         tokenMint: config.tokenMint,
         timerStatus: 'waiting',
         lastPayoutTime: null,
@@ -143,7 +142,7 @@ async function saveTimerState(
 ): Promise<void> {
   try {
     await TimerState.findOneAndUpdate(
-      { key: TIMER_KEY },
+      { key: getTimerKey() },
       {
         $set: {
           tokenMint: config.tokenMint,
@@ -171,7 +170,7 @@ async function saveTimerState(
 
 async function getAccruedDevFeeEth(): Promise<number> {
   try {
-    const doc = await TimerState.findOne({ key: TIMER_KEY }).select('accruedDevFeeEth').lean()
+    const doc = await TimerState.findOne({ key: getTimerKey() }).select('accruedDevFeeEth').lean()
     return doc?.accruedDevFeeEth ?? 0
   } catch {
     return 0
@@ -181,7 +180,7 @@ async function getAccruedDevFeeEth(): Promise<number> {
 async function setAccruedDevFeeEth(amount: number): Promise<void> {
   try {
     await TimerState.findOneAndUpdate(
-      { key: TIMER_KEY },
+      { key: getTimerKey() },
       { $set: { accruedDevFeeEth: Math.max(0, amount) } },
       { upsert: true }
     )
@@ -287,7 +286,7 @@ export async function resolveLivePayableWinners(limit = 3): Promise<PayableWinne
   const contractWallets = new Set(
     (await getTokenHolders(config.tokenMint, 100))
       .filter(h => h.isContract)
-      .map(h => h.wallet.toLowerCase())
+      .map(h => h.wallet)
   )
 
   const currentCycle = getCurrentPayoutCycle()
@@ -300,13 +299,13 @@ export async function resolveLivePayableWinners(limit = 3): Promise<PayableWinne
     .filter(
       h =>
         !h.isContract &&
-        !contractWallets.has(h.wallet.toLowerCase()) &&
+        !contractWallets.has(h.wallet) &&
         !isExcludedParticipantWallet(h.wallet)
     )
     .map(h => {
       const firstBuyMs = h.firstBuyAt ? new Date(h.firstBuyAt).getTime() : null
       const lastWinCycle =
-        lastWinByWallet.get(h.wallet.toLowerCase()) ?? h.lastWinCycle ?? null
+        lastWinByWallet.get(h.wallet) ?? h.lastWinCycle ?? null
       const live = evaluateHolderEligibility({
         wallet: h.wallet,
         balance: h.balance,
@@ -340,7 +339,7 @@ async function acquirePayoutLock(cycle: number): Promise<boolean> {
   try {
     const result = await TimerState.findOneAndUpdate(
       {
-        key: TIMER_KEY,
+        key: getTimerKey(),
         $or: [
           { isPayoutInProgress: false },
           { isPayoutInProgress: { $exists: false } },
@@ -367,7 +366,7 @@ async function acquirePayoutLock(cycle: number): Promise<boolean> {
 async function releasePayoutLock(): Promise<void> {
   try {
     await TimerState.findOneAndUpdate(
-      { key: TIMER_KEY },
+      { key: getTimerKey() },
       { $set: { isPayoutInProgress: false, lockAcquiredAt: null } }
     )
   } catch (error) {
@@ -408,24 +407,24 @@ export async function executePayout(): Promise<PayoutResult> {
 
     const livePool = await getLivePoolBalance()
     await refreshPoolUsdCache(livePool.poolUsd)
-    const ethPrice = livePool.ethPrice
-    const poolEth = livePool.poolEth
+    const solPrice = livePool.solPrice
+    const poolSol = livePool.poolSol
     const poolUsd = livePool.poolUsd
 
     console.log(`[Payout] Payout wallet: ${livePool.payoutWalletAddress || 'NOT CONFIGURED'}`)
-    console.log(`[Payout] Wallet balance: ${livePool.walletEth.toFixed(6)} ETH`)
-    console.log(`[Payout] Pool: ${poolEth.toFixed(6)} ETH ($${poolUsd.toFixed(2)})`)
+    console.log(`[Payout] Wallet balance: ${livePool.walletSol.toFixed(6)} SOL`)
+    console.log(`[Payout] Pool: ${poolSol.toFixed(6)} SOL ($${poolUsd.toFixed(2)})`)
 
-    if (!livePool.available || livePool.walletEth <= 0) {
+    if (!livePool.available || livePool.walletSol <= 0) {
       console.log('[Payout] No balance — skipping and resetting timer')
       await releasePayoutLock()
       await resetTimerForNextInterval()
       return { success: false, error: 'No wallet balance' }
     }
 
-    if (poolEth < config.minPoolEth) {
+    if (poolSol < config.minPoolSol) {
       console.log(
-        `[Payout] Pool ${poolEth.toFixed(6)} ETH below minimum ${config.minPoolEth} ETH — skipping and resetting timer`
+        `[Payout] Pool ${poolSol.toFixed(6)} SOL below minimum ${config.minPoolSol} SOL — skipping and resetting timer`
       )
       await releasePayoutLock()
       await resetTimerForNextInterval()
@@ -462,33 +461,41 @@ export async function executePayout(): Promise<PayoutResult> {
       console.log(`[Payout]   #${i + 1}: ${w.wallet.slice(0, 8)}... (${w.drawdownPct.toFixed(1)}% loss, $${w.lossUsd.toFixed(2)})`)
     })
 
-    const devFeeEth = poolEth * config.devFeePct
-    const winnersPoolEth = poolEth - devFeeEth
+    const devFeeSol = poolSol * config.devFeePct
+    const winnersPoolSol = poolSol - devFeeSol
     const payoutAmounts = [
-      winnersPoolEth * config.payoutSplit.first,
-      winnersPoolEth * config.payoutSplit.second,
-      winnersPoolEth * config.payoutSplit.third,
+      winnersPoolSol * config.payoutSplit.first,
+      winnersPoolSol * config.payoutSplit.second,
+      winnersPoolSol * config.payoutSplit.third,
     ]
 
     const accruedDevFee = await getAccruedDevFeeEth()
-    const devWalletValid =
-      !!config.devWalletAddress && isAddress(config.devWalletAddress)
-    const totalDevFeeEth = devFeeEth + accruedDevFee
+    const devWalletValid = (() => {
+      if (!config.devWalletAddress) return false
+      try {
+        // eslint-disable-next-line no-new
+        new PublicKey(config.devWalletAddress)
+        return true
+      } catch {
+        return false
+      }
+    })()
+    const totalDevFeeSol = devFeeSol + accruedDevFee
 
     const results: any[] = []
-    let totalPaidEth = 0
+    let totalPaidSol = 0
 
     console.log('[Payout] Creating pending payout records in database...')
 
-    const pendingPayouts: { id: any; rank: number; wallet: string; amountEth: number }[] = []
+    const pendingPayouts: { id: any; rank: number; wallet: string; amountSol: number }[] = []
 
-    if (devWalletValid && config.executePayouts && totalDevFeeEth >= MIN_TRANSFER_ETH) {
+    if (devWalletValid && config.executePayouts && totalDevFeeSol >= MIN_TRANSFER_SOL) {
       const devPayout = await Payout.create({
         cycle: nextCycle,
         rank: 0,
         wallet: config.devWalletAddress,
-        amount: totalDevFeeEth * ethPrice,
-        amountTokens: totalDevFeeEth,
+        amount: totalDevFeeSol * solPrice,
+        amountTokens: totalDevFeeSol,
         drawdownPct: 0,
         lossUsd: 0,
         txHash: null,
@@ -499,37 +506,37 @@ export async function executePayout(): Promise<PayoutResult> {
         id: devPayout._id,
         rank: 0,
         wallet: config.devWalletAddress,
-        amountEth: totalDevFeeEth,
+        amountSol: totalDevFeeSol,
       })
-    } else if (devWalletValid && devFeeEth > 0) {
-      const newAccrued = accruedDevFee + devFeeEth
+    } else if (devWalletValid && devFeeSol > 0) {
+      const newAccrued = accruedDevFee + devFeeSol
       await setAccruedDevFeeEth(newAccrued)
       console.log(
-        `[Payout] Dev fee ${devFeeEth.toFixed(6)} ETH below min transfer — accrued total ${newAccrued.toFixed(6)} ETH`
+        `[Payout] Dev fee ${devFeeSol.toFixed(6)} SOL below min transfer — accrued total ${newAccrued.toFixed(6)} SOL`
       )
-    } else if (devFeeEth > 0 && !devWalletValid) {
+    } else if (devFeeSol > 0 && !devWalletValid) {
       console.warn('[Payout] DEV_WALLET_ADDRESS missing or invalid — dev fee stays in pool wallet')
     }
 
     for (let i = 0; i < eligibleWinners.length; i++) {
       const winner = eligibleWinners[i]
-      const amountEth = payoutAmounts[i]
+      const amountSol = payoutAmounts[i]
 
-      if (amountEth < MIN_TRANSFER_ETH) continue
+      if (amountSol < MIN_TRANSFER_SOL) continue
 
       const winnerPayout = await Payout.create({
         cycle: nextCycle,
         rank: i + 1,
         wallet: winner.wallet,
-        amount: amountEth * ethPrice,
-        amountTokens: amountEth,
+        amount: amountSol * solPrice,
+        amountTokens: amountSol,
         drawdownPct: winner.drawdownPct,
         lossUsd: winner.lossUsd,
         txHash: null,
         status: 'pending',
         errorMessage: null,
       })
-      pendingPayouts.push({ id: winnerPayout._id, rank: i + 1, wallet: winner.wallet, amountEth })
+      pendingPayouts.push({ id: winnerPayout._id, rank: i + 1, wallet: winner.wallet, amountSol })
     }
 
     console.log(`[Payout] Created ${pendingPayouts.length} pending payout records`)
@@ -539,22 +546,22 @@ export async function executePayout(): Promise<PayoutResult> {
       const label = isDevFee ? 'Dev fee' : `#${pending.rank}`
 
       const currentLive = await getLivePoolBalance()
-      const availableEth = currentLive.walletEth
-      const requiredEth = pending.amountEth + 0.001
+      const availableSol = currentLive.walletSol
+      const requiredSol = pending.amountSol + 0.001
 
-      if (availableEth < requiredEth) {
+      if (availableSol < requiredSol) {
         console.log(`[Payout] ${label}: Insufficient balance — skipping`)
         await Payout.findByIdAndUpdate(pending.id, {
           status: 'skipped',
-          errorMessage: `Insufficient balance: ${availableEth.toFixed(6)} ETH < ${requiredEth.toFixed(6)} ETH needed`,
+          errorMessage: `Insufficient balance: ${availableSol.toFixed(6)} SOL < ${requiredSol.toFixed(6)} SOL needed`,
         })
         continue
       }
 
-      console.log(`[Payout] ${label}: Sending ${pending.amountEth.toFixed(6)} ETH to ${pending.wallet.slice(0, 10)}...`)
+      console.log(`[Payout] ${label}: Sending ${pending.amountSol.toFixed(6)} SOL to ${pending.wallet.slice(0, 10)}...`)
 
       const txResult = config.executePayouts
-        ? await transferEth(pending.wallet, pending.amountEth)
+        ? await transferSol(pending.wallet, pending.amountSol)
         : { success: false, txHash: null, error: 'EXECUTE_PAYOUTS disabled' }
 
       console.log(`[Payout] ${label} result: ${txResult.success ? '✅' : '❌'} ${txResult.txHash || txResult.error}`)
@@ -566,7 +573,7 @@ export async function executePayout(): Promise<PayoutResult> {
       })
 
       if (txResult.success) {
-        totalPaidEth += pending.amountEth
+        totalPaidSol += pending.amountSol
 
         if (isDevFee) {
           await setAccruedDevFeeEth(0)
@@ -577,7 +584,7 @@ export async function executePayout(): Promise<PayoutResult> {
             expiresAt: new Date(Date.now() + config.payoutIntervalMinutes * 60 * 1000 * 2),
           }).catch(() => {})
 
-          const tokenPrice = (await getTokenPrice(config.tokenMint)) ?? ethPrice
+          const tokenPrice = (await getTokenPrice(config.tokenMint)) ?? solPrice
           await persistWinnerAfterPayout(pending.wallet, nextCycle, tokenPrice)
         }
       }
@@ -586,7 +593,7 @@ export async function executePayout(): Promise<PayoutResult> {
         rank: pending.rank,
         type: isDevFee ? 'dev_fee' : 'winner',
         wallet: pending.wallet,
-        amount_eth: pending.amountEth.toFixed(6),
+        amount_eth: pending.amountSol.toFixed(6),
         status: txResult.success ? 'success' : 'failed',
         tx_hash: txResult.txHash,
         error: txResult.error,
@@ -610,7 +617,7 @@ export async function executePayout(): Promise<PayoutResult> {
 
     console.log('')
     console.log('[Payout] ╔════════════════════════════════════════════════════════╗')
-    console.log(`[Payout] ║  ✅ CYCLE ${nextCycle} COMPLETE - ${totalPaidEth.toFixed(6)} ETH PAID              ║`)
+    console.log(`[Payout] ║  ✅ CYCLE ${nextCycle} COMPLETE - ${totalPaidSol.toFixed(6)} SOL PAID              ║`)
     console.log('[Payout] ╚════════════════════════════════════════════════════════╝')
 
     await releasePayoutLock()
@@ -620,8 +627,8 @@ export async function executePayout(): Promise<PayoutResult> {
       cycle: nextCycle,
       data: {
         cycle: nextCycle,
-        total_paid_eth: totalPaidEth.toFixed(6),
-        total_paid_usd: (totalPaidEth * ethPrice).toFixed(2),
+        total_paid_eth: totalPaidSol.toFixed(6),
+        total_paid_usd: (totalPaidSol * solPrice).toFixed(2),
         payouts: results,
       },
     }

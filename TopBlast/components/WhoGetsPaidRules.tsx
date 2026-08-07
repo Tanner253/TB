@@ -1,79 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { EligibilityRequirements } from '@/components/tenant/EligibilityRequirements'
 import { getWinnerSharePercents, getDevFeePercent, getCommunityPercent } from '@/lib/payout/shares'
-import { MIN_HOLD_DURATION_MINUTES, formatHoldDuration } from '@/lib/eligibility/holdDuration'
 
 const SHARES = getWinnerSharePercents()
 const DEV_FEE = getDevFeePercent()
 const COMMUNITY = getCommunityPercent()
 
-type Thresholds = {
-  min_balance?: string
-  min_hold_display?: string
-  min_loss_pct?: number
-}
-
 interface WhoGetsPaidRulesProps {
   variant?: 'homepage' | 'compact'
+  slug?: string
   className?: string
 }
 
-export function WhoGetsPaidRules({ variant = 'homepage', className = '' }: WhoGetsPaidRulesProps) {
-  const [thresholds, setThresholds] = useState<Thresholds>({
-    min_balance: '1,000',
-    min_hold_display: formatHoldDuration(MIN_HOLD_DURATION_MINUTES),
-    min_loss_pct: 10,
-  })
-
-  useEffect(() => {
-    fetch('/api/stats')
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.success && json.data?.thresholds) {
-          setThresholds(json.data.thresholds)
-        }
-      })
-      .catch(() => {})
-  }, [])
-
-  const requirements = [
-    {
-      n: 1,
-      title: 'Minimum token balance',
-      body: `Hold at least ${thresholds.min_balance} tokens in your wallet.`,
-    },
-    {
-      n: 2,
-      title: `${thresholds.min_hold_display} minimum hold`,
-      body: 'Counted from your first on-chain buy. Hardcoded — not configurable.',
-    },
-    {
-      n: 3,
-      title: 'In a loss position',
-      body: 'Current token price must be below your VWAP (volume-weighted average buy price).',
-    },
-    {
-      n: 4,
-      title: `Loss ≥ ${thresholds.min_loss_pct}% of the live pool`,
-      body: 'Your USD loss must meet the threshold shown on the leaderboard (updates with pool size).',
-    },
-    {
-      n: 5,
-      title: 'Has not sold',
-      body: 'Any sell or transfer-out of tokens disqualifies the wallet.',
-    },
-    {
-      n: 6,
-      title: 'Not on winner cooldown',
-      body: 'If you won the previous payout cycle, you sit out until the next one.',
-    },
-    {
-      n: 7,
-      title: 'Not a protocol wallet',
-      body: 'The payout pool wallet and dev fee wallet cannot rank or receive loss-mining payouts.',
-    },
-  ]
+export function WhoGetsPaidRules({ variant = 'homepage', slug, className = '' }: WhoGetsPaidRulesProps) {
 
   const isHomepage = variant === 'homepage'
 
@@ -95,19 +35,12 @@ export function WhoGetsPaidRules({ variant = 'homepage', className = '' }: WhoGe
         </p>
       </div>
 
-      <ol className="space-y-3 mb-6 text-left">
-        {requirements.map((req) => (
-          <li key={req.n} className="flex gap-3 rounded-lg border border-rh-green/10 bg-rh-green/5 p-4">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-rh-green/20 text-sm font-bold text-rh-lime">
-              {req.n}
-            </span>
-            <div>
-              <p className="font-semibold text-white">{req.title}</p>
-              <p className="text-sm text-gray-400 mt-0.5">{req.body}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
+      <EligibilityRequirements slug={slug} variant="full" className="mb-6" />
+
+      <div className="rounded-xl border border-white/10 bg-black/30 p-4 mb-6 text-left text-sm text-gray-400">
+        <p className="font-medium text-white mb-1">Protocol wallets excluded</p>
+        <p>The payout pool wallet and platform dev fee wallet cannot rank or receive loss-mining payouts.</p>
+      </div>
 
       <div className="rounded-xl border border-rh-green/20 bg-black/40 p-5 text-left">
         <p className="text-sm font-semibold uppercase tracking-wider text-rh-lime mb-2">Payout split</p>
@@ -118,7 +51,7 @@ export function WhoGetsPaidRules({ variant = 'homepage', className = '' }: WhoGe
           <span className="font-mono text-rh-lime">
             {SHARES.first}/{SHARES.second}/{SHARES.third}
           </span>{' '}
-          of the winner pool. Payouts are sent in native ETH automatically.
+          of the winner pool. Payouts are sent in native SOL automatically.
         </p>
         <p className="text-xs text-gray-500">
           The countdown timer stays in &quot;launch limbo&quot; until the first eligible holder appears — holding tokens

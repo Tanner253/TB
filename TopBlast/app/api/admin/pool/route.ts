@@ -27,12 +27,12 @@ export async function GET(request: NextRequest) {
       pool_eth: livePool.poolEthFormatted,
       pool_usd: livePool.poolUsdFormatted,
       pool_usd_raw: livePool.poolUsd,
-      note: 'Fund the payout wallet with ETH on Robinhood Chain. MongoDB pool records are not used.',
+      note: 'Fund the payout wallet with SOL on Solana. MongoDB pool records are not used.',
     },
   })
 }
 
-/** Pool size is not set via API — deposit ETH to the payout wallet on-chain. */
+/** Pool size is not set via API — deposit SOL to the payout wallet on-chain. */
 export async function POST(request: NextRequest) {
   if (!verifyAdminSecret(request) && config.isProd) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   const livePool = await getLivePoolBalance()
   return NextResponse.json({
     success: false,
-    error: 'Pool balance is read from the payout wallet on-chain only. Send ETH to the payout wallet instead of using this endpoint.',
+    error: 'Pool balance is read from the payout wallet on-chain only. Send SOL to the payout wallet instead of using this endpoint.',
     data: {
       payout_wallet_address: livePool.payoutWalletAddress,
       current_pool_usd: livePool.poolUsdFormatted,

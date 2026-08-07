@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/db'
 import { Holder, Snapshot, Disqualification } from '@/lib/db/models'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
-import { getTokenHolders } from '@/lib/evm/indexer'
-import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
+import { getTokenHolders } from '@/lib/solana/indexer'
+import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
 import { calculateBatchVwaps, VwapData } from '@/lib/tracker/vwap'
 import { calculateDrawdown, calculateLossUsd, rankHolders, RankedHolder } from '@/lib/engine/calculations'
 import { config, validateConfig } from '@/lib/config'
@@ -51,24 +51,24 @@ async function runSnapshot(_request: NextRequest) {
     console.log(`[Snapshot] Starting hourly snapshot for ${config.tokenSymbol}`)
     console.log(`[Snapshot] Token: ${config.tokenMint}`)
 
-    // 1. Get current token price (REAL from Jupiter)
+    // 1. Get current token price (DexScreener → Jupiter fallback)
     const tokenPrice = await getTokenPrice(config.tokenMint)
     if (!tokenPrice) {
       return NextResponse.json({
         success: false,
-        error: 'Failed to fetch token price from Jupiter',
+        error: 'Failed to fetch token price from DexScreener/Jupiter',
       }, { status: 500 })
     }
     
     // Get current SOL price for cost basis calculations
-    const ethPrice = (await getEthPrice()) || 3500
+    const solPrice = (await getSolPrice()) || 150
     console.log(`[Snapshot] Token Price: $${tokenPrice}`)
-    console.log(`[Snapshot] ETH Price: $${ethPrice}`)
+    console.log(`[Snapshot] SOL Price: $${solPrice}`)
 
     // 2. Get pool balance from payout wallet on-chain (single source of truth)
     const livePool = await getLivePoolBalance()
     const poolBal = livePool.poolUsd
-    console.log(`[Snapshot] Pool: $${poolBal.toFixed(2)} (${livePool.poolEthFormatted} ETH from ${livePool.payoutWalletAddress?.slice(0, 10) || '?'}...)`)
+    console.log(`[Snapshot] Pool: $${poolBal.toFixed(2)} (${livePool.poolSolFormatted} SOL from ${livePool.payoutWalletAddress?.slice(0, 10) || '?'}...)`)
 
     // 3. Get current cycle number
     const lastSnapshot = await Snapshot.findOne().sort({ cycle: -1 })
@@ -85,7 +85,7 @@ async function runSnapshot(_request: NextRequest) {
     if (rawHolders.length === 0) {
       return NextResponse.json({
         success: false,
-        error: 'No holders found - verify TOKEN_MINT_ADDRESS (0x...) and RPC connectivity',
+        error: 'No holders found - verify TOKEN_MINT_ADDRESS (SPL mint) and Helius connectivity',
       }, { status: 500 })
     }
 

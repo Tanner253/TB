@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { getTokenData, formatPrice, formatUsd } from '@/lib/evm/price'
-import { formatWallet } from '@/lib/evm/holders'
-import { getHolderCount } from '@/lib/evm/indexer'
+import { getTokenData, formatPrice, formatUsd } from '@/lib/solana/price'
+import { formatWallet } from '@/lib/solana/holders'
+import { getHolderCount } from '@/lib/solana/indexer'
 import { 
   getAllHolders, 
   getEligibleCount, 

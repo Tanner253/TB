@@ -8,10 +8,11 @@ import { TimerState, Holder, CurrentRankings } from '@/lib/db/models'
 
 jest.mock('@/lib/config', () => ({
   config: {
-    tokenMint: '0x0000000000000000000000000000000000000001',
+    tokenMint: 'So11111111111111111111111111111111111111112',
     tokenSymbol: 'TEST',
     payoutIntervalMinutes: 120,
     poolPercentage: 0.99,
+    minPoolSol: 0.025,
     minPoolEth: 0.025,
     devFeePct: 0.12,
     payoutSplit: { first: 0.60, second: 0.25, third: 0.15 },
@@ -70,13 +71,13 @@ describe('Payout timer', () => {
   it('resets holder state when token mint changes', async () => {
     await TimerState.create({
       key: 'payout_timer',
-      tokenMint: '0xoldtoken000000000000000000000000000001',
+      tokenMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
       timerStatus: 'active',
       lastPayoutTime: new Date(),
       currentCycle: 5,
     })
     await Holder.create({
-      wallet: '0xholder',
+      wallet: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuQosgAsU',
       balance: 1000000,
       vwap: 0.001,
       isEligible: true,

@@ -6,6 +6,10 @@ import {
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js'
 import bs58 from 'bs58'
+import { getPayoutPrivateKey } from '@/lib/tenant/context'
+
+/** Minimum SOL transfer (rent exemption floor for new accounts). */
+export const MIN_TRANSFER_SOL = 0.001
 
 /**
  * Get the Solana RPC URL based on environment
@@ -149,8 +153,8 @@ export async function transferSol(
   amountSol: number
 ): Promise<{ success: boolean; txHash: string | null; error: string | null }> {
   
-  // Validate private key exists
-  if (!process.env.PAYOUT_WALLET_PRIVATE_KEY) {
+  const privateKey = getPayoutPrivateKey()
+  if (!privateKey) {
     return {
       success: false,
       txHash: null,
@@ -167,14 +171,12 @@ export async function transferSol(
     }
   }
 
-  // Minimum for rent exemption on new accounts (~0.00089 SOL)
-  const MIN_RENT_EXEMPTION = 0.001
-  if (amountSol < MIN_RENT_EXEMPTION) {
+  if (amountSol < MIN_TRANSFER_SOL) {
     console.log(`[Transfer] ⚠️ Amount ${amountSol.toFixed(6)} SOL below rent minimum - skipping`)
     return {
       success: false,
       txHash: null,
-      error: `Amount ${amountSol.toFixed(6)} SOL below minimum ${MIN_RENT_EXEMPTION} SOL for rent exemption`,
+      error: `Amount ${amountSol.toFixed(6)} SOL below minimum ${MIN_TRANSFER_SOL} SOL for rent exemption`,
     }
   }
 
@@ -195,7 +197,7 @@ export async function transferSol(
     
     // Load payout wallet from private key
     const payoutKeypair = Keypair.fromSecretKey(
-      bs58.decode(process.env.PAYOUT_WALLET_PRIVATE_KEY)
+      bs58.decode(privateKey)
     )
 
     console.log(`[Transfer] Network: ${process.env.SOLANA_NETWORK || 'mainnet'}`)
@@ -288,7 +290,8 @@ export async function getPayoutWalletBalance(): Promise<{
   sol: number
   address: string 
 } | null> {
-  if (!process.env.PAYOUT_WALLET_PRIVATE_KEY) {
+  const privateKey = getPayoutPrivateKey()
+  if (!privateKey) {
     return null
   }
 
@@ -296,7 +299,7 @@ export async function getPayoutWalletBalance(): Promise<{
     const rpcUrl = getRpcUrl()
     
     const payoutKeypair = Keypair.fromSecretKey(
-      bs58.decode(process.env.PAYOUT_WALLET_PRIVATE_KEY)
+      bs58.decode(privateKey)
     )
 
     // Use HTTP for balance

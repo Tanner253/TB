@@ -1,19 +1,23 @@
 /**
- * Single source of truth for reward pool size — always read from payout wallet on-chain.
- * Do not use MongoDB PoolBalance or POOL_BALANCE_USD env for live UI.
+ * Single source of truth for reward pool size — payout wallet SOL balance on-chain.
  */
 
-import { getPayoutWalletBalance } from '@/lib/evm/transfer'
-import { getEthPrice, formatUsd } from '@/lib/evm/price'
+import { getPayoutWalletBalance } from '@/lib/solana/transfer'
+import { getSolPrice, formatUsd } from '@/lib/solana/price'
 import { config } from '@/lib/config'
 
 export interface LivePoolBalance {
   payoutWalletAddress: string | null
+  walletSol: number
+  poolSol: number
+  poolUsd: number
+  solPrice: number
+  poolUsdFormatted: string
+  poolSolFormatted: string
+  /** @deprecated use poolSol — kept for API field compatibility */
   walletEth: number
   poolEth: number
-  poolUsd: number
   ethPrice: number
-  poolUsdFormatted: string
   poolEthFormatted: string
   minLossUsd: number
   minLossUsdFormatted: string
@@ -21,17 +25,21 @@ export interface LivePoolBalance {
 }
 
 export async function getLivePoolBalance(): Promise<LivePoolBalance> {
-  const ethPrice = (await getEthPrice()) || 3500
+  const solPrice = (await getSolPrice()) || 150
   const walletBalance = await getPayoutWalletBalance()
 
   if (!walletBalance) {
     return {
       payoutWalletAddress: null,
+      walletSol: 0,
+      poolSol: 0,
+      poolUsd: 0,
+      solPrice,
+      poolUsdFormatted: formatUsd(0),
+      poolSolFormatted: '0.0000',
       walletEth: 0,
       poolEth: 0,
-      poolUsd: 0,
-      ethPrice,
-      poolUsdFormatted: formatUsd(0),
+      ethPrice: solPrice,
       poolEthFormatted: '0.0000',
       minLossUsd: 0,
       minLossUsdFormatted: formatUsd(0),
@@ -39,19 +47,23 @@ export async function getLivePoolBalance(): Promise<LivePoolBalance> {
     }
   }
 
-  const walletEth = walletBalance.eth || walletBalance.sol || 0
-  const poolEth = walletEth * config.poolPercentage
-  const poolUsd = poolEth * ethPrice
+  const walletSol = walletBalance.sol
+  const poolSol = walletSol * config.poolPercentage
+  const poolUsd = poolSol * solPrice
   const minLossUsd = poolUsd * (config.minLossThresholdPct / 100)
 
   return {
     payoutWalletAddress: walletBalance.address,
-    walletEth,
-    poolEth,
+    walletSol,
+    poolSol,
     poolUsd,
-    ethPrice,
+    solPrice,
     poolUsdFormatted: formatUsd(poolUsd),
-    poolEthFormatted: poolEth.toFixed(4),
+    poolSolFormatted: poolSol.toFixed(4),
+    walletEth: walletSol,
+    poolEth: poolSol,
+    ethPrice: solPrice,
+    poolEthFormatted: poolSol.toFixed(4),
     minLossUsd,
     minLossUsdFormatted: formatUsd(minLossUsd),
     available: true,

@@ -3,17 +3,16 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import { useTenantRouting } from '@/hooks/useTenantRouting'
 import Image from 'next/image'
 import { getDevFeePercent } from '@/lib/payout/shares'
 import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
 
 const DEV_FEE = getDevFeePercent()
 
-// External Links
-const LINKS = {
-  twitter: 'https://x.com/topblasteth',
-  whitepaper: 'https://topblastx100.vercel.app',
-}
+import { EXTERNAL_LINKS } from '@/lib/marketing/devValueProp'
+
+const LINKS = EXTERNAL_LINKS
 
 // Social Icons
 const XIcon = () => (
@@ -149,14 +148,17 @@ function formatTimeAgo(timestamp: string): string {
 }
 
 export default function HistoryPage() {
+  const { slug, basePath } = useTenantRouting()
   const [data, setData] = useState<HistoryData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const historyUrl = slug ? `/api/t/${slug}/leaderboard/history` : '/api/leaderboard/history'
+
     const fetchHistory = async () => {
       try {
-        const res = await fetch('/api/leaderboard/history')
+        const res = await fetch(historyUrl)
         const json = await res.json()
         if (json.success) {
           setData(json.data)
@@ -174,7 +176,7 @@ export default function HistoryPage() {
     fetchHistory()
     const interval = setInterval(fetchHistory, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [slug])
 
   if (loading) {
     return (
@@ -215,15 +217,15 @@ export default function HistoryPage() {
       <header className="sticky top-0 z-50 border-b border-rh-green/10 bg-black/80 backdrop-blur-xl">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3">
+            <Link href={basePath || '/'} className="flex items-center gap-3">
               <TopBlastLogo size="md" />
               <span className="text-xl font-bold tracking-tight"><span className="text-rh-green">TOP</span><span className="text-white">BLAST</span></span>
             </Link>
             <nav className="flex items-center gap-6">
-              <Link href="/leaderboard" className="text-gray-400 hover:text-white transition-colors text-sm">
+              <Link href={`${basePath}/leaderboard`} className="text-gray-400 hover:text-white transition-colors text-sm">
                 Leaderboard
               </Link>
-              <Link href="/stats" className="text-gray-400 hover:text-white transition-colors text-sm">
+              <Link href={`${basePath}/stats`} className="text-gray-400 hover:text-white transition-colors text-sm">
                 Stats
               </Link>
               <a href={LINKS.whitepaper} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-rh-green transition-colors" title="Whitepaper">
@@ -244,9 +246,9 @@ export default function HistoryPage() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-3xl font-bold mb-2">Payout History <span className="text-rh-green text-lg font-normal">· ETH</span></h1>
+          <h1 className="text-3xl font-bold mb-2">Payout History <span className="text-rh-green text-lg font-normal">· SOL</span></h1>
           <p className="text-gray-400">
-            Native ETH payouts on Robinhood Chain · {data?.stats.total_cycles || 0} cycles · {data?.stats.total_payouts || 0} successful · {data?.stats.total_distributed_eth || '0'} ETH distributed
+            Native SOL payouts on Solana · {data?.stats.total_cycles || 0} cycles · {data?.stats.total_payouts || 0} successful · {data?.stats.total_distributed_eth || '0'} SOL distributed
             {data?.network === 'devnet' && (
               <span className="ml-2 text-amber-400">(Devnet)</span>
             )}
@@ -274,7 +276,7 @@ export default function HistoryPage() {
           </div>
           <div className="bg-white/5 border border-white/10 rounded-xl p-4">
             <div className="text-sm text-gray-400">Distributed</div>
-            <div className="text-2xl font-bold text-rh-lime">{data?.stats.total_distributed_eth || '0'} ETH</div>
+            <div className="text-2xl font-bold text-rh-lime">{data?.stats.total_distributed_eth || '0'} SOL</div>
           </div>
         </motion.div>
 
@@ -302,7 +304,7 @@ export default function HistoryPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-sm text-gray-400">Total Paid</div>
-                    <div className="text-lg font-bold text-white">{cycle.total_eth} ETH</div>
+                    <div className="text-lg font-bold text-white">{cycle.total_eth} SOL</div>
                     <div className="text-xs text-gray-500">${cycle.total_usd}</div>
                   </div>
                 </div>
@@ -357,7 +359,7 @@ export default function HistoryPage() {
                           </div>
                           <div className="text-right">
                             <div className={`text-xl font-bold ${payout.status === 'success' ? 'text-rh-green' : 'text-red-400 line-through'}`}>
-                              {payout.amount_eth} ETH
+                              {payout.amount_eth} SOL
                             </div>
                             <div className="text-sm text-gray-500 mt-1">${payout.amount_usd}</div>
                           </div>
@@ -386,7 +388,7 @@ export default function HistoryPage() {
                         <span className="text-gray-400">
                           {cycle.success_count} successful, {cycle.failed_count} failed
                         </span>
-                        <span className="text-xl font-bold text-rh-green">{cycle.total_eth} ETH</span>
+                        <span className="text-xl font-bold text-rh-green">{cycle.total_eth} SOL</span>
                       </div>
                     </div>
                   </div>
@@ -416,7 +418,7 @@ export default function HistoryPage() {
                 Winners will appear here after the first payout cycle is processed.
                 All transactions are recorded on-chain with Blockscout links.
               </p>
-              <Link href="/leaderboard">
+              <Link href={`${basePath}/leaderboard`}>
                 <motion.button
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.98 }}

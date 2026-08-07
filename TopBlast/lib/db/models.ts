@@ -1,7 +1,45 @@
 import mongoose, { Schema, Document, Model } from 'mongoose'
 
+// Tenant registry (SaaS)
+export type TenantStatus = 'pending' | 'active' | 'paused'
+
+export interface ITenant extends Document {
+  slug: string
+  mint: string
+  symbol: string
+  decimals: number
+  encryptedPayoutKey: string
+  payoutWalletAddress: string
+  devWalletAddress: string
+  status: TenantStatus
+  payoutIntervalMinutes: number
+  minTokenHolding: number
+  minLossThresholdPct: number
+  minPoolSol: number
+  executePayouts: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
+const TenantSchema = new Schema<ITenant>({
+  slug: { type: String, required: true, unique: true, index: true },
+  mint: { type: String, required: true, unique: true, index: true },
+  symbol: { type: String, required: true },
+  decimals: { type: Number, default: 6 },
+  encryptedPayoutKey: { type: String, required: true },
+  payoutWalletAddress: { type: String, required: true },
+  devWalletAddress: { type: String, default: '' },
+  status: { type: String, enum: ['pending', 'active', 'paused'], default: 'active' },
+  payoutIntervalMinutes: { type: Number, default: 15 },
+  minTokenHolding: { type: Number, default: 1000 },
+  minLossThresholdPct: { type: Number, default: 10 },
+  minPoolSol: { type: Number, default: 0.001 },
+  executePayouts: { type: Boolean, default: true },
+}, { timestamps: true })
+
 // Holder Interface
 export interface IHolder extends Document {
+  tenantSlug: string
   wallet: string
   balance: number
   vwap: number | null
@@ -18,7 +56,8 @@ export interface IHolder extends Document {
 }
 
 const HolderSchema = new Schema<IHolder>({
-  wallet: { type: String, required: true, unique: true, index: true },
+  tenantSlug: { type: String, default: '_legacy', index: true },
+  wallet: { type: String, required: true, index: true },
   balance: { type: Number, default: 0 },
   vwap: { type: Number, default: null },
   totalBought: { type: Number, default: 0 },
@@ -30,9 +69,11 @@ const HolderSchema = new Schema<IHolder>({
   isEligible: { type: Boolean, default: false },
   ineligibleReason: { type: String, default: null },
 }, { timestamps: true })
+HolderSchema.index({ tenantSlug: 1, wallet: 1 }, { unique: true })
 
 // Snapshot Interface
 export interface ISnapshot extends Document {
+  tenantSlug: string
   cycle: number
   timestamp: Date
   tokenPrice: number
@@ -44,7 +85,8 @@ export interface ISnapshot extends Document {
 }
 
 const SnapshotSchema = new Schema<ISnapshot>({
-  cycle: { type: Number, required: true, unique: true, index: true },
+  tenantSlug: { type: String, default: '_legacy', index: true },
+  cycle: { type: Number, required: true, index: true },
   timestamp: { type: Date, required: true },
   tokenPrice: { type: Number, required: true },
   poolBalance: { type: Number, required: true },
@@ -52,9 +94,11 @@ const SnapshotSchema = new Schema<ISnapshot>({
   eligibleCount: { type: Number, required: true },
   rankings: { type: [Schema.Types.Mixed], default: [] },
 }, { timestamps: true })
+SnapshotSchema.index({ tenantSlug: 1, cycle: 1 }, { unique: true })
 
 // Payout Interface
 export interface IPayout extends Document {
+  tenantSlug: string
   cycle: number
   rank: number
   wallet: string
@@ -69,6 +113,7 @@ export interface IPayout extends Document {
 }
 
 const PayoutSchema = new Schema<IPayout>({
+  tenantSlug: { type: String, default: '_legacy', index: true },
   cycle: { type: Number, required: true, index: true },
   rank: { type: Number, required: true },
   wallet: { type: String, required: true },
@@ -83,6 +128,7 @@ const PayoutSchema = new Schema<IPayout>({
 
 // Disqualification Interface
 export interface IDisqualification extends Document {
+  tenantSlug: string
   wallet: string
   reason: string
   expiresAt: Date
@@ -90,13 +136,15 @@ export interface IDisqualification extends Document {
 }
 
 const DisqualificationSchema = new Schema<IDisqualification>({
+  tenantSlug: { type: String, default: '_legacy', index: true },
   wallet: { type: String, required: true, index: true },
   reason: { type: String, required: true },
   expiresAt: { type: Date, required: true, index: true },
 }, { timestamps: true })
 
-// Pool Balance Interface (singleton)
+// Pool Balance Interface (per tenant)
 export interface IPoolBalance extends Document {
+  tenantSlug: string
   balance: number
   balanceTokens: number
   totalDistributed: number
@@ -107,6 +155,7 @@ export interface IPoolBalance extends Document {
 }
 
 const PoolBalanceSchema = new Schema<IPoolBalance>({
+  tenantSlug: { type: String, default: '_legacy', unique: true, index: true },
   balance: { type: Number, default: 0 },
   balanceTokens: { type: Number, default: 0 },
   totalDistributed: { type: Number, default: 0 },
@@ -197,6 +246,7 @@ const CurrentRankingsSchema = new Schema<ICurrentRankings>({
 }, { timestamps: true })
 
 // Export models (check if already registered to avoid OverwriteModelError)
+export const Tenant: Model<ITenant> = mongoose.models.Tenant || mongoose.model<ITenant>('Tenant', TenantSchema)
 export const Holder: Model<IHolder> = mongoose.models.Holder || mongoose.model<IHolder>('Holder', HolderSchema)
 export const Snapshot: Model<ISnapshot> = mongoose.models.Snapshot || mongoose.model<ISnapshot>('Snapshot', SnapshotSchema)
 export const Payout: Model<IPayout> = mongoose.models.Payout || mongoose.model<IPayout>('Payout', PayoutSchema)

@@ -1,5 +1,5 @@
-import { getWalletTransactions } from '../evm/indexer'
-import { getTokenPrice, getEthPrice } from '../evm/price'
+import { getWalletTransactions } from '../solana/indexer'
+import { getTokenPrice, getSolPrice } from '../solana/price'
 
 export interface VwapData {
   wallet: string
@@ -52,9 +52,8 @@ export async function calculateWalletVwap(
       if (tx.isStablecoinSwap && tx.usdValue > 0) {
         // Direct stablecoin swap - already in USD
         totalStablecoinSpent += tx.usdValue
-      } else if (tx.ethAmount > 0) {
-        // SOL swap - store raw SOL amount
-        totalEthSpent += tx.ethAmount
+      } else if (tx.solAmount > 0) {
+        totalEthSpent += tx.solAmount
       }
       // Note: If neither, we can't determine cost basis for this transaction
       
@@ -67,7 +66,7 @@ export async function calculateWalletVwap(
   }
 
   // Get current SOL price for cost basis calculation
-  const solPrice = currentSolPrice || (await getEthPrice()) || 220
+  const solPrice = currentSolPrice || (await getSolPrice()) || 220
   
   // Calculate total cost basis using CURRENT SOL price
   // This is how GMGN and other trackers do it - historical prices don't matter
@@ -102,7 +101,7 @@ export async function calculateBatchVwaps(
   
   // Fetch current SOL price ONCE at the start (not per wallet)
   // This ensures all wallets use the same SOL price for fair comparison
-  const currentSolPrice = (await getEthPrice()) || 220
+  const currentSolPrice = (await getSolPrice()) || 220
   console.log(`[VWAP] Using SOL price: $${currentSolPrice}`)
   
   // Process in batches to avoid rate limiting

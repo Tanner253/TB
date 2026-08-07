@@ -14,8 +14,8 @@ import {
 } from '@/lib/db/models'
 import { config } from '@/lib/config'
 import { resetHolderServiceState } from '@/lib/tracker/holderService'
-
-const TIMER_KEY = 'payout_timer'
+import { getTimerKey, getRankingsKey } from '@/lib/tenant/keys'
+import { tenantFilter } from '@/lib/tenant/scope'
 
 export interface DeploymentResetResult {
   tokenMint: string
@@ -32,16 +32,16 @@ export async function resetDeploymentState(): Promise<DeploymentResetResult> {
   await connectDB()
 
   const [holders, rankings, disqualifications, snapshots, payouts, poolRows] = await Promise.all([
-    Holder.deleteMany({}),
-    CurrentRankings.deleteMany({}),
-    Disqualification.deleteMany({}),
-    Snapshot.deleteMany({}),
-    Payout.deleteMany({}),
-    PoolBalance.deleteMany({}),
+    Holder.deleteMany(tenantFilter()),
+    CurrentRankings.deleteMany({ key: getRankingsKey() }),
+    Disqualification.deleteMany(tenantFilter()),
+    Snapshot.deleteMany(tenantFilter()),
+    Payout.deleteMany(tenantFilter()),
+    PoolBalance.deleteMany(tenantFilter()),
   ])
 
   await TimerState.findOneAndUpdate(
-    { key: TIMER_KEY },
+    { key: getTimerKey() },
     {
       $set: {
         tokenMint: config.tokenMint,

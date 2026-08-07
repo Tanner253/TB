@@ -5,16 +5,17 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════════
-   ROBINHOOD GREEN THEME
+   SOLANA THEME — purple #9945FF · mint #14F195
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
   --color-bg-primary: #000000;
   --color-bg-secondary: #0a0a0a;
   --color-bg-tertiary: #111111;
-  --color-accent-green: #00C805;
-  --color-accent-green-dark: #009B04;
-  --color-accent-lime: #CCFF00;
+  --color-accent-purple: #9945FF;
+  --color-accent-purple-dark: #7A2FD4;
+  --color-accent-mint: #14F195;
+  --color-accent-mint-bright: #19FB9B;
   --color-accent-red: #ef4444;
   --color-accent-amber: #f59e0b;
 }
@@ -29,12 +30,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 200, 5, 0.25);
+  background: rgba(153, 69, 255, 0.25);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 200, 5, 0.4);
+  background: rgba(153, 69, 255, 0.4);
 }
 
 html {
@@ -58,22 +59,22 @@ body {
   background: rgba(10, 10, 10, 0.75);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 200, 5, 0.12);
+  border: 1px solid rgba(153, 69, 255, 0.12);
   box-shadow:
     0 4px 30px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(0, 200, 5, 0.05);
+    inset 0 1px 0 rgba(153, 69, 255, 0.05);
 }
 
 .glass-panel-light {
-  background: rgba(0, 200, 5, 0.03);
+  background: rgba(153, 69, 255, 0.03);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(0, 200, 5, 0.08);
+  border: 1px solid rgba(153, 69, 255, 0.08);
 }
 
 .glow-green,
 .glow-rh {
-  box-shadow: 0 0 20px rgba(0, 200, 5, 0.35), 0 0 60px rgba(0, 200, 5, 0.12);
+  box-shadow: 0 0 20px rgba(153, 69, 255, 0.35), 0 0 60px rgba(153, 69, 255, 0.12);
 }
 
 .glow-red {
@@ -85,7 +86,7 @@ body {
 }
 
 .text-glow-green {
-  text-shadow: 0 0 10px rgba(0, 200, 5, 0.6), 0 0 30px rgba(0, 200, 5, 0.3);
+  text-shadow: 0 0 10px rgba(153, 69, 255, 0.6), 0 0 30px rgba(153, 69, 255, 0.3);
 }
 
 .text-glow-red {
@@ -128,9 +129,9 @@ body {
 .animate-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(0, 200, 5, 0) 0%,
-    rgba(0, 200, 5, 0.08) 50%,
-    rgba(0, 200, 5, 0) 100%
+    rgba(153, 69, 255, 0) 0%,
+    rgba(153, 69, 255, 0.08) 50%,
+    rgba(153, 69, 255, 0) 100%
   );
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
@@ -148,11 +149,11 @@ body {
 @keyframes countdown-pulse {
   0%, 100% {
     transform: scale(1);
-    text-shadow: 0 0 10px rgba(0, 200, 5, 0.3);
+    text-shadow: 0 0 10px rgba(153, 69, 255, 0.3);
   }
   50% {
     transform: scale(1.02);
-    text-shadow: 0 0 20px rgba(0, 200, 5, 0.6);
+    text-shadow: 0 0 20px rgba(153, 69, 255, 0.6);
   }
 }
 
@@ -173,7 +174,7 @@ body {
   @apply text-orange-400 bg-orange-400/10 border border-orange-400/30;
 }
 
-.drawdown-profit { @apply text-rh-green; }
+.drawdown-profit { @apply text-sol-mint; }
 .drawdown-mild { @apply text-yellow-400; }
 .drawdown-moderate { @apply text-orange-400; }
 .drawdown-severe { @apply text-red-400; }
@@ -187,7 +188,7 @@ body {
   content: '';
   position: absolute;
   inset: -2px;
-  background: linear-gradient(45deg, #00C805, #CCFF00, #00E806);
+  background: linear-gradient(45deg, #9945FF, #14F195, #19FB9B);
   border-radius: inherit;
   z-index: -1;
   opacity: 0.5;
@@ -202,7 +203,7 @@ body {
   transform: translateY(-4px);
   box-shadow:
     0 20px 40px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(0, 200, 5, 0.15);
+    0 0 0 1px rgba(153, 69, 255, 0.15);
 }
 
 .table-row-hover {
@@ -210,7 +211,7 @@ body {
 }
 
 .table-row-hover:hover {
-  background-color: rgba(0, 200, 5, 0.04);
+  background-color: rgba(153, 69, 255, 0.04);
 }
 
 .gradient-text {
@@ -221,7 +222,7 @@ body {
 }
 
 .gradient-text-accent {
-  background: linear-gradient(135deg, #00C805 0%, #CCFF00 50%, #00E806 100%);
+  background: linear-gradient(135deg, #9945FF 0%, #14F195 50%, #19FB9B 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -239,7 +240,7 @@ body {
   inset: 0;
   border-radius: 12px;
   padding: 1px;
-  background: linear-gradient(135deg, rgba(0, 200, 5, 0.4), rgba(204, 255, 0, 0.3));
+  background: linear-gradient(135deg, rgba(153, 69, 255, 0.4), rgba(20, 241, 149, 0.3));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -247,13 +248,13 @@ body {
 
 .bg-grid-pattern {
   background-image:
-    linear-gradient(rgba(0, 200, 5, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 200, 5, 0.04) 1px, transparent 1px);
+    linear-gradient(rgba(153, 69, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(153, 69, 255, 0.04) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
 .bg-dots-pattern {
-  background-image: radial-gradient(rgba(0, 200, 5, 0.12) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(153, 69, 255, 0.12) 1px, transparent 1px);
   background-size: 20px 20px;
 }
 
@@ -275,12 +276,12 @@ body {
 }
 
 ::selection {
-  background: rgba(0, 200, 5, 0.35);
+  background: rgba(153, 69, 255, 0.35);
   color: white;
 }
 
 :focus-visible {
-  outline: 2px solid rgba(0, 200, 5, 0.5);
+  outline: 2px solid rgba(153, 69, 255, 0.5);
   outline-offset: 2px;
 }
 

@@ -14,7 +14,7 @@ const SIZES = {
   xl: 96,
 }
 
-/** TopBlast rocket logo — Robinhood green brand */
+/** TopBlast rocket logo */
 export function TopBlastLogo({ size = 'md', className = '' }: TopBlastLogoProps) {
   const px = SIZES[size]
   return (

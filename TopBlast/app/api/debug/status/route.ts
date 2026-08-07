@@ -1,5 +1,5 @@
 /**
- * Debug Status Endpoint — Robinhood Chain EVM
+ * Debug Status Endpoint — Solana / Helius
  */
 
 import { NextResponse } from 'next/server'
@@ -7,10 +7,9 @@ import { config } from '@/lib/config'
 import connectDB from '@/lib/db'
 import { getServiceStatus, loadRankingsFromDb } from '@/lib/tracker/holderService'
 import { getTrackerStatus } from '@/lib/tracker/init'
-import { checkRpcHealth, getHolderCount } from '@/lib/evm/indexer'
+import { checkRpcHealth, getHolderCount } from '@/lib/solana/indexer'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
-import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
-import { getEvmChainId, getEvmRpcUrl } from '@/lib/evm/chain'
+import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,15 +17,17 @@ export async function GET() {
   const status: Record<string, any> = {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
-    chain: 'robinhood-evm',
-    chainId: getEvmChainId(),
+    chain: 'solana',
+    network: config.solanaNetwork,
   }
 
   status.config = {
-    tokenContract: config.tokenMint ? `${config.tokenMint.slice(0, 10)}...` : 'NOT SET',
+    tokenMint: config.tokenMint ? `${config.tokenMint.slice(0, 8)}...` : 'NOT SET',
     tokenSymbol: config.tokenSymbol,
-    evmRpcUrl: getEvmRpcUrl() ? 'SET' : 'NOT SET',
+    heliusApiKey: config.heliusApiKey ? 'SET' : 'NOT SET',
+    heliusRpcUrl: config.heliusRpcUrl ? 'SET' : 'NOT SET',
     mongodbUri: process.env.MONGODB_URI ? 'SET' : 'NOT SET',
+    executePayouts: config.executePayouts,
   }
 
   try {
@@ -41,16 +42,16 @@ export async function GET() {
 
   try {
     const rpcHealth = await checkRpcHealth()
-    status.rpc = rpcHealth
+    status.helius = rpcHealth
   } catch (error: any) {
-    status.rpc = { healthy: false, error: error.message }
+    status.helius = { healthy: false, error: error.message }
   }
 
   try {
     if (config.tokenMint) {
       status.holderCount = { total: await getHolderCount(config.tokenMint) }
     } else {
-      status.holderCount = { error: 'No token contract configured' }
+      status.holderCount = { error: 'No token mint configured' }
     }
   } catch (error: any) {
     status.holderCount = { error: error.message }
@@ -60,10 +61,10 @@ export async function GET() {
     if (config.tokenMint) {
       status.prices = {
         token: await getTokenPrice(config.tokenMint),
-        eth: await getEthPrice(),
+        sol: await getSolPrice(),
       }
     } else {
-      status.prices = { error: 'No token contract configured' }
+      status.prices = { error: 'No token mint configured' }
     }
   } catch (error: any) {
     status.prices = { error: error.message }
@@ -76,8 +77,8 @@ export async function GET() {
     const livePool = await getLivePoolBalance()
     status.livePool = {
       payoutWalletAddress: livePool.payoutWalletAddress,
-      walletEth: livePool.walletEth,
-      poolEth: livePool.poolEth,
+      walletSol: livePool.walletSol,
+      poolSol: livePool.poolSol,
       poolUsd: livePool.poolUsdFormatted,
       available: livePool.available,
     }

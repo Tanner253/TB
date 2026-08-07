@@ -33,7 +33,7 @@ export function CopyContractAddress({
   }, [address])
 
   const explorer =
-    explorerUrl ?? `https://robinhoodchain.blockscout.com/address/${address}`
+    explorerUrl ?? `https://solscan.io/token/${address}`
 
   return (
     <div

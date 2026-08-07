@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { formatUsd } from '@/lib/evm/price'
+import { formatUsd } from '@/lib/solana/price'
 import { getPayoutSplitLabels } from '@/lib/payout/shares'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { config } from '@/lib/config'

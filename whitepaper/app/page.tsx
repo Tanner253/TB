@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import { CopyContractAddress } from './components/CopyContractAddress'
+import { SolanaBadge } from './components/SolanaBadge'
 
 // Dynamically import Three.js component to avoid SSR issues
 const CandlestickBackground = dynamic(() => import('./components/CandlestickBackground'), {
@@ -12,9 +13,10 @@ const CandlestickBackground = dynamic(() => import('./components/CandlestickBack
 })
 
 // App URL
-const APP_URL = 'https://topblasteth.xyz'
+const APP_URL = 'https://topblastweb3.xyz'
 
-const TOKEN_CA = '0x9e4cdd4310b156af711257f2121328013e1de07b'
+const TOKEN_CA = ''
+const SOLSCAN_TOKEN = 'https://solscan.io/token'
 
 // Payout structure (winner pool shares after dev fee)
 const PAYOUT = {
@@ -23,6 +25,13 @@ const PAYOUT = {
   second: 25,
   third: 15,
   community: 88,
+}
+
+// Platform flywheel — 50% of dev fees buy the platform token (6% of each payout pool)
+const FLYWHEEL = {
+  devFeeBuybackShare: 50,
+  buybackPctOfPool: 6,
+  opsShareOfDevFee: 50,
 }
 
 // External Links
@@ -73,10 +82,12 @@ const Navbar = () => {
                     </a>
                     <div className="hidden md:block">
                         <div className="ml-10 flex items-center space-x-6">
-                            <a href="#why-invest" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Why $TopBlast</a>
+                            <a href="#for-creators" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">For Creators</a>
                             <a href="#how-it-works" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Mechanism</a>
-                            <a href="#who-gets-paid" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Who Gets Paid</a>
-                            <a href="#tokenomics" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Tokenomics</a>
+                            <a href="#dynamic-pot" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Dynamic Pot</a>
+                            <a href="#who-gets-paid" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Eligibility</a>
+                            <a href="#saas-flywheel" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">SaaS</a>
+                            <a href="#why-invest" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Platform Token</a>
                             <a href="#whitepaper" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Whitepaper</a>
                             <a href="#updates" className="hover:text-rh-green transition-colors px-2 py-2 rounded-md text-sm font-medium">Updates</a>
                             <a href="#roadmap" className="hover:text-rh-lime transition-colors px-2 py-2 rounded-md text-sm font-medium flex items-center gap-1">
@@ -90,13 +101,13 @@ const Navbar = () => {
                                 </a>
                             </div>
                             
-                            <a href={APP_URL} target="_blank" rel="noopener noreferrer">
+                            <a href={`${APP_URL}/launch`} target="_blank" rel="noopener noreferrer">
                                 <motion.button 
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
-                                    className="bg-rh-green hover:bg-rh-green-bright text-black px-4 py-2 rounded font-bold transition-all shadow-rh-glow flex items-center gap-2"
+                                    className="bg-sol-gradient hover:opacity-90 text-black px-4 py-2 rounded font-bold transition-all shadow-sol-glow flex items-center gap-2"
                                 >
-                                    Launch App <Icons.ExternalLink />
+                                    Launch Your Token <Icons.ExternalLink />
                                 </motion.button>
                             </a>
                         </div>
@@ -124,7 +135,7 @@ const Navbar = () => {
                                 <Icons.XTwitter /> @topblasteth
                             </a>
                         </div>
-                        <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="block bg-rh-green text-black px-3 py-2 rounded-md text-base font-bold mt-2">
+                        <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="block bg-sol-gradient text-black px-3 py-2 rounded-md text-base font-bold mt-2">
                             Launch App →
                         </a>
                     </div>
@@ -150,25 +161,25 @@ const Hero = () => {
                     WE <span className="hero-text-gradient neon-green">BLAST</span> YOU UP
                 </motion.h1>
 
+                <motion.div
+                    className="mb-4 flex justify-center"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.35 }}
+                >
+                    <SolanaBadge />
+                </motion.div>
+
                 <motion.p 
                     className="text-xl text-gray-300 max-w-2xl mx-auto mb-6 bg-black/30 backdrop-blur-sm py-2 px-4 rounded-lg"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.4 }}
                 >
-                    The world&apos;s first <strong className="text-rh-green">Loss-Mining Protocol</strong>. Built on Robinhood Chain (EVM).
+                    Reward <strong className="text-rh-green">bullish holders</strong> who bought the top and stayed in.
                     <br/>
-                    Get paid for being a top loser. Automatically. Every 15 minutes. Native ETH on Robinhood Chain.
+                    Turn creator-fee SOL into loss-mining payouts — every 15 minutes, automatically.
                 </motion.p>
-
-                <motion.div
-                    className="mb-6 flex justify-center"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                >
-                    <CopyContractAddress address={TOKEN_CA} symbol="TopBlast" />
-                </motion.div>
 
                 <motion.div 
                     className="flex flex-col md:flex-row gap-4 justify-center"
@@ -176,22 +187,22 @@ const Hero = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 }}
                 >
-                    <a href={APP_URL} target="_blank" rel="noopener noreferrer">
+                    <a href={`${APP_URL}/launch`} target="_blank" rel="noopener noreferrer">
                         <motion.button 
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            className="bg-rh-green hover:bg-rh-green-bright text-black px-8 py-4 rounded-lg font-bold text-lg transition-all flex items-center justify-center gap-2 shadow-rh-glow"
+                            className="bg-sol-gradient hover:opacity-90 text-black px-8 py-4 rounded-lg font-bold text-lg transition-all flex items-center justify-center gap-2 shadow-sol-glow"
                         >
-                            <Icons.Rocket /> View Live Leaderboard
+                            <Icons.Rocket /> Launch Your Token
                         </motion.button>
                     </a>
-                    <a href="#whitepaper">
+                    <a href={`${APP_URL}`} target="_blank" rel="noopener noreferrer">
                         <motion.button 
                             whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.1)" }}
                             whileTap={{ scale: 0.95 }}
-                            className="glass-panel text-white px-8 py-4 rounded-lg font-bold text-lg transition-all border border-white/20"
+                            className="glass-panel text-white px-8 py-4 rounded-lg font-bold text-lg transition-all border border-white/20 flex items-center justify-center gap-2"
                         >
-                            Read Whitepaper
+                            Browse Live Listings <Icons.ExternalLink />
                         </motion.button>
                     </a>
                 </motion.div>
@@ -227,21 +238,21 @@ const Hero = () => {
 
 const RektTicker = () => {
     const LIVE_FEED = [
-        { wallet: "0x7xK...Fa1", loss: "-72.5%", payout: "Winner 🏆" },
-        { wallet: "0xEth...ale", loss: "-45.2%", payout: "2nd Place" },
+        { wallet: "7xK...Fa1", loss: "-72.5%", payout: "Winner 🏆" },
+        { wallet: "Eth...ale", loss: "-45.2%", payout: "2nd Place" },
         { wallet: "DeFi...Pro", loss: "-38.7%", payout: "3rd Place" },
         { wallet: "Diam...Hand", loss: "-29.1%", payout: "Eligible ✓" },
         { wallet: "Moon...Boy", loss: "-15.3%", payout: "Eligible ✓" },
     ]
     
     return (
-        <div className="w-full bg-green-900/20 border-y border-rh-green/30 overflow-hidden py-3 relative z-20 backdrop-blur-sm">
+        <div className="w-full bg-purple-900/20 border-y border-rh-green/30 overflow-hidden py-3 relative z-20 backdrop-blur-sm">
             <div className="flex animate-slide whitespace-nowrap gap-12 px-4">
                 {[...LIVE_FEED, ...LIVE_FEED, ...LIVE_FEED, ...LIVE_FEED].map((item, i) => (
                     <div key={i} className="flex items-center gap-2 text-sm font-mono">
                         <span className="text-gray-400">{item.wallet}</span>
                         <span className="text-red-500 font-bold">{item.loss}</span>
-                        <span className="text-rh-green bg-green-900/30 px-2 py-0.5 rounded text-xs">{item.payout}</span>
+                        <span className="text-rh-green bg-purple-900/30 px-2 py-0.5 rounded text-xs">{item.payout}</span>
                     </div>
                 ))}
             </div>
@@ -249,7 +260,148 @@ const RektTicker = () => {
     )
 }
 
-// Why Invest Section - NEW
+const ForSolanaDevs = () => {
+    const rows = [
+        {
+            name: 'Cashback / rebates',
+            behavior: 'Buy → claim → sell',
+            effect: 'Instant sell pressure',
+            optics: 'Mercenary flow',
+            highlight: false,
+        },
+        {
+            name: 'Creator rewards only',
+            behavior: 'Fees sit in dev wallet',
+            effect: 'No holder incentive loop',
+            optics: '"Dev tax" FUD',
+            highlight: false,
+        },
+        {
+            name: 'TopBlast loss-mining',
+            behavior: 'Buy, hold drawdown, compete for SOL',
+            effect: 'Rewards conviction — not exits',
+            optics: 'Community program you fund',
+            highlight: true,
+        },
+    ]
+
+    return (
+        <section id="for-creators" className="py-24 relative">
+            <div className="glass-section-bg">
+                <div className="max-w-5xl mx-auto px-4">
+                    <div className="text-center mb-12">
+                        <span className="inline-block px-4 py-1 bg-rh-green/20 border border-rh-green/30 rounded-full text-rh-green text-sm font-medium mb-4">
+                            FOR SOLANA BUILDERS
+                        </span>
+                        <h2 className="text-4xl font-bold mb-4">Why launch on TopBlast?</h2>
+                        <p className="text-gray-400 max-w-3xl mx-auto text-lg">
+                            Cashback creates sell pressure. Creator rewards alone invite FUD. TopBlast pays holders who stayed
+                            bullish while underwater — funded from <strong className="text-white">your</strong> creator-fee SOL.
+                        </p>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-2xl border border-white/10 mb-10">
+                        <table className="w-full text-sm min-w-[640px]">
+                            <thead>
+                                <tr className="bg-white/5 border-b border-white/10">
+                                    <th className="text-left p-4 text-gray-400">Approach</th>
+                                    <th className="text-left p-4 text-gray-400">Holder behavior</th>
+                                    <th className="text-left p-4 text-gray-400">Effect</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows.map(row => (
+                                    <tr
+                                        key={row.name}
+                                        className={row.highlight ? 'bg-rh-green/10 border-t border-rh-green/30' : 'border-t border-white/5'}
+                                    >
+                                        <td className="p-4 font-bold text-white">{row.name}</td>
+                                        <td className="p-4 text-gray-300">{row.behavior}</td>
+                                        <td className="p-4">
+                                            <span className={row.highlight ? 'text-rh-lime' : 'text-gray-400'}>{row.effect}</span>
+                                            <span className="block text-xs text-gray-500 mt-1">{row.optics}</span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-6 mb-8">
+                        {[
+                            { t: 'Self-serve SaaS', d: 'List any SPL token at /launch — CA, ticker, funded payout wallet. Independent session per coin.' },
+                            { t: 'Hands-off ops', d: 'Cron indexes holders, runs eligibility, and pays winners every ~15 min. No manual cycle start.' },
+                            { t: 'Dynamic pot', d: 'Bigger funded wallet → bigger payouts and higher min-loss bar to qualify. You control budget.' },
+                            { t: 'Pump.fun ready', d: 'Price feed follows bonding curve through PumpSwap/Raydium migration automatically.' },
+                        ].map(item => (
+                            <div key={item.t} className="glass-panel p-6 rounded-xl border-rh-green/15">
+                                <h3 className="font-bold text-rh-lime mb-2">{item.t}</h3>
+                                <p className="text-gray-400 text-sm">{item.d}</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="text-center">
+                        <a href={`${APP_URL}/launch`} target="_blank" rel="noopener noreferrer">
+                            <motion.button
+                                whileHover={{ scale: 1.03 }}
+                                className="bg-sol-gradient text-black px-8 py-3 rounded-xl font-bold shadow-sol-glow"
+                            >
+                                Create your listing →
+                            </motion.button>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    )
+}
+
+const DynamicPotSection = () => (
+    <section id="dynamic-pot" className="py-24 relative">
+        <div className="max-w-4xl mx-auto px-4">
+            <div className="text-center mb-10">
+                <span className="inline-block px-4 py-1 bg-amber-900/30 border border-amber-500/30 rounded-full text-amber-300 text-sm font-medium mb-4">
+                    GAME DESIGN
+                </span>
+                <h2 className="text-4xl font-bold mb-4">Dynamic pot & eligibility</h2>
+                <p className="text-gray-400 text-lg">
+                    Pool size and qualification threshold scale together. Fund more SOL → bigger blasts → higher bar to rank.
+                </p>
+            </div>
+
+            <div className="glass-panel rounded-2xl p-8 border border-amber-500/20 mb-8">
+                <div className="grid md:grid-cols-2 gap-6 text-sm">
+                    <div>
+                        <h3 className="font-bold text-white mb-2">Pot size</h3>
+                        <p className="text-gray-400">~99% of your payout wallet SOL each cycle. Top up creator-fee SOL anytime.</p>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-white mb-2">Min loss rule</h3>
+                        <p className="text-gray-400">Loss must be ≥ 10% of live pool (USD). $500 pool → ~$50 min loss. $5,000 → ~$500.</p>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-white mb-2">Winners</h3>
+                        <p className="text-gray-400">Top 3 <em>eligible</em> losers by drawdown %. Biggest bag does not auto-win.</p>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-white mb-2">Timer</h3>
+                        <p className="text-gray-400">Starts when first eligible holder appears. 15-minute cycles via cron — zero manual steps.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="glass-panel rounded-2xl p-6 border-rh-green/25 text-center">
+                <p className="text-gray-300">
+                    Example: <strong className="text-white">$2,000</strong> pool → ~<strong className="text-amber-300">$200</strong> min eligible loss →
+                    1st place ≈ <strong className="text-rh-green">$1,056</strong> SOL ({PAYOUT.first}% of {PAYOUT.community}% winner pool after {PAYOUT.dev}% platform fee)
+                </p>
+            </div>
+        </div>
+    </section>
+)
+
+// Why Invest Section - platform token holders
 const WhyInvest = () => {
     const benefits = [
         {
@@ -289,11 +441,11 @@ const WhyInvest = () => {
                         viewport={{ once: true }}
                     >
                         <span className="inline-block px-4 py-1 bg-rh-green/20 border border-rh-green/30 rounded-full text-rh-green text-sm font-medium mb-4">
-                            INVESTOR VALUE
+                            PLATFORM TOKEN
                         </span>
-                        <h2 className="text-4xl md:text-5xl font-bold mb-4">Why Buy <span className="text-rh-green">$TopBlast</span>?</h2>
+                        <h2 className="text-4xl md:text-5xl font-bold mb-4">Why hold <span className="text-rh-green">$TopBlast</span>?</h2>
                         <p className="text-gray-400 max-w-2xl mx-auto text-lg">
-                            The only token where being wrong about price direction can still make you money.
+                            The platform token captures value as more SaaS listings launch — 50% of all protocol dev fees allocated to buyback.
                         </p>
                     </motion.div>
 
@@ -338,7 +490,7 @@ const WhyInvest = () => {
                                 The Win-Win Investment Thesis
                             </h3>
                             <div className="grid md:grid-cols-2 gap-8">
-                                <div className="bg-green-900/20 border border-rh-green/30 rounded-xl p-6">
+                                <div className="bg-purple-900/20 border border-rh-green/30 rounded-xl p-6">
                                     <div className="text-rh-green font-bold mb-2 flex items-center gap-2">
                                         <span className="text-2xl">📈</span> Scenario A: Price Pumps
                                     </div>
@@ -446,8 +598,8 @@ const Mechanism = () => {
                         <span className="inline-block px-4 py-1 bg-rh-green-dark/20 border border-rh-green/30 rounded-full text-rh-lime text-sm font-medium mb-4">
                             PROTOCOL MECHANICS
                         </span>
-                        <h2 className="text-4xl font-bold mb-4">How It Works</h2>
-                        <p className="text-gray-400">The first protocol that pays you to lose. Fully automated, no interaction needed.</p>
+                        <h2 className="text-4xl font-bold mb-4">How Loss-Mining Works</h2>
+                        <p className="text-gray-400">Rewards holders underwater vs their average buy — fully automated native SOL payouts.</p>
                     </div>
                     
                     <div className="grid md:grid-cols-3 gap-8 mb-12">
@@ -466,7 +618,7 @@ const Mechanism = () => {
                         <FeatureCard 
                             icon={<Icons.Zap />} 
                             title="3. Blast Rewards" 
-                            desc={`Top 3 losers automatically receive payouts (${PAYOUT.first}/${PAYOUT.second}/${PAYOUT.third} split). Native ETH sent directly to wallets. No claiming, no interaction.`}
+                            desc={`Top 3 losers automatically receive payouts (${PAYOUT.first}/${PAYOUT.second}/${PAYOUT.third} split). Native SOL sent directly to wallets. No claiming, no interaction.`}
                             delay={0.3}
                         />
                     </div>
@@ -547,7 +699,7 @@ const WhoGetsPaid = () => {
                             The <strong className="text-white">top 3 eligible</strong> wallets receive{' '}
                             <strong className="text-rh-green">{PAYOUT.community}%</strong> of the payout pool after a {PAYOUT.dev}% dev fee,
                             split <span className="font-mono text-rh-lime">{PAYOUT.first}/{PAYOUT.second}/{PAYOUT.third}</span> of the winner pool.
-                            Native ETH is sent directly to wallets — no claiming step.
+                            Native SOL is sent directly to wallets — no claiming step.
                         </p>
                         <p className="text-sm text-gray-500 border-t border-white/10 pt-4">
                             The payout countdown stays in <strong className="text-gray-400">&quot;launch limbo&quot;</strong> until the first eligible holder appears.
@@ -601,7 +753,7 @@ const Simulator = () => {
                     <div className="text-xs text-gray-400 uppercase">Paper Loss</div>
                     <div className="text-2xl font-bold text-red-400 font-mono">-${lossAmount}</div>
                 </div>
-                <div className="bg-green-900/20 rounded-lg p-4 text-center">
+                <div className="bg-purple-900/20 rounded-lg p-4 text-center">
                     <div className="text-xs text-gray-400 uppercase">1st Place Win</div>
                     <div className="text-2xl font-bold text-rh-green neon-green font-mono">+${winFirst}</div>
                 </div>
@@ -651,9 +803,12 @@ const Tokenomics = () => {
                             </div>
                         </div>
 
-                        <div className="p-4 bg-green-900/20 border border-rh-green/30 rounded-lg mb-8">
-                            <p className="text-green-300 text-sm">
+                        <div className="p-4 bg-purple-900/20 border border-rh-green/30 rounded-lg mb-8">
+                            <p className="text-purple-300 text-sm">
                                 <strong>💡 Flywheel Effect:</strong> More trading → More fees → Bigger pool → Bigger payouts → More attention → More trading
+                            </p>
+                            <p className="text-gray-400 text-sm mt-2">
+                                <strong>SaaS layer:</strong> {FLYWHEEL.buybackPctOfPool}% of every community payout pool ({FLYWHEEL.devFeeBuybackShare}% of the {PAYOUT.dev}% dev fee) is allocated to buy the platform token — programmatic Jupiter swaps or manual treasury execution.
                             </p>
                         </div>
                         
@@ -731,18 +886,110 @@ const Tokenomics = () => {
     )
 }
 
+const SaasFlywheel = () => (
+    <section id="saas-flywheel" className="py-24 relative">
+        <div className="glass-section-bg">
+            <div className="max-w-7xl mx-auto px-4">
+                <div className="text-center mb-12">
+                    <span className="inline-block px-4 py-1 bg-sol-mint/10 border border-sol-mint/30 rounded-full text-sol-mint text-sm font-medium mb-4">
+                        MULTI-TENANT SaaS
+                    </span>
+                        <h2 className="text-4xl font-bold mb-4">Platform Flywheel</h2>
+                        <p className="text-gray-400 max-w-3xl mx-auto text-lg">
+                            TopBlast is a self-serve utility for Solana devs — launch bullish-holder rewards for your token in minutes.
+                            The platform token captures value as the network grows.
+                        </p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-8 mb-12">
+                    <div className="glass-panel p-8 rounded-2xl border-rh-green/20">
+                        <h3 className="text-xl font-bold text-rh-lime mb-4">For launchers</h3>
+                        <ul className="space-y-3 text-gray-300 text-sm">
+                            <li>• Connect SPL mint + payout wallet at <a href={`${APP_URL}/launch`} className="text-rh-green hover:underline">{APP_URL}/launch</a></li>
+                            <li>• Hands-off rankings, eligibility, and SOL payouts</li>
+                            <li>• Isolated session per token — parallel tenants on one stack</li>
+                            <li>• Flat {PAYOUT.dev}% protocol fee on every cycle → platform <code className="text-rh-green">DEV_WALLET_ADDRESS</code> (server env, not per-user)</li>
+                        </ul>
+                    </div>
+                    <div className="glass-panel p-8 rounded-2xl border-sol-mint/20">
+                        <h3 className="text-xl font-bold text-sol-mint mb-4">For $TopBlast holders</h3>
+                        <ul className="space-y-3 text-gray-300 text-sm">
+                            <li>• <strong className="text-white">{FLYWHEEL.devFeeBuybackShare}%</strong> of all dev fees → platform token buyback</li>
+                            <li>• Effective rate: <strong className="text-sol-mint">{FLYWHEEL.buybackPctOfPool}%</strong> of every payout pool network-wide</li>
+                            <li>• Remaining {FLYWHEEL.opsShareOfDevFee}% funds infra, security, and growth</li>
+                            <li>• More SaaS tenants → more recurring buy pressure</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="glass-panel p-8 rounded-2xl max-w-4xl mx-auto">
+                    <h3 className="text-lg font-bold mb-6 text-center">Fee flow (each tenant payout cycle)</h3>
+                    <div className="flex flex-col md:flex-row items-center justify-center gap-4 text-center text-sm">
+                        <div className="px-4 py-3 rounded-lg bg-white/5 border border-white/10">Payout pool (SOL)</div>
+                        <span className="text-gray-500">→</span>
+                        <div className="px-4 py-3 rounded-lg bg-rh-green/10 border border-rh-green/30">
+                            <div className="font-bold text-rh-green">{PAYOUT.community}% winners</div>
+                            <div className="text-xs text-gray-500">60/25/15 split</div>
+                        </div>
+                        <span className="text-gray-500">+</span>
+                        <div className="px-4 py-3 rounded-lg bg-purple-900/30 border border-rh-green/20">
+                            <div className="font-bold text-rh-lime">{PAYOUT.dev}% dev fee</div>
+                            <div className="text-xs text-gray-500">{FLYWHEEL.buybackPctOfPool}% buyback · {FLYWHEEL.opsShareOfDevFee}% ops</div>
+                        </div>
+                    </div>
+                    <p className="text-xs text-gray-500 text-center mt-6">
+                        Buyback can run via automated Jupiter swaps or manual treasury execution — allocation is documented and auditable on-chain.
+                    </p>
+                    <div className="mt-6 text-center">
+                        <a href={`${APP_URL}/launch`} target="_blank" rel="noopener noreferrer">
+                            <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                className="bg-sol-gradient text-black px-6 py-3 rounded-xl font-bold shadow-sol-glow"
+                            >
+                                Launch on TopBlast SaaS
+                            </motion.button>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+)
+
 // Update Log Section - NEW
 const UpdateLog = () => {
     const updates = [
         {
-            version: "v3.0.0",
+            version: "v3.2.0",
             date: "August 2026",
             tag: "CURRENT",
             changes: [
-                "Migrated to Robinhood Chain (EVM) — native ETH payouts",
-                "Blockscout indexer + viem RPC for on-chain holder data",
+                "Dev-first marketing — cashback vs creator rewards vs TopBlast comparison",
+                "Dynamic pot & eligibility explainer on app + whitepaper",
+                "Live DexScreener price stream (WebSocket + 1s fallback), Pump.fun migration",
+                "Session diagnostics for self-serve troubleshooting",
+            ]
+        },
+        {
+            version: "v3.1.0",
+            date: "August 2026",
+            tag: "SHIPPED",
+            changes: [
+                "Self-serve SaaS — any project launches loss-mining via /launch",
+                "Multi-tenant catalog with platform token pinned featured",
+                "50% of dev fees (6% of pool) allocated to platform token buyback flywheel",
+                "Multi-tenant cron for parallel isolated payout sessions",
+            ]
+        },
+        {
+            version: "v3.0.0",
+            date: "August 2026",
+            tag: "LEGACY",
+            changes: [
+                "Migrated to Solana — native SOL payouts",
+                "Helius indexer + RPC for on-chain holder data",
                 "Updated payout split: 60/25/15 winner shares, 12% dev fee",
-                "Payout history with Blockscout transaction links",
+                "Payout history with Solscan transaction links",
                 "Anti-gaming: winner cooldown, transfer detection, sell detection"
             ]
         },
@@ -842,83 +1089,95 @@ const Roadmap = () => {
     const phases = [
         {
             phase: 1,
-            title: "Robinhood EVM Launch",
+            title: "Solana Launch",
             date: "Jun – Aug 2026",
             status: "complete",
             icon: "✅",
             color: "green",
-            summary: "Live on Robinhood Chain",
-            description: "Production Loss-Mining protocol with native ETH payouts, Blockscout indexing, eligibility-gated timer, and on-chain reward pool.",
+            summary: "Live on Solana",
+            description: "Production Loss-Mining protocol with native SOL payouts, Helius indexing, eligibility-gated timer, and on-chain reward pool.",
             milestones: [
-                { task: "Robinhood Chain deployment", detail: "ERC-20 tokens, viem RPC, Blockscout holder data" },
-                { task: "Automated ETH payouts", detail: "12% dev fee, 88% to top 3 eligible losers (60/25/15)" },
+                { task: "Solana deployment", detail: "SPL tokens, Helius RPC, DAS holder data" },
+                { task: "Automated SOL payouts", detail: "12% dev fee, 88% to top 3 eligible losers (60/25/15)" },
                 { task: "Live app & leaderboard", detail: "Real-time rankings, payout history, eligibility rules" },
             ],
-            deliverable: "topblasteth.xyz live on Robinhood Chain mainnet"
+            deliverable: "topblasteth.xyz live on Solana mainnet"
         },
         {
             phase: 2,
-            title: "Multi-Token Foundation",
-            date: "Aug – Sep 2026",
-            status: "in-progress",
-            icon: "🏗️",
-            color: "purple",
-            summary: "Building the Multi-Token Engine",
-            description: "Transform TopBlast from a single-token protocol into a platform capable of supporting any token.",
+            title: "Multi-Tenant SaaS",
+            date: "Aug 2026",
+            status: "complete",
+            icon: "✅",
+            color: "green",
+            summary: "Self-serve listings live",
+            description: "Any Solana project launches loss-mining via /launch — isolated sessions, encrypted payout keys, multi-tenant cron.",
             milestones: [
-                { task: "Multi-token architecture", detail: "Platform tracks multiple tokens simultaneously" },
-                { task: "Isolated reward pools", detail: "Each token gets its own independent payout wallet & pool" },
-                { task: "Shared infrastructure", detail: "Common VWAP and eligibility calculation engine" },
+                { task: "Self-serve /launch", detail: "CA, ticker, creator wallet key" },
+                { task: "Catalog + tenant pages", detail: "Per-slug leaderboard, stats, history" },
+                { task: "Session diagnostics", detail: "Self-serve status when pool empty or no eligible holders" },
             ],
-            deliverable: "Internal demo with 2+ tokens running Loss-Mining"
+            deliverable: "SaaS v1 — multiple parallel listings"
         },
         {
             phase: 3,
-            title: "Onboarding Flow",
-            date: "Sep – Oct 2026",
-            status: "upcoming",
+            title: "Growth & automation",
+            date: "Q4 2026",
+            status: "in-progress",
             icon: "🚀",
-            color: "blue",
-            summary: "Making It Easy to Launch",
-            description: "Self-service portal where any token creator can integrate TopBlast mechanics.",
+            color: "purple",
+            summary: "Polish, buyback automation, scale",
+            description: "Automated platform token buyback, analytics dashboard, launch partners.",
             milestones: [
-                { task: "Token creator dashboard", detail: "Simple UI to input token address and configure" },
-                { task: "Parameter customization", detail: "Choose payout interval, fee split, thresholds" },
-                { task: "Preview & simulation", detail: "Test your configuration before going live" },
+                { task: "Automated buyback bot", detail: "Jupiter swaps from dev fee wallet" },
+                { task: "Creator analytics", detail: "Pool funding, cycle history, holder funnel" },
+                { task: "Public API", detail: "Third-party integrations for listings" },
             ],
-            deliverable: "Working 'Create Your TopBlast Pool' wizard"
+            deliverable: "10+ live community listings"
         },
         {
             phase: 4,
-            title: "Payment & Burn",
-            date: "Oct – Nov 2026",
-            status: "upcoming",
-            icon: "🔥",
-            color: "orange",
-            summary: "TopBlast Deflationary Mechanics",
-            description: "Platform fees automatically buy TopBlast from the market and burn it forever.",
+            title: "Onboarding Flow",
+            date: "Archived",
+            status: "complete",
+            icon: "📦",
+            color: "blue",
+            summary: "Merged into SaaS v1",
+            description: "Self-service portal shipped in v3.1.",
             milestones: [
-                { task: "Payment integration", detail: "Accept ETH/USDC for platform access on Robinhood Chain" },
-                { task: "Auto-buy mechanism", detail: "Payments swap to TopBlast on Robinhood DEX" },
-                { task: "Burn execution", detail: "Purchased TopBlast sent to burn address" },
+                { task: "Launch wizard", detail: "Shipped at /launch" },
             ],
-            deliverable: "First external token pays to join, TopBlast burned on-chain"
+            deliverable: "Working create-listing flow"
         },
         {
             phase: 5,
+            title: "Payment & Burn",
+            date: "Q1 2027",
+            status: "upcoming",
+            icon: "🔥",
+            color: "orange",
+            summary: "Optional paid tiers + deflationary mechanics",
+            description: "Platform fees automatically buy TopBlast from the market.",
+            milestones: [
+                { task: "Payment integration", detail: "Accept SOL/USDC for premium features" },
+                { task: "Auto-buy mechanism", detail: "Dev fees swap to platform token on Solana DEX" },
+            ],
+            deliverable: "Automated buyback live"
+        },
+        {
+            phase: 6,
             title: "Public Launch & Scale",
-            date: "Nov 2026 – Q1 2027",
+            date: "2027",
             status: "upcoming",
             icon: "🌍",
             color: "emerald",
-            summary: "Opening the Platform",
-            description: "Full public launch with marketing push, partner tokens, analytics, and API access.",
+            summary: "Opening the platform",
+            description: "Marketing push, partner tokens, analytics, API access.",
             milestones: [
-                { task: "Public dashboard", detail: "Browse all TopBlast-enabled tokens" },
                 { task: "Launch partners", detail: "5+ tokens debut with TopBlast mechanics" },
-                { task: "Analytics & public API", detail: "Burn stats, pool metrics, third-party integrations" },
+                { task: "Analytics & public API", detail: "Burn stats, pool metrics, integrations" },
             ],
-            deliverable: "Full SaaS platform with 10+ integrated tokens"
+            deliverable: "Full SaaS at scale"
         },
     ]
     
@@ -1034,7 +1293,7 @@ const Roadmap = () => {
                                     <p className="text-gray-400 mb-6">
                                         {phases[activePhase].description}
                                     </p>
-                                    <div className="p-4 bg-gradient-to-r from-green-900/30 to-emerald-900/30 rounded-lg border border-rh-green/30">
+                                    <div className="p-4 bg-gradient-to-r from-purple-900/30 to-emerald-900/30 rounded-lg border border-rh-green/30">
                                         <p className="text-xs text-rh-green uppercase tracking-wider mb-1">Deliverable</p>
                                         <p className="text-white font-medium">{phases[activePhase].deliverable}</p>
                                     </div>
@@ -1110,7 +1369,7 @@ const Roadmap = () => {
                             <h4 className="font-bold text-lg mb-2">Deflationary Pressure</h4>
                             <p className="text-gray-400 text-sm">Every token that joins = TopBlast bought and burned forever</p>
                         </div>
-                        <div className="glass-panel rounded-xl p-6 text-center border border-rh-green/30 bg-gradient-to-b from-green-900/10 to-transparent">
+                        <div className="glass-panel rounded-xl p-6 text-center border border-rh-green/30 bg-gradient-to-b from-purple-900/10 to-transparent">
                             <div className="text-4xl mb-3">💰</div>
                             <h4 className="font-bold text-lg mb-2">Revenue Sharing</h4>
                             <p className="text-gray-400 text-sm">Platform fees flow back to TopBlast reward pool</p>
@@ -1124,7 +1383,7 @@ const Roadmap = () => {
 
                     {/* Q1 Target Banner */}
                     <motion.div 
-                        className="mt-12 text-center p-6 rounded-xl bg-gradient-to-r from-green-900/30 via-emerald-900/30 to-green-900/30 border border-rh-green/30"
+                        className="mt-12 text-center p-6 rounded-xl bg-gradient-to-r from-purple-900/30 via-purple-900/30 to-green-900/30 border border-rh-green/30"
                         initial={{ opacity: 0 }}
                         whileInView={{ opacity: 1 }}
                         viewport={{ once: true }}
@@ -1187,7 +1446,7 @@ const Whitepaper = () => {
                         <li><strong className="text-rh-green">Scenario A (Price Pumps):</strong> You hold the token, the value increases, and you sell for profit. Standard moon mission. You win.</li>
                         <li><strong className="text-red-400">Scenario B (Price Dumps):</strong> The market crashes. Paper hands sell. But you hold. Your drawdown % increases, shooting you up the Blaster Leaderboard. You win {PAYOUT.first}% of the winner pool each cycle.</li>
                     </ul>
-                    <div className="mt-4 p-4 bg-green-900/20 border border-rh-green/30 rounded text-sm text-green-300 italic">
+                    <div className="mt-4 p-4 bg-purple-900/20 border border-rh-green/30 rounded text-sm text-purple-300 italic">
                         &quot;In a market of gambling, be the casino. If you can&apos;t be the casino, be the player who gets paid to lose.&quot;
                     </div>
                 </>
@@ -1202,7 +1461,7 @@ const Whitepaper = () => {
                     <p className="mb-4">The system tracks every wallet&apos;s entry price from on-chain buy transactions. Your VWAP updates as you buy more tokens.</p>
                     <code className="block bg-gray-900 p-3 rounded text-xs mb-4 text-rh-green font-mono">
                         VWAP = Total Cost Basis / Total Tokens Bought<br/>
-                        Total Cost Basis = Σ(ETH spent × ETH price) + Σ(stablecoin spent)
+                        Total Cost Basis = Σ(SOL spent × SOL price) + Σ(stablecoin spent)
                     </code>
                     <h4 className="text-white font-bold mt-4 mb-2">Drawdown Calculation</h4>
                     <code className="block bg-gray-900 p-3 rounded text-xs mb-4 text-rh-green font-mono">
@@ -1238,22 +1497,22 @@ const Whitepaper = () => {
                     </ol>
                     
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                        <div className="bg-green-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
+                        <div className="bg-purple-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
                             <div className="text-xs text-gray-400 uppercase">Min Balance</div>
                             <div className="text-xl font-bold text-rh-green font-mono">Live</div>
                             <div className="text-xs text-gray-500">on app</div>
                         </div>
-                        <div className="bg-green-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
+                        <div className="bg-purple-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
                             <div className="text-xs text-gray-400 uppercase">Hold Time</div>
                             <div className="text-xl font-bold text-rh-green font-mono">15 min</div>
                             <div className="text-xs text-gray-500">hardcoded</div>
                         </div>
-                        <div className="bg-green-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
+                        <div className="bg-purple-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
                             <div className="text-xs text-gray-400 uppercase">Min Loss</div>
                             <div className="text-xl font-bold text-rh-green font-mono">10%</div>
                             <div className="text-xs text-gray-500">of pool</div>
                         </div>
-                        <div className="bg-green-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
+                        <div className="bg-purple-900/30 border border-rh-green/30 rounded-lg p-3 text-center">
                             <div className="text-xs text-gray-400 uppercase">Winners</div>
                             <div className="text-xl font-bold text-rh-green font-mono">Top 3</div>
                             <div className="text-xs text-gray-500">eligible only</div>
@@ -1302,9 +1561,9 @@ const Whitepaper = () => {
                             <span>{PAYOUT.third}%</span>
                         </div>
                     </div>
-                    <div className="p-4 bg-green-900/20 border border-rh-green/30 rounded">
-                        <p className="text-green-300 font-bold mb-2">🎯 Zero Interaction Required</p>
-                        <p className="text-gray-400 text-sm">Just buy and hold. Winners receive native ETH directly in their wallets. Check your ranking on the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-rh-green underline hover:text-green-300">live leaderboard</a>.</p>
+                    <div className="p-4 bg-purple-900/20 border border-rh-green/30 rounded">
+                        <p className="text-purple-300 font-bold mb-2">🎯 Zero Interaction Required</p>
+                        <p className="text-gray-400 text-sm">Just buy and hold. Winners receive native SOL directly in their wallets. Check your ranking on the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-rh-green underline hover:text-purple-300">live leaderboard</a>.</p>
                     </div>
                 </>
             )
@@ -1320,7 +1579,7 @@ const Whitepaper = () => {
                             <div className="w-10 h-10 bg-rh-green rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">1</div>
                             <div>
                                 <h4 className="text-white font-bold mb-1">Buy $TopBlast</h4>
-                                <p className="text-gray-400 text-sm mb-3">Purchase $TopBlast on Robinhood Chain via any supported DEX. Hold in your EVM wallet — no app connection required.</p>
+                                <p className="text-gray-400 text-sm mb-3">Purchase $TopBlast on Solana via any supported DEX. Hold in your Solana wallet — no app connection required.</p>
                                 <CopyContractAddress address={TOKEN_CA} symbol="TopBlast" className="!justify-start" />
                             </div>
                         </div>
@@ -1337,7 +1596,7 @@ const Whitepaper = () => {
                             <div className="w-10 h-10 bg-rh-green rounded-full flex items-center justify-center text-black font-bold text-lg shrink-0">3</div>
                             <div>
                                 <h4 className="text-white font-bold mb-1">Watch &amp; Win</h4>
-                                <p className="text-gray-400 text-sm">Check the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-rh-green underline">live leaderboard</a>. If you&apos;re top 3, ETH is sent automatically.</p>
+                                <p className="text-gray-400 text-sm">Check the <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer" className="text-rh-green underline">live leaderboard</a>. If you&apos;re top 3, SOL is sent automatically.</p>
                             </div>
                         </div>
                     </div>
@@ -1410,7 +1669,7 @@ const Footer = () => {
             <div className="max-w-7xl mx-auto px-4">
                 {/* CTA Banner */}
                 <motion.div 
-                    className="glass-panel rounded-2xl p-8 mb-12 text-center border border-rh-green/30 bg-gradient-to-r from-green-900/20 to-green-950/20"
+                    className="glass-panel rounded-2xl p-8 mb-12 text-center border border-rh-green/30 bg-gradient-to-r from-purple-900/20 to-purple-950/20"
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
@@ -1452,7 +1711,7 @@ const Footer = () => {
                             </a>
                         </div>
                     </div>
-                    <p>&copy; 2026 Topblast Protocol. Built on Robinhood Chain (EVM).</p>
+                    <p>&copy; 2026 Topblast Protocol. Built on Solana.</p>
                 </div>
             </div>
         </footer>
@@ -1470,9 +1729,12 @@ export default function Home() {
                 <Navbar />
                 <Hero />
                 <RektTicker />
-                <WhyInvest />
+                <ForSolanaDevs />
                 <Mechanism />
+                <DynamicPotSection />
                 <WhoGetsPaid />
+                <SaasFlywheel />
+                <WhyInvest />
                 <Tokenomics />
                 <Whitepaper />
                 <UpdateLog />

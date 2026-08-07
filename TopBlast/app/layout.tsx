@@ -3,18 +3,18 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'TopBlast | The Loss-Mining Protocol',
-  description: 'The Loss-Mining Protocol on Robinhood Chain. Top 3 losers win native ETH payouts every 15 minutes.',
-  keywords: ['robinhood chain', 'evm', 'defi', 'loss-mining', 'crypto', 'topblast', 'ethereum'],
+  description: 'The Loss-Mining Protocol on Solana. Top 3 losers win native SOL payouts every 15 minutes.',
+  keywords: ['solana', 'spl', 'defi', 'loss-mining', 'crypto', 'topblast', 'helius'],
   authors: [{ name: 'TopBlast' }],
   openGraph: {
     title: 'TopBlast | The Loss-Mining Protocol',
-    description: 'Get paid in native ETH for being a top loser. Robinhood Chain · automated payouts every 15 minutes.',
+    description: 'Get paid in native SOL for being a top loser. Solana · automated payouts every 15 minutes.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'TopBlast | The Loss-Mining Protocol',
-    description: 'Get paid in native ETH for being a top loser. Robinhood Chain · automated payouts every 15 minutes.',
+    description: 'Get paid in native SOL for being a top loser. Solana · automated payouts every 15 minutes.',
     site: '@topblasteth',
   },
 }
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#000000',
+  themeColor: '#9945FF',
 }
 
 export default function RootLayout({

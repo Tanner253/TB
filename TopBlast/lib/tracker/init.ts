@@ -10,27 +10,36 @@ import {
   getServiceStatus,
   updatePrice,
 } from './holderService'
-import { getTokenPrice, getEthPrice } from '@/lib/evm/price'
+import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
 import { config } from '@/lib/config'
+import { getTenantSlug } from '@/lib/tenant/context'
 
-// Global state for tracker
+type TrackerInitState = {
+  initialized: boolean
+  initializationPromise: Promise<void> | null
+  lastPriceUpdate: number
+}
+
 declare global {
-  var _trackerInitState: {
-    initialized: boolean
-    initializationPromise: Promise<void> | null
-    lastPriceUpdate: number
-  } | undefined
+  var _trackerInitStates: Map<string, TrackerInitState> | undefined
 }
 
-if (!global._trackerInitState) {
-  global._trackerInitState = {
-    initialized: false,
-    initializationPromise: null,
-    lastPriceUpdate: 0,
+function getTrackerState(): TrackerInitState {
+  if (!global._trackerInitStates) {
+    global._trackerInitStates = new Map()
   }
+  const slug = getTenantSlug()
+  let state = global._trackerInitStates.get(slug)
+  if (!state) {
+    state = {
+      initialized: false,
+      initializationPromise: null,
+      lastPriceUpdate: 0,
+    }
+    global._trackerInitStates.set(slug, state)
+  }
+  return state
 }
-
-const trackerState = global._trackerInitState
 
 // Update price every 30 seconds max
 const PRICE_UPDATE_INTERVAL = 30000
@@ -41,19 +50,19 @@ const PRICE_UPDATE_INTERVAL = 30000
  */
 export async function initializeTracker(): Promise<void> {
   // If already initializing, wait for it
-  if (trackerState.initializationPromise) {
-    return trackerState.initializationPromise
+  if (getTrackerState().initializationPromise) {
+    return getTrackerState().initializationPromise
   }
 
   // If already initialized, just update price if needed
-  if (trackerState.initialized && isServiceInitialized()) {
+  if (getTrackerState().initialized && isServiceInitialized()) {
     await maybeUpdatePrice()
     return
   }
 
-  trackerState.initializationPromise = doInitialize()
-  await trackerState.initializationPromise
-  trackerState.initializationPromise = null
+  getTrackerState().initializationPromise = doInitialize()
+  await getTrackerState().initializationPromise
+  getTrackerState().initializationPromise = null
 }
 
 async function doInitialize(): Promise<void> {
@@ -62,11 +71,11 @@ async function doInitialize(): Promise<void> {
   console.log(`[Tracker] Symbol: ${config.tokenSymbol}`)
 
   try {
-    const ethPrice = await getEthPrice()
+    const ethPrice = await getSolPrice()
     if (ethPrice) {
-      console.log(`[Tracker] ETH price: $${ethPrice.toFixed(2)}`)
+      console.log(`[Tracker] SOL price: $${ethPrice.toFixed(2)}`)
     } else {
-      console.warn('[Tracker] ⚠️ Could not fetch ETH price - USD values may be inaccurate')
+      console.warn('[Tracker] ⚠️ Could not fetch SOL price - USD values may be inaccurate')
     }
 
     // Initialize holder service (loads all existing holders with VWAPs)
@@ -78,8 +87,8 @@ async function doInitialize(): Promise<void> {
       return
     }
 
-    trackerState.initialized = true
-    trackerState.lastPriceUpdate = Date.now()
+    getTrackerState().initialized = true
+    getTrackerState().lastPriceUpdate = Date.now()
     console.log('[Tracker] ✅ Initialization complete')
   } catch (error: any) {
     console.error('[Tracker] Initialization error:', error.message)
@@ -92,13 +101,13 @@ async function doInitialize(): Promise<void> {
  */
 async function maybeUpdatePrice(): Promise<void> {
   const now = Date.now()
-  if (now - trackerState.lastPriceUpdate > PRICE_UPDATE_INTERVAL) {
+  if (now - getTrackerState().lastPriceUpdate > PRICE_UPDATE_INTERVAL) {
     try {
       const newPrice = await getTokenPrice(config.tokenMint)
       if (newPrice) {
         // Save to DB so all instances see updated rankings
         await updatePrice(newPrice, true)
-        trackerState.lastPriceUpdate = now
+        getTrackerState().lastPriceUpdate = now
         console.log(`[Tracker] Price updated: $${newPrice.toFixed(8)} (saved to DB)`)
       }
     } catch (error) {
@@ -111,7 +120,7 @@ async function maybeUpdatePrice(): Promise<void> {
  * Check if tracker is initialized
  */
 export function isTrackerInitialized(): boolean {
-  return trackerState.initialized && isServiceInitialized()
+  return getTrackerState().initialized && isServiceInitialized()
 }
 
 /**
@@ -127,7 +136,7 @@ export function getTrackerStatus(): {
   const serviceStatus = getServiceStatus()
   
   return {
-    initialized: trackerState.initialized && serviceStatus.initialized,
+    initialized: getTrackerState().initialized && serviceStatus.initialized,
     wsConnected: false, // WebSocket disabled for serverless
     trackedCount: serviceStatus.holderCount,
     eligibleCount: serviceStatus.eligibleCount,

@@ -5,9 +5,9 @@
 @tailwind utilities;
 
 :root {
-  --rh-green: #00C805;
-  --rh-lime: #CCFF00;
-  --rh-black: #000000;
+  --sol-purple: #9945FF;
+  --sol-mint: #14F195;
+  --sol-black: #000000;
 }
 
 ::-webkit-scrollbar {
@@ -17,11 +17,11 @@
   background: #000;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 200, 5, 0.35);
+  background: rgba(153, 69, 255, 0.35);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 200, 5, 0.55);
+  background: rgba(153, 69, 255, 0.55);
 }
 
 html {
@@ -53,13 +53,13 @@ body {
 }
 .glitch::before {
   left: 2px;
-  text-shadow: -1px 0 #00C805;
+  text-shadow: -1px 0 #9945FF;
   clip: rect(44px, 450px, 56px, 0);
   animation: glitch-anim 5s infinite linear alternate-reverse;
 }
 .glitch::after {
   left: -2px;
-  text-shadow: -1px 0 #CCFF00;
+  text-shadow: -1px 0 #14F195;
   clip: rect(44px, 450px, 56px, 0);
   animation: glitch-anim2 5s infinite linear alternate-reverse;
 }
@@ -85,8 +85,8 @@ body {
   background: rgba(0, 0, 0, 0.82);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-top: 1px solid rgba(0, 200, 5, 0.08);
-  border-bottom: 1px solid rgba(0, 200, 5, 0.08);
+  border-top: 1px solid rgba(153, 69, 255, 0.08);
+  border-bottom: 1px solid rgba(153, 69, 255, 0.08);
   padding: 3rem 0;
   margin: 0 -1rem;
   padding-left: 1rem;
@@ -97,26 +97,27 @@ body {
   background: rgba(10, 10, 10, 0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(0, 200, 5, 0.12);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 24px rgba(0, 200, 5, 0.04);
+  border: 1px solid rgba(153, 69, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 24px rgba(153, 69, 255, 0.06);
 }
 
 .glass-nav {
   background: rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(0, 200, 5, 0.15);
+  border-bottom: 1px solid rgba(153, 69, 255, 0.15);
 }
 
 .hero-text-gradient {
-  background: linear-gradient(135deg, #00C805 0%, #CCFF00 100%);
+  background: linear-gradient(135deg, #9945FF 0%, #14F195 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-.neon-green {
-  text-shadow: 0 0 10px rgba(0, 200, 5, 0.6), 0 0 20px rgba(0, 200, 5, 0.35);
+.neon-green,
+.neon-sol {
+  text-shadow: 0 0 10px rgba(153, 69, 255, 0.6), 0 0 20px rgba(20, 241, 149, 0.35);
 }
 
 .neon-red {
@@ -133,6 +134,13 @@ body {
 }
 
 ::selection {
-  background: #00C805;
-  color: black;
+  background: rgba(153, 69, 255, 0.45);
+  color: white;
+}
+
+.bg-grid-pattern {
+  background-image:
+    linear-gradient(rgba(153, 69, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(153, 69, 255, 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
 }

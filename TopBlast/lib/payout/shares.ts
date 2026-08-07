@@ -1,27 +1,29 @@
-import { config } from '@/lib/config'
+/** Protocol-wide payout constants (same for all tenants) */
+const PAYOUT_SPLIT = { first: 0.60, second: 0.25, third: 0.15 }
+const DEV_FEE_PCT = 0.12
 
 /** Winner-pool share labels (of pool after dev fee) */
 export function getWinnerSharePercents() {
   return {
-    first: Math.round(config.payoutSplit.first * 100),
-    second: Math.round(config.payoutSplit.second * 100),
-    third: Math.round(config.payoutSplit.third * 100),
+    first: Math.round(PAYOUT_SPLIT.first * 100),
+    second: Math.round(PAYOUT_SPLIT.second * 100),
+    third: Math.round(PAYOUT_SPLIT.third * 100),
   }
 }
 
 export function getDevFeePercent() {
-  return Math.round(config.devFeePct * 100)
+  return Math.round(DEV_FEE_PCT * 100)
 }
 
 export function getCommunityPercent() {
-  return Math.round((1 - config.devFeePct) * 100)
+  return Math.round((1 - DEV_FEE_PCT) * 100)
 }
 
 /** USD payout for eligible rank (0 = 1st, 1 = 2nd, 2 = 3rd) */
 export function getPayoutForEligibleRank(poolUsd: number, eligibleRank: number): number {
   if (eligibleRank < 0 || eligibleRank > 2) return 0
-  const winnersPool = poolUsd * (1 - config.devFeePct)
-  const splits = [config.payoutSplit.first, config.payoutSplit.second, config.payoutSplit.third]
+  const winnersPool = poolUsd * (1 - DEV_FEE_PCT)
+  const splits = [PAYOUT_SPLIT.first, PAYOUT_SPLIT.second, PAYOUT_SPLIT.third]
   return winnersPool * splits[eligibleRank]
 }
 

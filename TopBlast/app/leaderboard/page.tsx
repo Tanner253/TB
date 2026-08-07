@@ -4,19 +4,20 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useRealtimeLeaderboard, useRealtimePrice, useTimeSince, useRealtime } from '@/hooks/useRealtime'
+import { useTenantRouting } from '@/hooks/useTenantRouting'
 import { AnimatedNumber, Countdown, PriceTicker } from '@/components/ui/AnimatedNumber'
 import { LeaderboardCardSkeleton, TableRowSkeleton } from '@/components/ui/Skeleton'
 import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
 import { getWinnerSharePercents, getPayoutForEligibleRank } from '@/lib/payout/shares'
 import { HolderStatus, HoldTimeBadge } from '@/components/HoldTimeBadge'
+import { TenantStatusPanel } from '@/components/tenant/TenantStatusPanel'
+import type { TenantDiagnostics } from '@/lib/tenant/diagnostics'
 
 const WINNER_SHARES = getWinnerSharePercents()
 
-// External Links
-const LINKS = {
-  twitter: 'https://x.com/topblasteth',
-  whitepaper: 'https://topblastx100.vercel.app',
-}
+import { EXTERNAL_LINKS } from '@/lib/marketing/devValueProp'
+
+const LINKS = EXTERNAL_LINKS
 
 // Social Icons
 const XIcon = () => (
@@ -42,14 +43,14 @@ interface Winner {
   balance_raw?: number
   is_eligible?: boolean
   ineligible_reason?: string | null
+  eligible_rank?: number | null
   hold_seconds_remaining?: number | null
   hold_eligible_at?: string | null
   first_buy_at?: string | null
-  // Keep these for API compatibility even if not displayed
   drawdown_pct?: number
   loss_usd?: string
   vwap?: string
-  payout_usd?: string
+  payout_usd?: string | null
 }
 
 function getRankStyle(rank: number) {
@@ -151,8 +152,9 @@ function InlineSpinner() {
 }
 
 export default function LeaderboardPage() {
-  const { data, loading, error, countdown, timerStatus, lastUpdate, refresh } = useRealtimeLeaderboard(5000)
-  const { price, marketCap, loading: priceLoading } = useRealtimePrice(5000)
+  const { slug, basePath } = useTenantRouting()
+  const { data, loading, error, countdown, timerStatus, lastUpdate, refresh } = useRealtimeLeaderboard(5000, slug)
+  const { price, marketCap, loading: priceLoading, connection, isLive } = useRealtimePrice(undefined, slug)
   const { connectionState } = useRealtime({ autoReconnect: true })
   const [refreshing, setRefreshing] = useState(false)
 
@@ -175,10 +177,13 @@ export default function LeaderboardPage() {
     (data?.eligible_count ?? 0) > 0 &&
     ((countdown !== null && countdown <= 0) || data?.seconds_remaining === 0)
   
-  // IMPORTANT: Filter for ELIGIBLE holders first, then take top 3
-  // This ensures only eligible holders appear in "Current Winners"
-  const eligibleWinners = (data?.rankings || []).filter((h: Winner) => h.is_eligible === true)
-  const top3 = eligibleWinners.slice(0, 3)
+  // Eligible winners for payout cards; full rankings includes up-and-coming ineligible holders
+  const top3 = (data?.eligible_winners?.length ? data.eligible_winners : (data?.rankings || []).filter((h: Winner) => h.is_eligible === true)).slice(0, 3) as Winner[]
+  const upcomingLosers = ((data?.rankings || []) as Winner[])
+    .filter((h) => h.is_eligible !== true && (h.drawdown_pct ?? 0) < 0)
+    .slice(0, 3)
+  const showUpcoming = top3.length === 0 && upcomingLosers.length > 0
+  const featuredCards = showUpcoming ? upcomingLosers : top3
   
   // Pool balance in USD for payout estimates (prefer raw number from API)
   const poolValue = data?.pool_balance_usd_raw ?? parseFloat(data?.pool_balance_usd?.replace(/[$,]/g, '') || '0')
@@ -194,6 +199,7 @@ export default function LeaderboardPage() {
       </div>
 
       <Header
+        basePath={basePath}
         connectionState={connectionState}
         wsConnected={wsConnected}
         onRefresh={handleRefresh}
@@ -220,6 +226,18 @@ export default function LeaderboardPage() {
             ) : (
               <span className="text-gray-500 font-mono">Loading...</span>
             )}
+            {isLive ? (
+              <span
+                className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                  connection === 'websocket'
+                    ? 'bg-rh-green/20 text-rh-lime'
+                    : 'bg-amber-500/20 text-amber-300'
+                }`}
+                title={connection === 'websocket' ? 'DexScreener WebSocket' : 'DexScreener live poll (1s)'}
+              >
+                {connection === 'websocket' ? 'Live' : '1s'}
+              </span>
+            ) : null}
           </div>
           <div className="w-px h-5 bg-white/20" />
           <div className="flex items-center gap-3">
@@ -247,7 +265,7 @@ export default function LeaderboardPage() {
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="relative bg-gradient-to-br from-green-950/30 to-green-900/10 border border-rh-green/30 rounded-2xl p-6 overflow-hidden"
+            className="relative bg-gradient-to-br from-purple-950/30 to-purple-900/10 border border-rh-green/30 rounded-2xl p-6 overflow-hidden"
           >
             <div className="absolute top-0 right-0 w-40 h-40 bg-rh-green/10 rounded-full blur-3xl" />
             <div className="relative">
@@ -273,7 +291,7 @@ export default function LeaderboardPage() {
                 <div className="py-4">
                   <p className="text-2xl md:text-3xl font-bold text-rh-lime font-mono mb-3">Indexing chain…</p>
                   <p className="text-gray-400 text-sm leading-relaxed">
-                    Loading holders and swap history for this token from Robinhood Chain.
+                    Loading holders and swap history for this token from Solana.
                   </p>
                 </div>
               ) : isWaitingForEligible ? (
@@ -291,7 +309,7 @@ export default function LeaderboardPage() {
               ) : isPayoutDueNow ? (
                 <div className="py-4">
                   <p className="text-4xl md:text-5xl font-bold text-rh-lime font-mono mb-3 animate-pulse">00:00</p>
-                  <p className="text-gray-400 text-sm">Sending ETH to top losers…</p>
+                  <p className="text-gray-400 text-sm">Sending SOL to top losers…</p>
                 </div>
               ) : (
                 <Countdown seconds={countdown ?? 0} size="xl" className="text-rh-green" />
@@ -301,7 +319,7 @@ export default function LeaderboardPage() {
                   ? 'No payout cycle until someone qualifies'
                   : isPayoutDueNow
                     ? 'Payout runs automatically — timer resets after completion'
-                    : 'Top 3 losers receive native ETH automatically'}
+                    : 'Top 3 losers receive native SOL automatically'}
               </p>
             </div>
           </motion.div>
@@ -310,7 +328,7 @@ export default function LeaderboardPage() {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="relative bg-gradient-to-br from-green-950/20 to-green-900/5 border border-rh-green-dark/20 rounded-2xl p-6 overflow-hidden"
+            className="relative bg-gradient-to-br from-purple-950/20 to-purple-900/5 border border-rh-green-dark/20 rounded-2xl p-6 overflow-hidden"
           >
             <div className="absolute bottom-0 left-0 w-40 h-40 bg-rh-green-dark/10 rounded-full blur-3xl" />
             <div className="relative">
@@ -326,7 +344,7 @@ export default function LeaderboardPage() {
                 />
               </div>
               <p className="text-gray-400 text-sm">
-                {data?.pool_balance_eth || '0'} ETH in pool
+                {data?.pool_balance_eth || '0'} SOL in pool
                 {data?.payout_wallet_address && (
                   <span className="block text-xs text-gray-600 mt-1 font-mono">
                     Wallet {data.payout_wallet_address.slice(0, 6)}…{data.payout_wallet_address.slice(-4)} · live on-chain
@@ -336,6 +354,16 @@ export default function LeaderboardPage() {
             </div>
           </motion.div>
         </div>
+
+        {data?.diagnostics ? (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-10"
+          >
+            <TenantStatusPanel diagnostics={data.diagnostics as TenantDiagnostics} slug={slug} />
+          </motion.div>
+        ) : null}
 
         {/* Winners Section */}
         <motion.div
@@ -347,11 +375,13 @@ export default function LeaderboardPage() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold flex items-center gap-3">
-                <span className="text-3xl">🎯</span>
-                Current Winners
+                <span className="text-3xl">{showUpcoming ? '⏳' : '🎯'}</span>
+                {showUpcoming ? 'Up & Coming' : 'Current Winners'}
               </h2>
               <p className="text-gray-400 text-sm mt-1">
-                These wallets will receive payouts when the timer hits zero
+                {showUpcoming
+                  ? 'Leading the loss board — waiting on eligibility (15 min hold + rules below)'
+                  : 'These wallets will receive payouts when the timer hits zero'}
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -360,22 +390,22 @@ export default function LeaderboardPage() {
             </div>
           </div>
 
-          {top3.length > 0 ? (
+          {featuredCards.length > 0 ? (
             <div className="grid md:grid-cols-3 gap-6">
-                {top3.map((winner: Winner, idx: number) => {
+                {featuredCards.map((winner: Winner, idx: number) => {
                   const style = getRankStyle(idx + 1)
-                  const isEligible = winner.is_eligible !== false
+                  const isEligible = winner.is_eligible === true
                 // Payout from pool after dev fee
                   const payoutAmount = isEligible ? getPayoutForEligibleRank(poolValue, idx) : 0
                   const shareLabel = idx === 0 ? `${WINNER_SHARES.first}%` : idx === 1 ? `${WINNER_SHARES.second}%` : `${WINNER_SHARES.third}%`
 
                   return (
                     <motion.div
-                    key={`position-${idx}`}
+                    key={`position-${winner.wallet}-${idx}`}
                     initial={false}
                       animate={{ opacity: 1, y: 0 }}
                       whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                      className={`relative bg-rh-black border ${style.border} rounded-2xl p-6 ${style.glow} overflow-hidden ${!isEligible ? 'opacity-70' : ''}`}
+                      className={`relative bg-rh-black border ${showUpcoming ? 'border-amber-500/30' : style.border} rounded-2xl p-6 ${isEligible ? style.glow : ''} overflow-hidden ${!isEligible ? 'opacity-90' : ''}`}
                     >
                       {/* Rank badge */}
                       {idx === 0 && isEligible && (
@@ -385,7 +415,22 @@ export default function LeaderboardPage() {
                           </div>
                         </div>
                       )}
-                      {!isEligible && (
+                      {showUpcoming && (
+                        <div className="absolute top-0 right-0">
+                          {(winner.hold_seconds_remaining ?? 0) > 0 || winner.hold_eligible_at ? (
+                            <HoldTimeBadge
+                              holdEligibleAt={winner.hold_eligible_at}
+                              holdSecondsRemaining={winner.hold_seconds_remaining}
+                              className="rounded-bl-lg rounded-tr-2xl px-3 py-1"
+                            />
+                          ) : (
+                            <div className="bg-amber-600/80 text-white text-xs font-medium px-3 py-1 rounded-bl-lg">
+                              {winner.ineligible_reason || 'Pending eligibility'}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {!showUpcoming && !isEligible && (
                         <div className="absolute top-0 right-0">
                           {(winner.hold_seconds_remaining ?? 0) > 0 || winner.hold_eligible_at ? (
                             <HoldTimeBadge
@@ -410,7 +455,7 @@ export default function LeaderboardPage() {
                           >
                             {style.emoji}
                           </motion.span>
-                          <div className={`${style.badge} w-8 h-8 rounded-full flex items-center justify-center text-black font-bold text-lg shadow-lg`}>
+                          <div className={`${showUpcoming ? 'bg-amber-500/80' : style.badge} w-8 h-8 rounded-full flex items-center justify-center text-black font-bold text-lg shadow-lg`}>
                             {idx + 1}
                           </div>
                         </div>
@@ -420,8 +465,10 @@ export default function LeaderboardPage() {
                             <div className="text-rh-green font-bold text-lg">
                               <AnimatedNumber value={payoutAmount} format="currency" />
                             </div>
+                          ) : winner.drawdown_pct != null ? (
+                            <div className="text-red-400 font-bold text-lg font-mono">{winner.drawdown_pct}%</div>
                           ) : (
-                            <div className="text-gray-500 text-sm">No payout</div>
+                            <div className="text-gray-500 text-sm">No payout yet</div>
                           )}
                         </div>
                       </div>
@@ -433,7 +480,7 @@ export default function LeaderboardPage() {
                           transition={{ duration: 2, repeat: Infinity }}
                           className={`text-6xl ${idx === 0 ? 'drop-shadow-[0_0_20px_rgba(234,179,8,0.5)]' : idx === 1 ? 'drop-shadow-[0_0_15px_rgba(156,163,175,0.4)]' : 'drop-shadow-[0_0_15px_rgba(234,88,12,0.4)]'}`}
                         >
-                          {idx === 0 ? '👑' : idx === 1 ? '⚔️' : '🛡️'}
+                          {showUpcoming ? '⏳' : idx === 0 ? '👑' : idx === 1 ? '⚔️' : '🛡️'}
                         </motion.div>
                       </div>
 
@@ -443,12 +490,27 @@ export default function LeaderboardPage() {
                           <span className="text-white font-bold">{idx === 0 ? 'Biggest Loser' : idx === 1 ? 'Runner Up' : 'Third Place'}</span>
                         </div>
                         <div className="flex justify-between py-2 border-b border-white/5">
+                          <span className="text-gray-500">Drawdown</span>
+                          <span className="text-red-400 font-mono">{winner.drawdown_pct ?? 0}%</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-white/5">
                           <span className="text-gray-500">Balance</span>
                           <span className="text-white font-mono">{formatNumber(winner.balance)}</span>
                         </div>
                         <div className="flex justify-between py-2">
-                          <span className="text-gray-500">Share</span>
-                          <span className="text-rh-green font-bold">{shareLabel}</span>
+                          <span className="text-gray-500">{isEligible ? 'Share' : 'Status'}</span>
+                          {isEligible ? (
+                            <span className="text-rh-green font-bold">{shareLabel}</span>
+                          ) : (
+                            <HolderStatus
+                              isEligible={false}
+                              ineligibleReason={winner.ineligible_reason}
+                              holdEligibleAt={winner.hold_eligible_at}
+                              holdSecondsRemaining={winner.hold_seconds_remaining}
+                              firstBuyAt={winner.first_buy_at}
+                              minHoldMinutes={data?.min_hold_minutes ?? 15}
+                            />
+                          )}
                         </div>
                       </div>
                     </motion.div>
@@ -507,7 +569,11 @@ export default function LeaderboardPage() {
             <div>
               <h2 className="text-xl font-bold">Top Losers Leaderboard</h2>
               <p className="text-sm text-gray-400 mt-1">
-                {data?.eligible_count || 0} eligible for payout • Rankings updated in real-time
+                {data?.eligible_count || 0} eligible
+                {(data?.upcoming_count ?? 0) > 0 && (
+                  <> · {data.upcoming_count} up &amp; coming</>
+                )}
+                {' '}• Rankings updated in real-time
               </p>
             </div>
             <div className="flex items-center gap-4 text-sm text-gray-400">
@@ -523,6 +589,7 @@ export default function LeaderboardPage() {
                 <tr className="text-left text-sm text-gray-400 border-b border-white/10 bg-white/5">
                   <th className="px-6 py-4 font-medium">Rank</th>
                   <th className="px-6 py-4 font-medium">Wallet</th>
+                  <th className="px-6 py-4 font-medium text-right">Drawdown</th>
                   <th className="px-6 py-4 font-medium text-right">Balance</th>
                   <th className="px-6 py-4 font-medium text-center">Status</th>
                   <th className="px-6 py-4 font-medium text-right">Payout</th>
@@ -530,37 +597,37 @@ export default function LeaderboardPage() {
               </thead>
               <tbody>
                 {(data?.rankings || []).slice(0, 10).map((holder: Winner, idx: number) => {
-                  const isEligible = holder.is_eligible !== false
-                  const eligibleRank = (data?.rankings || [])
-                    .filter((h: Winner) => h.is_eligible)
-                    .findIndex((h: Winner) => h.wallet === holder.wallet)
+                  const isEligible = holder.is_eligible === true
+                  const eligibleRank = holder.eligible_rank != null ? holder.eligible_rank - 1 : -1
                   const payoutAmount = eligibleRank >= 0 && eligibleRank < 3
                     ? getPayoutForEligibleRank(poolValue, eligibleRank)
                     : 0
-                  const style = getRankStyle(idx + 1)
+                  const style = isEligible ? getRankStyle(Math.min(idx + 1, 3)) : getRankStyle(idx + 1)
 
                   return (
                     <motion.tr
-                      key={`row-${idx}`}
+                      key={`row-${holder.wallet}`}
                       initial={false}
                       animate={{ opacity: 1, x: 0 }}
-                      className={`border-b border-white/5 hover:bg-white/5 transition-colors ${!isEligible ? 'opacity-60' : ''}`}
+                      className={`border-b border-white/5 hover:bg-white/5 transition-colors ${!isEligible ? 'opacity-80' : ''}`}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <span className="text-xl">{style.emoji}</span>
-                          {idx < 3 && isEligible && (
+                          <span className="text-xl">{isEligible && idx < 3 ? style.emoji : '🏅'}</span>
+                          {isEligible && idx < 3 ? (
                             <span className={`${style.badge} w-6 h-6 rounded-full flex items-center justify-center text-black text-xs font-bold`}>
-                              {idx + 1}
+                              {holder.eligible_rank ?? idx + 1}
                             </span>
-                          )}
-                          {idx >= 3 && (
-                            <span className="text-gray-500 font-mono text-sm">#{idx + 1}</span>
+                          ) : (
+                            <span className="text-gray-500 font-mono text-sm">#{holder.rank ?? idx + 1}</span>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <span className="font-mono text-gray-300">{holder.wallet_display}</span>
+                      </td>
+                      <td className="px-6 py-4 text-right font-mono text-red-400">
+                        {holder.drawdown_pct != null ? `${holder.drawdown_pct}%` : '—'}
                       </td>
                       <td className="px-6 py-4 text-right font-mono">
                         {formatNumber(holder.balance)}
@@ -589,7 +656,7 @@ export default function LeaderboardPage() {
                 })}
                 {(!data?.rankings || data.rankings.length === 0) && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                       {isLoading || isInitializing ? (
                         <div className="flex flex-col items-center gap-2">
                           <motion.div
@@ -599,17 +666,24 @@ export default function LeaderboardPage() {
                           />
                           <span>Loading holder data...</span>
                         </div>
-                      ) : data?.eligible_count === 0 && (data?.tracked_holders || 0) > 0 ? (
+                      ) : (data?.tracked_holders || 0) > 0 ? (
                         <div className="flex flex-col items-center gap-2 max-w-md mx-auto">
-                          <span className="text-3xl">⏳</span>
-                          <span className="text-white font-medium">No eligible losers yet</span>
+                          <span className="text-3xl">📊</span>
+                          <span className="text-white font-medium">Calculating rankings…</span>
                           <span className="text-sm">
-                            Holders need 15 min hold, must be in loss (below VWAP), and meet the min loss threshold.
-                            The payout timer starts when the first holder qualifies.
+                            {data.tracked_holders} holder(s) indexed — VWAP and hold times loading from chain.
                           </span>
                         </div>
+                      ) : data?.diagnostics ? (
+                        <div className="flex flex-col items-center gap-3 max-w-lg mx-auto text-left">
+                          <span className="text-3xl">📋</span>
+                          <span className="text-white font-medium text-center">{data.diagnostics.headline}</span>
+                          <p className="text-sm text-gray-400 text-center">
+                            See session status above for what to do next.
+                          </p>
+                        </div>
                       ) : (
-                        <span>No eligible holders found yet</span>
+                        <span>No holders indexed yet — buys will appear here once detected on-chain.</span>
                       )}
                     </td>
                   </tr>
@@ -632,7 +706,7 @@ export default function LeaderboardPage() {
               animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
               transition={{ duration: 1.5, repeat: Infinity }}
             />
-            Real-time tracking via Blockscout
+            Real-time tracking via Helius
           </div>
           <p className="text-xs text-gray-500">
             {data?.tracked_holders || 0} holders tracked • Top 3 losers paid automatically every 15 minutes
@@ -645,12 +719,14 @@ export default function LeaderboardPage() {
 
 // Header component
 function Header({
+  basePath,
   connectionState,
   wsConnected,
   onRefresh,
   refreshing,
   lastUpdate,
 }: {
+  basePath: string
   connectionState: string
   wsConnected?: boolean
   onRefresh?: () => void
@@ -662,7 +738,7 @@ function Header({
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-3 group">
+            <Link href={basePath || '/'} className="flex items-center gap-3 group">
               <TopBlastLogo size="md" className="shadow-rh-glow-sm" />
               <span className="text-xl font-bold tracking-tight">
                 <span className="text-rh-green">TOP</span>
@@ -691,13 +767,13 @@ function Header({
               </motion.button>
             )}
             <Link
-              href="/history"
+              href={`${basePath}/history`}
               className="text-gray-400 hover:text-white text-sm font-medium transition-colors"
             >
               History
             </Link>
             <Link
-              href="/stats"
+              href={`${basePath}/stats`}
               className="text-gray-400 hover:text-white text-sm font-medium transition-colors"
             >
               Stats

@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/db'
 import { Payout } from '@/lib/db/models'
 import { config } from '@/lib/config'
-import { getTxExplorerUrl } from '@/lib/evm/explorer'
+import { getTxExplorerUrl } from '@/lib/solana/explorer'
 
 export const dynamic = 'force-dynamic'
 
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         network,
-        chain: 'robinhood-evm',
+        chain: 'solana',
         token_symbol: config.tokenSymbol,
         stats: {
           total_cycles: uniqueCycles.size,

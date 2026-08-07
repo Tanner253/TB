@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { formatPrice, formatUsd, getTokenPrice } from '@/lib/evm/price'
-import { formatWallet } from '@/lib/evm/holders'
+import { formatPrice, formatUsd, getResolvedTokenPrice } from '@/lib/solana/price'
+import { formatWallet } from '@/lib/solana/holders'
 import { initializeTracker } from '@/lib/tracker/init'
 import {
   loadRankingsFromDb,
@@ -24,7 +24,8 @@ import { buildHoldTimeFields } from '@/lib/eligibility/holdDuration'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
 import { loadLastWinCycleByWallet } from '@/lib/payout/winnerPersistence'
-import { getEarliestBuyTimestamp, getTokenHolders } from '@/lib/evm/indexer'
+import { getEarliestBuyTimestamp, getTokenHolders } from '@/lib/solana/indexer'
+import { buildTenantDiagnostics } from '@/lib/tenant/diagnostics'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -38,10 +39,10 @@ export async function GET(request: NextRequest) {
       }, { status: 500 })
     }
 
-    if (!config.tokenMint.startsWith('0x')) {
+    if (config.tokenMint.startsWith('0x')) {
       return NextResponse.json({
         success: false,
-        error: 'TOKEN_MINT_ADDRESS must be an EVM contract address (0x...)',
+        error: 'TOKEN_MINT_ADDRESS must be a Solana SPL mint (base58)',
       }, { status: 500 })
     }
 
@@ -77,10 +78,14 @@ export async function GET(request: NextRequest) {
       dbRankings = await loadRankingsFromDb()
     }
 
+    const resolvedPrice = await getResolvedTokenPrice(config.tokenMint)
     const liveTokenPrice =
-      (await getTokenPrice(config.tokenMint)) ??
-      dbRankings?.tokenPrice ??
-      0
+      resolvedPrice?.price ?? dbRankings?.tokenPrice ?? 0
+    const priceMeta = {
+      priceAvailable: !!resolvedPrice?.price,
+      priceSource: resolvedPrice?.source ?? null,
+      migrationStage: resolvedPrice?.pair?.migrationStage ?? null,
+    }
 
     let liveEligibleCount = 0
     let lastWinByWallet = new Map<string, number | null>()
@@ -92,7 +97,7 @@ export async function GET(request: NextRequest) {
         if (h.isContract || isExcludedParticipantWallet(h.wallet)) return false
         const firstBuyMs = h.firstBuyAt ? new Date(h.firstBuyAt).getTime() : null
         const lastWinCycle =
-          lastWinByWallet.get(h.wallet.toLowerCase()) ?? h.lastWinCycle ?? null
+          lastWinByWallet.get(h.wallet) ?? h.lastWinCycle ?? null
         const live = evaluateHolderEligibility({
           wallet: h.wallet,
           balance: h.balance,
@@ -155,7 +160,7 @@ export async function GET(request: NextRequest) {
       pool_balance_eth: poolEthFormatted,
       pool_balance_usd: poolUsdFormatted,
       pool_balance_usd_raw: poolUsd,
-      pool_balance_tokens: `${poolEthFormatted} ETH`,
+      pool_balance_tokens: `${poolEthFormatted} SOL`,
       payout_wallet_address: payoutWalletAddress,
       eth_price: ethPrice,
       min_loss_threshold_usd: minLossUsdFormatted,
@@ -164,13 +169,25 @@ export async function GET(request: NextRequest) {
     const noStoreHeaders = { 'Cache-Control': 'no-store, max-age=0' }
 
     if (!dbRankings) {
+      const diagnostics = buildTenantDiagnostics({
+        pool: livePool,
+        timer: timerAfterPayout,
+        trackedHolders: 0,
+        holdersWithVwap: 0,
+        eligibleCount: 0,
+        upcomingCount: 0,
+        totalLosers: 0,
+        trackerInitialized: serviceStatus.initialized,
+        hasRankings: false,
+        ...priceMeta,
+      })
+
       return NextResponse.json({
         success: true,
         data: {
           status: timerAfterPayout.timer_status === 'waiting' ? 'waiting' : 'initializing',
-          message: timerAfterPayout.timer_status === 'waiting'
-            ? 'Waiting for the first eligible holder (15 min hold + in loss)...'
-            : 'Loading holder data and calculating VWAPs...',
+          message: diagnostics.headline,
+          diagnostics,
           timer_status: timerAfterPayout.timer_status,
           cycle: timerAfterPayout.next_cycle,
           seconds_remaining: timerAfterPayout.seconds_remaining,
@@ -195,19 +212,19 @@ export async function GET(request: NextRequest) {
     const contractWallets = new Set(
       (await getTokenHolders(config.tokenMint, 100))
         .filter(h => h.isContract)
-        .map(h => h.wallet.toLowerCase())
+        .map(h => h.wallet)
     )
 
     const sourceRankings = dbRankings.rankings.filter(
       h =>
         !h.isContract &&
-        !contractWallets.has(h.wallet.toLowerCase()) &&
+        !contractWallets.has(h.wallet) &&
         !isExcludedParticipantWallet(h.wallet)
     )
 
     const walletsNeedingFirstBuy = sourceRankings
       .filter(h => !h.firstBuyAt)
-      .map(h => h.wallet.toLowerCase())
+      .map(h => h.wallet)
 
     const firstBuyByWallet = new Map<string, Date>()
     if (walletsNeedingFirstBuy.length > 0) {
@@ -220,19 +237,19 @@ export async function GET(request: NextRequest) {
         .lean()
       for (const doc of holderDocs) {
         if (doc.firstBuyAt) {
-          firstBuyByWallet.set(doc.wallet.toLowerCase(), doc.firstBuyAt)
+          firstBuyByWallet.set(doc.wallet, doc.firstBuyAt)
         }
       }
 
       const stillNeedingOnChain = walletsNeedingFirstBuy.filter(
-        w => !firstBuyByWallet.has(w.toLowerCase())
+        w => !firstBuyByWallet.has(w)
       )
       if (stillNeedingOnChain.length > 0 && config.tokenMint) {
         await Promise.all(
           stillNeedingOnChain.map(async (wallet) => {
             const ts = await getEarliestBuyTimestamp(wallet, config.tokenMint)
             if (ts) {
-              firstBuyByWallet.set(wallet.toLowerCase(), new Date(ts))
+              firstBuyByWallet.set(wallet, new Date(ts))
             }
           })
         )
@@ -247,7 +264,7 @@ export async function GET(request: NextRequest) {
     const liveEvaluated = sourceRankings.map(holder => {
       const firstBuyAt =
         holder.firstBuyAt ??
-        firstBuyByWallet.get(holder.wallet.toLowerCase()) ??
+        firstBuyByWallet.get(holder.wallet) ??
         null
       const firstBuyMs = firstBuyAt ? new Date(firstBuyAt).getTime() : null
       const live = evaluateHolderEligibility({
@@ -258,7 +275,7 @@ export async function GET(request: NextRequest) {
         firstBuyTimestamp: firstBuyMs,
         hasSold: holder.hasSold ?? false,
         hasTransferredOut: holder.hasTransferredOut ?? false,
-        lastWinCycle: lastWinByWallet.get(holder.wallet.toLowerCase()) ?? holder.lastWinCycle ?? null,
+        lastWinCycle: lastWinByWallet.get(holder.wallet) ?? holder.lastWinCycle ?? null,
         totalTokensBought: holder.totalTokensBought ?? 0,
         poolUsd: poolBal,
         currentCycle: getCurrentPayoutCycle(),
@@ -282,14 +299,30 @@ export async function GET(request: NextRequest) {
         return b.live.lossUsd - a.live.lossUsd
       })
 
+    const allRanked = liveEvaluated
+      .filter(entry => (entry.holder.vwap ?? 0) > 0)
+      .sort((a, b) => {
+        if (a.live.isEligible !== b.live.isEligible) {
+          return a.live.isEligible ? -1 : 1
+        }
+        if (a.live.drawdownPct !== b.live.drawdownPct) {
+          return a.live.drawdownPct - b.live.drawdownPct
+        }
+        return b.live.lossUsd - a.live.lossUsd
+      })
+
     const getPayoutForRank = (eligibleRank: number): number =>
       getPayoutForEligibleRank(poolBal, eligibleRank)
 
-    const rankings = eligibleSorted.slice(0, limit).map((entry, idx) => {
-      const { holder, firstBuyAt, live, holdFields } = entry
+    const mapRankingRow = (
+      entry: (typeof liveEvaluated)[number],
+      displayRank: number,
+      eligibleRank: number | null
+    ) => {
+      const { holder, live, holdFields } = entry
 
       return {
-        rank: idx + 1,
+        rank: displayRank,
         wallet: holder.wallet,
         wallet_display: formatWallet(holder.wallet),
         balance: holder.balance.toLocaleString('en-US', { maximumFractionDigits: 0 }),
@@ -300,18 +333,54 @@ export async function GET(request: NextRequest) {
         drawdown_pct: Math.round(live.drawdownPct * 100) / 100,
         loss_usd: formatUsd(live.lossUsd),
         loss_usd_raw: live.lossUsd,
-        is_eligible: true,
-        ineligible_reason: null,
+        is_eligible: live.isEligible,
+        ineligible_reason: live.isEligible ? null : live.ineligibleReason,
         ...holdFields,
-        payout_usd: formatUsd(getPayoutForRank(idx)),
-        eligible_rank: idx + 1,
+        payout_usd: eligibleRank != null ? formatUsd(getPayoutForRank(eligibleRank - 1)) : null,
+        eligible_rank: eligibleRank,
       }
+    }
+
+    let eligibleRankCounter = 0
+    const rankings = allRanked.slice(0, limit).map((entry, idx) => {
+      const eligibleRank = entry.live.isEligible ? ++eligibleRankCounter : null
+      return mapRankingRow(entry, idx + 1, eligibleRank)
+    })
+
+    const eligibleWinners = eligibleSorted.slice(0, 3).map((entry, idx) =>
+      mapRankingRow(entry, idx + 1, idx + 1)
+    )
+
+    const upcomingCount = allRanked.filter(e => !e.live.isEligible && e.live.drawdownPct < 0).length
+    const totalLosers = allRanked.filter(e => e.live.drawdownPct < 0).length
+
+    const ineligibleReasons: Record<string, number> = {}
+    for (const entry of allRanked) {
+      if (entry.live.isEligible) continue
+      const reason = entry.live.ineligibleReason || 'Ineligible'
+      ineligibleReasons[reason] = (ineligibleReasons[reason] || 0) + 1
+    }
+
+    const diagnostics = buildTenantDiagnostics({
+      pool: livePool,
+      timer: timerAfterPayout,
+      trackedHolders: sourceRankings.length,
+      holdersWithVwap: dbRankings.holdersWithVwap,
+      eligibleCount,
+      upcomingCount,
+      totalLosers,
+      trackerInitialized: serviceStatus.initialized,
+      hasRankings: true,
+      ineligibleReasons,
+      ...priceMeta,
     })
 
     return NextResponse.json({
       success: true,
       data: {
         status: timerAfterPayout.timer_status === 'waiting' ? 'waiting' : 'ready',
+        message: diagnostics.headline,
+        diagnostics,
         timer_status: timerAfterPayout.timer_status,
         cycle: timerAfterPayout.next_cycle,
         seconds_remaining: timerAfterPayout.seconds_remaining,
@@ -324,12 +393,13 @@ export async function GET(request: NextRequest) {
         tracked_holders: sourceRankings.length,
         holders_with_real_vwap: dbRankings.holdersWithVwap,
         eligible_count: eligibleCount,
-        total_losers: eligibleSorted.length,
+        upcoming_count: upcomingCount,
+        total_losers: allRanked.filter(e => e.live.drawdownPct < 0).length,
         ws_connected: false,
         tracker_initialized: serviceStatus.initialized,
         min_hold_minutes: config.minHoldDurationMinutes,
         rankings,
-        eligible_winners: rankings.filter(r => r.is_eligible).slice(0, 3),
+        eligible_winners: eligibleWinners,
         last_updated: dbRankings.lastCalculated.toISOString(),
       },
     }, { headers: noStoreHeaders })

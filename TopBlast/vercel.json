@@ -1,14 +1,19 @@
 {
   "functions": {
+    "app/api/cron/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/t/**/*.ts": {
+      "maxDuration": 60
+    },
     "app/api/**/*.ts": {
       "maxDuration": 60
     }
   },
   "crons": [
     {
-      "path": "/api/cron/snapshot",
-      "schedule": "0 0 * * *"
+      "path": "/api/cron/tenants",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
-

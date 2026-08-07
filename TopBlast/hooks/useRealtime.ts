@@ -1,24 +1,18 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useLiveTokenPrice } from '@/hooks/useLiveTokenPrice'
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error'
 
 interface UseRealtimeOptions {
-  onTransaction?: (tx: any) => void
+  onTransaction?: (tx: unknown) => void
   onPriceUpdate?: (price: number) => void
   onError?: (error: Error) => void
   autoReconnect?: boolean
 }
 
-/**
- * Real-time connection hook
- * NOTE: SSE/WebSocket disabled for serverless compatibility
- * Uses polling via useRealtimeLeaderboard and useRealtimePrice instead
- */
-export function useRealtime(options: UseRealtimeOptions = {}) {
-  // Always return "connected" since we're using polling
-  // SSE/WebSocket don't work on Vercel serverless
+export function useRealtime(_options: UseRealtimeOptions = {}) {
   return {
     connectionState: 'connected' as ConnectionState,
     connect: () => {},
@@ -27,56 +21,34 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
   }
 }
 
-// Hook for real-time price updates with polling
-export function useRealtimePrice(pollInterval = 10000) {
-  const [price, setPrice] = useState<number | null>(null)
-  const [supply, setSupply] = useState<number | null>(null)
-  const [marketCap, setMarketCap] = useState<number | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
-  const [error, setError] = useState<string | null>(null)
+function apiPath(tenantSlug: string | undefined, endpoint: string): string {
+  if (tenantSlug) {
+    return `/api/t/${tenantSlug}/${endpoint.replace(/^\//, '')}`
+  }
+  return `/api/${endpoint.replace(/^\//, '')}`
+}
 
-  const fetchPrice = useCallback(async () => {
-    try {
-      const res = await fetch('/api/realtime/price')
-      const json = await res.json()
-      
-      if (json.success) {
-        setPrice(json.data.price)
-        setSupply(json.data.supply)
-        setMarketCap(json.data.market_cap)
-        setLastUpdate(new Date())
-        setError(null)
-      } else {
-        setError(json.error)
-      }
-    } catch {
-      setError('Failed to fetch price')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchPrice()
-    const interval = setInterval(fetchPrice, pollInterval)
-    return () => clearInterval(interval)
-  }, [fetchPrice, pollInterval])
-
+/** Live DexScreener WebSocket + 1s browser REST fallback — no Helius, no server cache. */
+export function useRealtimePrice(_pollInterval?: number, tenantSlug?: string) {
+  const live = useLiveTokenPrice(tenantSlug)
   return {
-    price,
-    supply,
-    marketCap,
-    loading,
-    lastUpdate,
-    error,
-    refresh: fetchPrice,
+    price: live.price,
+    supply: live.marketCap && live.price ? live.marketCap / live.price : null,
+    marketCap: live.marketCap,
+    priceSource: live.priceSource,
+    migrationStage: live.migrationStage,
+    connection: live.connection,
+    isLive: live.isLive,
+    loading: live.loading,
+    lastUpdate: live.lastUpdate,
+    error: live.error,
+    refresh: () => {},
   }
 }
 
-// Hook for real-time leaderboard data
-// Polls at fixed interval, countdown runs locally between syncs
-export function useRealtimeLeaderboard(pollInterval = 10000) {
+export { useLiveTokenPrice } from '@/hooks/useLiveTokenPrice'
+
+export function useRealtimeLeaderboard(pollInterval = 10000, tenantSlug?: string) {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -87,12 +59,12 @@ export function useRealtimeLeaderboard(pollInterval = 10000) {
 
   const fetchLeaderboard = useCallback(async () => {
     try {
-      const res = await fetch('/api/leaderboard', { cache: 'no-store' })
+      const res = await fetch(apiPath(tenantSlug, 'leaderboard'), { cache: 'no-store' })
       const json = await res.json()
-      
+
       if (json.success) {
         setData(json.data)
-        
+
         if (json.data.timer_status) {
           setTimerStatus(json.data.timer_status)
         }
@@ -100,16 +72,19 @@ export function useRealtimeLeaderboard(pollInterval = 10000) {
         if (json.data.timer_status === 'waiting') {
           countdownRef.current = null
           setCountdown(null)
-        } else if (json.data.seconds_remaining !== undefined && json.data.seconds_remaining !== null) {
+        } else if (
+          json.data.seconds_remaining !== undefined &&
+          json.data.seconds_remaining !== null
+        ) {
           const serverCountdown = json.data.seconds_remaining
           const localCountdown = countdownRef.current
-          
+
           if (localCountdown === null || Math.abs(serverCountdown - localCountdown) > 5) {
             countdownRef.current = serverCountdown
             setCountdown(serverCountdown)
           }
         }
-        
+
         setLastUpdate(new Date())
         setError(null)
       } else {
@@ -120,19 +95,17 @@ export function useRealtimeLeaderboard(pollInterval = 10000) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [tenantSlug])
 
-  // Initial fetch and fixed polling interval
   useEffect(() => {
     fetchLeaderboard()
     const interval = setInterval(fetchLeaderboard, pollInterval)
     return () => clearInterval(interval)
-  }, [fetchLeaderboard, pollInterval])
+  }, [fetchLeaderboard, pollInterval, tenantSlug])
 
-  // Local countdown timer - decrements every second, syncs from server periodically
   useEffect(() => {
     const timer = setInterval(() => {
-      setCountdown((prev) => {
+      setCountdown(prev => {
         if (prev === null) return null
         const newVal = Math.max(0, prev - 1)
         countdownRef.current = newVal
@@ -153,7 +126,6 @@ export function useRealtimeLeaderboard(pollInterval = 10000) {
   }
 }
 
-// Hook to track time since last update
 export function useTimeSince(date: Date | null) {
   const [secondsAgo, setSecondsAgo] = useState(0)
 

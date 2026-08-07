@@ -4,7 +4,8 @@ import {
 } from '@/lib/eligibility/excludedWallets'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 
-const PROTOCOL_WALLET = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+const PROTOCOL_WALLET = '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuQosgAsU'
+const OTHER_WALLET = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
 
 describe('excludedWallets', () => {
   const originalExcluded = process.env.EXCLUDED_WALLETS
@@ -22,7 +23,7 @@ describe('excludedWallets', () => {
     process.env.EXCLUDED_WALLETS = PROTOCOL_WALLET
     resetExcludedWalletCache()
     expect(isExcludedParticipantWallet(PROTOCOL_WALLET)).toBe(true)
-    expect(isExcludedParticipantWallet('0xE52ecc0b8cb032a200301E0e5F79276AF77201bd')).toBe(false)
+    expect(isExcludedParticipantWallet(OTHER_WALLET)).toBe(false)
   })
 
   it('marks protocol wallet ineligible in evaluation', () => {

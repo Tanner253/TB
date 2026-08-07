@@ -2,19 +2,32 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'TopBlast Whitepaper | The Loss-Mining Protocol',
-  description: 'The world\'s first Loss-Mining Protocol. Get paid for being a top loser. Every 15 minutes, the top 3 wallets with the biggest drawdowns win from the reward pool.',
-  keywords: ['robinhood chain', 'evm', 'defi', 'loss-mining', 'crypto', 'topblast', 'whitepaper', 'TopBlast', 'ethereum'],
+  title: 'TopBlast | Bullish-Holder Rewards for Solana Devs',
+  description:
+    'Turn creator-fee SOL into loss-mining rewards for holders who bought the top and stayed in. Self-serve SaaS for any SPL token — no cashback sell pressure.',
+  keywords: [
+    'solana',
+    'spl',
+    'pump.fun',
+    'loss-mining',
+    'token creator',
+    'creator rewards',
+    'topblast',
+    'whitepaper',
+    'saas',
+  ],
   authors: [{ name: 'TopBlast' }],
   openGraph: {
-    title: 'TopBlast Whitepaper | The Loss-Mining Protocol',
-    description: 'Get paid for being a top loser. Every 15 minutes, the top 3 wallets with the biggest drawdowns win.',
+    title: 'TopBlast | Bullish-Holder Rewards for Solana Devs',
+    description:
+      'Reward holders who stay bullish while underwater. Self-serve loss-mining for any Solana token.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TopBlast Whitepaper | The Loss-Mining Protocol',
-    description: 'Get paid for being a top loser. Every 15 minutes, the top 3 wallets with the biggest drawdowns win.',
+    title: 'TopBlast | Bullish-Holder Rewards for Solana Devs',
+    description:
+      'Turn creator-fee SOL into holder rewards — without cashback sell pressure.',
     site: '@topblasteth',
   },
 }
@@ -22,7 +35,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#06060a',
+  themeColor: '#9945FF',
 }
 
 export default function RootLayout({
@@ -41,4 +54,3 @@ export default function RootLayout({
     </html>
   )
 }
-

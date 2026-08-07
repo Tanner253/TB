@@ -5,18 +5,19 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRealtimePrice, useTimeSince } from '@/hooks/useRealtime'
+import { useTenantRouting } from '@/hooks/useTenantRouting'
 import { AnimatedNumber, PriceTicker } from '@/components/ui/AnimatedNumber'
 import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
+import { TenantStatusPanel } from '@/components/tenant/TenantStatusPanel'
+import type { TenantDiagnostics } from '@/lib/tenant/diagnostics'
 import { getWinnerSharePercents, getDevFeePercent } from '@/lib/payout/shares'
 
 const SHARES = getWinnerSharePercents()
 const DEV_FEE = getDevFeePercent()
 
-// External Links
-const LINKS = {
-  twitter: 'https://x.com/topblasteth',
-  whitepaper: 'https://topblastx100.vercel.app',
-}
+import { EXTERNAL_LINKS } from '@/lib/marketing/devValueProp'
+
+const LINKS = EXTERNAL_LINKS
 
 // Social Icons
 const XIcon = () => (
@@ -98,28 +99,42 @@ interface PoolData {
 }
 
 export default function StatsPage() {
+  const { slug, basePath } = useTenantRouting()
   const [stats, setStats] = useState<StatsData | null>(null)
   const [pool, setPool] = useState<PoolData | null>(null)
+  const [diagnostics, setDiagnostics] = useState<TenantDiagnostics | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   
-  const { price, marketCap } = useRealtimePrice(10000)
+  const { price, marketCap } = useRealtimePrice(10000, slug)
   const secondsAgo = useTimeSince(lastUpdate)
 
   useEffect(() => {
+    const statsUrl = slug ? `/api/t/${slug}/stats` : '/api/stats'
+    const poolUrl = slug ? `/api/t/${slug}/pool` : '/api/pool'
+    const statusUrl = slug ? `/api/t/${slug}/status` : null
+
     const fetchData = async () => {
       try {
-        const [statsRes, poolRes] = await Promise.all([
-          fetch('/api/stats'),
-          fetch('/api/pool'),
-        ])
+        const requests: Promise<Response>[] = [
+          fetch(statsUrl),
+          fetch(poolUrl),
+        ]
+        if (statusUrl) requests.push(fetch(statusUrl))
 
-        const statsJson = await statsRes.json()
-        const poolJson = await poolRes.json()
+        const responses = await Promise.all(requests)
+        const statsJson = await responses[0].json()
+        const poolJson = await responses[1].json()
 
         if (statsJson.success) setStats(statsJson.data)
         if (poolJson.success) setPool(poolJson.data)
+        if (statusUrl && responses[2]) {
+          const statusJson = await responses[2].json()
+          if (statusJson.success && statusJson.data?.diagnostics) {
+            setDiagnostics(statusJson.data.diagnostics)
+          }
+        }
         setLastUpdate(new Date())
         setError(null)
       } catch {
@@ -132,7 +147,7 @@ export default function StatsPage() {
     fetchData()
     const interval = setInterval(fetchData, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [slug])
 
   if (loading) {
     return (
@@ -173,15 +188,15 @@ export default function StatsPage() {
       <header className="sticky top-0 z-50 border-b border-rh-green/10 bg-black/80 backdrop-blur-xl">
         <div className="max-w-5xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3">
+            <Link href={basePath || '/'} className="flex items-center gap-3">
               <TopBlastLogo size="md" />
               <span className="text-xl font-bold tracking-tight"><span className="text-rh-green">TOP</span><span className="text-white">BLAST</span></span>
             </Link>
             <nav className="flex items-center gap-6">
-              <Link href="/leaderboard" className="text-gray-400 hover:text-white transition-colors text-sm">
+              <Link href={`${basePath}/leaderboard`} className="text-gray-400 hover:text-white transition-colors text-sm">
                 Leaderboard
               </Link>
-              <Link href="/history" className="text-gray-400 hover:text-white transition-colors text-sm">
+              <Link href={`${basePath}/history`} className="text-gray-400 hover:text-white transition-colors text-sm">
                 History
               </Link>
               <a href={LINKS.whitepaper} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-rh-green transition-colors" title="Whitepaper">
@@ -204,7 +219,7 @@ export default function StatsPage() {
         >
           <h1 className="text-3xl font-bold mb-2">Protocol Statistics</h1>
           <div className="flex items-center gap-4 text-sm text-gray-400">
-            <span>Real-time data from Robinhood Chain</span>
+            <span>Real-time data from Solana</span>
             {lastUpdate && (
               <>
                 <span className="w-1 h-1 bg-gray-600 rounded-full" />
@@ -219,6 +234,16 @@ export default function StatsPage() {
             )}
           </div>
         </motion.div>
+
+        {diagnostics ? (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6"
+          >
+            <TenantStatusPanel diagnostics={diagnostics} slug={slug} />
+          </motion.div>
+        ) : null}
 
         {/* Token Info */}
         <motion.div
