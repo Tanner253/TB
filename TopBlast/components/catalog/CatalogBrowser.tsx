@@ -51,7 +51,7 @@ export function CatalogBrowser() {
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-14 z-40 -mx-5 px-5 py-3 bg-[#030303]/95 backdrop-blur-md border-b border-white/[0.06]">
+      <div className="sticky top-14 z-40 -mx-3 sm:-mx-5 px-3 sm:px-5 py-3 bg-[#030303]/95 backdrop-blur-md border-b border-white/[0.06]">
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="relative flex-1">
             <svg

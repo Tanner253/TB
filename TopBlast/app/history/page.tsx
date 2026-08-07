@@ -195,7 +195,7 @@ export default function HistoryPage() {
 
       <AppHeader active="history" sessionBasePath={basePath} />
 
-      <main className="relative max-w-4xl mx-auto px-4 py-8">
+      <main className="relative max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
         {/* Page Title */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

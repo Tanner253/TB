@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
 import { SolanaBadge } from '@/components/ui/SolanaBadge'
@@ -29,113 +30,211 @@ function XIcon() {
   )
 }
 
-function navLinkClass(active: boolean) {
-  return `px-3 py-1.5 rounded-md transition-colors whitespace-nowrap ${
-    active ? 'text-sol-mint bg-sol-mint/10' : 'text-gray-400 hover:text-white'
+function MenuIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function navLinkClass(active: boolean, block = false) {
+  return `${block ? 'block w-full text-left py-3 text-base' : 'px-3 py-1.5'} rounded-md transition-colors whitespace-nowrap ${
+    active ? 'text-sol-mint bg-sol-mint/10' : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'
   }`
 }
 
+type NavItem = { href: string; label: string; active: boolean; external?: boolean }
+
 interface AppHeaderProps {
   active?: AppHeaderActive
-  /** e.g. `/topblast` when viewing a catalog listing session */
   sessionBasePath?: string
-  /** Extra controls (refresh, live badge) shown before social icons */
   trailing?: React.ReactNode
 }
 
 export function AppHeader({ active, sessionBasePath, trailing }: AppHeaderProps) {
+  const [menuOpen, setMenuOpen] = useState(false)
   const inSession = sessionBasePath !== undefined
   const sessionRoot = sessionBasePath || ''
 
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }, [menuOpen])
+
+  const platformLinks: NavItem[] = [
+    { href: '/', label: 'Home', active: active === 'home' },
+    { href: '/catalog', label: 'Catalog', active: active === 'catalog' },
+    { href: '/launch', label: 'Launch', active: active === 'launch' },
+  ]
+
+  const sessionLinks: NavItem[] = [
+    { href: `${sessionRoot}/leaderboard`, label: 'Leaderboard', active: active === 'leaderboard' },
+    { href: `${sessionRoot}/history`, label: 'History', active: active === 'history' },
+    { href: `${sessionRoot}/stats`, label: 'Stats', active: active === 'stats' },
+  ]
+
+  const extraLinks: NavItem[] = [
+    { href: WHITEPAPER_URL, label: 'Docs', active: false, external: true },
+    { href: EXTERNAL_LINKS.github, label: 'GitHub', active: false, external: true },
+    { href: EXTERNAL_LINKS.twitter, label: 'X / Twitter', active: false, external: true },
+  ]
+
+  const navLinks = [...platformLinks, ...(inSession ? sessionLinks : []), ...extraLinks]
+
+  function renderNavLink(item: NavItem, block = false) {
+    const className = navLinkClass(item.active, block)
+    if (item.external) {
+      return (
+        <a
+          key={item.href + item.label}
+          href={item.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={className}
+          onClick={() => setMenuOpen(false)}
+        >
+          {item.label}
+        </a>
+      )
+    }
+    return (
+      <Link
+        key={item.href + item.label}
+        href={item.href}
+        className={className}
+        onClick={() => setMenuOpen(false)}
+      >
+        {item.label}
+      </Link>
+    )
+  }
+
   return (
-    <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-black/85 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-4 sm:px-5 h-14 flex items-center justify-between gap-3">
-        <Link href="/" className="flex items-center gap-2.5 shrink-0" title="TopBlast home">
-          <TopBlastLogo size="sm" />
-          <span className="font-bold tracking-tight text-[0.95rem] hidden sm:inline">
-            <span className="text-sol-mint">TOP</span>
-            <span className="text-white">BLAST</span>
-          </span>
-        </Link>
-
-        <nav className="flex items-center gap-0.5 sm:gap-1 text-sm overflow-x-auto max-w-[min(100%,52rem)] scrollbar-none">
-          <Link href="/" className={navLinkClass(active === 'home')}>
-            Home
+    <>
+      <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl pt-[env(safe-area-inset-top)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-5 h-14 flex items-center justify-between gap-2">
+          <Link href="/" className="flex items-center gap-2 shrink-0 min-w-0" title="TopBlast home">
+            <TopBlastLogo size="sm" />
+            <span className="font-bold tracking-tight text-[0.9rem] sm:text-[0.95rem] truncate">
+              <span className="text-sol-mint">TOP</span>
+              <span className="text-white">BLAST</span>
+            </span>
           </Link>
-          <Link href="/catalog" className={navLinkClass(active === 'catalog')}>
-            Catalog
-          </Link>
-          {!inSession ? (
-            <Link href="/launch" className={`${navLinkClass(active === 'launch')} hidden sm:inline-flex`}>
-              Launch
-            </Link>
-          ) : (
-            <>
-              <Link
-                href={`${sessionRoot}/leaderboard`}
-                className={navLinkClass(active === 'leaderboard')}
-              >
-                Leaderboard
-              </Link>
-              <Link
-                href={`${sessionRoot}/history`}
-                className={`${navLinkClass(active === 'history')} hidden sm:inline-flex`}
-              >
-                History
-              </Link>
-              <Link
-                href={`${sessionRoot}/stats`}
-                className={`${navLinkClass(active === 'stats')} hidden sm:inline-flex`}
-              >
-                Stats
-              </Link>
-            </>
-          )}
-          <a
-            href={WHITEPAPER_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${navLinkClass(false)} hidden lg:inline-flex`}
-          >
-            Docs
-          </a>
-          <a
-            href={EXTERNAL_LINKS.github}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-2 py-1.5 rounded-md text-gray-400 hover:text-white transition-colors hidden md:inline-flex"
-            title="GitHub"
-            aria-label="GitHub"
-          >
-            <GitHubIcon />
-          </a>
-          <a
-            href={EXTERNAL_LINKS.twitter}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-2 py-1.5 rounded-md text-gray-400 hover:text-white transition-colors hidden md:inline-flex"
-            title="Follow on X"
-            aria-label="X"
-          >
-            <XIcon />
-          </a>
-        </nav>
 
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {trailing}
-          <div className="hidden sm:block">
-            <SolanaBadge compact />
-          </div>
-          {!inSession ? (
-            <Link
-              href="/launch"
-              className="px-3 sm:px-3.5 py-1.5 bg-sol-gradient text-black rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity whitespace-nowrap"
+          <nav className="hidden lg:flex items-center gap-1 text-sm">
+            {platformLinks.map(item => renderNavLink(item))}
+            {inSession ? sessionLinks.map(item => renderNavLink(item)) : null}
+            <a
+              href={WHITEPAPER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={navLinkClass(false)}
             >
-              Launch
-            </Link>
-          ) : null}
+              Docs
+            </a>
+            <a
+              href={EXTERNAL_LINKS.github}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2 py-1.5 rounded-md text-gray-400 hover:text-white transition-colors"
+              title="GitHub"
+              aria-label="GitHub"
+            >
+              <GitHubIcon />
+            </a>
+            <a
+              href={EXTERNAL_LINKS.twitter}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2 py-1.5 rounded-md text-gray-400 hover:text-white transition-colors"
+              title="Follow on X"
+              aria-label="X"
+            >
+              <XIcon />
+            </a>
+          </nav>
+
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {trailing}
+            <div className="hidden md:block">
+              <SolanaBadge compact />
+            </div>
+            {!inSession ? (
+              <Link
+                href="/launch"
+                className="hidden sm:inline-flex px-3.5 py-1.5 bg-sol-gradient text-black rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity whitespace-nowrap"
+              >
+                Launch
+              </Link>
+            ) : null}
+            <button
+              type="button"
+              className="lg:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-300 hover:bg-white/[0.06] hover:text-white transition-colors"
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(v => !v)}
+            >
+              {menuOpen ? <CloseIcon /> : <MenuIcon />}
+            </button>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {menuOpen ? (
+        <div className="fixed inset-0 z-[60] lg:hidden" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/70 border-0 cursor-pointer"
+            aria-label="Close menu"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div className="absolute top-0 right-0 h-full w-[min(100%,20rem)] bg-[#0a0a0a] border-l border-white/[0.08] shadow-2xl flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+            <div className="flex items-center justify-between px-4 h-14 border-b border-white/[0.06]">
+              <span className="text-sm font-semibold text-white">Menu</span>
+              <button
+                type="button"
+                className="w-10 h-10 inline-flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/[0.06]"
+                onClick={() => setMenuOpen(false)}
+                aria-label="Close"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+            <nav className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-1">
+              {navLinks.map(item => renderNavLink(item, true))}
+            </nav>
+            <div className="px-4 py-4 border-t border-white/[0.06] flex flex-col gap-2">
+              <div className="md:hidden mb-1">
+                <SolanaBadge compact />
+              </div>
+              <Link
+                href="/launch"
+                className="w-full text-center px-4 py-3 bg-sol-gradient text-black rounded-lg font-semibold text-sm"
+                onClick={() => setMenuOpen(false)}
+              >
+                Launch your token
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   )
 }

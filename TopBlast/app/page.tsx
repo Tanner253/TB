@@ -22,7 +22,7 @@ export default function HomePage() {
 
       <AppHeader active="home" />
 
-      <main className="relative z-10 max-w-6xl mx-auto px-5 py-10">
+      <main className="relative z-10 max-w-6xl mx-auto px-3 sm:px-5 py-8 sm:py-10">
         <div className="mb-10">
           <p className="text-sol-mint text-xs font-semibold uppercase tracking-[0.14em] mb-2">Solana SaaS</p>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">{DEV_HERO.headline}</h1>

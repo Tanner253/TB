@@ -33,7 +33,7 @@ function Hero() {
     <section className="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
       <div className="relative z-10 max-w-7xl mx-auto px-4 text-center">
         <motion.h1
-          className="text-6xl md:text-8xl font-bold tracking-tighter mb-6 leading-tight glitch"
+          className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter mb-6 leading-[1.1] sm:leading-tight glitch px-1"
           data-text="WHEN YOU DRAWDOWN WE BLAST YOU UP"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -54,7 +54,7 @@ function Hero() {
         </motion.div>
 
         <motion.p
-          className="text-xl text-gray-300 max-w-2xl mx-auto mb-6 bg-black/30 backdrop-blur-sm py-2 px-4 rounded-lg"
+          className="text-base sm:text-lg md:text-xl text-gray-300 max-w-2xl mx-auto mb-6 bg-black/30 backdrop-blur-sm py-2 px-4 rounded-lg"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
@@ -74,7 +74,7 @@ function Hero() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="bg-sol-gradient hover:opacity-90 text-black px-8 py-4 rounded-lg font-bold text-lg transition-all flex items-center justify-center gap-2 shadow-sol-glow"
+              className="bg-sol-gradient hover:opacity-90 text-black px-6 sm:px-8 py-3.5 sm:py-4 rounded-lg font-bold text-base sm:text-lg transition-all flex items-center justify-center gap-2 shadow-sol-glow w-full sm:w-auto"
             >
               <RocketIcon /> Launch Your Token
             </motion.button>
@@ -83,7 +83,7 @@ function Hero() {
             <motion.button
               whileHover={{ scale: 1.05, backgroundColor: 'rgba(255,255,255,0.1)' }}
               whileTap={{ scale: 0.95 }}
-              className="glass-panel text-white px-8 py-4 rounded-lg font-bold text-lg transition-all border border-white/20 flex items-center justify-center gap-2"
+              className="glass-panel text-white px-6 sm:px-8 py-3.5 sm:py-4 rounded-lg font-bold text-base sm:text-lg transition-all border border-white/20 flex items-center justify-center gap-2 w-full sm:w-auto"
             >
               Browse Live Listings <ExternalLinkIcon />
             </motion.button>
@@ -91,7 +91,7 @@ function Hero() {
         </motion.div>
 
         <motion.div
-          className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto"
+          className="mt-12 sm:mt-16 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 max-w-3xl mx-auto"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}

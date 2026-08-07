@@ -11,6 +11,8 @@ import { AppHeader } from '@/components/platform/AppHeader'
 import { getWinnerSharePercents, getPayoutForEligibleRank } from '@/lib/payout/shares'
 import { HolderStatus, HoldTimeBadge } from '@/components/HoldTimeBadge'
 import { SessionStatusBar } from '@/components/tenant/SessionStatusBar'
+import { LeaderboardHolderCard } from '@/components/leaderboard/LeaderboardHolderCard'
+import { ExternalToolsEligibilityNote } from '@/components/tenant/ExternalToolsEligibilityNote'
 import type { SessionChecklist } from '@/lib/tenant/sessionChecklist'
 import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 
@@ -79,7 +81,7 @@ function ConnectionIndicator({ state, wsConnected }: { state: string; wsConnecte
 
   return (
     <motion.div
-      className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm ${
+      className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-[0.65rem] sm:text-xs font-medium backdrop-blur-sm ${
         isConnected
           ? 'bg-rh-green/10 text-rh-green border border-rh-green/30'
           : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
@@ -98,7 +100,8 @@ function ConnectionIndicator({ state, wsConnected }: { state: string; wsConnecte
           repeat: Infinity,
         }}
       />
-      <span>{isConnected ? 'LIVE' : 'Connecting...'}</span>
+      <span className="hidden sm:inline">{isConnected ? 'LIVE' : 'Connecting...'}</span>
+      <span className="sm:hidden">{isConnected ? '●' : '…'}</span>
     </motion.div>
   )
 }
@@ -204,20 +207,20 @@ export default function LeaderboardPage() {
         }
       />
 
-      <main className="relative max-w-7xl mx-auto px-4 py-8">
+      <main className="relative max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
         {/* Price Ticker Bar */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-center gap-8 mb-8 py-3 px-6 bg-white/5 backdrop-blur-sm rounded-full border border-white/10 mx-auto w-fit"
+          className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:justify-center gap-3 sm:gap-6 lg:gap-8 mb-6 sm:mb-8 py-3 px-4 sm:px-6 bg-white/5 backdrop-blur-sm rounded-2xl sm:rounded-full border border-white/10 w-full sm:w-fit sm:mx-auto max-w-full"
         >
-          <div className="flex items-center gap-3">
-            <span className="text-gray-400 text-sm">Token:</span>
-            <span className="text-rh-lime font-bold">${data?.token_symbol || 'TopBlast'}</span>
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <span className="text-gray-400 text-xs sm:text-sm shrink-0">Token</span>
+            <span className="text-rh-lime font-bold text-sm sm:text-base truncate">${data?.token_symbol || 'TopBlast'}</span>
           </div>
-          <div className="w-px h-5 bg-white/20" />
-          <div className="flex items-center gap-3">
-            <span className="text-gray-400 text-sm">Price:</span>
+          <div className="hidden sm:block w-px h-5 bg-white/20" />
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <span className="text-gray-400 text-xs sm:text-sm shrink-0">Price</span>
             {price || data?.token_price_raw ? (
               <PriceTicker price={price || data?.token_price_raw} size="md" />
             ) : (
@@ -236,9 +239,9 @@ export default function LeaderboardPage() {
               </span>
             ) : null}
           </div>
-          <div className="w-px h-5 bg-white/20" />
-          <div className="flex items-center gap-3">
-            <span className="text-gray-400 text-sm">MCap:</span>
+          <div className="hidden sm:block w-px h-5 bg-white/20" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="text-gray-400 text-xs sm:text-sm">MCap</span>
             <span className="font-bold font-mono">
               {marketCap ? (
                 <AnimatedNumber value={marketCap} format="currency" />
@@ -247,9 +250,9 @@ export default function LeaderboardPage() {
               )}
             </span>
           </div>
-          <div className="w-px h-5 bg-white/20" />
-          <div className="flex items-center gap-3">
-            <span className="text-gray-400 text-sm">Holders:</span>
+          <div className="hidden sm:block w-px h-5 bg-white/20" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="text-gray-400 text-xs sm:text-sm">Holders</span>
             <span className="font-bold font-mono text-white">
               {data?.total_holders ? formatNumber(data.total_holders) : <InlineSpinner />}
             </span>
@@ -360,10 +363,10 @@ export default function LeaderboardPage() {
           transition={{ delay: 0.2 }}
           className="mb-10"
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div>
-              <h2 className="text-2xl font-bold flex items-center gap-3">
-                <span className="text-3xl">{showUpcoming ? '⏳' : '🎯'}</span>
+              <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2 sm:gap-3">
+                <span className="text-2xl sm:text-3xl">{showUpcoming ? '⏳' : '🎯'}</span>
                 {showUpcoming ? 'Up & Coming' : 'Current Winners'}
               </h2>
               <p className="text-gray-400 text-sm mt-1">
@@ -372,7 +375,7 @@ export default function LeaderboardPage() {
                   : 'These wallets will receive payouts when the timer hits zero'}
               </p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4 shrink-0">
               <FreshnessIndicator lastUpdate={lastUpdate} />
               <ConnectionIndicator state={connectionState} wsConnected={wsConnected} />
             </div>
@@ -533,8 +536,12 @@ export default function LeaderboardPage() {
                     🔍
                   </motion.div>
                   <h3 className="text-xl font-bold mb-2">No Eligible Winners Yet</h3>
-                  <p className="text-gray-400 mb-6">
-                    Waiting for holders with verified losses above the threshold
+                  <p className="text-gray-400 mb-4 max-w-md mx-auto">
+                    Waiting for holders with verified on-chain losses above the pool threshold
+                  </p>
+                  <p className="text-xs text-gray-500 mb-6 max-w-lg mx-auto leading-relaxed">
+                    gmgn and pump.fun may show red PnL before someone qualifies here — we require swap buy history,
+                    hold time, and every winner rule. Expand Requirements above for details.
                   </p>
                   <div className="text-sm text-gray-500 space-y-1">
                     <div>{data?.tracked_holders || 0} holders tracked</div>
@@ -553,25 +560,42 @@ export default function LeaderboardPage() {
           transition={{ delay: 0.3 }}
           className="bg-rh-black border border-white/10 rounded-2xl overflow-hidden"
         >
-          <div className="p-6 border-b border-white/10 flex items-center justify-between">
+          <div className="p-4 sm:p-6 border-b border-white/10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
-              <h2 className="text-xl font-bold">Top Losers Leaderboard</h2>
-              <p className="text-sm text-gray-400 mt-1">
+              <h2 className="text-lg sm:text-xl font-bold">Top Losers Leaderboard</h2>
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">
                 {data?.eligible_count || 0} eligible
                 {(data?.upcoming_count ?? 0) > 0 && (
                   <> · {data.upcoming_count} up &amp; coming</>
                 )}
                 {' '}• Rankings updated in real-time
               </p>
+              <ExternalToolsEligibilityNote variant="inline" className="mt-2 max-w-2xl" />
             </div>
-            <div className="flex items-center gap-4 text-sm text-gray-400">
-              <span>{data?.total_holders || 0} total holders</span>
-              <span className="w-px h-4 bg-white/20" />
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-gray-400">
+              <span>{data?.total_holders || 0} total</span>
+              <span className="hidden sm:inline w-px h-4 bg-white/20" />
               <span>{data?.tracked_holders || 0} tracked</span>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Mobile card list */}
+          <div className="md:hidden">
+            {(data?.rankings || []).slice(0, 10).map((holder: Winner, idx: number) => (
+              <LeaderboardHolderCard
+                key={`mobile-${holder.wallet}`}
+                holder={holder}
+                index={idx}
+                poolValue={poolValue}
+                minHoldMinutes={data?.min_hold_minutes ?? 15}
+              />
+            ))}
+            {(!data?.rankings || data.rankings.length === 0) && !isLoading && !isInitializing ? (
+              <p className="px-4 py-10 text-center text-sm text-gray-500">No holders indexed yet.</p>
+            ) : null}
+          </div>
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="text-left text-sm text-gray-400 border-b border-white/10 bg-white/5">

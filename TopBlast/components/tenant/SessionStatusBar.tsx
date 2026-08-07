@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import type { SessionChecklist, SessionChecklistItem, ChecklistItemStatus } from '@/lib/tenant/sessionChecklist'
+import { ExternalToolsEligibilityNote } from '@/components/tenant/ExternalToolsEligibilityNote'
 
 const statusIcon: Record<ChecklistItemStatus, { symbol: string; className: string }> = {
   met: { symbol: '✓', className: 'bg-rh-green/20 text-rh-lime border-rh-green/30' },
@@ -164,6 +165,8 @@ export function SessionStatusBar({
                   </div>
                 </div>
               ) : null}
+
+              <ExternalToolsEligibilityNote className="mt-4" />
             </div>
           </motion.div>
         ) : null}

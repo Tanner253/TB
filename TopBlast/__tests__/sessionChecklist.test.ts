@@ -18,6 +18,24 @@ describe('buildSessionChecklist', () => {
     available: true,
   }
 
+  it('marks holders indexed when DB has trackable wallets (cold serverless tracker)', () => {
+    const checklist = buildSessionChecklist({
+      pool: basePool,
+      timer: { timer_status: 'waiting', seconds_remaining: null, current_cycle: 0, next_cycle: 1 },
+      trackedHolders: 3,
+      holdersWithVwap: 2,
+      eligibleCount: 0,
+      upcomingCount: 0,
+      totalLosers: 0,
+      trackerInitialized: false,
+      hasRankings: true,
+      minLossUsdFormatted: '$29.70',
+    })
+
+    expect(checklist.items.find(i => i.id === 'index')?.status).toBe('met')
+    expect(checklist.overall).not.toBe('loading')
+  })
+
   it('marks session loading while indexing', () => {
     const checklist = buildSessionChecklist({
       pool: basePool,

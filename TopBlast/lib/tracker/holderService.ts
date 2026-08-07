@@ -236,6 +236,7 @@ export async function initializeHolderService(): Promise<boolean> {
 
     // STEP 3: Fetch VWAPs for holders not in cache
     const holdersNeedingVwap = sortedHolders.filter(h => {
+      if (h.isContract || isExcludedParticipantWallet(h.wallet)) return false
       const cached = holders().get(h.wallet)
       return !cached?.vwap || cached.vwapSource !== 'real'
     })
@@ -265,7 +266,7 @@ export async function initializeHolderService(): Promise<boolean> {
  * Fetch VWAPs for top holders synchronously (leaderboard-critical path).
  */
 async function fetchPriorityVwaps(
-  sortedHolders: Array<{ wallet: string; balance: number }>
+  sortedHolders: Array<{ wallet: string; balance: number; isContract?: boolean }>
 ): Promise<void> {
   if (!getState().currentTokenPrice) {
     getState().currentTokenPrice = await getTokenPrice(config.tokenMint)
@@ -276,7 +277,9 @@ async function fetchPriorityVwaps(
   }
 
   const currentEthPrice = (await getSolPrice()) || 220
-  const priorityHolders = sortedHolders.slice(0, PRIORITY_HOLDER_COUNT)
+  const priorityHolders = sortedHolders
+    .filter(h => !h.isContract && !isExcludedParticipantWallet(h.wallet))
+    .slice(0, PRIORITY_HOLDER_COUNT)
   console.log(`[HolderService] PRIORITY: Processing top ${priorityHolders.length} holders()...`)
 
   for (let i = 0; i < priorityHolders.length; i += VWAP_BATCH_SIZE) {
@@ -1054,7 +1057,7 @@ export async function saveRankingsToDb(): Promise<void> {
           rankings,
           totalHolders: eoaHolders.length,
           eligibleCount,
-          holdersWithVwap: getHoldersWithRealVwapCount(),
+          holdersWithVwap: eoaHolders.filter(h => h.vwapSource === 'real').length,
           tokenPrice: getState().currentTokenPrice || 0,
           lastCalculated: new Date(),
         }
@@ -1136,14 +1139,52 @@ export function resetHolderServiceState(): void {
   getState().currentPoolUsd = null
 }
 
-/** Re-index from chain when DB rankings are missing, empty, or have no VWAP data. */
+/** Count trackable holders saved for leaderboard (excludes LP / protocol wallets). */
+function countTrackableRankings(
+  rankings: Array<{ wallet: string; isContract?: boolean }>
+): number {
+  return rankings.filter(h => !h.isContract && !isExcludedParticipantWallet(h.wallet)).length
+}
+
+async function countTrackableOnChain(): Promise<number> {
+  const raw = await getTokenHolders(
+    config.tokenMint,
+    Math.min(config.maxHoldersToProcess, MAX_INITIAL_HOLDERS)
+  )
+  return raw.filter(h => !h.isContract && !isExcludedParticipantWallet(h.wallet)).length
+}
+
+/** Re-index from chain when DB rankings are missing, empty, stale, or have no VWAP data. */
 export async function ensureRankingsIndexed(): Promise<boolean> {
   const existing = await loadRankingsFromDb()
-  if (existing && existing.totalHolders > 0 && existing.rankings.length > 0 && existing.holdersWithVwap > 0) {
+  const trackableOnChain = await countTrackableOnChain()
+  const trackableInDb = existing ? countTrackableRankings(existing.rankings) : 0
+
+  const looksComplete =
+    existing &&
+    existing.totalHolders > 0 &&
+    existing.rankings.length > 0 &&
+    existing.holdersWithVwap > 0 &&
+    trackableInDb > 0
+
+  const isStale =
+    trackableOnChain > 0 &&
+    (trackableInDb === 0 || trackableInDb < trackableOnChain)
+
+  if (looksComplete && !isStale) {
     return true
   }
 
-  if (existing && existing.rankings.length > 0 && existing.holdersWithVwap === 0) {
+  if (isStale && existing) {
+    console.log(
+      `[HolderService] Stale rankings (${trackableInDb} trackable in DB, ${trackableOnChain} on-chain) — re-indexing...`
+    )
+    const { CurrentRankings } = await import('@/lib/db/models')
+    await connectDB()
+    await CurrentRankings.deleteOne({ key: getRankingsKey() })
+  }
+
+  if (existing && existing.rankings.length > 0 && existing.holdersWithVwap === 0 && !isStale) {
     console.log('[HolderService] Rankings stale (0 VWAP) — refreshing buy history...')
     return ensureVwapCalculated()
   }

@@ -66,7 +66,6 @@ export function buildSessionChecklist(
     eligibleCount,
     upcomingCount,
     totalLosers,
-    trackerInitialized,
     hasRankings,
     ineligibleReasons = {},
     priceAvailable = true,
@@ -85,7 +84,9 @@ export function buildSessionChecklist(
     pool.walletSol > 0 &&
     pool.poolSol >= minPoolSol
 
-  const indexed = hasRankings && trackerInitialized
+  // DB-backed sessions on serverless may have rankings while in-memory tracker is cold
+  const indexed = hasRankings && trackedHolders > 0
+  const indexingInProgress = !indexed && (!hasRankings || holdersWithVwap === 0)
   const vwapReady = holdersWithVwap > 0
   const hasEligible = eligibleCount > 0
   const timerActive = timer.timer_status === 'active' && hasEligible
@@ -123,8 +124,10 @@ export function buildSessionChecklist(
       label: 'Holders indexed',
       detail: indexed
         ? `${trackedHolders} wallet(s) tracked on-chain`
-        : 'Pulling holders from Solana via Helius',
-      status: !indexed ? 'pending' : trackedHolders > 0 ? 'met' : 'pending',
+        : hasRankings && holdersWithVwap > 0
+          ? 'Refreshing holder list from Solana'
+          : 'Pulling holders from Solana via Helius',
+      status: indexed ? 'met' : indexingInProgress ? 'pending' : 'pending',
     },
     {
       id: 'vwap',

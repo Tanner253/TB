@@ -22,7 +22,6 @@ export function deriveSessionStatus(input: TenantDiagnosticsInput): SessionStatu
     trackedHolders,
     holdersWithVwap,
     eligibleCount,
-    trackerInitialized,
     hasRankings,
   } = input
 
@@ -60,11 +59,20 @@ export function deriveSessionStatus(input: TenantDiagnosticsInput): SessionStatu
     }
   }
 
-  if (!hasRankings || !trackerInitialized) {
-    return {
-      tone: 'loading',
-      message: 'Indexing holders from chain…',
-      persistent: false,
+  if (!hasRankings || trackedHolders === 0) {
+    if (hasRankings && holdersWithVwap > 0) {
+      return {
+        tone: 'loading',
+        message: 'Refreshing holder list from chain…',
+        persistent: false,
+      }
+    }
+    if (!hasRankings || holdersWithVwap === 0) {
+      return {
+        tone: 'loading',
+        message: 'Indexing holders from chain…',
+        persistent: false,
+      }
     }
   }
 

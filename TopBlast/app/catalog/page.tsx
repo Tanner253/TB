@@ -14,7 +14,7 @@ export default function CatalogPage() {
 
       <AppHeader active="catalog" />
 
-      <main className="relative z-10 max-w-7xl mx-auto px-5 py-8">
+      <main className="relative z-10 max-w-7xl mx-auto px-3 sm:px-5 py-6 sm:py-8">
         <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
             <p className="text-sol-mint text-xs font-semibold uppercase tracking-[0.14em] mb-2">Explore</p>

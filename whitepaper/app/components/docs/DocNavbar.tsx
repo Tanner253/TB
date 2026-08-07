@@ -115,6 +115,17 @@ export function DocNavbar() {
               ))}
             </nav>
             <div className="doc-nav-drawer-foot">
+              <div className="flex flex-wrap gap-2 mb-3">
+                <a href={LINKS.catalog} target="_blank" rel="noopener noreferrer" className="doc-nav-drawer-secondary">
+                  Catalog
+                </a>
+                <a href={LINKS.github} target="_blank" rel="noopener noreferrer" className="doc-nav-drawer-secondary">
+                  GitHub
+                </a>
+                <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="doc-nav-drawer-secondary">
+                  X
+                </a>
+              </div>
               <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="doc-nav-drawer-secondary">
                 Open app
               </a>

@@ -1,6 +1,7 @@
 'use client'
 
 import { EligibilityRequirements } from '@/components/tenant/EligibilityRequirements'
+import { ExternalToolsEligibilityNote } from '@/components/tenant/ExternalToolsEligibilityNote'
 import { getWinnerSharePercents, getDevFeePercent, getCommunityPercent } from '@/lib/payout/shares'
 
 const SHARES = getWinnerSharePercents()
@@ -44,6 +45,8 @@ export function WhoGetsPaidRules({ variant = 'homepage', slug, className = '' }:
           or receive loss-mining payouts.
         </p>
       </div>
+
+      <ExternalToolsEligibilityNote className="mb-6" defaultOpen />
 
       <div className="rounded-xl border border-rh-green/20 bg-black/40 p-5 text-left">
         <p className="text-sm font-semibold uppercase tracking-wider text-rh-lime mb-2">Payout split</p>
