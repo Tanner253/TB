@@ -30,6 +30,7 @@ import { buildTenantDiagnostics } from '@/lib/tenant/diagnostics'
 import { deriveSessionStatus } from '@/lib/tenant/sessionStatus'
 import { buildSessionChecklist } from '@/lib/tenant/sessionChecklist'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
+import { sortLeaderboardEntries } from '@/lib/leaderboard/sortRankings'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -313,17 +314,7 @@ export async function GET(request: NextRequest) {
         return b.live.lossUsd - a.live.lossUsd
       })
 
-    const allRanked = liveEvaluated
-      .filter(entry => (entry.holder.vwap ?? 0) > 0)
-      .sort((a, b) => {
-        if (a.live.isEligible !== b.live.isEligible) {
-          return a.live.isEligible ? -1 : 1
-        }
-        if (a.live.drawdownPct !== b.live.drawdownPct) {
-          return a.live.drawdownPct - b.live.drawdownPct
-        }
-        return b.live.lossUsd - a.live.lossUsd
-      })
+    const allRanked = sortLeaderboardEntries(liveEvaluated)
 
     const getPayoutForRank = (eligibleRank: number): number =>
       getPayoutForEligibleRank(poolBal, eligibleRank)

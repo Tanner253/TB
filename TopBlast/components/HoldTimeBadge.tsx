@@ -76,6 +76,48 @@ function resolveHoldEligibleAt(
   return new Date(eligibleMs).toISOString()
 }
 
+export function HolderIneligibleCallout({
+  ineligibleReason,
+  holdEligibleAt,
+  holdSecondsRemaining,
+  firstBuyAt,
+  minHoldMinutes = 15,
+  className = '',
+}: HolderStatusProps) {
+  const resolvedHoldEligibleAt = resolveHoldEligibleAt(
+    holdEligibleAt,
+    firstBuyAt,
+    minHoldMinutes
+  )
+  const holdRemaining =
+    resolvedHoldEligibleAt != null ? secondsUntil(resolvedHoldEligibleAt) : holdSecondsRemaining ?? 0
+  const showHold = holdRemaining > 0
+
+  const reason = ineligibleReason || 'Not eligible yet'
+  const isLoading =
+    reason === 'Loading transaction history...' || reason === 'Recalculating...'
+
+  return (
+    <div
+      className={`rounded-lg border px-3 py-2 text-xs leading-relaxed ${
+        isLoading
+          ? 'border-blue-500/25 bg-blue-500/10 text-blue-200'
+          : showHold
+            ? 'border-amber-500/30 bg-amber-500/10 text-amber-100'
+            : 'border-white/10 bg-white/[0.04] text-gray-300'
+      } ${className}`}
+      role="status"
+    >
+      {showHold ? (
+        <p className="font-medium text-amber-200 mb-0.5">
+          Eligible in {formatHoldCountdown(holdRemaining)}
+        </p>
+      ) : null}
+      <p>{isLoading ? 'Analyzing wallet on-chain…' : reason}</p>
+    </div>
+  )
+}
+
 export function HolderStatus({
   isEligible,
   ineligibleReason,
