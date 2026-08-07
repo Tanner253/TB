@@ -117,7 +117,7 @@ async function runSnapshot(_request: NextRequest) {
     // 9. Calculate REAL VWAPs from on-chain transaction history
     console.log(`[Snapshot] Fetching transaction history for VWAP calculation...`)
     const walletAddresses = eligibleForVwap.map(h => h.wallet)
-    const vwapMap = await calculateBatchVwaps(walletAddresses, config.tokenMint, tokenPrice, 10) // Increased concurrency
+    const vwapMap = await calculateBatchVwaps(walletAddresses, config.tokenMint, tokenPrice, 3)
 
     // 10. Process each holder - determine eligibility based on REAL data
     const rankedHolders: RankedHolder[] = []

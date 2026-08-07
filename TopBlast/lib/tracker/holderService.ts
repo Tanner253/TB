@@ -17,6 +17,10 @@ import { isLiquidityPoolWallet, ensureLiquidityPoolAddresses } from '@/lib/eligi
 import { getTenantSlug } from '@/lib/tenant/context'
 import { getRankingsKey } from '@/lib/tenant/keys'
 import { tenantFilter } from '@/lib/tenant/scope'
+import {
+  shouldThrottleFullReindex,
+  markFullReindex,
+} from '@/lib/solana/heliusCache'
 
 // Types
 export interface HolderData {
@@ -1164,6 +1168,17 @@ async function countQualifyingOnChain(): Promise<number> {
 /** Re-index from chain when DB rankings are missing, empty, stale, or have no VWAP data. */
 export async function ensureRankingsIndexed(): Promise<boolean> {
   const existing = await loadRankingsFromDb()
+  const tenantKey = getRankingsKey()
+
+  if (
+    existing &&
+    existing.totalHolders > 0 &&
+    existing.holdersWithVwap > 0 &&
+    shouldThrottleFullReindex(tenantKey)
+  ) {
+    return true
+  }
+
   const qualifyingOnChain = await countQualifyingOnChain()
   const trackableInDb = existing ? countTrackableRankings(existing.rankings) : 0
 
@@ -1202,6 +1217,7 @@ export async function ensureRankingsIndexed(): Promise<boolean> {
   }
 
   await saveRankingsToDb()
+  markFullReindex(tenantKey)
   return true
 }
 
@@ -1295,15 +1311,51 @@ export async function hydrateRankingsWithVwap<
     }
   }
 
+  await connectDB()
+  const { Holder } = await import('@/lib/db/models')
+  const dbRows = await Holder.find(
+    tenantFilter({
+      wallet: { $in: needsVwap.map(h => h.wallet) },
+      vwap: { $gt: 0 },
+    })
+  )
+    .select('wallet vwap firstBuyAt totalBought hasSold')
+    .lean()
+
+  const dbByWallet = new Map(dbRows.map(r => [r.wallet, r]))
+  let rankingsWithDb = rankings.map(row => {
+    const doc = dbByWallet.get(row.wallet)
+    if (!doc?.vwap) return row
+    return {
+      ...row,
+      vwap: doc.vwap,
+      firstBuyAt: doc.firstBuyAt ?? row.firstBuyAt ?? null,
+      totalTokensBought: doc.totalBought ?? row.totalTokensBought ?? 0,
+      hasSold: doc.hasSold ?? row.hasSold ?? false,
+    }
+  }) as T[]
+
+  const stillNeedingHelius = needsVwap.filter(h => {
+    const doc = dbByWallet.get(h.wallet)
+    return !(doc?.vwap && doc.vwap > 0)
+  })
+
+  if (stillNeedingHelius.length === 0) {
+    return {
+      rankings: rankingsWithDb,
+      holdersWithVwap: rankingsWithDb.filter(h => isTrackable(h) && (h.vwap ?? 0) > 0).length,
+    }
+  }
+
   const tokenPrice = options?.tokenPrice ?? (await getTokenPrice(config.tokenMint)) ?? 0
   const vwapMap = await calculateBatchVwaps(
-    needsVwap.map(h => h.wallet),
+    stillNeedingHelius.map(h => h.wallet),
     config.tokenMint,
     tokenPrice,
-    5
+    2
   )
 
-  const updated = rankings.map(row => {
+  const updated = rankingsWithDb.map(row => {
     const v = vwapMap.get(row.wallet)
     if (!v) return row
 

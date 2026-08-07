@@ -1,5 +1,10 @@
 import { getWalletTransactions } from '../solana/indexer'
 import { getTokenPrice, getSolPrice } from '../solana/price'
+import connectDB from '@/lib/db'
+import { tenantFilter } from '@/lib/tenant/scope'
+
+/** Enhanced API tx limit per wallet — enough for recent pump.fun / Jupiter buys. */
+const VWAP_TX_LIMIT = 40
 
 export interface VwapData {
   wallet: string
@@ -24,7 +29,7 @@ export async function calculateWalletVwap(
   currentTokenPrice: number,
   currentSolPrice?: number // Pass in current SOL price, or we'll fetch it
 ): Promise<VwapData> {
-  const transactions = await getWalletTransactions(wallet, mint, 100)
+  const transactions = await getWalletTransactions(wallet, mint, VWAP_TX_LIMIT)
   
   let totalTokensBought = 0
   let totalEthSpent = 0         // Raw SOL amount from swap transactions
@@ -123,7 +128,7 @@ export async function calculateBatchVwaps(
     
     // Small delay between batches to respect rate limits
     if (i + concurrency < wallets.length) {
-      await new Promise(resolve => setTimeout(resolve, 200))
+      await new Promise(resolve => setTimeout(resolve, 400))
     }
   }
   

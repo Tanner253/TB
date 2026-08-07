@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
 import { getTokenData, formatPrice, formatUsd } from '@/lib/solana/price'
 import { formatWallet } from '@/lib/solana/holders'
-import { getHolderCount } from '@/lib/solana/indexer'
 import { 
   getAllHolders, 
   getEligibleCount, 
   getCurrentPrice, 
   isServiceInitialized,
   getServiceStatus,
+  loadRankingsFromDb,
 } from '@/lib/tracker/holderService'
 import { initializeTracker, isTrackerInitialized } from '@/lib/tracker/init'
 import { config } from '@/lib/config'
@@ -36,11 +36,11 @@ export async function GET() {
     const tokenData = await getTokenData(config.tokenMint)
     const tokenPrice = tokenData?.price || getCurrentPrice()
 
-    // Get holder count from Helius
-    const totalHolders = await getHolderCount(config.tokenMint)
+    const serviceStatus = getServiceStatus()
+    const dbRankings = await loadRankingsFromDb()
+    const totalHolders = dbRankings?.totalHolders ?? serviceStatus.holderCount ?? 0
 
     // Get tracked holders data
-    const serviceStatus = getServiceStatus()
     const allHolders = getAllHolders()
     
     // Count profit/loss

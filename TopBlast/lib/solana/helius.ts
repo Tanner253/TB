@@ -1,6 +1,12 @@
 import axios from 'axios'
 import { config } from '@/lib/config'
 import { getHeliusRpcUrl } from '@/lib/solana/rpcUrl'
+import {
+  getCachedTokenHolders,
+  setCachedTokenHolders,
+  getCachedWalletTransactions,
+  setCachedWalletTransactions,
+} from '@/lib/solana/heliusCache'
 
 function getHeliusUrl(): string {
   return getHeliusRpcUrl()
@@ -21,6 +27,11 @@ export async function getTokenHolders(mint: string, limit: number = 1000): Promi
   wallet: string
   balance: number
 }[]> {
+  const cached = getCachedTokenHolders(mint)
+  if (cached) {
+    return cached.slice(0, limit)
+  }
+
   const rpcUrl = getHeliusUrl()
   const byOwner = new Map<string, number>()
 
@@ -61,7 +72,8 @@ export async function getTokenHolders(mint: string, limit: number = 1000): Promi
       .map(([wallet, balance]) => ({ wallet, balance }))
 
     console.log(`[Helius] Fetched ${holders.length} holder wallet(s) for mint ${mint.slice(0, 8)}...`)
-    return holders
+    setCachedTokenHolders(mint, holders)
+    return holders.slice(0, limit)
   } catch (error: any) {
     console.error('[Helius] Error fetching holders:', error.message)
     return []
@@ -77,6 +89,11 @@ export async function getWalletTransactions(
   mint: string,
   limit: number = 100
 ): Promise<ParsedTransaction[]> {
+  const cached = getCachedWalletTransactions(wallet, mint)
+  if (cached) {
+    return cached
+  }
+
   const apiKey = getHeliusApiKey()
   const url = `https://api.helius.xyz/v0/addresses/${wallet}/transactions`
   const maxAttempts = 3
@@ -101,7 +118,9 @@ export async function getWalletTransactions(
         continue
       }
 
-      return parseWalletMintTransactions(wallet, mint, response.data || [])
+      const parsed = parseWalletMintTransactions(wallet, mint, response.data || [])
+      setCachedWalletTransactions(wallet, mint, parsed)
+      return parsed
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)
       if (attempt === maxAttempts) {

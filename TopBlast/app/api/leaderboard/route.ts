@@ -27,7 +27,7 @@ import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
 import { isLiquidityPoolWallet } from '@/lib/eligibility/liquidityPools'
 import { ensureLiquidityPoolAddresses } from '@/lib/eligibility/liquidityPools'
 import { loadLastWinCycleByWallet } from '@/lib/payout/winnerPersistence'
-import { getEarliestBuyTimestamp, getTokenHolders } from '@/lib/solana/indexer'
+import { getTokenHolders } from '@/lib/solana/indexer'
 import { normalizeTokenBalance, formatTokenBalance, rawToHumanTokenAmount, meetsMinTokenHoldingFromChain } from '@/lib/solana/tokenAmount'
 import { getOnChainHolderStats } from '@/lib/solana/holderStats'
 import { buildTenantDiagnostics } from '@/lib/tenant/diagnostics'
@@ -36,6 +36,13 @@ import { buildSessionChecklist } from '@/lib/tenant/sessionChecklist'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
 import { sortLeaderboardEntries } from '@/lib/leaderboard/sortRankings'
 import { getTokenMintExplorerUrl } from '@/lib/solana/explorer'
+import { shouldThrottleFullReindex, markFullReindex } from '@/lib/solana/heliusCache'
+import { getRankingsKey } from '@/lib/tenant/keys'
+
+/** DB rankings younger than this skip Helius DAS on public leaderboard polls. */
+const RANKINGS_FRESH_MS = 2 * 60 * 1000
+/** Max Enhanced-API wallet history fetches per leaderboard request (stagger rest across polls). */
+const VWAP_HYDRATE_BUDGET = 2
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -67,11 +74,28 @@ export async function GET(request: NextRequest) {
     const serviceStatus = getServiceStatus()
 
     let dbRankings = await loadRankingsFromDb()
-    const onChainStats = await getOnChainHolderStats(config.tokenMint)
 
-    if (onChainStats.qualifying > (dbRankings?.totalHolders ?? 0)) {
-      await ensureRankingsIndexed()
-      dbRankings = await loadRankingsFromDb()
+    const rankingsAgeMs = dbRankings
+      ? Date.now() - new Date(dbRankings.lastCalculated).getTime()
+      : Infinity
+    const rankingsFresh = rankingsAgeMs < RANKINGS_FRESH_MS
+
+    let onChainStats = {
+      raw: dbRankings?.totalHolders ?? 0,
+      trackable: dbRankings?.totalHolders ?? 0,
+      qualifying: dbRankings?.totalHolders ?? 0,
+    }
+
+    if (!rankingsFresh || !dbRankings) {
+      onChainStats = await getOnChainHolderStats(config.tokenMint)
+      if (
+        onChainStats.qualifying > (dbRankings?.totalHolders ?? 0) &&
+        !shouldThrottleFullReindex(getRankingsKey())
+      ) {
+        await ensureRankingsIndexed()
+        markFullReindex(getRankingsKey())
+        dbRankings = await loadRankingsFromDb()
+      }
     }
 
     const needsReindex =
@@ -101,18 +125,6 @@ export async function GET(request: NextRequest) {
         initializeTracker().catch(err =>
           console.error('[Leaderboard] Background tracker init error:', err)
         )
-      }
-    }
-
-    if (dbRankings && dbRankings.rankings.length > 0) {
-      const hydrated = await hydrateRankingsWithVwap(dbRankings.rankings, {
-        maxWallets: 25,
-        tokenPrice: undefined,
-      })
-      dbRankings = {
-        ...dbRankings,
-        rankings: hydrated.rankings,
-        holdersWithVwap: hydrated.holdersWithVwap,
       }
     }
 
@@ -240,61 +252,55 @@ export async function GET(request: NextRequest) {
 
     await ensureLiquidityPoolAddresses(config.tokenMint)
 
-    const contractWallets = new Set(
-      (await getTokenHolders(config.tokenMint, 100))
-        .filter(h => h.isContract)
-        .map(h => h.wallet)
-    )
-
     const rankingByWallet = new Map(
       dbRankings.rankings.map(h => [h.wallet, h] as const)
     )
 
-    const liveHolders = await getTokenHolders(
-      config.tokenMint,
-      Math.min(config.maxHoldersToProcess, 100)
-    )
-    for (const h of liveHolders) {
-      if (rankingByWallet.has(h.wallet)) continue
-      if (
-        h.isContract ||
-        contractWallets.has(h.wallet) ||
-        isExcludedParticipantWallet(h.wallet) ||
-        isLiquidityPoolWallet(h.wallet, config.tokenMint)
-      ) {
-        continue
-      }
-      if (
-        !meetsMinTokenHoldingFromChain(
-          h.balance,
-          config.tokenDecimals,
-          config.minTokenHolding
-        )
-      ) {
-        continue
-      }
+    if (!rankingsFresh && onChainStats.qualifying > rankingByWallet.size) {
+      const liveHolders = await getTokenHolders(
+        config.tokenMint,
+        Math.min(config.maxHoldersToProcess, 100)
+      )
+      for (const h of liveHolders) {
+        if (rankingByWallet.has(h.wallet)) continue
+        if (
+          h.isContract ||
+          isExcludedParticipantWallet(h.wallet) ||
+          isLiquidityPoolWallet(h.wallet, config.tokenMint)
+        ) {
+          continue
+        }
+        if (
+          !meetsMinTokenHoldingFromChain(
+            h.balance,
+            config.tokenDecimals,
+            config.minTokenHolding
+          )
+        ) {
+          continue
+        }
 
-      rankingByWallet.set(h.wallet, {
-        wallet: h.wallet,
-        balance: rawToHumanTokenAmount(h.balance, config.tokenDecimals),
-        vwap: 0,
-        drawdownPct: 0,
-        lossUsd: 0,
-        isEligible: false,
-        ineligibleReason: 'Loading buy history...',
-        firstBuyAt: null,
-        hasSold: false,
-        hasTransferredOut: false,
-        totalTokensBought: 0,
-        lastWinCycle: null,
-        isContract: false,
-      })
+        rankingByWallet.set(h.wallet, {
+          wallet: h.wallet,
+          balance: rawToHumanTokenAmount(h.balance, config.tokenDecimals),
+          vwap: 0,
+          drawdownPct: 0,
+          lossUsd: 0,
+          isEligible: false,
+          ineligibleReason: 'Loading buy history...',
+          firstBuyAt: null,
+          hasSold: false,
+          hasTransferredOut: false,
+          totalTokensBought: 0,
+          lastWinCycle: null,
+          isContract: false,
+        })
+      }
     }
 
     const sourceRankings = Array.from(rankingByWallet.values()).filter(
       h =>
         !h.isContract &&
-        !contractWallets.has(h.wallet) &&
         !isExcludedParticipantWallet(h.wallet) &&
         !isLiquidityPoolWallet(h.wallet, config.tokenMint) &&
         normalizeTokenBalance(h.balance, config.tokenDecimals, config.minTokenHolding) >=
@@ -304,7 +310,7 @@ export async function GET(request: NextRequest) {
     const walletsNeedingVwap = sourceRankings.filter(h => (h.vwap ?? 0) <= 0)
     if (walletsNeedingVwap.length > 0) {
       const hydrated = await hydrateRankingsWithVwap(walletsNeedingVwap, {
-        maxWallets: 25,
+        maxWallets: VWAP_HYDRATE_BUDGET,
         tokenPrice: liveTokenPrice,
       })
       const hydratedByWallet = new Map(hydrated.rankings.map(h => [h.wallet, h]))
@@ -331,20 +337,6 @@ export async function GET(request: NextRequest) {
         if (doc.firstBuyAt) {
           firstBuyByWallet.set(doc.wallet, doc.firstBuyAt)
         }
-      }
-
-      const stillNeedingOnChain = walletsNeedingFirstBuy.filter(
-        w => !firstBuyByWallet.has(w)
-      )
-      if (stillNeedingOnChain.length > 0 && config.tokenMint) {
-        await Promise.all(
-          stillNeedingOnChain.map(async (wallet) => {
-            const ts = await getEarliestBuyTimestamp(wallet, config.tokenMint)
-            if (ts) {
-              firstBuyByWallet.set(wallet, new Date(ts))
-            }
-          })
-        )
       }
     }
 
