@@ -23,6 +23,8 @@ export interface LivePoolBalance {
   minLossUsd: number
   minLossUsdFormatted: string
   available: boolean
+  /** True when address is known but on-chain balance could not be fetched */
+  balanceLookupFailed?: boolean
 }
 
 export async function getLivePoolBalance(): Promise<LivePoolBalance> {
@@ -45,6 +47,27 @@ export async function getLivePoolBalance(): Promise<LivePoolBalance> {
       minLossUsd: 0,
       minLossUsdFormatted: formatUsd(0),
       available: false,
+      balanceLookupFailed: false,
+    }
+  }
+
+  if (walletBalance.rpcError) {
+    return {
+      payoutWalletAddress: walletBalance.address,
+      walletSol: 0,
+      poolSol: 0,
+      poolUsd: 0,
+      solPrice,
+      poolUsdFormatted: formatUsd(0),
+      poolSolFormatted: '0.0000',
+      walletEth: 0,
+      poolEth: 0,
+      ethPrice: solPrice,
+      poolEthFormatted: '0.0000',
+      minLossUsd: 0,
+      minLossUsdFormatted: formatUsd(0),
+      available: false,
+      balanceLookupFailed: true,
     }
   }
 

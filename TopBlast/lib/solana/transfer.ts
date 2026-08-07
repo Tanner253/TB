@@ -9,7 +9,7 @@ import bs58 from 'bs58'
 import 'server-only'
 import { getPayoutPrivateKey } from '@/lib/tenant/context'
 import { isPayoutExecutionAuthorized } from '@/lib/payout/payoutAuthContext'
-import { getSolanaRpcUrl } from '@/lib/solana/rpcUrl'
+import { getSolanaRpcUrl, getSolanaRpcUrlCandidates } from '@/lib/solana/rpcUrl'
 
 /** Minimum SOL transfer (rent exemption floor for new accounts). */
 export const MIN_TRANSFER_SOL = 0.001
@@ -279,35 +279,52 @@ export async function transferSol(
 }
 
 /**
+ * Derive payout wallet public address from configured private key (no RPC).
+ */
+export function getPayoutWalletAddressFromKey(): string | null {
+  const privateKey = getPayoutPrivateKey()
+  if (!privateKey) return null
+  try {
+    return Keypair.fromSecretKey(bs58.decode(privateKey.trim())).publicKey.toBase58()
+  } catch {
+    return null
+  }
+}
+
+/**
  * Check the payout wallet's SOL balance
  */
-export async function getPayoutWalletBalance(): Promise<{ 
+export async function getPayoutWalletBalance(): Promise<{
   sol: number
-  address: string 
+  address: string
+  rpcError?: string
 } | null> {
-  const privateKey = getPayoutPrivateKey()
-  if (!privateKey) {
+  const address = getPayoutWalletAddressFromKey()
+  if (!address) {
     return null
   }
 
-  try {
-    const rpcUrl = getRpcUrl()
-    
-    const payoutKeypair = Keypair.fromSecretKey(
-      bs58.decode(privateKey)
-    )
+  const rpcUrls = getSolanaRpcUrlCandidates()
+  let lastError = 'No RPC endpoints configured'
 
-    // Use HTTP for balance
-    const balance = await getBalanceHttp(rpcUrl, payoutKeypair.publicKey)
-
-    return {
-      sol: balance / LAMPORTS_PER_SOL,
-      address: payoutKeypair.publicKey.toBase58(),
+  for (const rpcUrl of rpcUrls) {
+    try {
+      const balance = await getBalanceHttp(rpcUrl, new PublicKey(address))
+      return {
+        sol: balance / LAMPORTS_PER_SOL,
+        address,
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      lastError = message
+      console.warn(
+        `[Transfer] getBalance failed (${rpcUrl.split('?')[0]}): ${message}`
+      )
     }
-  } catch (error) {
-    console.error('[Transfer] Failed to get wallet balance:', error)
-    return null
   }
+
+  console.error(`[Transfer] Failed to get wallet balance for ${address.slice(0, 8)}...:`, lastError)
+  return { sol: 0, address, rpcError: lastError }
 }
 
 /**

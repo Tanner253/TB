@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
       poolSol: livePool.poolSol,
       poolUsd: livePool.poolUsdFormatted,
       available: livePool.available,
+      balanceLookupFailed: livePool.balanceLookupFailed ?? false,
     }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)

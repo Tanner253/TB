@@ -91,15 +91,21 @@ export function buildTenantDiagnostics(input: TenantDiagnosticsInput): TenantDia
   }
 
   // --- Payout wallet / funding ---
-  if (!pool.available || !pool.payoutWalletAddress) {
+  if (!pool.payoutWalletAddress) {
     items.push({
       id: 'payout_key_missing',
       severity: 'error',
-      title: 'Payout wallet not reachable',
-      message:
-        'TopBlast could not load your payout wallet from the private key stored at launch.',
-      action:
-        'Re-launch with a valid base58 Solana keypair, or contact support if this listing was created correctly.',
+      title: 'Payout wallet not configured',
+      message: 'TopBlast could not load a payout wallet from PAYOUT_WALLET_PRIVATE_KEY.',
+      action: 'Set a valid base58 Solana private key in Vercel env for this deployment.',
+    })
+  } else if (pool.balanceLookupFailed) {
+    items.push({
+      id: 'pool_rpc_error',
+      severity: 'warning',
+      title: 'Could not read payout wallet balance',
+      message: `Configured payout wallet is ${pool.payoutWalletAddress}. Helius RPC failed to return SOL balance — usually a missing HELIUS_API_KEY or bad HELIUS_RPC_URL.`,
+      action: `Verify HELIUS_API_KEY in Vercel and that SOL is in ${pool.payoutWalletAddress}.`,
     })
   } else if (pool.walletSol <= 0) {
     items.push({

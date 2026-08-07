@@ -18,6 +18,27 @@ describe('tenant diagnostics', () => {
     available: true,
   }
 
+  it('flags RPC balance lookup failure separately from empty wallet', () => {
+    const result = buildTenantDiagnostics({
+      pool: {
+        ...basePool,
+        balanceLookupFailed: true,
+        available: false,
+      },
+      timer: { timer_status: 'waiting', seconds_remaining: null, current_cycle: 0, next_cycle: 1 },
+      trackedHolders: 0,
+      holdersWithVwap: 0,
+      eligibleCount: 0,
+      upcomingCount: 0,
+      totalLosers: 0,
+      trackerInitialized: false,
+      hasRankings: false,
+    })
+
+    expect(result.items.some(i => i.id === 'pool_rpc_error')).toBe(true)
+    expect(result.items.some(i => i.id === 'pool_empty')).toBe(false)
+  })
+
   it('flags empty payout wallet as blocked', () => {
     const result = buildTenantDiagnostics({
       pool: { ...basePool, walletSol: 0, poolSol: 0, available: true },
