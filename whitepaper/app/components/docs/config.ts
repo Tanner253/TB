@@ -4,7 +4,14 @@ export const LINKS = {
   twitter: 'https://x.com/topblasteth',
   app: APP_URL,
   launch: `${APP_URL}/launch`,
+  catalog: `${APP_URL}/catalog`,
+  platformLeaderboard: `${APP_URL}/topblast/leaderboard`,
 } as const
+
+/** Default SaaS launch form value — must match TopBlast lib/platform/minTokenHolding.ts */
+export const DEFAULT_MIN_TOKEN_HOLDING = 1000
+
+export const DEFAULT_MIN_TOKEN_HOLDING_LABEL = DEFAULT_MIN_TOKEN_HOLDING.toLocaleString('en-US')
 
 export const PAYOUT = {
   dev: 12,
@@ -22,9 +29,9 @@ export const FLYWHEEL = {
   opsShareOfDevFee: 50,
   burnStatus: 'planned' as const,
   intro:
-    'Every SaaS listing pays a flat 12% protocol fee in SOL on each payout cycle. Fees route to the platform treasury (DEV_WALLET_ADDRESS). Half funds platform-token buyback; half funds ops and growth.',
+    'Every SaaS listing pays a flat 12% protocol fee in SOL on each payout cycle. Fees route to the TopBlast platform treasury — half funds platform-token buyback, half funds ops and growth.',
   tree: {
-    root: 'Every tenant cycle → 12% SOL to DEV_WALLET_ADDRESS',
+    root: 'Every tenant cycle → 12% SOL to the platform treasury',
     buyback: '6% of original pool (50% of fee) → market-buy platform token',
     ops: '6% of original pool (50% of fee) → ops / infra / growth',
     burn: 'Purchased tokens → burn address / incinerator',

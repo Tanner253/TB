@@ -409,7 +409,7 @@ export default function StatsPage() {
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             {[
-              { label: 'Min Balance', value: stats?.thresholds?.min_balance || '100,000', sub: 'tokens' },
+              { label: 'Min Balance', value: stats?.thresholds?.min_balance || '1,000', sub: 'tokens' },
               { label: 'Hold Duration', value: stats?.thresholds?.min_hold_display || '15 min', sub: 'minimum' },
               { label: 'Min Loss', value: `${stats?.thresholds?.min_loss_pct || 10}%`, sub: 'of pool value' },
               { label: 'Min Pool', value: pool?.minimum_pool_usd || '$50', sub: 'for payouts' },

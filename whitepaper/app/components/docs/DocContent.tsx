@@ -5,6 +5,8 @@ import Image from 'next/image'
 import { CopyContractAddress } from '../CopyContractAddress'
 import {
   APP_URL,
+  DEFAULT_MIN_TOKEN_HOLDING,
+  DEFAULT_MIN_TOKEN_HOLDING_LABEL,
   FLYWHEEL,
   LINKS,
   PAYOUT,
@@ -88,12 +90,12 @@ export function DocContent() {
         <DocGrid cols={2}>
           <DocCard title="Self-serve SaaS" accent="purple">
             <p className="doc-prose">
-              Any SPL token launches at <strong>/launch</strong> — mint, ticker, encrypted payout wallet. Each listing gets an isolated URL and cron session.
+              Community tokens launch at <strong>/launch</strong> — mint, ticker, payout frequency, minimum token balance, and encrypted payout wallet. Each listing gets an isolated URL and cron session.
             </p>
           </DocCard>
           <DocCard title="Hands-off ops" accent="mint">
             <p className="doc-prose">
-              Choose payout frequency at launch ({PAYOUT_INTERVAL_OPTIONS_TEXT}). Cron indexes holders, ranks eligible losers, and sends native SOL from your funded wallet on that schedule.
+              Choose payout frequency and minimum balance at launch ({PAYOUT_INTERVAL_OPTIONS_TEXT}; default {DEFAULT_MIN_TOKEN_HOLDING_LABEL} tokens). Cron indexes holders, ranks eligible losers, and sends native SOL from your funded wallet on that schedule.
             </p>
           </DocCard>
           <DocCard title="Dynamic pot">
@@ -109,7 +111,7 @@ export function DocContent() {
         </DocGrid>
         <div className="doc-cta-row">
           <DocCta href={LINKS.launch} label="Create your listing" />
-          <DocCta href={APP_URL} label="Browse live catalog" variant="ghost" />
+          <DocCta href={LINKS.catalog} label="Browse live catalog" variant="ghost" />
         </div>
       </DocSection>
 
@@ -183,7 +185,7 @@ Ranking: most negative drawdown % first → USD loss tiebreaker`}</DocCode>
         </DocCard>
         <ol className="doc-steps">
           {[
-            ['Minimum token balance', 'Per-listing threshold shown on live Stats & Leaderboard.'],
+            ['Minimum token balance', `Set at /launch (default ${DEFAULT_MIN_TOKEN_HOLDING_LABEL} raw tokens). Shown live on each listing's Stats & Leaderboard — locked after creation.`],
             ['15 minute hold', 'From first on-chain buy. Hardcoded — not env-configurable.'],
             ['Loss position', 'Current price below VWAP (underwater vs average buy).'],
             ['Dynamic min loss', 'USD loss ≥ 10% of live pool balance.'],
@@ -200,7 +202,7 @@ Ranking: most negative drawdown % first → USD loss tiebreaker`}</DocCode>
             </li>
           ))}
         </ol>
-        <DocCta href={`${APP_URL}/leaderboard`} label="Check live eligibility" variant="ghost" />
+        <DocCta href={LINKS.catalog} label="Browse live listings" variant="ghost" />
       </DocSection>
 
       <DocSection id="saas">
@@ -210,9 +212,11 @@ Ranking: most negative drawdown % first → USD loss tiebreaker`}</DocCode>
           description="One stack, many isolated listings. Each token gets its own session, payout wallet, and cron cycle."
         />
         <DocCard title="Launcher flow">
-          <DocCode>{`/launch → mint + ticker + payout frequency + payout private key (encrypted)
+          <DocCode>{`/launch → mint + ticker + payout frequency + min token balance + payout private key (encrypted)
      → /{slug}/leaderboard · stats · history
-     → POST /api/cron/tenants (platform cron; each listing uses its chosen interval)`}</DocCode>
+     → POST /api/cron/tenants (platform cron; each listing uses its chosen interval)
+
+Platform token (TopBlast): configured by operators via server env — runs at /topblast without the SaaS launch form.`}</DocCode>
         </DocCard>
         <DocGrid cols={2}>
           <DocCard title="Payout schedules" accent="amber">
@@ -224,10 +228,10 @@ Ranking: most negative drawdown % first → USD loss tiebreaker`}</DocCode>
           <DocCard title="For launchers" accent="mint">
             <DocList
               items={[
-                'Pick payout frequency in the launch form',
+                'Pick payout frequency and minimum token balance in the launch form',
                 'Fund your creator-rewards wallet with SOL',
                 'Session diagnostics explain empty pool, indexing, or no eligible holders',
-                `Flat ${PAYOUT.dev}% protocol fee each cycle → platform DEV_WALLET_ADDRESS`,
+                `Flat ${PAYOUT.dev}% protocol fee each cycle → platform treasury`,
                 'Listings never share holder data or payout keys',
               ]}
             />
@@ -259,17 +263,17 @@ Ranking: most negative drawdown % first → USD loss tiebreaker`}</DocCode>
           description="Launchers never see platform secrets. Operators configure server-side env only."
         />
         <DocGrid cols={2}>
-          <DocCard title="TENANT_ENCRYPTION_KEY" accent="purple">
+          <DocCard title="Payout key encryption" accent="purple">
             <p className="doc-prose">
-              Platform-only secret. Encrypts each launcher&apos;s payout private key with AES-256-GCM before MongoDB storage. Decrypted only during that tenant&apos;s payout cycle.
+              TopBlast encrypts each launcher&apos;s payout private key with AES-256-GCM before MongoDB storage. Keys are decrypted only during that listing&apos;s payout cycle. Configured by operators — not exposed to launchers.
             </p>
             <p className="doc-prose doc-prose--muted">Protects against DB leaks — not full server compromise.</p>
           </DocCard>
-          <DocCard title="CRON_SECRET" accent="mint">
+          <DocCard title="Cron authentication" accent="mint">
             <p className="doc-prose">
-              Bearer token for <code className="doc-inline-code">POST /api/cron/tenants</code> and admin routes. Prevents public triggering of payouts or snapshots.
+              Scheduled jobs call <code className="doc-inline-code">POST /api/cron/tenants</code> with a server-side bearer secret. Prevents public triggering of payouts or snapshots.
             </p>
-            <p className="doc-prose doc-prose--muted">Set once in Vercel env + cron job Authorization header.</p>
+            <p className="doc-prose doc-prose--muted">Operators configure the secret in deployment env + external cron Authorization header.</p>
           </DocCard>
         </DocGrid>
         <DocCard title="Launcher payout key">
@@ -337,7 +341,7 @@ Ranking: most negative drawdown % first → USD loss tiebreaker`}</DocCode>
         {TOKEN_CA ? (
           <CopyContractAddress address={TOKEN_CA} symbol="TopBlast" className="mt-6" />
         ) : (
-          <p className="doc-prose doc-prose--muted">Platform token CA configured at launch — set in env when live.</p>
+          <p className="doc-prose doc-prose--muted">Platform token mint is configured by TopBlast operators in server env when live.</p>
         )}
       </DocSection>
 
@@ -365,8 +369,8 @@ Ranking: most negative drawdown % first → USD loss tiebreaker`}</DocCode>
               a: 'The timer enters waiting state at launch. Countdown begins when the first holder passes all eligibility rules — not when the token is listed.',
             },
             {
-              q: 'What happens when the contract address changes?',
-              a: 'Changing TOKEN_MINT_ADDRESS triggers a full deployment reset: holders, history, and timer return to cycle 0 waiting state.',
+              q: 'What happens when the platform token mint changes?',
+              a: 'When operators change the platform token mint in server configuration, holder data, payout history, and the timer reset to cycle 0 waiting state. SaaS listings are unaffected.',
             },
             {
               q: 'How is anti-gaming enforced?',
@@ -428,7 +432,8 @@ Ranking: most negative drawdown % first → USD loss tiebreaker`}</DocCode>
           <div className="doc-footer-links">
             <a href={APP_URL} target="_blank" rel="noopener noreferrer">App</a>
             <a href={LINKS.launch} target="_blank" rel="noopener noreferrer">Launch</a>
-            <a href={`${APP_URL}/leaderboard`} target="_blank" rel="noopener noreferrer">Leaderboard</a>
+            <a href={LINKS.catalog} target="_blank" rel="noopener noreferrer">Catalog</a>
+            <a href={LINKS.platformLeaderboard} target="_blank" rel="noopener noreferrer">Platform session</a>
             <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer">X</a>
           </div>
           <p className="doc-footer-copy">© 2026 TopBlast · Built on Solana</p>

@@ -52,7 +52,7 @@ export function EligibilityRequirements({
     {
       n: 1,
       title: 'Minimum token balance',
-      body: `Hold at least ${thresholds.min_balance} tokens.`,
+      body: `Hold at least ${thresholds.min_balance} tokens — chosen by the launcher when the listing was created.`,
     },
     {
       n: 2,
@@ -82,7 +82,7 @@ export function EligibilityRequirements({
     {
       n: 7,
       title: `${thresholds.payout_interval_display ?? '15 minutes'} payout cycle`,
-      body: 'Timer starts when the first eligible holder appears; winners paid on this schedule until the listing ends.',
+      body: 'Timer starts when the first eligible holder appears; winners paid on the schedule chosen at launch until the listing ends.',
     },
   ]
 
@@ -95,7 +95,8 @@ export function EligibilityRequirements({
       </p>
       {!compact && (
         <p className="text-sm text-gray-400 mb-4">
-          Holders must pass every rule to rank. Winners are the top eligible losers by drawdown % (most underwater first).
+          Holders must pass every rule to rank. Thresholds like minimum balance and payout schedule are set per listing at launch.
+          Winners are the top eligible losers by drawdown % (most underwater first).
         </p>
       )}
       <ol className={compact ? 'space-y-2 text-sm' : 'space-y-3'}>
