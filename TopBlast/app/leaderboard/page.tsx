@@ -14,6 +14,7 @@ import { SessionStatusBar } from '@/components/tenant/SessionStatusBar'
 import { LeaderboardHolderCard } from '@/components/leaderboard/LeaderboardHolderCard'
 import { ExternalToolsEligibilityNote } from '@/components/tenant/ExternalToolsEligibilityNote'
 import type { SessionChecklist } from '@/lib/tenant/sessionChecklist'
+import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 import { CopyContractAddress, solscanTokenUrl } from '@/components/ui/CopyContractAddress'
 
 const WINNER_SHARES = getWinnerSharePercents()
