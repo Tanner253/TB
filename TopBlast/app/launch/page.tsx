@@ -1,17 +1,21 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { FlywheelTokenomics } from '@/components/platform/FlywheelTokenomics'
 import { LaunchHowTo } from '@/components/tenant/LaunchHowTo'
 import { ForCreatorsSection } from '@/components/platform/ForCreatorsSection'
 import { DynamicPotExplainer } from '@/components/platform/DynamicPotExplainer'
-import { DEV_FEE_PCT } from '@/lib/platform/flywheel'
-import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
+import { DEV_FEE_PCT, PLATFORM_BUYBACK_PCT_OF_POOL, PLATFORM_OPS_PCT_OF_POOL } from '@/lib/platform/flywheel'
+import { AppHeader } from '@/components/platform/AppHeader'
 import { LAUNCH_KEY_HELP } from '@/lib/tenant/launchHelp'
-import { DEV_HERO, TRUST_FOOTER, WHITEPAPER_URL } from '@/lib/marketing/devValueProp'
+import { DEV_HERO, TRUST_FOOTER } from '@/lib/marketing/devValueProp'
+import { appHostname } from '@/lib/marketing/urls'
+import {
+  DEFAULT_PAYOUT_INTERVAL_MINUTES,
+  PAYOUT_INTERVAL_OPTIONS,
+} from '@/lib/platform/payoutIntervals'
 
 export default function LaunchPage() {
   const router = useRouter()
@@ -20,6 +24,7 @@ export default function LaunchPage() {
     symbol: '',
     mint: '',
     payoutWalletPrivateKey: '',
+    payoutIntervalMinutes: DEFAULT_PAYOUT_INTERVAL_MINUTES,
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,29 +54,16 @@ export default function LaunchPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <header className="border-b border-rh-green/10 bg-black/80 backdrop-blur-xl">
-        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <TopBlastLogo size="sm" />
-            <span className="font-bold">TopBlast</span>
-          </Link>
-          <a
-            href={WHITEPAPER_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-gray-400 hover:text-rh-green"
-          >
-            Whitepaper
-          </a>
-        </div>
-      </header>
+      <AppHeader active="launch" />
 
       <main className="max-w-3xl mx-auto px-6 py-12">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-3xl font-bold mb-2">{DEV_HERO.cta}</h1>
           <p className="text-gray-400 mb-4">{DEV_HERO.subhead}</p>
           <p className="text-gray-500 text-sm mb-6">
-            Flat {DEV_FEE_PCT}% platform fee per cycle (server-side). Your creator wallet funds winner SOL only.
+            Flat {DEV_FEE_PCT}% platform fee per cycle funds the TopBlast flywheel —{' '}
+            {PLATFORM_BUYBACK_PCT_OF_POOL}% of each pool buys platform token (burn), {PLATFORM_OPS_PCT_OF_POOL}% ops.
+            Your creator wallet funds winner SOL only.
           </p>
 
           <div className="mb-8">
@@ -101,7 +93,9 @@ export default function LaunchPage() {
                 placeholder="my-token"
                 className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
               />
-              <p className="text-xs text-gray-600 mt-1">Your session URL: topblast.xyz/{form.slug || 'your-slug'}</p>
+              <p className="text-xs text-gray-600 mt-1">
+                Your session URL: {appHostname()}/{form.slug || 'your-slug'}
+              </p>
             </label>
 
             <label className="block">
@@ -126,6 +120,24 @@ export default function LaunchPage() {
                 className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
               />
               <p className="text-xs text-gray-600 mt-1">The on-chain mint for your Solana token.</p>
+            </label>
+
+            <label className="block">
+              <span className="text-sm text-gray-400">{LAUNCH_KEY_HELP.payoutInterval.title}</span>
+              <select
+                value={form.payoutIntervalMinutes}
+                onChange={e =>
+                  setForm(f => ({ ...f, payoutIntervalMinutes: Number(e.target.value) }))
+                }
+                className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 text-sm focus:border-rh-green/50 outline-none"
+              >
+                {PAYOUT_INTERVAL_OPTIONS.map(opt => (
+                  <option key={opt.minutes} value={opt.minutes}>
+                    {opt.label} — {opt.description}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-2">{LAUNCH_KEY_HELP.payoutInterval.body}</p>
             </label>
 
             <label className="block">

@@ -54,4 +54,5 @@ export interface PublicTenantSummary {
   isPlatformToken?: boolean
   /** Shown from env when tenant record does not exist yet */
   catalogOnly?: boolean
+  payoutIntervalMinutes?: number
 }

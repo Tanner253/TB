@@ -12,6 +12,7 @@ import {
 import { initializeTracker, isTrackerInitialized } from '@/lib/tracker/init'
 import { config } from '@/lib/config'
 import { formatHoldDuration } from '@/lib/eligibility/holdDuration'
+import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
 import { getPayoutSplitLabels } from '@/lib/payout/shares'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 
@@ -111,6 +112,8 @@ export async function GET() {
           min_hold_minutes: config.minHoldDurationMinutes,
           min_hold_display: formatHoldDuration(config.minHoldDurationMinutes),
           min_loss_pct: config.minLossThresholdPct,
+          payout_interval_minutes: config.payoutIntervalMinutes,
+          payout_interval_display: formatPayoutInterval(config.payoutIntervalMinutes),
         },
         service: {
           initialized: serviceStatus.initialized,

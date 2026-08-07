@@ -13,6 +13,7 @@ import type {
 import { getTimerKey } from './keys'
 import { decorateCatalogTenants } from '@/lib/platform/catalog'
 import { requirePlatformDevWalletAddress } from '@/lib/platform/devWallet'
+import { validatePayoutIntervalMinutes } from '@/lib/platform/payoutIntervals'
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/
 
@@ -76,6 +77,7 @@ export async function listPublicTenants(): Promise<PublicTenantSummary[]> {
     status: row.status as TenantStatus,
     createdAt: row.createdAt.toISOString(),
     payoutWalletAddress: row.payoutWalletAddress,
+    payoutIntervalMinutes: row.payoutIntervalMinutes,
   }))
 
   return decorateCatalogTenants(tenants)
@@ -116,7 +118,7 @@ export async function createTenant(input: CreateTenantInput) {
   const decimals = input.decimals ?? 6
   const payoutWalletAddress = derivePayoutAddress(input.payoutWalletPrivateKey)
   const devWalletAddress = requirePlatformDevWalletAddress()
-  const payoutIntervalMinutes = input.payoutIntervalMinutes ?? 15
+  const payoutIntervalMinutes = validatePayoutIntervalMinutes(input.payoutIntervalMinutes)
   const minTokenHolding = input.minTokenHolding ?? 1000
 
   await connectDB()
@@ -171,6 +173,7 @@ export async function createTenant(input: CreateTenantInput) {
     mint: tenant.mint,
     status: tenant.status,
     payoutWalletAddress: tenant.payoutWalletAddress,
+    payoutIntervalMinutes: tenant.payoutIntervalMinutes,
     appUrl: `/${tenant.slug}`,
   }
 }

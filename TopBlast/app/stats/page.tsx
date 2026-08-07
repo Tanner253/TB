@@ -11,6 +11,7 @@ import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
 import { TenantStatusPanel } from '@/components/tenant/TenantStatusPanel'
 import type { TenantDiagnostics } from '@/lib/tenant/diagnostics'
 import { getWinnerSharePercents, getDevFeePercent } from '@/lib/payout/shares'
+import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 
 const SHARES = getWinnerSharePercents()
 const DEV_FEE = getDevFeePercent()
@@ -406,12 +407,17 @@ export default function StatsPage() {
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
             <span>📋</span> Eligibility Thresholds
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             {[
               { label: 'Min Balance', value: stats?.thresholds?.min_balance || '100,000', sub: 'tokens' },
               { label: 'Hold Duration', value: stats?.thresholds?.min_hold_display || '15 min', sub: 'minimum' },
               { label: 'Min Loss', value: `${stats?.thresholds?.min_loss_pct || 10}%`, sub: 'of pool value' },
               { label: 'Min Pool', value: pool?.minimum_pool_usd || '$50', sub: 'for payouts' },
+              {
+                label: 'Payout Cycle',
+                value: stats?.thresholds?.payout_interval_display || PAYOUT_INTERVAL_RANGE_COMPACT,
+                sub: stats?.thresholds?.payout_interval_display ? 'this listing' : 'choose at launch',
+              },
             ].map((item) => (
               <div key={item.label} className="bg-white/5 rounded-xl p-4 text-center">
                 <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">{item.label}</div>

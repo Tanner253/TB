@@ -19,7 +19,7 @@ export async function GET() {
         balance_eth: livePool.poolEthFormatted,
         wallet_eth: livePool.walletEth,
         payout_wallet_address: livePool.payoutWalletAddress,
-        balance_tokens: `${livePool.poolEthFormatted} ETH`,
+        balance_tokens: `${livePool.poolEthFormatted} SOL`,
         total_distributed_usd: formatUsd(0),
         total_cycles: 0,
         average_payout_usd: formatUsd(0),

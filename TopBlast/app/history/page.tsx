@@ -332,7 +332,7 @@ export default function HistoryPage() {
                                     target="_blank" 
                                     rel="noopener noreferrer"
                                     className="text-rh-green hover:text-rh-lime transition-colors"
-                                    title="View on Blockscout"
+                                    title="View on Solscan"
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -416,7 +416,7 @@ export default function HistoryPage() {
               <h2 className="text-2xl font-bold mb-3">No Payouts Yet</h2>
               <p className="text-gray-400 mb-6 max-w-md mx-auto">
                 Winners will appear here after the first payout cycle is processed.
-                All transactions are recorded on-chain with Blockscout links.
+                All transactions are recorded on-chain with Solscan links.
               </p>
               <Link href={`${basePath}/leaderboard`}>
                 <motion.button

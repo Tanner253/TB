@@ -1,20 +1,23 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
+
+const PAYOUT_META = `Configurable payout cycles (${PAYOUT_INTERVAL_RANGE_COMPACT})`
 
 export const metadata: Metadata = {
   title: 'TopBlast | The Loss-Mining Protocol',
-  description: 'The Loss-Mining Protocol on Solana. Top 3 losers win native SOL payouts every 15 minutes.',
+  description: `The Loss-Mining Protocol on Solana. Top 3 eligible losers win native SOL payouts. ${PAYOUT_META}.`,
   keywords: ['solana', 'spl', 'defi', 'loss-mining', 'crypto', 'topblast', 'helius'],
   authors: [{ name: 'TopBlast' }],
   openGraph: {
     title: 'TopBlast | The Loss-Mining Protocol',
-    description: 'Get paid in native SOL for being a top loser. Solana · automated payouts every 15 minutes.',
+    description: `Get paid in native SOL for being a top loser. Solana · ${PAYOUT_META}.`,
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'TopBlast | The Loss-Mining Protocol',
-    description: 'Get paid in native SOL for being a top loser. Solana · automated payouts every 15 minutes.',
+    description: `Get paid in native SOL for being a top loser. Solana · ${PAYOUT_META}.`,
     site: '@topblasteth',
   },
 }

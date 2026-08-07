@@ -3,13 +3,15 @@ import {
   DEV_FEE_BUYBACK_SHARE_PCT,
   DEV_FEE_PCT,
   PLATFORM_BUYBACK_PCT_OF_POOL,
+  PLATFORM_OPS_PCT_OF_POOL,
 } from '@/lib/platform/flywheel'
 
 describe('platform flywheel', () => {
-  it('allocates 50% of dev fees to buyback (6% of pool)', () => {
+  it('allocates 50% of dev fees to buyback and 50% to ops (6% of pool each)', () => {
     expect(DEV_FEE_PCT).toBe(12)
     expect(DEV_FEE_BUYBACK_SHARE_PCT).toBe(50)
     expect(PLATFORM_BUYBACK_PCT_OF_POOL).toBe(6)
+    expect(PLATFORM_OPS_PCT_OF_POOL).toBe(6)
   })
 })
 

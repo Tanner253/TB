@@ -1,6 +1,7 @@
 import type { LivePoolBalance } from '@/lib/payout/poolBalance'
 import type { PayoutTimerInfo } from '@/lib/payout/executor'
 import { config } from '@/lib/config'
+import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
 
 export type DiagnosticSeverity = 'success' | 'info' | 'warning' | 'error'
 
@@ -59,6 +60,7 @@ export function buildTenantDiagnostics(input: TenantDiagnosticsInput): TenantDia
   const minPoolSol = config.minPoolSol
   const minBalance = config.minTokenHolding.toLocaleString()
   const holdMins = config.minHoldDurationMinutes
+  const payoutIntervalLabel = formatPayoutInterval(config.payoutIntervalMinutes)
 
   // --- Live price feed (DexScreener / Jupiter — not Helius RPC) ---
   if (!priceAvailable) {
@@ -215,8 +217,8 @@ export function buildTenantDiagnostics(input: TenantDiagnosticsInput): TenantDia
       title: 'Payout timer waiting',
       message:
         eligibleCount > 0
-          ? 'At least one holder is eligible — the timer should start on the next cron run (~15 min).'
-          : 'The 15-minute payout timer starts automatically when the first holder becomes eligible.',
+          ? `At least one holder is eligible — the ${payoutIntervalLabel} timer should start on the next cron check.`
+          : `The ${payoutIntervalLabel} payout timer starts automatically when the first holder becomes eligible.`,
       action:
         eligibleCount === 0
           ? 'Fund your pool and wait for eligible holders. Cycles run automatically — no manual start.'

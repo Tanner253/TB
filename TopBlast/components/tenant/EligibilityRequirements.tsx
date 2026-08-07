@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { MIN_HOLD_DURATION_MINUTES, formatHoldDuration } from '@/lib/eligibility/holdDuration'
+import { formatPayoutInterval, DEFAULT_PAYOUT_INTERVAL_MINUTES } from '@/lib/platform/payoutIntervals'
 
 type Thresholds = {
   min_balance?: string
   min_hold_display?: string
   min_loss_pct?: number
+  payout_interval_display?: string
 }
 
 interface EligibilityRequirementsProps {
@@ -20,6 +22,7 @@ function useThresholds(slug?: string): Thresholds {
     min_balance: '1,000',
     min_hold_display: formatHoldDuration(MIN_HOLD_DURATION_MINUTES),
     min_loss_pct: 10,
+    payout_interval_display: formatPayoutInterval(DEFAULT_PAYOUT_INTERVAL_MINUTES),
   })
 
   useEffect(() => {
@@ -75,6 +78,11 @@ export function EligibilityRequirements({
       n: 6,
       title: 'Not on winner cooldown',
       body: 'Previous cycle winner sits out one round.',
+    },
+    {
+      n: 7,
+      title: `${thresholds.payout_interval_display ?? '15 minutes'} payout cycle`,
+      body: 'Timer starts when the first eligible holder appears; winners paid on this schedule until the listing ends.',
     },
   ]
 

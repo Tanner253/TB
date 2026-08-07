@@ -26,6 +26,7 @@ import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
 import { loadLastWinCycleByWallet } from '@/lib/payout/winnerPersistence'
 import { getEarliestBuyTimestamp, getTokenHolders } from '@/lib/solana/indexer'
 import { buildTenantDiagnostics } from '@/lib/tenant/diagnostics'
+import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -398,6 +399,8 @@ export async function GET(request: NextRequest) {
         ws_connected: false,
         tracker_initialized: serviceStatus.initialized,
         min_hold_minutes: config.minHoldDurationMinutes,
+        payout_interval_minutes: config.payoutIntervalMinutes,
+        payout_interval_display: formatPayoutInterval(config.payoutIntervalMinutes),
         rankings,
         eligible_winners: eligibleWinners,
         last_updated: dbRankings.lastCalculated.toISOString(),

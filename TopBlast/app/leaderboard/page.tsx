@@ -12,6 +12,7 @@ import { getWinnerSharePercents, getPayoutForEligibleRank } from '@/lib/payout/s
 import { HolderStatus, HoldTimeBadge } from '@/components/HoldTimeBadge'
 import { TenantStatusPanel } from '@/components/tenant/TenantStatusPanel'
 import type { TenantDiagnostics } from '@/lib/tenant/diagnostics'
+import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 
 const WINNER_SHARES = getWinnerSharePercents()
 
@@ -709,7 +710,8 @@ export default function LeaderboardPage() {
             Real-time tracking via Helius
           </div>
           <p className="text-xs text-gray-500">
-            {data?.tracked_holders || 0} holders tracked • Top 3 losers paid automatically every 15 minutes
+            {data?.tracked_holders || 0} holders tracked • Top 3 losers paid every{' '}
+            {data?.payout_interval_display || PAYOUT_INTERVAL_RANGE_COMPACT}
           </p>
         </motion.div>
       </main>

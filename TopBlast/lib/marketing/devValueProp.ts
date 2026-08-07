@@ -1,5 +1,9 @@
 /** Shared marketing copy — Solana dev / launcher narrative. */
 
+import { formatPayoutIntervalOptionsList } from '@/lib/platform/payoutIntervals'
+
+const PAYOUT_SCHEDULE_OPTIONS = formatPayoutIntervalOptionsList()
+
 export const DEV_HERO = {
   headline: 'Reward bullish holders — not sellers',
   subhead:
@@ -53,7 +57,7 @@ export const DYNAMIC_POT = {
     },
     {
       title: 'Timer',
-      body: '15-minute cycles start automatically when the first eligible holder appears. Cron runs everything — no manual start.',
+      body: `Choose payout frequency at launch (${PAYOUT_SCHEDULE_OPTIONS}). Cycles start automatically when the first eligible holder appears. Cron keeps timers in sync — no manual start.`,
     },
   ],
   example: {
@@ -74,7 +78,7 @@ export const CREATOR_BENEFITS = [
   },
   {
     title: 'Hands-off operations',
-    body: 'Rankings, eligibility, timer, and SOL payouts run on autopilot per listing.',
+    body: `Rankings, eligibility, timer, and SOL payouts run on autopilot per listing — on the schedule you pick (${PAYOUT_SCHEDULE_OPTIONS}).`,
   },
   {
     title: 'Built for Pump.fun → migration',
@@ -82,11 +86,21 @@ export const CREATOR_BENEFITS = [
   },
 ] as const
 
-export const TRUST_FOOTER =
-  'Payout keys are encrypted at rest. TopBlast only signs transactions to pay eligible winners from your wallet. A flat 12% protocol fee per cycle goes to the platform dev wallet (server-side).'
+import {
+  DEV_FEE_PCT,
+  DEV_FEE_BUYBACK_SHARE_PCT,
+  PLATFORM_BUYBACK_PCT_OF_POOL,
+  PLATFORM_OPS_PCT_OF_POOL,
+} from '@/lib/platform/flywheel'
+import { WHITEPAPER_URL } from '@/lib/marketing/urls'
 
-export const WHITEPAPER_URL =
-  process.env.NEXT_PUBLIC_WHITEPAPER_URL || 'https://topblastx100.vercel.app'
+export const TRUST_FOOTER =
+  `Payout keys are encrypted at rest. TopBlast only signs transactions to pay eligible winners from your wallet. ` +
+  `A flat ${DEV_FEE_PCT}% protocol fee per cycle goes to the platform treasury (DEV_WALLET_ADDRESS): ` +
+  `${PLATFORM_BUYBACK_PCT_OF_POOL}% of the pool (${DEV_FEE_BUYBACK_SHARE_PCT}% of the fee) market-buys the platform token for burn, ` +
+  `${PLATFORM_OPS_PCT_OF_POOL}% funds ops and infra. Buyback + burn automation is on the roadmap.`
+
+export { APP_URL, WHITEPAPER_URL, appHostname } from '@/lib/marketing/urls'
 
 export const EXTERNAL_LINKS = {
   twitter: 'https://x.com/topblasteth',
