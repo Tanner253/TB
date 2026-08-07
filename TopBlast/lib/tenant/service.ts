@@ -12,8 +12,10 @@ import type {
 } from './types'
 import { getTimerKey } from './keys'
 import { decorateCatalogTenants } from '@/lib/platform/catalog'
+import { resolvePlatformEnvRuntime } from '@/lib/platform/envPlatform'
 import { requirePlatformDevWalletAddress } from '@/lib/platform/devWallet'
 import { validatePayoutIntervalMinutes } from '@/lib/platform/payoutIntervals'
+import { validateMinTokenHolding } from '@/lib/platform/minTokenHolding'
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/
 
@@ -90,22 +92,24 @@ export async function getTenantBySlug(slug: string) {
 
 export async function resolveTenantRuntime(slug: string): Promise<TenantRuntimeConfig | null> {
   const doc = await getTenantBySlug(slug)
-  if (!doc || doc.status === 'paused') return null
-
-  return {
-    tenantSlug: doc.slug,
-    tokenMint: doc.mint,
-    tokenSymbol: doc.symbol,
-    tokenDecimals: doc.decimals,
-    devWalletAddress: requirePlatformDevWalletAddress(),
-    payoutIntervalMinutes: doc.payoutIntervalMinutes,
-    minTokenHolding: doc.minTokenHolding,
-    minLossThresholdPct: doc.minLossThresholdPct,
-    minPoolSol: doc.minPoolSol,
-    minPoolEth: doc.minPoolSol,
-    executePayouts: doc.executePayouts,
-    payoutWalletPrivateKey: decryptSecret(doc.encryptedPayoutKey),
+  if (doc && doc.status !== 'paused') {
+    return {
+      tenantSlug: doc.slug,
+      tokenMint: doc.mint,
+      tokenSymbol: doc.symbol,
+      tokenDecimals: doc.decimals,
+      devWalletAddress: requirePlatformDevWalletAddress(),
+      payoutIntervalMinutes: doc.payoutIntervalMinutes,
+      minTokenHolding: doc.minTokenHolding,
+      minLossThresholdPct: doc.minLossThresholdPct,
+      minPoolSol: doc.minPoolSol,
+      minPoolEth: doc.minPoolSol,
+      executePayouts: doc.executePayouts,
+      payoutWalletPrivateKey: decryptSecret(doc.encryptedPayoutKey),
+    }
   }
+
+  return resolvePlatformEnvRuntime(slug)
 }
 
 export async function createTenant(input: CreateTenantInput) {
@@ -119,7 +123,7 @@ export async function createTenant(input: CreateTenantInput) {
   const payoutWalletAddress = derivePayoutAddress(input.payoutWalletPrivateKey)
   const devWalletAddress = requirePlatformDevWalletAddress()
   const payoutIntervalMinutes = validatePayoutIntervalMinutes(input.payoutIntervalMinutes)
-  const minTokenHolding = input.minTokenHolding ?? 1000
+  const minTokenHolding = validateMinTokenHolding(input.minTokenHolding)
 
   await connectDB()
 

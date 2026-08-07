@@ -3,9 +3,14 @@ import {
   formatPayoutInterval,
   formatPayoutIntervalOptionsList,
 } from '@/lib/platform/payoutIntervals'
+import {
+  DEFAULT_MIN_TOKEN_HOLDING,
+  formatMinTokenHolding,
+} from '@/lib/platform/minTokenHolding'
 
 const PAYOUT_OPTIONS = formatPayoutIntervalOptionsList()
 const DEFAULT_PAYOUT_LABEL = formatPayoutInterval(DEFAULT_PAYOUT_INTERVAL_MINUTES)
+const DEFAULT_MIN_BALANCE_LABEL = formatMinTokenHolding(DEFAULT_MIN_TOKEN_HOLDING)
 
 /** Keys explained for launch / help UI (client-safe). */
 export const LAUNCH_KEY_HELP = {
@@ -17,6 +22,10 @@ export const LAUNCH_KEY_HELP = {
   payoutInterval: {
     title: 'Payout frequency',
     body: `How often winners are paid after the timer starts. Choose at launch — ${PAYOUT_OPTIONS}. Default is ${DEFAULT_PAYOUT_LABEL}. Cannot be changed after listing creation.`,
+  },
+  minTokenHolding: {
+    title: 'Minimum token balance',
+    body: `Holders need at least this many tokens (raw units, not USD) to qualify for loss-mining. Default is ${DEFAULT_MIN_BALANCE_LABEL}. Set higher to filter dust wallets; lower for micro-cap launches. Locked at launch.`,
   },
   tenantEncryptionKey: {
     title: 'Key encryption (TopBlast operators only)',
@@ -64,8 +73,8 @@ export const HOW_TO_RUN_LISTING = {
     },
     {
       n: 3,
-      title: 'Choose your payout frequency',
-      body: `Pick a cycle length in the launch form: ${PAYOUT_OPTIONS}. Default is ${DEFAULT_PAYOUT_LABEL}. Shorter cycles = more engagement; longer cycles = fewer, larger moments.`,
+      title: 'Set payout frequency and minimum balance',
+      body: `Pick a cycle length (${PAYOUT_OPTIONS}) and minimum token balance (default ${DEFAULT_MIN_BALANCE_LABEL} raw tokens). Both are locked at launch.`,
     },
     {
       n: 4,

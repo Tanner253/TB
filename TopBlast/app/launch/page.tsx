@@ -21,6 +21,7 @@ import {
   DEFAULT_PAYOUT_INTERVAL_MINUTES,
   PAYOUT_INTERVAL_OPTIONS,
 } from '@/lib/platform/payoutIntervals'
+import { DEFAULT_MIN_TOKEN_HOLDING } from '@/lib/platform/minTokenHolding'
 
 
 export default function LaunchPage() {
@@ -32,6 +33,7 @@ export default function LaunchPage() {
     mint: '',
     payoutWalletPrivateKey: '',
     payoutIntervalMinutes: DEFAULT_PAYOUT_INTERVAL_MINUTES,
+    minTokenHolding: DEFAULT_MIN_TOKEN_HOLDING,
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -45,13 +47,16 @@ export default function LaunchPage() {
       const res = await fetch('/api/tenants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          minTokenHolding: form.minTokenHolding || DEFAULT_MIN_TOKEN_HOLDING,
+        }),
       })
       const json = await res.json()
       if (!json.success) {
         throw new Error(json.error || 'Launch failed')
       }
-      router.push(`/${json.data.slug}`)
+      router.push(`/${json.data.slug}/leaderboard`)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Launch failed')
     } finally {
@@ -142,6 +147,27 @@ export default function LaunchPage() {
                   ))}
                 </select>
                 <p className="text-xs text-gray-500 mt-2">{LAUNCH_KEY_HELP.payoutInterval.body}</p>
+              </label>
+
+              <label className="block">
+                <span className="text-sm text-gray-400">{LAUNCH_KEY_HELP.minTokenHolding.title}</span>
+                <input
+                  required
+                  type="text"
+                  inputMode="numeric"
+                  min={1}
+                  value={String(form.minTokenHolding)}
+                  onChange={e => {
+                    const cleaned = e.target.value.replace(/,/g, '').replace(/[^\d]/g, '')
+                    setForm(f => ({
+                      ...f,
+                      minTokenHolding: cleaned ? Number(cleaned) : DEFAULT_MIN_TOKEN_HOLDING,
+                    }))
+                  }}
+                  placeholder={String(DEFAULT_MIN_TOKEN_HOLDING)}
+                  className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
+                />
+                <p className="text-xs text-gray-500 mt-2">{LAUNCH_KEY_HELP.minTokenHolding.body}</p>
               </label>
 
               <label className="block">

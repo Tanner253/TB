@@ -14,7 +14,7 @@ export function tenantCatalogHref(tenant: PublicTenantSummary): string {
   if (tenant.catalogOnly) {
     return `/launch?slug=${encodeURIComponent(tenant.slug)}`
   }
-  return `/${tenant.slug}`
+  return `/${tenant.slug}/leaderboard`
 }
 
 export function filterCatalogTenants(

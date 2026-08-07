@@ -54,5 +54,7 @@ export interface PublicTenantSummary {
   isPlatformToken?: boolean
   /** Shown from env when tenant record does not exist yet */
   catalogOnly?: boolean
+  /** Live session powered by TOKEN_MINT_ADDRESS + PAYOUT_WALLET_PRIVATE_KEY env */
+  runsFromEnv?: boolean
   payoutIntervalMinutes?: number
 }

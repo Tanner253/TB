@@ -63,7 +63,7 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
 
         <p className={`text-gray-400 ${compact ? 'text-xs' : 'text-sm'}`}>
           {tenant.catalogOnly
-            ? 'Configure platform token mint to feature here.'
+            ? 'Platform token mint is set — payout wallet still needed on the server.'
             : tenant.payoutIntervalMinutes
               ? `Payouts every ${formatPayoutInterval(tenant.payoutIntervalMinutes)}`
               : tenant.payoutWalletAddress
@@ -72,7 +72,7 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
         </p>
 
         <p className="mt-3 text-xs font-medium text-sol-mint opacity-0 group-hover:opacity-100 transition-opacity">
-          Open session →
+          View leaderboard →
         </p>
       </motion.article>
     </Link>

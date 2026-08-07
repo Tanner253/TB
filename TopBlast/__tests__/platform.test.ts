@@ -52,15 +52,35 @@ describe('platform catalog', () => {
     expect(sorted[0].isPlatformToken).toBe(true)
   })
 
-  it('injects catalog-only platform entry when mint configured but tenant missing', () => {
+  it('injects catalog-only platform entry when mint configured but payout env missing', () => {
     process.env.PLATFORM_TENANT_SLUG = 'topblast'
     process.env.PLATFORM_TOKEN_MINT = 'So11111111111111111111111111111111111111112'
     process.env.PLATFORM_TOKEN_SYMBOL = 'BLAST'
+    delete process.env.PAYOUT_WALLET_PRIVATE_KEY
 
     const sorted = decorateCatalogTenants([])
     expect(sorted).toHaveLength(1)
     expect(sorted[0].slug).toBe('topblast')
     expect(sorted[0].catalogOnly).toBe(true)
+    expect(sorted[0].runsFromEnv).toBeFalsy()
     expect(sorted[0].isPlatformToken).toBe(true)
+  })
+
+  it('injects live env platform entry when mint and payout key are configured', () => {
+    process.env.PLATFORM_TENANT_SLUG = 'topblast'
+    delete process.env.PLATFORM_TOKEN_SYMBOL
+    process.env.TOKEN_MINT_ADDRESS = 'So11111111111111111111111111111111111111112'
+    process.env.TOKEN_SYMBOL = 'TBLAST'
+    process.env.PAYOUT_WALLET_PRIVATE_KEY = 'CHhp3YcNXkAzLcEy33P3X2CgnhDEGcRCyyQDwtk8rjhKtmAypiD3Qd28Ub5gXkNjmxG1F3jUWXyXCqj5XbbKv3B'
+    process.env.PAYOUT_INTERVAL_MINUTES = '30'
+
+    const sorted = decorateCatalogTenants([])
+    expect(sorted).toHaveLength(1)
+    expect(sorted[0].catalogOnly).toBe(false)
+    expect(sorted[0].runsFromEnv).toBe(true)
+    expect(sorted[0].status).toBe('active')
+    expect(sorted[0].symbol).toBe('TBLAST')
+    expect(sorted[0].payoutIntervalMinutes).toBe(30)
+    expect(sorted[0].payoutWalletAddress.length).toBeGreaterThan(30)
   })
 })

@@ -5,10 +5,16 @@ import {
   getPlatformTokenSymbol,
   isPlatformTenantSlug,
 } from './config'
+import {
+  getPlatformEnvPayoutAddress,
+  getPlatformEnvPayoutIntervalMinutes,
+  isPlatformEnvConfigured,
+} from './envPlatform'
 
 export function decorateCatalogTenants(tenants: PublicTenantSummary[]): PublicTenantSummary[] {
   const platformSlug = getPlatformTenantSlug()
   const platformMint = getPlatformTokenMint()
+  const envLive = isPlatformEnvConfigured()
 
   const decorated = tenants.map(t => ({
     ...t,
@@ -29,10 +35,12 @@ export function decorateCatalogTenants(tenants: PublicTenantSummary[]): PublicTe
       mint: platformMint,
       status: 'active',
       createdAt: new Date(0).toISOString(),
-      payoutWalletAddress: '',
+      payoutWalletAddress: envLive ? getPlatformEnvPayoutAddress() : '',
+      payoutIntervalMinutes: envLive ? getPlatformEnvPayoutIntervalMinutes() : undefined,
       featured: true,
       isPlatformToken: true,
-      catalogOnly: true,
+      catalogOnly: !envLive,
+      runsFromEnv: envLive,
     })
   }
 

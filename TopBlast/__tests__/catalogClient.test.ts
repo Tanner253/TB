@@ -39,7 +39,7 @@ const sample: PublicTenantSummary[] = [
 
 describe('catalogClient', () => {
   it('builds tenant href', () => {
-    expect(tenantCatalogHref(sample[0])).toBe('/alpha')
+    expect(tenantCatalogHref(sample[0])).toBe('/alpha/leaderboard')
     expect(
       tenantCatalogHref({
         ...sample[0],
