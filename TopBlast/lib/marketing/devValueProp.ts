@@ -103,6 +103,7 @@ export const TRUST_FOOTER =
 export { APP_URL, WHITEPAPER_URL, appHostname } from '@/lib/marketing/urls'
 
 export const EXTERNAL_LINKS = {
-  twitter: 'https://x.com/topblasteth',
+  twitter: 'https://x.com/oSKNYo_dev',
+  github: 'https://github.com/Tanner253/TB',
   whitepaper: WHITEPAPER_URL,
 } as const

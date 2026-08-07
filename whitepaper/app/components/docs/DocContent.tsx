@@ -434,6 +434,7 @@ Platform token (TopBlast): configured by operators via server env — runs at /t
             <a href={LINKS.launch} target="_blank" rel="noopener noreferrer">Launch</a>
             <a href={LINKS.catalog} target="_blank" rel="noopener noreferrer">Catalog</a>
             <a href={LINKS.platformLeaderboard} target="_blank" rel="noopener noreferrer">Platform session</a>
+            <a href={LINKS.github} target="_blank" rel="noopener noreferrer">GitHub</a>
             <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer">X</a>
           </div>
           <p className="doc-footer-copy">© 2026 TopBlast · Built on Solana</p>

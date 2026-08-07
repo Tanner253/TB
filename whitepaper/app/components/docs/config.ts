@@ -1,7 +1,8 @@
 export const APP_URL = 'https://www.topblastweb3.xyz'
 
 export const LINKS = {
-  twitter: 'https://x.com/topblasteth',
+  twitter: 'https://x.com/oSKNYo_dev',
+  github: 'https://github.com/Tanner253/TB',
   app: APP_URL,
   launch: `${APP_URL}/launch`,
   catalog: `${APP_URL}/catalog`,

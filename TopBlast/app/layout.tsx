@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'TopBlast | The Loss-Mining Protocol',
     description: `Get paid in native SOL for being a top loser. Solana · ${PAYOUT_META}.`,
-    site: '@topblasteth',
+    site: '@oSKNYo_dev',
   },
 }
 

@@ -7,34 +7,14 @@ import { useRealtimeLeaderboard, useRealtimePrice, useTimeSince, useRealtime } f
 import { useTenantRouting } from '@/hooks/useTenantRouting'
 import { AnimatedNumber, Countdown, PriceTicker } from '@/components/ui/AnimatedNumber'
 import { LeaderboardCardSkeleton, TableRowSkeleton } from '@/components/ui/Skeleton'
-import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
+import { AppHeader } from '@/components/platform/AppHeader'
 import { getWinnerSharePercents, getPayoutForEligibleRank } from '@/lib/payout/shares'
 import { HolderStatus, HoldTimeBadge } from '@/components/HoldTimeBadge'
-import { SessionStatusToast } from '@/components/tenant/SessionStatusToast'
-import type { SessionStatus } from '@/lib/tenant/sessionStatus'
+import { SessionStatusBar } from '@/components/tenant/SessionStatusBar'
+import type { SessionChecklist } from '@/lib/tenant/sessionChecklist'
 import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 
 const WINNER_SHARES = getWinnerSharePercents()
-
-import { EXTERNAL_LINKS } from '@/lib/marketing/devValueProp'
-
-const LINKS = EXTERNAL_LINKS
-
-// Social Icons
-const XIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-  </svg>
-)
-
-const DocsIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-    <polyline points="14 2 14 8 20 8"></polyline>
-    <line x1="16" y1="13" x2="8" y2="13"></line>
-    <line x1="16" y1="17" x2="8" y2="17"></line>
-  </svg>
-)
 
 interface Winner {
   rank: number
@@ -199,13 +179,29 @@ export default function LeaderboardPage() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-rh-lime/5 to-transparent rounded-full" />
       </div>
 
-      <Header
-        basePath={basePath}
-        connectionState={connectionState}
-        wsConnected={wsConnected}
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
-        lastUpdate={lastUpdate}
+      <AppHeader
+        active="leaderboard"
+        sessionBasePath={basePath}
+        trailing={
+          <>
+            <ConnectionIndicator state={connectionState} wsConnected={wsConnected} />
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs sm:text-sm font-medium transition-all border border-white/10 disabled:opacity-50"
+            >
+              <motion.span
+                animate={refreshing ? { rotate: 360 } : {}}
+                transition={{ duration: 1, repeat: refreshing ? Infinity : 0, ease: 'linear' }}
+              >
+                ↻
+              </motion.span>
+              <span className="hidden sm:inline">Refresh</span>
+            </motion.button>
+          </>
+        }
       />
 
       <main className="relative max-w-7xl mx-auto px-4 py-8">
@@ -350,6 +346,12 @@ export default function LeaderboardPage() {
             </div>
           </motion.div>
         </div>
+
+        <SessionStatusBar
+          checklist={(data?.session_checklist as SessionChecklist | null) ?? null}
+          eligibleCount={data?.eligible_count}
+          timerStatus={timerStatus ?? data?.timer_status}
+        />
 
         {/* Winners Section */}
         <motion.div
@@ -692,86 +694,6 @@ export default function LeaderboardPage() {
           </p>
         </motion.div>
       </main>
-
-      <SessionStatusToast
-        status={(data?.session_status as SessionStatus | null) ?? null}
-        eligibleCount={data?.eligible_count}
-        timerStatus={timerStatus ?? data?.timer_status}
-      />
     </div>
-  )
-}
-
-// Header component
-function Header({
-  basePath,
-  connectionState,
-  wsConnected,
-  onRefresh,
-  refreshing,
-  lastUpdate,
-}: {
-  basePath: string
-  connectionState: string
-  wsConnected?: boolean
-  onRefresh?: () => void
-  refreshing?: boolean
-  lastUpdate?: Date | null
-}) {
-  return (
-    <header className="sticky top-0 z-50 border-b border-rh-green/10 bg-black/80 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href={basePath || '/'} className="flex items-center gap-3 group">
-              <TopBlastLogo size="md" className="shadow-rh-glow-sm" />
-              <span className="text-xl font-bold tracking-tight">
-                <span className="text-rh-green">TOP</span>
-                <span className="text-white">BLAST</span>
-              </span>
-            </Link>
-            <ConnectionIndicator state={connectionState} wsConnected={wsConnected} />
-          </div>
-
-          <nav className="flex items-center gap-6">
-            {onRefresh && (
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={onRefresh}
-                disabled={refreshing}
-                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm font-medium transition-all border border-white/10 disabled:opacity-50"
-              >
-                <motion.span
-                  animate={refreshing ? { rotate: 360 } : {}}
-                  transition={{ duration: 1, repeat: refreshing ? Infinity : 0, ease: 'linear' }}
-                >
-                  🔄
-                </motion.span>
-                Refresh
-              </motion.button>
-            )}
-            <Link
-              href={`${basePath}/history`}
-              className="text-gray-400 hover:text-white text-sm font-medium transition-colors"
-            >
-              History
-            </Link>
-            <Link
-              href={`${basePath}/stats`}
-              className="text-gray-400 hover:text-white text-sm font-medium transition-colors"
-            >
-              Stats
-            </Link>
-            <a href={LINKS.whitepaper} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-rh-green transition-colors" title="Whitepaper">
-              <DocsIcon />
-            </a>
-            <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors" title="Follow on X">
-              <XIcon />
-            </a>
-          </nav>
-        </div>
-      </div>
-    </header>
   )
 }

@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     title: 'TopBlast | Bullish-Holder Rewards for Solana Devs',
     description:
       'Turn creator-fee SOL into holder rewards — without cashback sell pressure.',
-    site: '@topblasteth',
+    site: '@oSKNYo_dev',
   },
 }
 

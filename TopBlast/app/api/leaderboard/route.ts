@@ -28,6 +28,7 @@ import { loadLastWinCycleByWallet } from '@/lib/payout/winnerPersistence'
 import { getEarliestBuyTimestamp, getTokenHolders } from '@/lib/solana/indexer'
 import { buildTenantDiagnostics } from '@/lib/tenant/diagnostics'
 import { deriveSessionStatus } from '@/lib/tenant/sessionStatus'
+import { buildSessionChecklist } from '@/lib/tenant/sessionChecklist'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
 
 export const dynamic = 'force-dynamic'
@@ -186,6 +187,10 @@ export async function GET(request: NextRequest) {
       }
       const diagnostics = buildTenantDiagnostics(diagnosticsInput)
       const session_status = deriveSessionStatus(diagnosticsInput)
+      const session_checklist = buildSessionChecklist({
+        ...diagnosticsInput,
+        minLossUsdFormatted: minLossUsdFormatted,
+      })
 
       return NextResponse.json({
         success: true,
@@ -194,6 +199,7 @@ export async function GET(request: NextRequest) {
           message: diagnostics.headline,
           diagnostics,
           session_status,
+          session_checklist,
           timer_status: timerAfterPayout.timer_status,
           cycle: timerAfterPayout.next_cycle,
           seconds_remaining: timerAfterPayout.seconds_remaining,
@@ -385,6 +391,10 @@ export async function GET(request: NextRequest) {
 
     const diagnostics = buildTenantDiagnostics(diagnosticsInput)
     const session_status = deriveSessionStatus(diagnosticsInput)
+    const session_checklist = buildSessionChecklist({
+      ...diagnosticsInput,
+      minLossUsdFormatted: minLossUsdFormatted,
+    })
 
     return NextResponse.json({
       success: true,
@@ -393,6 +403,7 @@ export async function GET(request: NextRequest) {
         message: diagnostics.headline,
         diagnostics,
         session_status,
+        session_checklist,
         timer_status: timerAfterPayout.timer_status,
         cycle: timerAfterPayout.next_cycle,
         seconds_remaining: timerAfterPayout.seconds_remaining,

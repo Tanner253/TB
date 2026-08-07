@@ -7,7 +7,7 @@ import Image from 'next/image'
 import { useRealtimePrice, useTimeSince } from '@/hooks/useRealtime'
 import { useTenantRouting } from '@/hooks/useTenantRouting'
 import { AnimatedNumber, PriceTicker } from '@/components/ui/AnimatedNumber'
-import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
+import { AppHeader } from '@/components/platform/AppHeader'
 import { TenantStatusPanel } from '@/components/tenant/TenantStatusPanel'
 import type { TenantDiagnostics } from '@/lib/tenant/diagnostics'
 import { getWinnerSharePercents, getDevFeePercent } from '@/lib/payout/shares'
@@ -15,26 +15,6 @@ import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 
 const SHARES = getWinnerSharePercents()
 const DEV_FEE = getDevFeePercent()
-
-import { EXTERNAL_LINKS } from '@/lib/marketing/devValueProp'
-
-const LINKS = EXTERNAL_LINKS
-
-// Social Icons
-const XIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-  </svg>
-)
-
-const DocsIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-    <polyline points="14 2 14 8 20 8"></polyline>
-    <line x1="16" y1="13" x2="8" y2="13"></line>
-    <line x1="16" y1="17" x2="8" y2="17"></line>
-  </svg>
-)
 
 interface StatsData {
   token: {
@@ -185,31 +165,7 @@ export default function StatsPage() {
         <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-rh-lime/5 rounded-full blur-3xl" />
       </div>
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-rh-green/10 bg-black/80 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href={basePath || '/'} className="flex items-center gap-3">
-              <TopBlastLogo size="md" />
-              <span className="text-xl font-bold tracking-tight"><span className="text-rh-green">TOP</span><span className="text-white">BLAST</span></span>
-            </Link>
-            <nav className="flex items-center gap-6">
-              <Link href={`${basePath}/leaderboard`} className="text-gray-400 hover:text-white transition-colors text-sm">
-                Leaderboard
-              </Link>
-              <Link href={`${basePath}/history`} className="text-gray-400 hover:text-white transition-colors text-sm">
-                History
-              </Link>
-              <a href={LINKS.whitepaper} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-rh-green transition-colors" title="Whitepaper">
-                <DocsIcon />
-              </a>
-              <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors" title="Follow on X">
-                <XIcon />
-              </a>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <AppHeader active="stats" sessionBasePath={basePath} />
 
       <main className="relative max-w-5xl mx-auto px-4 py-8">
         {/* Page Title */}
