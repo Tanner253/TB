@@ -1,6 +1,7 @@
 /**
  * Single source of truth for payout countdown / limbo UI across catalog and leaderboard.
  * Matches executor rules: an active Mongo timer with zero eligible holders is treated as paused.
+ * Pool below MIN_POOL_FOR_PAYOUT (USD value of payout-wallet SOL) also forces limbo.
  */
 
 export type SessionDisplayPhase =
@@ -17,6 +18,8 @@ export interface SessionDisplayInput {
   rankedHolderCount: number
   trackedHolders?: number
   isInitializing?: boolean
+  /** When false, session stays in limbo until payout wallet SOL (USD) meets minimum. */
+  poolFundedForPayout?: boolean
 }
 
 export interface SessionDisplayState {
@@ -25,6 +28,8 @@ export interface SessionDisplayState {
   effectiveTimerStatus: 'waiting' | 'active'
   showCountdown: boolean
   effectiveSecondsRemaining: number | null
+  /** Limbo because payout wallet SOL (USD) is below minimum. */
+  poolBelowMinimum: boolean
 }
 
 export function deriveSessionDisplayState(input: SessionDisplayInput): SessionDisplayState {
@@ -35,6 +40,7 @@ export function deriveSessionDisplayState(input: SessionDisplayInput): SessionDi
     rankedHolderCount,
     trackedHolders = 0,
     isInitializing = false,
+    poolFundedForPayout = true,
   } = input
 
   const hasEligible = eligibleCount > 0
@@ -42,8 +48,10 @@ export function deriveSessionDisplayState(input: SessionDisplayInput): SessionDi
   const isSyncing =
     isInitializing || (!hasRankedHolders && trackedHolders === 0 && !isInitializing)
 
+  const poolBelowMinimum = poolFundedForPayout === false
+
   const effectiveTimerStatus: 'waiting' | 'active' =
-    timerStatus === 'active' && !hasEligible ? 'waiting' : timerStatus
+    timerStatus === 'active' && (!hasEligible || poolBelowMinimum) ? 'waiting' : timerStatus
 
   const effectiveSecondsRemaining =
     effectiveTimerStatus === 'active' ? secondsRemaining : null
@@ -54,6 +62,17 @@ export function deriveSessionDisplayState(input: SessionDisplayInput): SessionDi
       effectiveTimerStatus,
       showCountdown: false,
       effectiveSecondsRemaining: null,
+      poolBelowMinimum,
+    }
+  }
+
+  if (poolBelowMinimum) {
+    return {
+      phase: 'limbo',
+      effectiveTimerStatus: 'waiting',
+      showCountdown: false,
+      effectiveSecondsRemaining: null,
+      poolBelowMinimum: true,
     }
   }
 
@@ -63,6 +82,7 @@ export function deriveSessionDisplayState(input: SessionDisplayInput): SessionDi
       effectiveTimerStatus,
       showCountdown: false,
       effectiveSecondsRemaining: null,
+      poolBelowMinimum: false,
     }
   }
 
@@ -72,6 +92,7 @@ export function deriveSessionDisplayState(input: SessionDisplayInput): SessionDi
       effectiveTimerStatus,
       showCountdown: false,
       effectiveSecondsRemaining: null,
+      poolBelowMinimum: false,
     }
   }
 
@@ -82,6 +103,7 @@ export function deriveSessionDisplayState(input: SessionDisplayInput): SessionDi
         effectiveTimerStatus,
         showCountdown: true,
         effectiveSecondsRemaining,
+        poolBelowMinimum: false,
       }
     }
     return {
@@ -89,6 +111,7 @@ export function deriveSessionDisplayState(input: SessionDisplayInput): SessionDi
       effectiveTimerStatus,
       showCountdown: true,
       effectiveSecondsRemaining,
+      poolBelowMinimum: false,
     }
   }
 
@@ -97,5 +120,6 @@ export function deriveSessionDisplayState(input: SessionDisplayInput): SessionDi
     effectiveTimerStatus,
     showCountdown: false,
     effectiveSecondsRemaining: null,
+    poolBelowMinimum: false,
   }
 }

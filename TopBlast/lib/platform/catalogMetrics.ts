@@ -7,6 +7,7 @@ import { aggregateSuccessfulPayoutTotals } from '@/lib/payout/payoutTotals'
 import { getSolPrice, formatCompactUsd, formatCompactSol } from '@/lib/solana/price'
 import { getWalletSolBalance } from '@/lib/solana/transfer'
 import { buildLivePoolBalance } from '@/lib/payout/poolBalance'
+import { isPoolFundedForPayout } from '@/lib/payout/poolMinimum'
 import { computePayoutSecondsRemaining } from '@/lib/payout/timerMath'
 import { getEffectivePayoutIntervalMinutes } from '@/lib/payout/payoutRetry'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
@@ -163,22 +164,23 @@ export async function enrichCatalogTenants(
         })
       : null
 
-    const display = deriveSessionDisplayState({
-      timerStatus: rawTimerStatus,
-      secondsRemaining: rawSecondsRemaining,
-      eligibleCount: eligibility?.eligibleCount ?? 0,
-      rankedHolderCount: eligibility?.rankedCount ?? 0,
-      trackedHolders: eligibility?.rankedCount ?? 0,
-    })
-    const payoutTimerStatus = display.effectiveTimerStatus
-    const payoutSecondsRemaining = display.effectiveSecondsRemaining
-
     const walletAddress = tenant.payoutWalletAddress?.trim()
     const walletSol = walletAddress ? balanceByAddress.get(walletAddress) : undefined
     const pool =
       walletSol != null && walletAddress
         ? buildLivePoolBalance(walletSol, walletAddress, solPrice)
         : null
+
+    const display = deriveSessionDisplayState({
+      timerStatus: rawTimerStatus,
+      secondsRemaining: rawSecondsRemaining,
+      eligibleCount: eligibility?.eligibleCount ?? 0,
+      rankedHolderCount: eligibility?.rankedCount ?? 0,
+      trackedHolders: eligibility?.rankedCount ?? 0,
+      poolFundedForPayout: pool ? isPoolFundedForPayout(pool) : false,
+    })
+    const payoutTimerStatus = display.effectiveTimerStatus
+    const payoutSecondsRemaining = display.effectiveSecondsRemaining
 
     return {
       ...tenant,

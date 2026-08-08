@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { config } from '@/lib/config'
 import { resolveTokenPrice } from './priceProviders/resolve'
+import { fetchDexScreenerSolPrice } from './priceProviders/dexscreener'
 import type { ResolvedTokenPrice } from './priceProviders/types'
 
 export type { ResolvedTokenPrice, PriceSource, PumpMigrationStage } from './priceProviders/types'
@@ -15,9 +16,9 @@ export interface TokenPriceData {
   pair?: ResolvedTokenPrice['pair']
 }
 
-// SOL price cache - 1 hour TTL
+// SOL price cache — short TTL for pool gating / USD conversions
 let solPriceCache: { price: number | null; timestamp: number } = { price: null, timestamp: 0 }
-const SOL_PRICE_CACHE_TTL = 60 * 60 * 1000
+const SOL_PRICE_CACHE_TTL = 60 * 1000
 
 export async function getTokenPrice(mint?: string): Promise<number | null> {
   const resolved = await getResolvedTokenPrice(mint)
@@ -141,6 +142,12 @@ export async function getSolPrice(): Promise<number | null> {
     return solPriceCache.price
   }
 
+  const dexPrice = await fetchDexScreenerSolPrice()
+  if (dexPrice != null) {
+    solPriceCache = { price: dexPrice, timestamp: now }
+    return dexPrice
+  }
+
   try {
     const response = await axios.get(
       'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd',
@@ -154,15 +161,16 @@ export async function getSolPrice(): Promise<number | null> {
     }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'unknown error'
-    console.error('[Price] CoinGecko failed:', message)
+    console.error('[Price] CoinGecko SOL fallback failed:', message)
   }
 
   if (solPriceCache.price !== null) {
+    console.warn('[Price] Using stale cached SOL price after DexScreener + CoinGecko failed')
     return solPriceCache.price
   }
 
-  console.warn('[Price] No SOL price available, using $220 fallback')
-  return 220
+  console.warn('[Price] No live SOL price available (DexScreener + CoinGecko)')
+  return null
 }
 
 export function getCachedSolPrice(): number | null {

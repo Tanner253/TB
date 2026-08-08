@@ -1,6 +1,7 @@
 import type { LivePoolBalance } from '@/lib/payout/poolBalance'
 import type { PayoutTimerInfo } from '@/lib/payout/executor'
 import { config } from '@/lib/config'
+import { isPoolFundedForPayout, minPoolForPayoutLabel, payoutWalletUsd } from '@/lib/payout/poolMinimum'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
 
 export type DiagnosticSeverity = 'success' | 'info' | 'warning' | 'error'
@@ -57,7 +58,6 @@ export function buildTenantDiagnostics(input: TenantDiagnosticsInput): TenantDia
     migrationStage = null,
   } = input
 
-  const minPoolSol = config.minPoolSol
   const minBalance = config.minTokenHolding.toLocaleString()
   const holdMins = config.minHoldDurationMinutes
   const payoutIntervalLabel = formatPayoutInterval(config.payoutIntervalMinutes)
@@ -115,13 +115,13 @@ export function buildTenantDiagnostics(input: TenantDiagnosticsInput): TenantDia
       message: `Winner payouts and cycles cannot run until this wallet holds SOL.`,
       action: `Send SOL to your payout wallet: ${pool.payoutWalletAddress}`,
     })
-  } else if (pool.poolSol < minPoolSol) {
+  } else if (!isPoolFundedForPayout(pool)) {
     items.push({
       id: 'pool_below_minimum',
       severity: 'warning',
       title: 'Payout pool below minimum',
-      message: `Reward pool is ${formatSol(pool.poolSol)} SOL (~${pool.poolUsdFormatted}). Minimum to execute a cycle is ${formatSol(minPoolSol)} SOL.`,
-      action: `Add SOL to ${pool.payoutWalletAddress}. TopBlast uses ~99% of the wallet balance each cycle.`,
+      message: `Payout wallet holds ${formatSol(pool.walletSol)} SOL (~${pool.poolUsdFormatted} at live SOL price). Minimum to start or run a cycle is ${minPoolForPayoutLabel()} USD in SOL.`,
+      action: `Send SOL to ${pool.payoutWalletAddress}. If the wallet is drained below ${minPoolForPayoutLabel()}, the session stays in limbo and cycles will not run.`,
     })
   } else {
     items.push({

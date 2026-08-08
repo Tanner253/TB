@@ -48,7 +48,7 @@ function envConfig(): ConfigShape {
     minTokenHolding: parseInt(process.env.MIN_TOKEN_HOLDING || '1000'),
     minHoldDurationMinutes: MIN_HOLD_DURATION_MINUTES,
     minLossThresholdPct: parseFloat(process.env.MIN_LOSS_THRESHOLD_PCT || '10'),
-    minPoolForPayout: parseFloat(process.env.MIN_POOL_FOR_PAYOUT || '50'),
+    minPoolForPayout: parseFloat(process.env.MIN_POOL_FOR_PAYOUT || '5'),
     payoutIntervalMinutes: parseInt(process.env.PAYOUT_INTERVAL_MINUTES || '15'),
     devWalletAddress: process.env.DEV_WALLET_ADDRESS || '',
     devFeePct: 0.12,

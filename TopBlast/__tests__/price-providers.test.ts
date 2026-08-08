@@ -1,6 +1,8 @@
 import {
   inferMigrationStage,
   selectBestSolanaPair,
+  selectBestSolUsdPair,
+  NATIVE_SOL_MINT,
 } from '@/lib/solana/dexscreenerShared'
 
 describe('dexscreener price provider', () => {
@@ -47,5 +49,32 @@ describe('dexscreener price provider', () => {
     expect(inferMigrationStage('pumpswap')).toBe('migrated')
     expect(inferMigrationStage('raydium')).toBe('standard')
     expect(inferMigrationStage('orca')).toBe('standard')
+  })
+
+  it('selects SOL-base pairs for SOL/USD (not meme/SOL pairs)', () => {
+    const pairs = [
+      {
+        chainId: 'solana',
+        dexId: 'raydium',
+        pairAddress: 'sol-usdc',
+        priceUsd: '142.5',
+        liquidity: { usd: 5_000_000 },
+        baseToken: { address: NATIVE_SOL_MINT },
+        quoteToken: { address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' },
+      },
+      {
+        chainId: 'solana',
+        dexId: 'pumpswap',
+        pairAddress: 'meme-sol',
+        priceUsd: '0.00001',
+        liquidity: { usd: 999_999_999 },
+        baseToken: { address: mint },
+        quoteToken: { address: NATIVE_SOL_MINT },
+      },
+    ]
+
+    const best = selectBestSolUsdPair(pairs as any, NATIVE_SOL_MINT)
+    expect(best?.pairAddress).toBe('sol-usdc')
+    expect(best?.priceUsd).toBe('142.5')
   })
 })

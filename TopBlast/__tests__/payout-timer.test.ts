@@ -14,10 +14,31 @@ jest.mock('@/lib/config', () => ({
     poolPercentage: 0.99,
     minPoolSol: 0.025,
     minPoolEth: 0.025,
+    minPoolForPayout: 5,
     devFeePct: 0.12,
     payoutSplit: { first: 0.60, second: 0.25, third: 0.15 },
     executePayouts: false,
   },
+}))
+
+jest.mock('@/lib/payout/poolBalance', () => ({
+  getLivePoolBalance: jest.fn(async () => ({
+    payoutWalletAddress: 'Pool1111111111111111111111111111111111',
+    walletSol: 1,
+    poolSol: 0.99,
+    poolUsd: 150,
+    solPrice: 150,
+    poolUsdFormatted: '$150.00',
+    poolSolFormatted: '0.9900',
+    walletEth: 1,
+    poolEth: 0.99,
+    ethPrice: 150,
+    poolEthFormatted: '0.9900',
+    minLossUsd: 15,
+    minLossUsdFormatted: '$15.00',
+    available: true,
+  })),
+  invalidateLivePoolBalanceCache: jest.fn(),
 }))
 
 describe('Payout timer', () => {
@@ -120,6 +141,72 @@ describe('Payout timer', () => {
 
     const result = await mod.maybeExecuteDuePayout(0)
     expect(result?.data?.skipped).toBe(true)
+    expect(mod.getPayoutTimerInfo().timer_status).toBe('waiting')
+  })
+
+  it('does not start countdown when pool is below USD minimum', async () => {
+    const { getLivePoolBalance } = await import('@/lib/payout/poolBalance')
+    ;(getLivePoolBalance as jest.Mock).mockResolvedValueOnce({
+      payoutWalletAddress: 'Pool1111111111111111111111111111111111',
+      walletSol: 0.01,
+      poolSol: 0.009,
+      poolUsd: 0.67,
+      solPrice: 75,
+      poolUsdFormatted: '$0.67',
+      poolSolFormatted: '0.0090',
+      walletEth: 0.01,
+      poolEth: 0.009,
+      ethPrice: 75,
+      poolEthFormatted: '0.0090',
+      minLossUsd: 0.06,
+      minLossUsdFormatted: '$0.06',
+      available: true,
+    })
+
+    const { ensureTimerStateSync, maybeStartPayoutTimer, getPayoutTimerInfo } = await import('@/lib/payout/executor')
+    await ensureTimerStateSync()
+    expect(await maybeStartPayoutTimer(1)).toBe(false)
+    expect(getPayoutTimerInfo().timer_status).toBe('waiting')
+  })
+
+  it('pauses due timer when pool drops below USD minimum', async () => {
+    await TimerState.findOneAndUpdate(
+      { key: 'payout_timer' },
+      {
+        tokenMint: 'So11111111111111111111111111111111111111112',
+        timerStatus: 'active',
+        lastPayoutTime: new Date(Date.now() - 121 * 60 * 1000),
+        currentCycle: 2,
+        isPayoutInProgress: false,
+      },
+      { upsert: true }
+    )
+
+    const { getLivePoolBalance } = await import('@/lib/payout/poolBalance')
+    ;(getLivePoolBalance as jest.Mock).mockResolvedValue({
+      payoutWalletAddress: 'Pool1111111111111111111111111111111111',
+      walletSol: 0.01,
+      poolSol: 0.009,
+      poolUsd: 0.67,
+      solPrice: 75,
+      poolUsdFormatted: '$0.67',
+      poolSolFormatted: '0.0090',
+      walletEth: 0.01,
+      poolEth: 0.009,
+      ethPrice: 75,
+      poolEthFormatted: '0.0090',
+      minLossUsd: 0.06,
+      minLossUsdFormatted: '$0.06',
+      available: true,
+    })
+
+    jest.resetModules()
+    const mod = await import('@/lib/payout/executor')
+    await mod.ensureTimerStateSync()
+    expect(mod.isPayoutDue()).toBe(true)
+
+    const result = await mod.maybeExecuteDuePayout(1)
+    expect(result?.success).toBe(false)
     expect(mod.getPayoutTimerInfo().timer_status).toBe('waiting')
   })
 

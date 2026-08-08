@@ -204,23 +204,24 @@ export default function LeaderboardPage() {
     rankedHolderCount: rankings.length,
     trackedHolders: data?.tracked_holders ?? 0,
     isInitializing,
+    poolFundedForPayout: data?.payout_enabled !== false,
   })
   const isSyncingHolders = sessionDisplay.phase === 'syncing'
-  const isListingLimbo = sessionDisplay.phase === 'limbo'
+  const isPoolLimbo = sessionDisplay.poolBelowMinimum
+  const isListingLimbo = sessionDisplay.phase === 'limbo' && !isPoolLimbo
   const isTimerStarting = sessionDisplay.phase === 'timer_starting'
   const isTimerActive = sessionDisplay.phase === 'countdown'
   const isPayoutDueNow = sessionDisplay.phase === 'payout_due'
-  const showLimbo = isListingLimbo
+  const showLimbo = sessionDisplay.phase === 'limbo'
   const sessionChecklist = (data?.session_checklist as SessionChecklist | null) ?? null
-  const showSessionStatusBar =
-    !!sessionChecklist &&
-    (sessionChecklist.overall === 'blocked' ||
-      sessionChecklist.overall === 'loading' ||
-      isListingLimbo)
+  const poolValue = data?.pool_balance_usd_raw ?? parseFloat(data?.pool_balance_usd?.replace(/[$,]/g, '') || '0')
+  const minimumPoolUsd =
+    typeof data?.minimum_pool_usd_raw === 'number'
+      ? data.minimum_pool_usd_raw
+      : parseFloat(String(data?.minimum_pool_usd ?? '5').replace(/[$,]/g, '')) || 5
+  const showSessionStatusBar = !!sessionChecklist
   const featuredCards = top3Eligible.length > 0 ? top3Eligible : rankings.slice(0, 3)
   
-  // Pool balance in USD for payout estimates (prefer raw number from API)
-  const poolValue = data?.pool_balance_usd_raw ?? parseFloat(data?.pool_balance_usd?.replace(/[$,]/g, '') || '0')
   const wsConnected = data?.ws_connected
   const platformTestBanner = data?.platform_test_banner ?? null
   const lastPayoutError = data?.last_payout_error ?? null
@@ -383,19 +384,31 @@ export default function LeaderboardPage() {
                 </motion.div>
                 {isSyncingHolders
                   ? 'SYNCING HOLDERS'
-                  : isListingLimbo
-                    ? 'WAITING FOR FIRST ELIGIBLE HOLDER'
-                    : isTimerStarting
-                      ? 'PAYOUT TIMER STARTING'
-                      : isPayoutDueNow
-                        ? 'PAYOUT PROCESSING'
-                        : 'NEXT PAYOUT IN'}
+                  : isPoolLimbo
+                    ? 'POOL BELOW MINIMUM'
+                    : isListingLimbo
+                      ? 'WAITING FOR FIRST ELIGIBLE HOLDER'
+                      : isTimerStarting
+                        ? 'PAYOUT TIMER STARTING'
+                        : isPayoutDueNow
+                          ? 'PAYOUT PROCESSING'
+                          : 'NEXT PAYOUT IN'}
               </div>
               {isSyncingHolders ? (
                 <div className="py-4">
                   <p className="text-2xl md:text-3xl font-bold text-rh-lime font-mono mb-3">Indexing chain…</p>
                   <p className="text-gray-400 text-sm leading-relaxed">
                     Loading holders and swap history for this token from Solana.
+                  </p>
+                </div>
+              ) : isPoolLimbo ? (
+                <div className="py-4">
+                  <p className="text-2xl md:text-3xl font-bold text-amber-300 font-mono mb-3">
+                    ${poolValue.toFixed(2)} / ${minimumPoolUsd.toFixed(0)} min
+                  </p>
+                  <p className="text-gray-400 text-sm leading-relaxed">
+                    Payout wallet needs at least ${minimumPoolUsd.toFixed(0)} USD in SOL before cycles can start.
+                    If SOL is drained below that, the session stays in limbo — send SOL to the wallet below.
                   </p>
                 </div>
               ) : isListingLimbo ? (
@@ -423,9 +436,11 @@ export default function LeaderboardPage() {
                 <Countdown seconds={countdown ?? 0} size="xl" className="text-rh-green" />
               )}
               <p className="text-gray-400 text-sm mt-4">
-                {isListingLimbo
-                  ? 'No payout cycle until someone qualifies'
-                  : isTimerStarting
+                {isPoolLimbo
+                  ? `No payout cycle until the wallet holds at least $${minimumPoolUsd.toFixed(0)} USD in SOL`
+                  : isListingLimbo
+                    ? 'No payout cycle until someone qualifies'
+                    : isTimerStarting
                     ? 'Top 3 eligible losers will receive pool SOL each cycle once the timer is live'
                     : isPayoutDueNow
                       ? 'On-chart buy + token airdrops — timer resets after completion'
@@ -493,12 +508,18 @@ export default function LeaderboardPage() {
             <div>
               <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2 sm:gap-3">
                 <span className="text-2xl sm:text-3xl">{showLimbo ? '⏳' : '🎯'}</span>
-                {showLimbo ? 'Listing limbo — tracked holders' : 'Current Winners'}
+                {showLimbo
+                  ? isPoolLimbo
+                    ? 'Pool limbo — waiting for top-up'
+                    : 'Listing limbo — tracked holders'
+                  : 'Current Winners'}
               </h2>
               <p className="text-gray-400 text-sm mt-1">
-                {showLimbo
-                  ? 'No one eligible yet — each card shows why. Timer starts when the first holder passes every rule.'
-                  : 'These wallets will receive payouts when the timer hits zero'}
+                {isPoolLimbo
+                  ? `Payout wallet is below $${minimumPoolUsd.toFixed(0)} USD in SOL — cycles stay paused until it is refilled.`
+                  : showLimbo
+                    ? 'No one eligible yet — each card shows why. Timer starts when the first holder passes every rule.'
+                    : 'These wallets will receive payouts when the timer hits zero'}
               </p>
             </div>
             <div className="flex items-center gap-3 sm:gap-4 shrink-0">

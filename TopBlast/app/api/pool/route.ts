@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { formatUsd } from '@/lib/solana/price'
 import { getPayoutSplitLabels } from '@/lib/payout/shares'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
+import { isPoolFundedForPayout } from '@/lib/payout/poolMinimum'
 import { fetchTenantPayoutStats } from '@/lib/payout/payoutStats'
 import { config } from '@/lib/config'
 
@@ -30,7 +31,7 @@ export async function GET() {
         average_payout_usd: formatUsd(payoutStats.average_payout_usd),
         last_deposit_at: null,
         last_payout_at: payoutStats.last_payout_at?.toISOString() ?? null,
-        payout_enabled: livePool.poolUsd >= config.minPoolForPayout,
+        payout_enabled: isPoolFundedForPayout(livePool),
         minimum_pool_usd: formatUsd(config.minPoolForPayout),
         payout_split: getPayoutSplitLabels(),
         source: 'on-chain',

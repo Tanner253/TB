@@ -17,6 +17,7 @@ import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 import { getTokenPrice } from '@/lib/solana/price'
+import { isPoolFundedForPayout, minPoolForPayoutLabel } from '@/lib/payout/poolMinimum'
 import { getTokenHolders } from '@/lib/solana/indexer'
 import { normalizeTokenBalance } from '@/lib/solana/tokenAmount'
 import { config } from '@/lib/config'
@@ -350,6 +351,14 @@ export async function maybeStartPayoutTimer(eligibleCount: number): Promise<bool
     return false
   }
 
+  const livePool = await getLivePoolBalance()
+  if (!isPoolFundedForPayout(livePool)) {
+    console.log(
+      `[Payout] Pool ~${livePool.poolUsdFormatted} below minimum ${minPoolForPayoutLabel()} — timer not started`
+    )
+    return false
+  }
+
   const now = Date.now()
   await saveTimerState(now, getTimerCache().currentCycle, 'active')
   console.log(`[Payout] Timer started — ${eligibleCount} eligible holder(s)`)
@@ -369,6 +378,19 @@ export async function pausePayoutTimerToWaiting(): Promise<void> {
 export async function syncPayoutTimerWithEligibility(eligibleCount: number): Promise<void> {
   await ensureTimerStateSync()
   if (getTimerCache().timerStatus === 'active' && eligibleCount <= 0) {
+    await pausePayoutTimerToWaiting()
+  }
+}
+
+async function syncPayoutTimerWithPoolMinimum(): Promise<void> {
+  await ensureTimerStateSync()
+  if (getTimerCache().timerStatus !== 'active') return
+
+  const livePool = await getLivePoolBalance()
+  if (!isPoolFundedForPayout(livePool)) {
+    console.log(
+      `[Payout] Pool ~${livePool.poolUsdFormatted} below minimum ${minPoolForPayoutLabel()} — pausing timer until topped up`
+    )
     await pausePayoutTimerToWaiting()
   }
 }
@@ -397,10 +419,12 @@ export interface SyncPayoutTimerResult {
 export async function syncPayoutTimerWithPayableWinners(
   knownEligibleCount?: number
 ): Promise<SyncPayoutTimerResult> {
+  await syncPayoutTimerWithPoolMinimum()
   const verifiedPayableCount = await countVerifiedPayableWinners()
   const timerEligibleCount = Math.max(knownEligibleCount ?? 0, verifiedPayableCount)
   await maybeStartPayoutTimer(timerEligibleCount)
   await syncPayoutTimerWithEligibility(timerEligibleCount)
+  await syncPayoutTimerWithPoolMinimum()
   return { verifiedPayableCount, timerEligibleCount }
 }
 
@@ -651,9 +675,9 @@ export async function executePayout(): Promise<PayoutResult> {
       return { success: false, error: 'No wallet balance' }
     }
 
-    if (poolSol < config.minPoolSol) {
+    if (!isPoolFundedForPayout(livePool)) {
       console.log(
-        `[Payout] Pool ${poolSol.toFixed(6)} SOL below minimum ${config.minPoolSol} SOL — pausing timer until pool grows`
+        `[Payout] Pool ~${livePool.poolUsdFormatted} below minimum ${minPoolForPayoutLabel()} — pausing timer until pool grows`
       )
       await releasePayoutLock()
       await pausePayoutTimerToWaiting()
@@ -1187,9 +1211,19 @@ export async function maybeExecuteDuePayout(eligibleCount: number): Promise<Payo
     return { success: true, data: { skipped: true, reason: 'No eligible winners' } }
   }
 
+  const livePool = await getLivePoolBalance()
+  if (!isPoolFundedForPayout(livePool)) {
+    console.log(
+      `[Payout] Timer due but pool ~${livePool.poolUsdFormatted} below minimum ${minPoolForPayoutLabel()} — pausing until topped up`
+    )
+    await pausePayoutTimerToWaiting()
+    return { success: false, error: `Pool below minimum (${minPoolForPayoutLabel()})` }
+  }
+
   if (!config.executePayouts) {
-    console.log('[Payout] Timer due but EXECUTE_PAYOUTS is false — skipping on-chain transfer')
-    return null
+    console.log('[Payout] Timer due but EXECUTE_PAYOUTS is false — pausing timer to avoid stuck countdown')
+    await pausePayoutTimerToWaiting()
+    return { success: false, error: 'EXECUTE_PAYOUTS disabled' }
   }
 
   const configError = assertProductionPayoutConfig()

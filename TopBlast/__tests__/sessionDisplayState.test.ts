@@ -12,6 +12,7 @@ describe('deriveSessionDisplayState', () => {
     expect(state.phase).toBe('limbo')
     expect(state.effectiveTimerStatus).toBe('waiting')
     expect(state.showCountdown).toBe(false)
+    expect(state.poolBelowMinimum).toBe(false)
   })
 
   it('shows countdown when timer is active and holders qualify', () => {
@@ -20,6 +21,7 @@ describe('deriveSessionDisplayState', () => {
       secondsRemaining: 881,
       eligibleCount: 2,
       rankedHolderCount: 8,
+      poolFundedForPayout: true,
     })
     expect(state.phase).toBe('countdown')
     expect(state.showCountdown).toBe(true)
@@ -32,6 +34,7 @@ describe('deriveSessionDisplayState', () => {
       secondsRemaining: null,
       eligibleCount: 3,
       rankedHolderCount: 10,
+      poolFundedForPayout: true,
     })
     expect(state.phase).toBe('timer_starting')
     expect(state.showCountdown).toBe(false)
@@ -48,13 +51,29 @@ describe('deriveSessionDisplayState', () => {
     expect(state.phase).toBe('limbo')
   })
 
-  it('shows payout due at zero seconds', () => {
+  it('shows payout due at zero seconds when pool meets minimum', () => {
     const state = deriveSessionDisplayState({
       timerStatus: 'active',
       secondsRemaining: 0,
       eligibleCount: 1,
       rankedHolderCount: 4,
+      poolFundedForPayout: true,
     })
     expect(state.phase).toBe('payout_due')
+  })
+
+  it('forces limbo when payout wallet SOL is below USD minimum', () => {
+    const state = deriveSessionDisplayState({
+      timerStatus: 'active',
+      secondsRemaining: 0,
+      eligibleCount: 2,
+      rankedHolderCount: 8,
+      trackedHolders: 8,
+      poolFundedForPayout: false,
+    })
+    expect(state.phase).toBe('limbo')
+    expect(state.poolBelowMinimum).toBe(true)
+    expect(state.effectiveTimerStatus).toBe('waiting')
+    expect(state.showCountdown).toBe(false)
   })
 })

@@ -2,11 +2,14 @@ import axios from 'axios'
 import type { ResolvedPricePair, ResolvedTokenPrice } from './types'
 import {
   selectBestSolanaPair,
+  selectBestSolUsdPair,
   snapshotFromDexPair,
+  parseUsd,
+  NATIVE_SOL_MINT,
   type DexScreenerPairLike,
 } from '@/lib/solana/dexscreenerShared'
 
-export { inferMigrationStage, selectBestSolanaPair } from '@/lib/solana/dexscreenerShared'
+export { inferMigrationStage, selectBestSolanaPair, selectBestSolUsdPair } from '@/lib/solana/dexscreenerShared'
 
 const DEXSCREENER_BASE = 'https://api.dexscreener.com/latest/dex'
 
@@ -51,6 +54,23 @@ export async function fetchDexScreenerPrice(mint: string): Promise<ResolvedToken
       pair: resolvedPair,
       fetchedAt: Date.now(),
     }
+  } catch {
+    return null
+  }
+}
+
+/** Live SOL/USD from DexScreener SOL-base pairs (same feed family as session token prices). */
+export async function fetchDexScreenerSolPrice(): Promise<number | null> {
+  try {
+    const response = await axios.get(`${DEXSCREENER_BASE}/tokens/${NATIVE_SOL_MINT}`, {
+      timeout: 10000,
+      headers: { Accept: 'application/json' },
+    })
+
+    const pairs: DexScreenerPairLike[] = response.data?.pairs ?? []
+    const best = selectBestSolUsdPair(pairs, NATIVE_SOL_MINT)
+    if (!best) return null
+    return parseUsd(best.priceUsd)
   } catch {
     return null
   }

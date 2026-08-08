@@ -13,6 +13,7 @@ import {
 } from '@/lib/tracker/holderService'
 import { config } from '@/lib/config'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
+import { isPoolFundedForPayout } from '@/lib/payout/poolMinimum'
 import {
   isPayoutDue,
   getPayoutTimerInfo,
@@ -173,6 +174,9 @@ export async function GET(request: NextRequest) {
       payout_wallet_address: payoutWalletAddress,
       eth_price: ethPrice,
       min_loss_threshold_usd: minLossUsdFormatted,
+      minimum_pool_usd: formatUsd(config.minPoolForPayout),
+      minimum_pool_usd_raw: config.minPoolForPayout,
+      payout_enabled: isPoolFundedForPayout(livePool),
     }
 
     const noStoreHeaders = { 'Cache-Control': 'no-store, max-age=0' }

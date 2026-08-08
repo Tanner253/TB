@@ -1,4 +1,5 @@
 import { config } from '@/lib/config'
+import { isPoolFundedForPayout, minPoolForPayoutLabel } from '@/lib/payout/poolMinimum'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
 import type { TenantDiagnosticsInput } from '@/lib/tenant/diagnostics'
 
@@ -71,25 +72,20 @@ export function buildSessionChecklist(
     priceAvailable = true,
   } = input
 
-  const minPoolSol = config.minPoolSol
+  const minPoolLabel = minPoolForPayoutLabel()
+  const poolFunded = isPoolFundedForPayout(pool)
   const minBalance = config.minTokenHolding.toLocaleString()
   const holdLabel = `${config.minHoldDurationMinutes} min`
   const payoutLabel = formatPayoutInterval(config.payoutIntervalMinutes)
   const minLossPct = config.minLossThresholdPct
   const minLossUsd = input.minLossUsdFormatted ?? '—'
 
-  const poolFunded =
-    pool.available &&
-    !!pool.payoutWalletAddress &&
-    pool.walletSol > 0 &&
-    pool.poolSol >= minPoolSol
-
   // DB-backed sessions on serverless may have rankings while in-memory tracker is cold
   const indexed = hasRankings && trackedHolders > 0
   const indexingInProgress = !indexed && (!hasRankings || holdersWithVwap === 0)
   const vwapReady = holdersWithVwap > 0
   const hasEligible = eligibleCount > 0
-  const timerActive = timer.timer_status === 'active' && hasEligible
+  const timerActive = timer.timer_status === 'active' && hasEligible && poolFunded
   const blockedRules = blockedRuleIds(ineligibleReasons)
 
   const blockers = Object.entries(ineligibleReasons)
@@ -103,11 +99,13 @@ export function buildSessionChecklist(
       group: 'session',
       label: 'Payout pool funded',
       detail: poolFunded
-        ? `${pool.poolSol.toFixed(4)} SOL (~${pool.poolUsdFormatted}) in reward wallet`
-        : 'Add SOL to the listing payout wallet',
+        ? `${pool.poolSol.toFixed(4)} SOL (~${pool.poolUsdFormatted}) distributable`
+        : pool.walletSol > 0
+          ? `${pool.poolUsdFormatted} in payout wallet — need at least ${minPoolLabel} USD in SOL`
+          : `Send at least ${minPoolLabel} USD worth of SOL to the payout wallet`,
       status: !pool.available || !pool.payoutWalletAddress
         ? 'blocked'
-        : pool.walletSol <= 0 || pool.poolSol < minPoolSol
+        : pool.walletSol <= 0 || !poolFunded
           ? 'blocked'
           : 'met',
     },
@@ -159,10 +157,12 @@ export function buildSessionChecklist(
       label: 'Payout timer',
       detail: timerActive
         ? `Next cycle in ~${Math.ceil((timer.seconds_remaining ?? 0) / 60)} min`
-        : hasEligible
-          ? 'Starting on next sync — first eligible holder appeared'
-          : `Starts automatically when the first holder qualifies (${payoutLabel} cycles)`,
-      status: timerActive ? 'met' : hasEligible ? 'pending' : 'pending',
+        : hasEligible && !poolFunded
+          ? `Pool needs ${minPoolLabel} before cycles can run`
+          : hasEligible
+            ? 'Starting on next sync — first eligible holder appeared'
+            : `Starts automatically when the first holder qualifies (${payoutLabel} cycles)`,
+      status: timerActive ? 'met' : hasEligible && !poolFunded ? 'blocked' : hasEligible ? 'pending' : 'pending',
     },
   ]
 
@@ -239,8 +239,8 @@ export function buildSessionChecklist(
   let summary = 'Tap to see session setup and winner requirements'
 
   if (overall === 'blocked') {
-    headline = 'Payout pool needs attention'
-    summary = 'Fund the wallet or fix configuration'
+    headline = poolFunded ? 'Payout pool needs attention' : `Pool below ${minPoolLabel} minimum`
+    summary = poolFunded ? 'Fund the wallet or fix configuration' : 'Add SOL to the payout wallet before cycles can run'
   } else if (overall === 'loading') {
     headline = 'Setting up session'
     summary = 'Indexing chain data — usually 1–5 minutes'

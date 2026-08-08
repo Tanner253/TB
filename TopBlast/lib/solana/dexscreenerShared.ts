@@ -1,3 +1,6 @@
+/** Wrapped/native SOL mint on Solana (Jupiter, DexScreener). */
+export const NATIVE_SOL_MINT = 'So11111111111111111111111111111111111111112'
+
 /** Shared DexScreener pair logic (client + server safe). */
 
 export type PumpMigrationStage = 'bonding_curve' | 'migrated' | 'standard'
@@ -62,6 +65,33 @@ export function selectBestSolanaPair(
   if (eligible.length === 0) return null
 
   return eligible.sort((a, b) => {
+    const liqA = a.liquidity?.usd ?? 0
+    const liqB = b.liquidity?.usd ?? 0
+    if (liqB !== liqA) return liqB - liqA
+    return (b.volume?.h24 ?? 0) - (a.volume?.h24 ?? 0)
+  })[0]
+}
+
+/** SOL/USD from pairs where SOL is the base token (priceUsd = SOL price). */
+export function selectBestSolUsdPair(pairs: DexScreenerPairLike[], solMint: string): DexScreenerPairLike | null {
+  const normalizedMint = solMint.trim()
+  const stableQuotes = new Set([
+    'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+    'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
+  ])
+
+  const eligible = pairs.filter(pair => {
+    if (pair.chainId !== 'solana') return false
+    if (pair.baseToken.address !== normalizedMint) return false
+    return parseUsd(pair.priceUsd) != null
+  })
+
+  if (eligible.length === 0) return null
+
+  return eligible.sort((a, b) => {
+    const aStable = stableQuotes.has(a.quoteToken.address) ? 1 : 0
+    const bStable = stableQuotes.has(b.quoteToken.address) ? 1 : 0
+    if (bStable !== aStable) return bStable - aStable
     const liqA = a.liquidity?.usd ?? 0
     const liqB = b.liquidity?.usd ?? 0
     if (liqB !== liqA) return liqB - liqA

@@ -74,6 +74,32 @@ describe('buildSessionChecklist', () => {
     expect(checklist.items.find(i => i.id === 'hold')?.status).toBe('blocked')
   })
 
+  it('marks pool blocked when funded below USD minimum', () => {
+    const checklist = buildSessionChecklist({
+      pool: {
+        ...basePool,
+        walletSol: 0.01,
+        poolSol: 0.009,
+        poolUsd: 0.67,
+        solPrice: 67,
+        poolUsdFormatted: '$0.67',
+      },
+      timer: { timer_status: 'active', seconds_remaining: 0, current_cycle: 10, next_cycle: 11 },
+      trackedHolders: 5,
+      holdersWithVwap: 5,
+      eligibleCount: 1,
+      upcomingCount: 0,
+      totalLosers: 1,
+      trackerInitialized: true,
+      hasRankings: true,
+      minLossUsdFormatted: '$0.06',
+    })
+
+    expect(checklist.overall).toBe('blocked')
+    expect(checklist.items.find(i => i.id === 'pool')?.status).toBe('blocked')
+    expect(checklist.items.find(i => i.id === 'timer')?.status).toBe('blocked')
+  })
+
   it('marks winner rules met when eligible holders exist', () => {
     const checklist = buildSessionChecklist({
       pool: basePool,

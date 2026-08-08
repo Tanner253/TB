@@ -110,7 +110,7 @@ export async function getLivePoolBalance(options?: {
     if (cached) return cached
   }
 
-  const solPrice = (await getSolPrice()) || 150
+  const solPrice = (await getSolPrice()) ?? 0
   const walletBalance = await getPayoutWalletBalance()
 
   if (!walletBalance) {

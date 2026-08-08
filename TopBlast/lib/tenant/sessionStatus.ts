@@ -1,4 +1,5 @@
 import { config } from '@/lib/config'
+import { isPoolFundedForPayout, minPoolForPayoutLabel } from '@/lib/payout/poolMinimum'
 import type { TenantDiagnosticsInput } from '@/lib/tenant/diagnostics'
 
 export type SessionStatusTone = 'neutral' | 'success' | 'warning' | 'error' | 'loading'
@@ -25,8 +26,6 @@ export function deriveSessionStatus(input: TenantDiagnosticsInput): SessionStatu
     hasRankings,
   } = input
 
-  const minPoolSol = config.minPoolSol
-
   if (!pool.available || !pool.payoutWalletAddress) {
     return {
       tone: 'error',
@@ -43,10 +42,13 @@ export function deriveSessionStatus(input: TenantDiagnosticsInput): SessionStatu
     }
   }
 
-  if (pool.poolSol < minPoolSol) {
+  if (!isPoolFundedForPayout(pool)) {
     return {
       tone: 'warning',
-      message: 'Reward pool is below minimum — add SOL to run payouts',
+      message:
+        pool.walletSol > 0
+          ? `Reward pool is ${pool.poolUsdFormatted} — add SOL until the pool reaches ${minPoolForPayoutLabel()} to run payout cycles`
+          : `Add at least ${minPoolForPayoutLabel()} to the payout wallet to enable rewards`,
       persistent: true,
     }
   }
