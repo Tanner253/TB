@@ -2,13 +2,16 @@
 
 import Link from 'next/link'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
-import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
-import { formatCatalogStatus, tenantCatalogHref, catalogCardSubtitle } from '@/lib/platform/catalogClient'
+import { formatCatalogStatus, tenantCatalogHref } from '@/lib/platform/catalogClient'
 import { CatalogTimerBadge } from '@/components/catalog/CatalogTimerBadge'
+import { CatalogCountdown } from '@/components/catalog/CatalogCountdown'
 
-function payoutLabel(tenant: PublicTenantSummary): string {
-  if (tenant.payoutIntervalMinutes) return formatPayoutInterval(tenant.payoutIntervalMinutes)
-  return catalogCardSubtitle(tenant)
+function PayoutCell({ tenant }: { tenant: PublicTenantSummary }) {
+  return (
+    <div className="min-w-0 hidden lg:block">
+      <CatalogCountdown tenant={tenant} compact />
+    </div>
+  )
 }
 
 function PotCell({ tenant }: { tenant: PublicTenantSummary }) {
@@ -108,7 +111,7 @@ export function CatalogListRow({ tenant }: { tenant: PublicTenantSummary }) {
         <VolumeCell tenant={tenant} />
       </div>
 
-      <span className="text-xs text-gray-400 sm:whitespace-nowrap hidden lg:inline">{payoutLabel(tenant)}</span>
+      <PayoutCell tenant={tenant} />
     </Link>
   )
 }

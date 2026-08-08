@@ -27,8 +27,27 @@ export function isCatalogPayoutPaused(tenant: PublicTenantSummary): boolean {
 
 export function catalogPayoutTimerLabel(tenant: PublicTenantSummary): string {
   if (tenant.status !== 'active') return formatCatalogStatus(tenant)
-  if (tenant.payout_timer_status === 'active') return 'Payouts active'
+  if (tenant.payout_timer_status === 'active') {
+    if (tenant.payout_seconds_remaining != null && tenant.payout_seconds_remaining <= 0) {
+      return 'Payout due'
+    }
+    return 'Payouts active'
+  }
   return 'Waiting for volume'
+}
+
+export function catalogCountdownSubtitle(tenant: PublicTenantSummary): string | null {
+  if (tenant.status !== 'active') return null
+  if (tenant.payout_timer_status === 'waiting') {
+    return 'Timer starts when the first holder qualifies'
+  }
+  if (tenant.payout_seconds_remaining != null) {
+    return 'Next payout countdown'
+  }
+  if (tenant.payoutIntervalMinutes) {
+    return `Payouts every ${formatPayoutInterval(tenant.payoutIntervalMinutes)}`
+  }
+  return null
 }
 
 export function formatCatalogPot(tenant: PublicTenantSummary): string | null {

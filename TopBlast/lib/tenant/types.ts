@@ -67,4 +67,8 @@ export interface PublicTenantSummary {
   total_distributed_usd_formatted?: string | null
   /** Payout countdown state from TimerState (waiting = paused for eligible losers). */
   payout_timer_status?: 'waiting' | 'active'
+  /** Seconds until next cycle when timer is active. */
+  payout_seconds_remaining?: number | null
+  /** Completed payout cycles (Mongo TimerState.currentCycle). */
+  payout_current_cycle?: number
 }

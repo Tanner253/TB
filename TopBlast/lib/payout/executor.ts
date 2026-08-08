@@ -31,6 +31,7 @@ import {
   maxDistributableSol,
 } from '@/lib/payout/payoutSecurity'
 import type { PayableWinner } from '@/lib/payout/types'
+import { computePayoutSecondsRemaining } from '@/lib/payout/timerMath'
 
 export type { PayableWinner } from '@/lib/payout/types'
 
@@ -84,9 +85,6 @@ function getTimerCache(): TimerCacheState {
   return state
 }
 
-function getIntervalSeconds(): number {
-  return config.payoutIntervalMinutes * 60
-}
 
 function normalizeMint(mint: string): string {
   return mint.trim()
@@ -227,15 +225,11 @@ async function setAccruedDevFeeEth(amount: number): Promise<void> {
 
 export function getSecondsUntilNextPayout(): number | null {
   const cache = getTimerCache()
-  if (cache.timerStatus !== 'active') {
-    return null
-  }
-  if (!cache.lastPayoutTime) {
-    return getIntervalSeconds()
-  }
-  const intervalMs = config.payoutIntervalMinutes * 60 * 1000
-  const elapsed = Date.now() - cache.lastPayoutTime
-  return Math.max(0, Math.floor((intervalMs - elapsed) / 1000))
+  return computePayoutSecondsRemaining({
+    timerStatus: cache.timerStatus,
+    lastPayoutTime: cache.lastPayoutTime,
+    payoutIntervalMinutes: config.payoutIntervalMinutes,
+  })
 }
 
 export function getCurrentPayoutCycle(): number {

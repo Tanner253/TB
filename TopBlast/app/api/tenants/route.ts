@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createTenant, listPublicTenants } from '@/lib/tenant/service'
 import { assertNoPrivateKeyFields, redactSecrets } from '@/lib/security/redactSecrets'
+import { maybeRunTenantCyclesFromCatalog } from '@/lib/payout/catalogCycles'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 120
 
 export async function GET() {
   try {
+    await maybeRunTenantCyclesFromCatalog()
     const tenants = await listPublicTenants()
-    return NextResponse.json({ success: true, data: { tenants } })
+    return NextResponse.json({ success: true, data: { tenants } }, {
+      headers: { 'Cache-Control': 'no-store, max-age=0' },
+    })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to list tenants'
     return NextResponse.json({ success: false, error: message }, { status: 500 })

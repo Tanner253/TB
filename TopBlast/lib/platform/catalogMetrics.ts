@@ -5,6 +5,7 @@ import { Payout, TimerState } from '@/lib/db/models'
 import { getSolPrice, formatUsd } from '@/lib/solana/price'
 import { getWalletSolBalance } from '@/lib/solana/transfer'
 import { buildLivePoolBalance } from '@/lib/payout/poolBalance'
+import { computePayoutSecondsRemaining } from '@/lib/payout/timerMath'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
 
 export interface CatalogPayoutVolume {
@@ -39,21 +40,43 @@ async function fetchPayoutVolumesByTenantKey(): Promise<Map<string, CatalogPayou
   return map
 }
 
-async function fetchPayoutTimerStatusByTenantKey(): Promise<Map<string, 'waiting' | 'active'>> {
+async function fetchPayoutTimerByTenantKey(): Promise<
+  Map<
+    string,
+    {
+      timerStatus: 'waiting' | 'active'
+      lastPayoutTime: Date | null
+      currentCycle: number
+    }
+  >
+> {
   await connectDB()
 
   const docs = await TimerState.find({ key: /payout_timer$/ })
-    .select('key timerStatus')
+    .select('key timerStatus lastPayoutTime currentCycle')
     .lean()
 
-  const map = new Map<string, 'waiting' | 'active'>()
+  const map = new Map<
+    string,
+    {
+      timerStatus: 'waiting' | 'active'
+      lastPayoutTime: Date | null
+      currentCycle: number
+    }
+  >()
+
   for (const doc of docs) {
-    const status: 'waiting' | 'active' =
+    const timerStatus: 'waiting' | 'active' =
       doc.timerStatus === 'active' ? 'active' : 'waiting'
+    const entry = {
+      timerStatus,
+      lastPayoutTime: doc.lastPayoutTime ?? null,
+      currentCycle: doc.currentCycle ?? 0,
+    }
     if (doc.key === 'payout_timer') {
-      map.set('_legacy', status)
+      map.set('_legacy', entry)
     } else if (doc.key.endsWith(':payout_timer')) {
-      map.set(doc.key.replace(':payout_timer', ''), status)
+      map.set(doc.key.replace(':payout_timer', ''), entry)
     }
   }
   return map
@@ -68,12 +91,12 @@ export async function enrichCatalogTenants(
   const [solPrice, volumeByKey, timerByKey] = await Promise.all([
     getSolPrice(),
     fetchPayoutVolumesByTenantKey(),
-    fetchPayoutTimerStatusByTenantKey(),
+    fetchPayoutTimerByTenantKey(),
   ])
 
-  const uniqueAddresses = [
-    ...new Set(tenants.map(t => t.payoutWalletAddress?.trim()).filter(Boolean) as string[]),
-  ]
+  const uniqueAddresses = Array.from(
+    new Set(tenants.map(t => t.payoutWalletAddress?.trim()).filter(Boolean) as string[])
+  )
 
   const balanceResults = await Promise.all(
     uniqueAddresses.map(async address => {
@@ -92,7 +115,16 @@ export async function enrichCatalogTenants(
   return tenants.map(tenant => {
     const payoutKey = catalogPayoutTenantKey(tenant)
     const volume = volumeByKey.get(payoutKey) ?? { total_sol: 0, total_usd: 0 }
-    const payoutTimerStatus = timerByKey.get(payoutKey) ?? 'waiting'
+    const timer = timerByKey.get(payoutKey)
+    const payoutTimerStatus = timer?.timerStatus ?? 'waiting'
+    const payoutIntervalMinutes = tenant.payoutIntervalMinutes ?? 15
+    const payoutSecondsRemaining = timer
+      ? computePayoutSecondsRemaining({
+          timerStatus: timer.timerStatus,
+          lastPayoutTime: timer.lastPayoutTime,
+          payoutIntervalMinutes,
+        })
+      : null
 
     const walletAddress = tenant.payoutWalletAddress?.trim()
     const walletSol = walletAddress ? balanceByAddress.get(walletAddress) : undefined
@@ -110,6 +142,8 @@ export async function enrichCatalogTenants(
       total_distributed_usd: volume.total_usd,
       total_distributed_usd_formatted: formatUsd(volume.total_usd),
       payout_timer_status: payoutTimerStatus,
+      payout_seconds_remaining: payoutSecondsRemaining,
+      payout_current_cycle: timer?.currentCycle ?? 0,
     }
   })
 }

@@ -63,10 +63,15 @@ describe('catalogClient payout timer', () => {
       payoutWalletAddress: 'Pool1111111111111111111111111111111111',
       payout_timer_status: 'waiting',
     }
-    const running: PublicTenantSummary = { ...paused, payout_timer_status: 'active' }
+    const running: PublicTenantSummary = {
+      ...paused,
+      payout_timer_status: 'active',
+      payout_seconds_remaining: 600,
+    }
 
     expect(isCatalogPayoutPaused(paused)).toBe(true)
     expect(catalogPayoutTimerLabel(paused)).toBe('Waiting for volume')
     expect(isCatalogPayoutPaused(running)).toBe(false)
+    expect(catalogPayoutTimerLabel(running)).toBe('Payouts active')
   })
 })
