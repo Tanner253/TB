@@ -10,9 +10,8 @@ import { transferSol, MIN_TRANSFER_SOL } from '@/lib/solana/transfer'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
-import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
+import { getTokenPrice } from '@/lib/solana/price'
 import { getTokenHolders } from '@/lib/solana/indexer'
-import { getTxExplorerUrl } from '@/lib/solana/explorer'
 import { config } from '@/lib/config'
 import { PublicKey } from '@solana/web3.js'
 import {
@@ -91,10 +90,6 @@ function getIntervalSeconds(): number {
 
 function normalizeMint(mint: string): string {
   return mint.trim()
-}
-
-function getExplorerLink(txHash: string | null): string | null {
-  return getTxExplorerUrl(txHash)
 }
 
 function payoutTokenFields() {
@@ -231,14 +226,15 @@ async function setAccruedDevFeeEth(amount: number): Promise<void> {
 }
 
 export function getSecondsUntilNextPayout(): number | null {
-  if (getTimerCache().timerStatus !== 'active') {
+  const cache = getTimerCache()
+  if (cache.timerStatus !== 'active') {
     return null
   }
-  if (!getTimerCache().lastPayoutTime) {
+  if (!cache.lastPayoutTime) {
     return getIntervalSeconds()
   }
   const intervalMs = config.payoutIntervalMinutes * 60 * 1000
-  const elapsed = Date.now() - getTimerCache().lastPayoutTime
+  const elapsed = Date.now() - cache.lastPayoutTime
   return Math.max(0, Math.floor((intervalMs - elapsed) / 1000))
 }
 
