@@ -40,6 +40,7 @@ import { sortLeaderboardEntries } from '@/lib/leaderboard/sortRankings'
 import { getTokenMintExplorerUrl } from '@/lib/solana/explorer'
 import { shouldThrottleFullReindex, markFullReindex } from '@/lib/solana/heliusCache'
 import { getRankingsKey } from '@/lib/tenant/keys'
+import { getPlatformTestBanner } from '@/lib/platform/testBanner'
 
 /** DB rankings younger than this skip Helius DAS on public leaderboard polls. */
 const RANKINGS_FRESH_MS = 2 * 60 * 1000
@@ -220,6 +221,7 @@ export async function GET(request: NextRequest) {
     }
 
     const noStoreHeaders = { 'Cache-Control': 'no-store, max-age=0' }
+    const platformTestBanner = getPlatformTestBanner()
 
     if (!dbRankings) {
       const diagnosticsInput = {
@@ -265,6 +267,7 @@ export async function GET(request: NextRequest) {
           tracker_initialized: serviceStatus.initialized,
           rankings: [],
           last_updated: new Date().toISOString(),
+          platform_test_banner: platformTestBanner,
         },
       }, { headers: noStoreHeaders })
     }
@@ -524,6 +527,7 @@ export async function GET(request: NextRequest) {
         rankings,
         eligible_winners: eligibleWinners,
         last_updated: dbRankings.lastCalculated.toISOString(),
+        platform_test_banner: platformTestBanner,
       },
     }, { headers: noStoreHeaders })
   } catch (error: any) {

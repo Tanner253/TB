@@ -16,6 +16,7 @@ import { ExternalToolsEligibilityNote } from '@/components/tenant/ExternalToolsE
 import type { SessionChecklist } from '@/lib/tenant/sessionChecklist'
 import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 import { CopyContractAddress, solscanTokenUrl } from '@/components/ui/CopyContractAddress'
+import { PlatformTestBanner } from '@/components/platform/PlatformTestBanner'
 
 const WINNER_SHARES = getWinnerSharePercents()
 
@@ -195,6 +196,7 @@ export default function LeaderboardPage() {
   // Pool balance in USD for payout estimates (prefer raw number from API)
   const poolValue = data?.pool_balance_usd_raw ?? parseFloat(data?.pool_balance_usd?.replace(/[$,]/g, '') || '0')
   const wsConnected = data?.ws_connected
+  const platformTestBanner = data?.platform_test_banner ?? null
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
@@ -229,6 +231,8 @@ export default function LeaderboardPage() {
           </>
         }
       />
+
+      {platformTestBanner ? <PlatformTestBanner banner={platformTestBanner} /> : null}
 
       <main className="relative max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
         {/* Price Ticker Bar */}
