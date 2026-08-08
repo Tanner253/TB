@@ -76,4 +76,7 @@ export interface PublicTenantSummary {
   payout_seconds_remaining?: number | null
   /** Completed payout cycles (Mongo TimerState.currentCycle). */
   payout_current_cycle?: number
+  /** Cached eligibility from CurrentRankings (catalog display sync). */
+  payout_eligible_count?: number
+  payout_ranked_count?: number
 }

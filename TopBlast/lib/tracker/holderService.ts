@@ -24,19 +24,32 @@ import {
 
 /** VWAP lookup finished — do not re-hit Helius on every leaderboard poll. */
 const RESOLVED_VWAP_REASONS = new Set([
-  'No buy history',
   'Received via transfer',
   'Cost basis unavailable',
   'Liquidity pool excluded',
 ])
 
+/** Retry pending / inconclusive lookups after this interval. */
+export const VWAP_HYDRATION_RETRY_MS = 5 * 60 * 1000
+
 export function rankingNeedsVwapHydration(row: {
   vwap?: number | null
   ineligibleReason?: string | null
+  vwapFetchedAt?: Date | string | number | null
 }): boolean {
   if ((row.vwap ?? 0) > 0) return false
   const reason = (row.ineligibleReason ?? '').trim()
-  if (reason && reason !== 'Loading buy history...' && RESOLVED_VWAP_REASONS.has(reason)) {
+  if (!reason || reason === 'Loading buy history...' || reason === 'Buy history pending') {
+    return true
+  }
+  if (reason === 'No buy history') {
+    const fetchedAt = row.vwapFetchedAt ? new Date(row.vwapFetchedAt).getTime() : 0
+    if (fetchedAt > 0 && Date.now() - fetchedAt < VWAP_HYDRATION_RETRY_MS) {
+      return false
+    }
+    return true
+  }
+  if (RESOLVED_VWAP_REASONS.has(reason)) {
     return false
   }
   return true
@@ -1369,6 +1382,7 @@ export async function hydrateRankingsWithVwap<
 
   const needsVwap = rankings
     .filter(h => isTrackable(h) && rankingNeedsVwapHydration(h))
+    .sort((a, b) => (b.balance ?? 0) - (a.balance ?? 0))
     .slice(0, options?.maxWallets ?? 25)
 
   if (needsVwap.length === 0) {
@@ -1419,9 +1433,10 @@ export async function hydrateRankingsWithVwap<
     stillNeedingHelius.map(h => h.wallet),
     config.tokenMint,
     tokenPrice,
-    2
+    Math.min(6, stillNeedingHelius.length)
   )
 
+  const now = new Date()
   const patchedRows: Array<{
     wallet: string
     balance?: number
@@ -1431,6 +1446,7 @@ export async function hydrateRankingsWithVwap<
     hasSold?: boolean
     hasTransferredOut?: boolean
     totalTokensBought?: number
+    vwapFetchedAt?: Date
   }> = []
 
   const updated = rankingsWithDb.map(row => {
@@ -1439,12 +1455,17 @@ export async function hydrateRankingsWithVwap<
 
     const humanBalance = normalizeTokenBalance(row.balance, config.tokenDecimals, config.minTokenHolding)
     let ineligibleReason = row.ineligibleReason ?? null
-    if (v.buyCount === 0 && v.hasTransferIn) {
+
+    if (v.txCount === 0) {
+      ineligibleReason = 'Buy history pending'
+    } else if (v.buyCount === 0 && v.hasTransferIn) {
       ineligibleReason = 'Received via transfer'
     } else if (!v.vwap && v.buyCount > 0) {
       ineligibleReason = 'Cost basis unavailable'
     } else if (!v.vwap) {
       ineligibleReason = 'No buy history'
+    } else {
+      ineligibleReason = null
     }
 
     const merged = {
@@ -1458,6 +1479,7 @@ export async function hydrateRankingsWithVwap<
       totalTokensBought: v.totalTokensBought,
       ineligibleReason,
       isEligible: false,
+      vwapFetchedAt: now,
     } as T
 
     patchedRows.push({
@@ -1469,6 +1491,7 @@ export async function hydrateRankingsWithVwap<
       hasSold: v.hasSold,
       hasTransferredOut: v.hasTransferredOut,
       totalTokensBought: v.totalTokensBought,
+      vwapFetchedAt: now,
     })
 
     return merged

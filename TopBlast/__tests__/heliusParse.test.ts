@@ -60,6 +60,29 @@ describe('parseWalletMintTransactions', () => {
     expect(txs.some(t => t.type === 'TRANSFER_IN')).toBe(false)
   })
 
+  it('detects buy from description USD when nativeTransfers missing', () => {
+    const buyer = 'B6rnExampleWallet111111111111111111111111111'
+    const txs = parseWalletMintTransactions(buyer, mint, [
+      {
+        signature: 'sig-desc-buy',
+        timestamp: 1_700_000_000,
+        type: 'TRANSFER',
+        feePayer: buyer,
+        description: 'B6rn swapped $44.37 for 12.7M tokens',
+        tokenTransfers: [
+          {
+            mint,
+            fromUserAccount: pool,
+            toUserAccount: buyer,
+            tokenAmount: 12_730_591,
+          },
+        ],
+      },
+    ])
+
+    expect(txs.some(t => t.type === 'BUY')).toBe(true)
+  })
+
   it('marks pool-to-wallet transfer as TRANSFER_IN not BUY', () => {
     const recipient = 'DiiHaXbhwf2HVkyMSNRxkctomAy9jaBxUT1vbPZokgwZ'
     const txs = parseWalletMintTransactions(recipient, mint, [

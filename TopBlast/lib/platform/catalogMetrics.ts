@@ -1,7 +1,8 @@
 import 'server-only'
 
 import connectDB from '@/lib/db'
-import { Payout, PayoutVolumeSwap, TimerState } from '@/lib/db/models'
+import { CurrentRankings, Payout, PayoutVolumeSwap, TimerState } from '@/lib/db/models'
+import { deriveSessionDisplayState } from '@/lib/session/displayState'
 import { getSolPrice, formatUsd, formatCompactUsd, formatCompactSol } from '@/lib/solana/price'
 import { getWalletSolBalance } from '@/lib/solana/transfer'
 import { buildLivePoolBalance } from '@/lib/payout/poolBalance'
@@ -109,17 +110,43 @@ async function fetchPayoutTimerByTenantKey(): Promise<
   return map
 }
 
+async function fetchRankingsEligibilityByTenantKey(): Promise<
+  Map<string, { eligibleCount: number; rankedCount: number }>
+> {
+  await connectDB()
+
+  const docs = await CurrentRankings.find({ key: /current_rankings$/ })
+    .select('key eligibleCount rankings')
+    .lean()
+
+  const map = new Map<string, { eligibleCount: number; rankedCount: number }>()
+  for (const doc of docs) {
+    const rankedCount = Array.isArray(doc.rankings) ? doc.rankings.length : 0
+    const entry = {
+      eligibleCount: doc.eligibleCount ?? 0,
+      rankedCount,
+    }
+    if (doc.key === 'current_rankings') {
+      map.set('_legacy', entry)
+    } else if (doc.key.endsWith(':current_rankings')) {
+      map.set(doc.key.replace(':current_rankings', ''), entry)
+    }
+  }
+  return map
+}
+
 /** Attach live pot size and lifetime payout volume to catalog listings. */
 export async function enrichCatalogTenants(
   tenants: PublicTenantSummary[]
 ): Promise<PublicTenantSummary[]> {
   if (tenants.length === 0) return tenants
 
-  const [solPrice, volumeByKey, generatedByKey, timerByKey] = await Promise.all([
+  const [solPrice, volumeByKey, generatedByKey, timerByKey, eligibilityByKey] = await Promise.all([
     getSolPrice(),
     fetchPayoutVolumesByTenantKey(),
     fetchGeneratedVolumesByTenantKey(),
     fetchPayoutTimerByTenantKey(),
+    fetchRankingsEligibilityByTenantKey(),
   ])
 
   const uniqueAddresses = Array.from(
@@ -145,18 +172,29 @@ export async function enrichCatalogTenants(
     const volume = volumeByKey.get(payoutKey) ?? { total_sol: 0, total_usd: 0 }
     const generated = generatedByKey.get(payoutKey) ?? { total_sol: 0, total_usd: 0 }
     const timer = timerByKey.get(payoutKey)
-    const payoutTimerStatus = timer?.timerStatus ?? 'waiting'
+    const eligibility = eligibilityByKey.get(payoutKey)
+    const rawTimerStatus = timer?.timerStatus ?? 'waiting'
     const payoutIntervalMinutes = tenant.payoutIntervalMinutes ?? 15
     const effectiveInterval = timer
       ? getEffectivePayoutIntervalMinutes(payoutIntervalMinutes, timer.failedAttempts)
       : payoutIntervalMinutes
-    const payoutSecondsRemaining = timer
+    const rawSecondsRemaining = timer
       ? computePayoutSecondsRemaining({
           timerStatus: timer.timerStatus,
           lastPayoutTime: timer.lastPayoutTime,
           payoutIntervalMinutes: effectiveInterval,
         })
       : null
+
+    const display = deriveSessionDisplayState({
+      timerStatus: rawTimerStatus,
+      secondsRemaining: rawSecondsRemaining,
+      eligibleCount: eligibility?.eligibleCount ?? 0,
+      rankedHolderCount: eligibility?.rankedCount ?? 0,
+      trackedHolders: eligibility?.rankedCount ?? 0,
+    })
+    const payoutTimerStatus = display.effectiveTimerStatus
+    const payoutSecondsRemaining = display.effectiveSecondsRemaining
 
     const walletAddress = tenant.payoutWalletAddress?.trim()
     const walletSol = walletAddress ? balanceByAddress.get(walletAddress) : undefined
@@ -180,6 +218,8 @@ export async function enrichCatalogTenants(
       payout_timer_status: payoutTimerStatus,
       payout_seconds_remaining: payoutSecondsRemaining,
       payout_current_cycle: timer?.currentCycle ?? 0,
+      payout_eligible_count: eligibility?.eligibleCount ?? 0,
+      payout_ranked_count: eligibility?.rankedCount ?? 0,
     }
   })
 }

@@ -145,6 +145,14 @@ export async function getWalletTransactions(
 }
 
 /** SOL sent by wallet in this tx (Pump.fun buys often type TRANSFER, not SWAP). */
+function parseDescriptionUsd(description: string): number {
+  if (!description.includes('$')) return 0
+  const match = description.match(/\$([0-9,]+\.?\d*)/)
+  if (!match) return 0
+  const usd = parseFloat(match[1].replace(/,/g, ''))
+  return Number.isFinite(usd) && usd > 0 ? usd : 0
+}
+
 function walletSolOutflow(tx: Record<string, unknown>, wallet: string): number {
   const nativeTransfers = (tx.nativeTransfers as Array<Record<string, unknown>>) || []
   let total = 0
@@ -180,6 +188,7 @@ export function parseWalletMintTransactions(
     const txType = String(tx.type || '')
     const tokenTransfers = (tx.tokenTransfers as Array<Record<string, unknown>>) || []
     const feePayer = String(tx.feePayer || '')
+    const description = String(tx.description || '')
 
     for (const transfer of tokenTransfers) {
       if (String(transfer.mint || '') !== mint) continue
@@ -218,6 +227,27 @@ export function parseWalletMintTransactions(
             })
           }
         } else if (from !== wallet) {
+          const descUsd = parseDescriptionUsd(description)
+          const paidBuyMissingNative =
+            feePayer === wallet &&
+            descUsd > 0 &&
+            (txType === 'TRANSFER' || txType === 'UNKNOWN' || txType === '')
+          if (paidBuyMissingNative) {
+            const key = `${signature}:BUY`
+            if (!seen.has(key)) {
+              seen.add(key)
+              transactions.push({
+                signature,
+                timestamp,
+                type: 'BUY',
+                tokenAmount,
+                solAmount: 0,
+                usdValue: descUsd,
+                pricePerToken: descUsd / tokenAmount,
+                isStablecoinSwap: true,
+              })
+            }
+          } else {
           const key = `${signature}:TRANSFER_IN`
           if (!seen.has(key)) {
             seen.add(key)
@@ -231,6 +261,7 @@ export function parseWalletMintTransactions(
               pricePerToken: 0,
               isStablecoinSwap: false,
             })
+          }
           }
         }
       }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
 import {
   catalogCountdownSubtitle,
+  catalogSessionDisplay,
   isCatalogPayoutPaused,
 } from '@/lib/platform/catalogClient'
 import { formatPayoutCountdown } from '@/lib/payout/timerMath'
@@ -52,7 +53,9 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
   }, [tenant.payout_timer_status, tenant.slug])
 
   const subtitle = catalogCountdownSubtitle(tenant)
+  const display = catalogSessionDisplay(tenant)
   const paused = isCatalogPayoutPaused(tenant)
+  const starting = display.phase === 'timer_starting'
   const textSize = compact ? 'text-xs' : 'text-sm'
   const monoSize = compact ? 'text-sm' : 'text-base'
 
@@ -67,7 +70,20 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
     )
   }
 
-  if (tenant.payout_timer_status === 'active' && seconds != null) {
+  if (starting) {
+    return (
+      <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>
+        <p className={`font-medium text-rh-lime/90 ${textSize} leading-snug`}>
+          {tenant.payout_eligible_count ?? 0} eligible
+        </p>
+        <p className={`text-gray-500 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
+          Payout timer starting
+        </p>
+      </div>
+    )
+  }
+
+  if ((display.phase === 'countdown' || display.phase === 'payout_due') && seconds != null) {
     const due = seconds <= 0
     return (
       <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>

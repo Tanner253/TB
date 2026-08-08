@@ -19,6 +19,8 @@ export interface VwapData {
   hasTransferredOut: boolean
   hasTransferIn: boolean
   buyCount: number
+  /** Helius enhanced txs returned for this wallet (0 = fetch miss or empty — retry later). */
+  txCount: number
 }
 
 // Calculate VWAP from actual on-chain buy transactions
@@ -97,6 +99,7 @@ export async function calculateWalletVwap(
     hasTransferredOut,
     hasTransferIn,
     buyCount,
+    txCount: transactions.length,
   }
 }
 

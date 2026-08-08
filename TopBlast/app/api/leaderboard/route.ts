@@ -42,6 +42,8 @@ import {
   shouldThrottleFullReindex,
   markFullReindex,
   tryInvalidateTokenHoldersCache,
+  invalidateTokenHoldersCache,
+  invalidateWalletTxCaches,
   getHolderFetchCooldownRemaining,
   getHolderLastFetchAt,
   HOLDER_FORCE_REFRESH_COOLDOWN_MS,
@@ -51,8 +53,12 @@ import { getPlatformTestBanner } from '@/lib/platform/testBanner'
 
 /** DB rankings younger than this skip Helius DAS on public leaderboard polls. */
 const RANKINGS_FRESH_MS = 2 * 60 * 1000
-/** Max Enhanced-API wallet history fetches per leaderboard request (stagger rest across polls). */
-const VWAP_HYDRATE_BUDGET = 2
+/** Max Enhanced-API wallet history fetches per leaderboard request. */
+function leaderboardVwapHydrateBudget(holderCount: number): number {
+  const envMax = parseInt(process.env.LEADERBOARD_VWAP_HYDRATE_MAX || '12', 10)
+  const cap = Number.isFinite(envMax) && envMax > 0 ? envMax : 12
+  return Math.min(cap, Math.max(holderCount, 1))
+}
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -272,8 +278,14 @@ export async function GET(request: NextRequest) {
 
     const walletsNeedingVwap = sourceRankings.filter(rankingNeedsVwapHydration)
     if (walletsNeedingVwap.length > 0) {
-      const hydrated = await hydrateRankingsWithVwap(walletsNeedingVwap, {
-        maxWallets: VWAP_HYDRATE_BUDGET,
+      if (forceRefresh && config.tokenMint) {
+        invalidateWalletTxCaches(
+          walletsNeedingVwap.map(h => h.wallet),
+          config.tokenMint
+        )
+      }
+      const hydrated = await hydrateRankingsWithVwap(sourceRankings, {
+        maxWallets: leaderboardVwapHydrateBudget(walletsNeedingVwap.length),
         tokenPrice: liveTokenPrice,
       })
       const hydratedByWallet = new Map(hydrated.rankings.map(h => [h.wallet, h]))

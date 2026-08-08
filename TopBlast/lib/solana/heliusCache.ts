@@ -180,3 +180,9 @@ export function markFullReindex(tenantKey: string) {
 export function invalidateWalletTxCache(wallet: string, mint: string) {
   txCache().delete(tenantCacheKey('tx', mint, wallet))
 }
+
+export function invalidateWalletTxCaches(wallets: string[], mint: string) {
+  for (const wallet of wallets) {
+    invalidateWalletTxCache(wallet, mint)
+  }
+}

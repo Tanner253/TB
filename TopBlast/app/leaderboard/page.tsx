@@ -18,6 +18,7 @@ import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 import { CopyContractAddress, solscanTokenUrl } from '@/components/ui/CopyContractAddress'
 import { getAddressExplorerUrl } from '@/lib/solana/explorer'
 import { PlatformTestBanner } from '@/components/platform/PlatformTestBanner'
+import { deriveSessionDisplayState } from '@/lib/session/displayState'
 
 const WINNER_SHARES = getWinnerSharePercents()
 
@@ -173,10 +174,8 @@ export default function LeaderboardPage() {
 
   // Always show the page - use inline loading states for data
   const isLoading = loading && !data
-  const isInitializing = data?.status === 'initializing'
   const rankings = ((data?.rankings || []) as Winner[])
   const hasRankedHolders = rankings.length > 0
-  const isSyncingHolders = !isInitializing && !hasRankedHolders && (data?.tracked_holders ?? 0) === 0
 
   const top3Eligible = (
     data?.eligible_winners?.length
@@ -185,14 +184,21 @@ export default function LeaderboardPage() {
   ).slice(0, 3) as Winner[]
 
   const eligibleCount = data?.eligible_count ?? top3Eligible.length
-  const hasEligible = eligibleCount > 0
+  const isInitializing = data?.status === 'initializing'
   const effectiveTimerStatus = timerStatus ?? data?.timer_status ?? 'waiting'
-  const isListingLimbo = !isSyncingHolders && !hasEligible && hasRankedHolders
-  const isTimerStarting = !isSyncingHolders && hasEligible && effectiveTimerStatus === 'waiting'
-  const isTimerActive = !isSyncingHolders && hasEligible && effectiveTimerStatus === 'active'
-  const isPayoutDueNow =
-    isTimerActive &&
-    ((countdown !== null && countdown <= 0) || data?.seconds_remaining === 0)
+  const sessionDisplay = deriveSessionDisplayState({
+    timerStatus: effectiveTimerStatus,
+    secondsRemaining: countdown ?? data?.seconds_remaining ?? null,
+    eligibleCount,
+    rankedHolderCount: rankings.length,
+    trackedHolders: data?.tracked_holders ?? 0,
+    isInitializing,
+  })
+  const isSyncingHolders = sessionDisplay.phase === 'syncing'
+  const isListingLimbo = sessionDisplay.phase === 'limbo'
+  const isTimerStarting = sessionDisplay.phase === 'timer_starting'
+  const isTimerActive = sessionDisplay.phase === 'countdown'
+  const isPayoutDueNow = sessionDisplay.phase === 'payout_due'
   const showLimbo = isListingLimbo
   const sessionChecklist = (data?.session_checklist as SessionChecklist | null) ?? null
   const showSessionStatusBar =
