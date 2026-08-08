@@ -19,7 +19,7 @@ import {
   persistWinnerAfterPayout,
   loadLastWinCycleByWallet,
 } from '@/lib/payout/winnerPersistence'
-import { saveRankingsToDb, loadRankingsFromDb, getRankedLosers, markWinnersCooldown, getServiceStatus, refreshPoolUsdCache } from '@/lib/tracker/holderService'
+import { saveRankingsToDb, loadRankingsFromDb, markWinnersCooldown, getServiceStatus, refreshPoolUsdCache } from '@/lib/tracker/holderService'
 
 import { getTimerKey } from '@/lib/tenant/keys'
 import { tenantFields } from '@/lib/tenant/scope'
@@ -27,6 +27,7 @@ import { isPayoutExecutionAuthorized, runAuthorizedPayout } from '@/lib/payout/p
 import {
   assertProductionPayoutConfig,
   assertPayoutTransferAllowed,
+  filterWinnersHoldingSessionToken,
   maxDistributableSol,
 } from '@/lib/payout/payoutSecurity'
 import type { PayableWinner } from '@/lib/payout/types'
@@ -392,6 +393,23 @@ export interface PayoutResult {
   data?: any
 }
 
+/** Pause timer when a due cycle has nobody to pay — avoids empty/failed payout history. */
+async function pausePayoutForNoWinners(reason: string): Promise<PayoutResult> {
+  console.log(`[Payout] ${reason} — pausing timer until someone qualifies`)
+  await releasePayoutLock()
+  await pausePayoutTimerToWaiting()
+  return { success: true, data: { skipped: true, reason: 'No eligible winners' } }
+}
+
+/** Drop aborted cycle records so history is not filled with failed attempts. */
+async function cleanupAbortedCycleRecords(cycle: number): Promise<void> {
+  try {
+    await Payout.deleteMany({ ...tenantFields(), cycle })
+  } catch (error) {
+    console.error('[Payout] Failed to cleanup aborted cycle records:', error)
+  }
+}
+
 export async function executePayout(): Promise<PayoutResult> {
   if (!isPayoutExecutionAuthorized()) {
     console.error('[Payout] Blocked — not running inside authorized server context')
@@ -464,28 +482,12 @@ export async function executePayout(): Promise<PayoutResult> {
     }
 
     let eligibleWinners: PayableWinner[] = await resolveLivePayableWinners(3)
+    eligibleWinners = await filterWinnersHoldingSessionToken(eligibleWinners)
+
+    console.log(`[Payout] Live eligible winners (on-chain verified): ${eligibleWinners.length}`)
 
     if (eligibleWinners.length === 0) {
-      const inMemoryRankings = getRankedLosers()
-      if (inMemoryRankings.length > 0) {
-        eligibleWinners = inMemoryRankings
-          .filter(h => h.isEligible && !isExcludedParticipantWallet(h.wallet))
-          .slice(0, 3)
-          .map(h => ({
-            wallet: h.wallet,
-            drawdownPct: h.drawdownPct,
-            lossUsd: h.lossUsd,
-          }))
-      }
-    }
-
-    console.log(`[Payout] Live eligible winners: ${eligibleWinners.length}`)
-
-    if (eligibleWinners.length === 0) {
-      console.log('[Payout] No eligible winners — pausing timer until someone qualifies')
-      await releasePayoutLock()
-      await pausePayoutTimerToWaiting()
-      return { success: true, data: { skipped: true, reason: 'No eligible winners' } }
+      return pausePayoutForNoWinners('No eligible winners')
     }
 
     console.log('[Payout] Winners to pay:')
@@ -517,40 +519,9 @@ export async function executePayout(): Promise<PayoutResult> {
     const results: any[] = []
     let totalPaidSol = 0
 
-    console.log('[Payout] Creating pending payout records in database...')
+    console.log('[Payout] Creating pending winner payout records...')
 
-    const pendingPayouts: { id: any; rank: number; wallet: string; amountSol: number }[] = []
-
-    if (devWalletValid && config.executePayouts && totalDevFeeSol >= MIN_TRANSFER_SOL) {
-      const devPayout = await Payout.create({
-        ...tenantFields(),
-        ...payoutTokenFields(),
-        cycle: nextCycle,
-        rank: 0,
-        wallet: config.devWalletAddress,
-        amount: totalDevFeeSol * solPrice,
-        amountTokens: totalDevFeeSol,
-        drawdownPct: 0,
-        lossUsd: 0,
-        txHash: null,
-        status: 'pending',
-        errorMessage: null,
-      })
-      pendingPayouts.push({
-        id: devPayout._id,
-        rank: 0,
-        wallet: config.devWalletAddress,
-        amountSol: totalDevFeeSol,
-      })
-    } else if (devWalletValid && devFeeSol > 0) {
-      const newAccrued = accruedDevFee + devFeeSol
-      await setAccruedDevFeeEth(newAccrued)
-      console.log(
-        `[Payout] Dev fee ${devFeeSol.toFixed(6)} SOL below min transfer — accrued total ${newAccrued.toFixed(6)} SOL`
-      )
-    } else if (devFeeSol > 0 && !devWalletValid) {
-      console.warn('[Payout] DEV_WALLET_ADDRESS missing or invalid — dev fee stays in pool wallet')
-    }
+    const winnerPending: { id: any; rank: number; wallet: string; amountSol: number }[] = []
 
     for (let i = 0; i < eligibleWinners.length; i++) {
       const winner = eligibleWinners[i]
@@ -572,15 +543,17 @@ export async function executePayout(): Promise<PayoutResult> {
         status: 'pending',
         errorMessage: null,
       })
-      pendingPayouts.push({ id: winnerPayout._id, rank: i + 1, wallet: winner.wallet, amountSol })
+      winnerPending.push({ id: winnerPayout._id, rank: i + 1, wallet: winner.wallet, amountSol })
     }
 
-    console.log(`[Payout] Created ${pendingPayouts.length} pending payout records`)
+    if (winnerPending.length === 0) {
+      return pausePayoutForNoWinners('No winner payouts meet minimum transfer size')
+    }
 
-    for (const pending of pendingPayouts) {
-      const isDevFee = pending.rank === 0
-      const label = isDevFee ? 'Dev fee' : `#${pending.rank}`
+    console.log(`[Payout] Created ${winnerPending.length} pending winner records`)
 
+    for (const pending of winnerPending) {
+      const label = `#${pending.rank}`
       const currentLive = await getLivePoolBalance()
       const availableSol = currentLive.walletSol
 
@@ -598,6 +571,15 @@ export async function executePayout(): Promise<PayoutResult> {
         await Payout.findByIdAndUpdate(pending.id, {
           status: 'failed',
           errorMessage: transferCheck.reason,
+        })
+        results.push({
+          rank: pending.rank,
+          type: 'winner',
+          wallet: pending.wallet,
+          amount_eth: pending.amountSol.toFixed(6),
+          status: 'failed',
+          tx_hash: null,
+          error: transferCheck.reason,
         })
         continue
       }
@@ -630,23 +612,19 @@ export async function executePayout(): Promise<PayoutResult> {
       if (txResult.success) {
         totalPaidSol += pending.amountSol
 
-        if (isDevFee) {
-          await setAccruedDevFeeEth(0)
-        } else {
-          await Disqualification.create({
-            wallet: pending.wallet,
-            reason: 'winner_cooldown',
-            expiresAt: new Date(Date.now() + config.payoutIntervalMinutes * 60 * 1000 * 2),
-          }).catch(() => {})
+        await Disqualification.create({
+          wallet: pending.wallet,
+          reason: 'winner_cooldown',
+          expiresAt: new Date(Date.now() + config.payoutIntervalMinutes * 60 * 1000 * 2),
+        }).catch(() => {})
 
-          const tokenPrice = (await getTokenPrice(config.tokenMint)) ?? solPrice
-          await persistWinnerAfterPayout(pending.wallet, nextCycle, tokenPrice)
-        }
+        const tokenPrice = (await getTokenPrice(config.tokenMint)) ?? solPrice
+        await persistWinnerAfterPayout(pending.wallet, nextCycle, tokenPrice)
       }
 
       results.push({
         rank: pending.rank,
-        type: isDevFee ? 'dev_fee' : 'winner',
+        type: 'winner',
         wallet: pending.wallet,
         amount_eth: pending.amountSol.toFixed(6),
         status: txResult.success ? 'success' : 'failed',
@@ -655,16 +633,95 @@ export async function executePayout(): Promise<PayoutResult> {
       })
     }
 
-    await saveTimerState(now, nextCycle, 'active')
-
     const successfulWinnerWallets = results
       .filter(r => r.type === 'winner' && r.status === 'success')
       .map(r => r.wallet)
 
-    if (successfulWinnerWallets.length > 0) {
-      markWinnersCooldown(successfulWinnerWallets, nextCycle)
-      console.log(`[Payout] Updated ${successfulWinnerWallets.length} winners with cooldown in memory`)
+    if (successfulWinnerWallets.length === 0) {
+      await cleanupAbortedCycleRecords(nextCycle)
+      return pausePayoutForNoWinners('No successful winner payouts this cycle')
     }
+
+    // Dev fee only runs after at least one winner is paid — avoids dev-only partial cycles.
+    if (devWalletValid && config.executePayouts && totalDevFeeSol >= MIN_TRANSFER_SOL) {
+      const devPayout = await Payout.create({
+        ...tenantFields(),
+        ...payoutTokenFields(),
+        cycle: nextCycle,
+        rank: 0,
+        wallet: config.devWalletAddress,
+        amount: totalDevFeeSol * solPrice,
+        amountTokens: totalDevFeeSol,
+        drawdownPct: 0,
+        lossUsd: 0,
+        txHash: null,
+        status: 'pending',
+        errorMessage: null,
+      })
+
+      const currentLive = await getLivePoolBalance()
+      const availableSol = currentLive.walletSol
+      const transferCheck = await assertPayoutTransferAllowed({
+        rank: 0,
+        recipient: config.devWalletAddress,
+        amountSol: totalDevFeeSol,
+        walletSol: availableSol,
+        allowedWinners: eligibleWinners,
+        expectedWinnerAmounts: payoutAmounts,
+      })
+
+      if (transferCheck.ok && availableSol >= totalDevFeeSol + 0.001) {
+        console.log(`[Payout] Dev fee: Sending ${totalDevFeeSol.toFixed(6)} SOL to ${config.devWalletAddress.slice(0, 10)}...`)
+        const txResult = config.executePayouts
+          ? await transferSol(config.devWalletAddress, totalDevFeeSol)
+          : { success: false, txHash: null, error: 'EXECUTE_PAYOUTS disabled' }
+
+        await Payout.findByIdAndUpdate(devPayout._id, {
+          txHash: txResult.txHash,
+          status: txResult.success ? 'success' : 'failed',
+          errorMessage: txResult.error,
+        })
+
+        if (txResult.success) {
+          totalPaidSol += totalDevFeeSol
+          await setAccruedDevFeeEth(0)
+        }
+
+        results.unshift({
+          rank: 0,
+          type: 'dev_fee',
+          wallet: config.devWalletAddress,
+          amount_eth: totalDevFeeSol.toFixed(6),
+          status: txResult.success ? 'success' : 'failed',
+          tx_hash: txResult.txHash,
+          error: txResult.error,
+        })
+      } else {
+        const reason = transferCheck.ok
+          ? `Insufficient balance: ${availableSol.toFixed(6)} SOL`
+          : transferCheck.reason
+        console.warn(`[Payout] Dev fee skipped: ${reason}`)
+        await Payout.findByIdAndUpdate(devPayout._id, {
+          status: 'failed',
+          errorMessage: reason,
+        })
+        const newAccrued = accruedDevFee + devFeeSol
+        await setAccruedDevFeeEth(newAccrued)
+      }
+    } else if (devWalletValid && devFeeSol > 0) {
+      const newAccrued = accruedDevFee + devFeeSol
+      await setAccruedDevFeeEth(newAccrued)
+      console.log(
+        `[Payout] Dev fee ${devFeeSol.toFixed(6)} SOL below min transfer — accrued total ${newAccrued.toFixed(6)} SOL`
+      )
+    } else if (devFeeSol > 0 && !devWalletValid) {
+      console.warn('[Payout] DEV_WALLET_ADDRESS missing or invalid — dev fee stays in pool wallet')
+    }
+
+    await saveTimerState(now, nextCycle, 'active')
+
+    markWinnersCooldown(successfulWinnerWallets, nextCycle)
+    console.log(`[Payout] Updated ${successfulWinnerWallets.length} winners with cooldown in memory`)
 
     if (getServiceStatus().holderCount > 0) {
       await saveRankingsToDb()
@@ -706,8 +763,13 @@ export async function maybeExecuteDuePayout(eligibleCount: number): Promise<Payo
   await ensureTimerStateSync()
   const timer = getPayoutTimerInfo()
 
-  if (timer.timer_status !== 'active' || !isPayoutDue() || eligibleCount <= 0) {
+  if (timer.timer_status !== 'active' || !isPayoutDue()) {
     return null
+  }
+
+  if (eligibleCount <= 0) {
+    await pausePayoutTimerToWaiting()
+    return { success: true, data: { skipped: true, reason: 'No eligible winners' } }
   }
 
   if (!config.executePayouts) {

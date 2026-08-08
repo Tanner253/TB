@@ -57,6 +57,23 @@ async function holderOwnsSessionToken(wallet: string, mint: string): Promise<boo
   return balance >= config.minTokenHolding
 }
 
+/** Keep only winners that still hold the session token on-chain at payout time. */
+export async function filterWinnersHoldingSessionToken(
+  winners: PayableWinner[],
+  mint?: string
+): Promise<PayableWinner[]> {
+  const tokenMint = mint || config.tokenMint
+  if (!tokenMint) return []
+
+  const filtered: PayableWinner[] = []
+  for (const winner of winners) {
+    if (await holderOwnsSessionToken(winner.wallet, tokenMint)) {
+      filtered.push(winner)
+    }
+  }
+  return filtered
+}
+
 export async function assertPayoutTransferAllowed(input: {
   rank: number
   recipient: string

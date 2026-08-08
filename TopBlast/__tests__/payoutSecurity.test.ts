@@ -3,7 +3,9 @@ import {
   isValidSolanaAddress,
   maxDistributableSol,
   assertPayoutTransferAllowed,
+  filterWinnersHoldingSessionToken,
 } from '@/lib/payout/payoutSecurity'
+import { getTokenHolders } from '@/lib/solana/indexer'
 
 jest.mock('@/lib/config', () => ({
   config: {
@@ -123,5 +125,23 @@ describe('payoutSecurity', () => {
     if (!result.ok) {
       expect(result.reason).toMatch(/excluded protocol wallet/)
     }
+  })
+
+  it('filters winners to those holding the session token on-chain', async () => {
+    ;(getTokenHolders as jest.Mock).mockResolvedValueOnce([
+      {
+        wallet: '7F8RuECaT5GqVCzFkh89GXUo24hptgaQbJFVWZM1WL3z',
+        balance: 2_000_000_000_000,
+        isContract: false,
+      },
+    ])
+
+    const winners = await filterWinnersHoldingSessionToken([
+      { wallet: '7F8RuECaT5GqVCzFkh89GXUo24hptgaQbJFVWZM1WL3z', drawdownPct: -10, lossUsd: 5 },
+      { wallet: '5qmtDCvUreD8G59M5FosdpV8Gqdd3kFgdH1Vv7HKXUKq', drawdownPct: -20, lossUsd: 8 },
+    ])
+
+    expect(winners).toHaveLength(1)
+    expect(winners[0].wallet).toBe('7F8RuECaT5GqVCzFkh89GXUo24hptgaQbJFVWZM1WL3z')
   })
 })

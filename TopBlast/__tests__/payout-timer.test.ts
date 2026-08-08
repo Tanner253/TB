@@ -100,4 +100,25 @@ describe('Payout timer', () => {
     await ensureTimerStateSync()
     expect(isPayoutDue()).toBe(false)
   })
+
+  it('maybeExecuteDuePayout pauses when due with zero eligible holders', async () => {
+    await TimerState.findOneAndUpdate(
+      { key: 'payout_timer' },
+      {
+        tokenMint: 'So11111111111111111111111111111111111111112',
+        timerStatus: 'active',
+        lastPayoutTime: new Date(Date.now() - 121 * 60 * 1000),
+        currentCycle: 2,
+        isPayoutInProgress: false,
+      },
+      { upsert: true }
+    )
+    jest.resetModules()
+    const mod = await import('@/lib/payout/executor')
+    await mod.ensureTimerStateSync()
+
+    const result = await mod.maybeExecuteDuePayout(0)
+    expect(result?.data?.skipped).toBe(true)
+    expect(mod.getPayoutTimerInfo().timer_status).toBe('waiting')
+  })
 })
