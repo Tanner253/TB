@@ -7,8 +7,9 @@ import {
 } from '@solana/web3.js'
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
-  createAssociatedTokenAccountInstruction,
+  createAssociatedTokenAccountIdempotentInstruction,
   createTransferCheckedInstruction,
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token'
@@ -44,16 +45,20 @@ function toRawAmount(humanAmount: number, decimals: number): bigint {
   return BigInt(Math.floor(humanAmount * factor))
 }
 
-async function accountExists(rpcUrl: string, pubkey: PublicKey): Promise<boolean> {
+async function resolveTokenProgramForMint(rpcUrl: string, mintPk: PublicKey): Promise<PublicKey> {
   try {
     const result = await jsonRpcCall(rpcUrl, 'getAccountInfo', [
-      pubkey.toBase58(),
+      mintPk.toBase58(),
       { encoding: 'base64' },
     ])
-    return result?.value != null
+    const owner = result?.value?.owner as string | undefined
+    if (owner === TOKEN_2022_PROGRAM_ID.toBase58()) {
+      return TOKEN_2022_PROGRAM_ID
+    }
   } catch {
-    return false
+    /* default legacy SPL token */
   }
+  return TOKEN_PROGRAM_ID
 }
 
 /** Human-readable session token balance in the payout wallet (0 if no ATA). */
@@ -66,11 +71,12 @@ export async function getPayoutWalletTokenBalance(
 
   const rpcUrl = getSolanaRpcUrl()
   const mintPk = new PublicKey(mint)
+  const tokenProgramId = await resolveTokenProgramForMint(rpcUrl, mintPk)
   const ata = getAssociatedTokenAddressSync(
     mintPk,
     payoutKeypair.publicKey,
     false,
-    TOKEN_PROGRAM_ID,
+    tokenProgramId,
     ASSOCIATED_TOKEN_PROGRAM_ID
   )
 
@@ -128,35 +134,33 @@ export async function transferSessionToken(
 
   try {
     const rpcUrl = getSolanaRpcUrl()
+    const tokenProgramId = await resolveTokenProgramForMint(rpcUrl, mintPk)
     const sourceAta = getAssociatedTokenAddressSync(
       mintPk,
       payoutKeypair.publicKey,
       false,
-      TOKEN_PROGRAM_ID,
+      tokenProgramId,
       ASSOCIATED_TOKEN_PROGRAM_ID
     )
     const destAta = getAssociatedTokenAddressSync(
       mintPk,
       recipientPk,
       false,
-      TOKEN_PROGRAM_ID,
+      tokenProgramId,
       ASSOCIATED_TOKEN_PROGRAM_ID
     )
 
     const transaction = new Transaction()
-    const destExists = await accountExists(rpcUrl, destAta)
-    if (!destExists) {
-      transaction.add(
-        createAssociatedTokenAccountInstruction(
-          payoutKeypair.publicKey,
-          destAta,
-          recipientPk,
-          mintPk,
-          TOKEN_PROGRAM_ID,
-          ASSOCIATED_TOKEN_PROGRAM_ID
-        )
+    transaction.add(
+      createAssociatedTokenAccountIdempotentInstruction(
+        payoutKeypair.publicKey,
+        destAta,
+        recipientPk,
+        mintPk,
+        tokenProgramId,
+        ASSOCIATED_TOKEN_PROGRAM_ID
       )
-    }
+    )
 
     transaction.add(
       createTransferCheckedInstruction(
@@ -167,7 +171,7 @@ export async function transferSessionToken(
         rawAmount,
         decimals,
         [],
-        TOKEN_PROGRAM_ID
+        tokenProgramId
       )
     )
 
