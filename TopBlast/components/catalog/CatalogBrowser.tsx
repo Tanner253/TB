@@ -125,7 +125,7 @@ export function CatalogBrowser() {
         viewMode === 'grid' ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-52 rounded-xl border border-white/[0.06] bg-white/[0.02] animate-pulse" />
+              <div key={i} className="min-h-[14rem] rounded-xl border border-white/[0.06] bg-white/[0.02] animate-pulse" />
             ))}
           </div>
         ) : (
@@ -172,7 +172,7 @@ export function CatalogBrowser() {
       ) : null}
 
       {!loading && !error && filtered.length > 0 && viewMode === 'grid' ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-stretch">
           {filtered.map(tenant => (
             <CatalogCard key={tenant.slug} tenant={tenant} compact />
           ))}

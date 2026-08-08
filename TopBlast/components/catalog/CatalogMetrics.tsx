@@ -43,8 +43,6 @@ export function CatalogMetrics({ tenant, layout = 'grid' }: CatalogMetricsProps)
   const volume = formatCatalogVolume(tenant)
   const generated = formatCatalogGeneratedVolume(tenant)
 
-  if (!pot && !volume && !generated) return null
-
   if (layout === 'inline') {
     return (
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">

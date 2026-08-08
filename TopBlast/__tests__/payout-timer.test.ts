@@ -148,4 +148,17 @@ describe('Payout timer', () => {
     expect(mod.getPayoutTimerInfo().seconds_remaining).toBeNull()
     expect(mod.getPayoutTimerInfo().current_cycle).toBe(3)
   })
+
+  it('syncPayoutTimerWithPayableWinners starts timer from known eligible count', async () => {
+    const mod = await import('@/lib/payout/executor')
+    await mod.ensureTimerStateSync()
+    expect(mod.getPayoutTimerInfo().timer_status).toBe('waiting')
+
+    const result = await mod.syncPayoutTimerWithPayableWinners(3)
+    expect(result.timerEligibleCount).toBe(3)
+
+    const timer = mod.getPayoutTimerInfo()
+    expect(timer.timer_status).toBe('active')
+    expect(timer.seconds_remaining).toBeGreaterThan(0)
+  })
 })

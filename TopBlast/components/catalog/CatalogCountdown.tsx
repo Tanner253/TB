@@ -14,7 +14,7 @@ interface CatalogCountdownProps {
 }
 
 /** Fixed-height slot so catalog cards/rows stay aligned when limbo vs countdown. */
-const COUNTDOWN_SLOT_CLASS = 'min-h-[2.75rem] flex flex-col justify-center'
+const COUNTDOWN_SLOT_CLASS = 'min-h-[2.875rem] flex flex-col justify-center'
 
 export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownProps) {
   const serverSeconds = tenant.payout_seconds_remaining

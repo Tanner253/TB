@@ -15,38 +15,28 @@ interface CatalogCardProps {
 
 export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
   const isPlatform = tenant.isPlatformToken
+  const padding = compact ? 'p-4' : 'p-5'
+  const titleSize = compact ? 'text-xl' : 'text-2xl'
 
   return (
-    <Link href={tenantCatalogHref(tenant)}>
+    <Link href={tenantCatalogHref(tenant)} className="block h-full">
       <motion.article
         whileHover={{ y: compact ? -2 : -3 }}
-        className={`group h-full rounded-xl border transition-colors ${
-          compact ? 'p-4' : 'p-5'
-        } ${
+        className={`group flex h-full min-h-[15.5rem] flex-col rounded-xl border transition-colors ${padding} ${
           isPlatform
             ? 'border-sol-mint/25 bg-gradient-to-br from-sol-purple/10 to-transparent hover:border-sol-mint/40'
             : 'border-white/[0.08] bg-white/[0.02] hover:border-sol-mint/25 hover:bg-white/[0.04]'
         }`}
       >
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-              <h2
-                className={`font-bold tracking-tight truncate ${compact ? 'text-xl' : 'text-2xl'} ${
-                  isPlatform ? 'text-sol-mint' : 'text-white'
-                }`}
-              >
-                ${tenant.symbol}
-              </h2>
-              {isPlatform ? (
-                <span className="text-[0.65rem] uppercase tracking-wider px-2 py-0.5 rounded-full bg-sol-mint/10 text-sol-mint border border-sol-mint/25 shrink-0">
-                  Platform
-                </span>
-              ) : null}
-              <CatalogTimerBadge tenant={tenant} compact={compact} />
-            </div>
-            <p className="text-sm text-gray-500 font-mono">/{tenant.slug}</p>
-          </div>
+        <div className="flex items-start justify-between gap-2 shrink-0">
+          <h2
+            className={`min-w-0 flex-1 font-bold tracking-tight truncate ${titleSize} ${
+              isPlatform ? 'text-sol-mint' : 'text-white'
+            }`}
+            title={`$${tenant.symbol}`}
+          >
+            ${tenant.symbol}
+          </h2>
           <span
             className={`shrink-0 text-[0.65rem] uppercase tracking-wider px-2 py-1 rounded-full border ${
               tenant.status === 'active'
@@ -58,19 +48,42 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
           </span>
         </div>
 
-        {tenant.mint ? (
-          <p className="text-[0.7rem] font-mono text-gray-600 truncate mb-2 group-hover:text-gray-500 transition-colors">
-            {tenant.mint}
-          </p>
-        ) : null}
+        <div className="mt-1.5 min-h-[1.375rem] flex flex-wrap items-center gap-1.5 shrink-0">
+          {isPlatform ? (
+            <span className="text-[0.65rem] uppercase tracking-wider px-2 py-0.5 rounded-full bg-sol-mint/10 text-sol-mint border border-sol-mint/25 shrink-0">
+              Platform
+            </span>
+          ) : null}
+          <CatalogTimerBadge tenant={tenant} compact={compact} />
+        </div>
 
-        <CatalogCountdown tenant={tenant} compact={compact} />
-
-        <CatalogMetrics tenant={tenant} />
-
-        <p className="mt-3 text-xs font-medium text-sol-mint opacity-0 group-hover:opacity-100 transition-opacity">
-          View leaderboard →
+        <p
+          className="mt-1 text-sm text-gray-500 font-mono truncate shrink-0"
+          title={`/${tenant.slug}`}
+        >
+          /{tenant.slug}
         </p>
+
+        <p
+          className={`mt-1 font-mono text-gray-600 truncate shrink-0 ${
+            compact ? 'text-[0.65rem] min-h-[1rem]' : 'text-[0.7rem] min-h-[1.125rem]'
+          } ${tenant.mint ? 'group-hover:text-gray-500 transition-colors' : 'text-transparent select-none'}`}
+          title={tenant.mint ?? undefined}
+          aria-hidden={!tenant.mint}
+        >
+          {tenant.mint ?? 'mint-placeholder'}
+        </p>
+
+        <div className="shrink-0">
+          <CatalogCountdown tenant={tenant} compact={compact} />
+        </div>
+
+        <div className="mt-auto pt-3 shrink-0">
+          <CatalogMetrics tenant={tenant} />
+          <p className="mt-3 min-h-[1rem] text-xs font-medium text-sol-mint opacity-0 group-hover:opacity-100 transition-opacity">
+            View leaderboard →
+          </p>
+        </div>
       </motion.article>
     </Link>
   )

@@ -27,15 +27,15 @@ export function CatalogTimerBadge({ tenant, compact = false }: CatalogTimerBadge
 
   return (
     <span
-      className={`inline-flex items-center gap-1 shrink-0 rounded-full border border-amber-500/25 bg-amber-500/10 text-amber-200/90 ${
+      className={`inline-flex max-w-full items-center gap-1 truncate rounded-full border border-amber-500/25 bg-amber-500/10 text-amber-200/90 ${
         compact
           ? 'text-[0.6rem] uppercase tracking-wider px-1.5 py-0.5'
           : 'text-[0.65rem] uppercase tracking-wider px-2 py-1'
       }`}
       title="Payout timer paused until an eligible underwater holder qualifies"
     >
-      <PauseIcon />
-      <span>{catalogPayoutTimerLabel(tenant)}</span>
+      <PauseIcon className="shrink-0" />
+      <span className="truncate">{catalogPayoutTimerLabel(tenant)}</span>
     </span>
   )
 }

@@ -1092,7 +1092,7 @@ export async function saveRankingsToDb(): Promise<void> {
     )
 
     const { syncPayoutTimerWithPayableWinners } = await import('@/lib/payout/executor')
-    await syncPayoutTimerWithPayableWinners()
+    await syncPayoutTimerWithPayableWinners(eligibleCount)
     
     console.log(`[HolderService] Rankings saved to DB: ${rankings.length} entries, ${eligibleCount} eligible`)
   } catch (error: any) {

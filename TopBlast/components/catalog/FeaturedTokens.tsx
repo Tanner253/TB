@@ -35,9 +35,9 @@ export function FeaturedTokens({ limit = 3 }: FeaturedTokensProps) {
       </div>
 
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-3 items-stretch">
           {Array.from({ length: limit }).map((_, i) => (
-            <div key={i} className="h-40 rounded-xl border border-white/[0.06] bg-white/[0.02] animate-pulse" />
+            <div key={i} className="min-h-[15.5rem] rounded-xl border border-white/[0.06] bg-white/[0.02] animate-pulse" />
           ))}
         </div>
       ) : null}
@@ -59,11 +59,12 @@ export function FeaturedTokens({ limit = 3 }: FeaturedTokensProps) {
           initial={reduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4 }}
-          className="grid gap-4 md:grid-cols-3"
+          className="grid gap-4 md:grid-cols-3 items-stretch"
         >
           {featured.map((tenant, i) => (
             <motion.div
               key={tenant.slug}
+              className="h-full"
               initial={reduceMotion ? false : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35, delay: i * 0.06 }}

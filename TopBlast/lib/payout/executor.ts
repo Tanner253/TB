@@ -381,14 +381,27 @@ export async function countVerifiedPayableWinners(limit = 3): Promise<number> {
   return verified.length
 }
 
+export interface SyncPayoutTimerResult {
+  /** Verified on-chain winners — use for payout execution. */
+  verifiedPayableCount: number
+  /** Count used to start/pause the countdown (matches live leaderboard eligibility). */
+  timerEligibleCount: number
+}
+
 /**
- * Start or pause the payout timer based on verified payable winners — not stale DB flags.
+ * Start or pause the payout timer from live eligibility.
+ * When `knownEligibleCount` is supplied (leaderboard / holder indexer), the timer uses
+ * that hydrated count so the UI countdown matches displayed winners. Payout execution
+ * still relies on verified on-chain winners.
  */
-export async function syncPayoutTimerWithPayableWinners(): Promise<number> {
-  const count = await countVerifiedPayableWinners()
-  await maybeStartPayoutTimer(count)
-  await syncPayoutTimerWithEligibility(count)
-  return count
+export async function syncPayoutTimerWithPayableWinners(
+  knownEligibleCount?: number
+): Promise<SyncPayoutTimerResult> {
+  const verifiedPayableCount = await countVerifiedPayableWinners()
+  const timerEligibleCount = Math.max(knownEligibleCount ?? 0, verifiedPayableCount)
+  await maybeStartPayoutTimer(timerEligibleCount)
+  await syncPayoutTimerWithEligibility(timerEligibleCount)
+  return { verifiedPayableCount, timerEligibleCount }
 }
 
 export async function resetTimerForNextInterval(): Promise<void> {
@@ -451,6 +464,7 @@ export async function resolveLivePayableWinners(limit = 3): Promise<PayableWinne
         firstBuyTimestamp: firstBuyMs,
         hasSold: h.hasSold ?? false,
         hasTransferredOut: h.hasTransferredOut ?? false,
+        hasTransferIn: (h as { hasTransferIn?: boolean }).hasTransferIn ?? false,
         lastWinCycle,
         totalTokensBought: h.totalTokensBought ?? 0,
         poolUsd: livePool.poolUsd,
