@@ -18,6 +18,7 @@ interface PayoutEntry {
   wallet: string
   wallet_display: string
   amount_eth: string
+  amount_unit: string
   amount_usd: string
   drawdown_pct: string | null
   loss_usd: string | null
@@ -37,8 +38,11 @@ interface PayoutCycle {
   token_mint_explorer_url: string | null
   timestamp: string
   payouts: PayoutEntry[]
-  total_eth: string
   total_usd: string
+  total_usd_formatted: string
+  total_sol: string
+  total_token_amount: string | null
+  total_token_symbol: string | null
   success_count: number
   failed_count: number
   status: 'success' | 'failed' | 'partial'
@@ -48,6 +52,8 @@ interface HistoryStats {
   total_cycles: number
   total_payouts: number
   total_distributed_eth: string
+  total_distributed_usd: string
+  total_distributed_usd_formatted: string
   failed_payouts: number
   sessions: number
 }
@@ -57,6 +63,27 @@ interface HistoryData {
   token_symbol: string
   stats: HistoryStats
   cycles: PayoutCycle[]
+}
+
+function formatCycleTotal(cycle: PayoutCycle): string {
+  const parts: string[] = []
+  if (cycle.total_token_amount && cycle.total_token_symbol) {
+    parts.push(`${cycle.total_token_amount} ${cycle.total_token_symbol}`)
+  }
+  if (Number.parseFloat(cycle.total_sol.replace(/,/g, '')) > 0) {
+    parts.push(`${cycle.total_sol} SOL`)
+  }
+  return parts.length > 0 ? parts.join(' + ') : cycle.total_usd_formatted
+}
+
+function formatCycleTotalShort(cycle: PayoutCycle): string {
+  if (cycle.total_token_amount && cycle.total_token_symbol) {
+    return `${cycle.total_token_amount} ${cycle.total_token_symbol}`
+  }
+  if (Number.parseFloat(cycle.total_sol.replace(/,/g, '')) > 0) {
+    return `${cycle.total_sol} SOL`
+  }
+  return cycle.total_usd_formatted
 }
 
 function getRankBadge(rank: number, type: string) {
@@ -208,11 +235,11 @@ export default function HistoryPage() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-3xl font-bold mb-2">Payout History <span className="text-rh-green text-lg font-normal">· SOL</span></h1>
+          <h1 className="text-3xl font-bold mb-2">Payout History</h1>
           <p className="text-gray-400">
             All sessions · {data?.stats.sessions ?? 0} token{data?.stats.sessions === 1 ? '' : 's'} ·{' '}
             {data?.stats.total_cycles || 0} cycles · {data?.stats.total_payouts || 0} successful ·{' '}
-            {data?.stats.total_distributed_eth || '0'} SOL distributed
+            {data?.stats.total_distributed_usd_formatted || '$0'} distributed
             {data?.network === 'devnet' && (
               <span className="ml-2 text-amber-400">(Devnet)</span>
             )}
@@ -244,7 +271,7 @@ export default function HistoryPage() {
           </div>
           <div className="bg-white/5 border border-white/10 rounded-xl p-4">
             <div className="text-sm text-gray-400">Distributed</div>
-            <div className="text-2xl font-bold text-rh-lime">{data?.stats.total_distributed_eth || '0'} SOL</div>
+            <div className="text-2xl font-bold text-rh-lime">{data?.stats.total_distributed_usd_formatted || '$0'}</div>
           </div>
         </motion.div>
 
@@ -288,8 +315,8 @@ export default function HistoryPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-sm text-gray-400">Total Paid</div>
-                    <div className="text-lg font-bold text-white">{cycle.total_eth} SOL</div>
-                    <div className="text-xs text-gray-500">${cycle.total_usd}</div>
+                    <div className="text-lg font-bold text-white">{cycle.total_usd_formatted}</div>
+                    <div className="text-xs text-gray-500">{formatCycleTotal(cycle)}</div>
                   </div>
                 </div>
 
@@ -342,8 +369,8 @@ export default function HistoryPage() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className={`text-xl font-bold ${payout.status === 'success' ? 'text-rh-green' : 'text-red-400 line-through'}`}>
-                              {payout.amount_eth} SOL
+                            <div className={`text-xl font-bold tabular-nums ${payout.status === 'success' ? 'text-rh-green' : 'text-red-400 line-through'}`}>
+                              {payout.amount_eth} {payout.amount_unit}
                             </div>
                             <div className="text-sm text-gray-500 mt-1">${payout.amount_usd}</div>
                           </div>
@@ -372,7 +399,9 @@ export default function HistoryPage() {
                         <span className="text-gray-400">
                           {cycle.success_count} successful, {cycle.failed_count} failed
                         </span>
-                        <span className="text-xl font-bold text-rh-green">{cycle.total_eth} SOL</span>
+                        <span className="text-xl font-bold text-rh-green tabular-nums">
+                          {formatCycleTotalShort(cycle)}
+                        </span>
                       </div>
                     </div>
                   </div>

@@ -83,6 +83,51 @@ describe('fetchAppPayoutHistory', () => {
     expect(history.cycles[0].token_mint).toBe('PepeMint1111111111111111111111111111111111')
     expect(history.cycles[0].token_mint_explorer_url).toContain('PepeMint1111111111111111111111111111111111')
     expect(history.cycles[0].session_slug).toBe('pepe')
+    expect(history.cycles[0].payouts[0].amount_unit).toBe('SOL')
+    expect(history.cycles[0].payouts[1].amount_unit).toBe('SOL')
+  })
+
+  it('labels native token winner payouts with the session symbol', async () => {
+    await Payout.insertMany([
+      {
+        tenantSlug: '_legacy',
+        tokenMint: 'MintLegacy1111111111111111111111111111111111',
+        tokenSymbol: 'TBLAST',
+        cycle: 9,
+        rank: 1,
+        wallet: 'Winner1111111111111111111111111111111111111',
+        amount: 7.32,
+        amountTokens: 2_729_024.507339,
+        drawdownPct: -41.55,
+        lossUsd: 12,
+        txHash: 'txhash1111111111111111111111111111111111111111',
+        status: 'success',
+      },
+      {
+        tenantSlug: '_legacy',
+        tokenMint: 'MintLegacy1111111111111111111111111111111111111',
+        tokenSymbol: 'TBLAST',
+        cycle: 9,
+        rank: 0,
+        wallet: 'Dev111111111111111111111111111111111111111',
+        amount: 0.26,
+        amountTokens: 0.003422,
+        drawdownPct: 0,
+        lossUsd: 0,
+        txHash: 'txhash2222222222222222222222222222222222222222',
+        status: 'success',
+      },
+    ])
+
+    const history = await fetchAppPayoutHistory(10)
+    const cycle = history.cycles.find(c => c.cycle === 9)
+    expect(cycle).toBeDefined()
+    expect(cycle!.payouts.find(p => p.rank === 1)?.amount_unit).toBe('TBLAST')
+    expect(cycle!.payouts.find(p => p.rank === 1)?.amount_eth).toBe('2,729,025')
+    expect(cycle!.payouts.find(p => p.rank === 0)?.amount_unit).toBe('SOL')
+    expect(cycle!.total_token_amount).toBe('2,729,025')
+    expect(cycle!.total_token_symbol).toBe('TBLAST')
+    expect(cycle!.total_usd_formatted).toBe('$7.58')
   })
 
   it('falls back to tenant mint for legacy payouts without tokenMint', async () => {

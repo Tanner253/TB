@@ -2,6 +2,13 @@ import connectDB from '@/lib/db'
 import { Payout, Tenant } from '@/lib/db/models'
 import { getTokenMintExplorerUrl, getTxExplorerUrl } from '@/lib/solana/explorer'
 import {
+  formatHistoryUsd,
+  formatHistoryUsdLabel,
+  formatPayoutAmount,
+  resolvePayoutAmountAsset,
+  type PayoutAmountAsset,
+} from '@/lib/payout/historyFormat'
+import {
   getPlatformTenantSlug,
   getPlatformTokenMint,
   getPlatformTokenSymbol,
@@ -14,6 +21,8 @@ export interface PayoutHistoryEntry {
   wallet: string
   wallet_display: string
   amount_eth: string
+  amount_unit: string
+  amount_asset: PayoutAmountAsset
   amount_usd: string
   drawdown_pct: string | null
   loss_usd: string | null
@@ -35,6 +44,10 @@ export interface PayoutHistoryCycle {
   payouts: PayoutHistoryEntry[]
   total_eth: string
   total_usd: string
+  total_usd_formatted: string
+  total_sol: string
+  total_token_amount: string | null
+  total_token_symbol: string | null
   success_count: number
   failed_count: number
   status: 'success' | 'failed' | 'partial'
@@ -47,6 +60,8 @@ export interface AppPayoutHistory {
     total_cycles: number
     total_payouts: number
     total_distributed_eth: string
+    total_distributed_usd: string
+    total_distributed_usd_formatted: string
     failed_payouts: number
     sessions: number
   }
@@ -122,8 +137,9 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
     token_mint: string | null
     timestamp: Date
     payouts: PayoutHistoryEntry[]
-    total_eth: number
     total_usd: number
+    total_sol: number
+    total_token_amount: number
     success_count: number
     failed_count: number
   }>()
@@ -143,8 +159,9 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
         token_mint: tokenMeta.mint,
         timestamp: p.createdAt,
         payouts: [],
-        total_eth: 0,
         total_usd: 0,
+        total_sol: 0,
+        total_token_amount: 0,
         success_count: 0,
         failed_count: 0,
       })
@@ -161,13 +178,20 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
       cycle.token_symbol = tokenMeta.symbol
     }
 
+    const amountTokens = p.amountTokens || 0
+    const amountUsd = p.amount || 0
+    const amountAsset = resolvePayoutAmountAsset(p.rank, amountTokens, amountUsd)
+    const amountUnit = amountAsset === 'sol' ? 'SOL' : tokenMeta.symbol
+
     cycle.payouts.push({
       rank: p.rank,
       type: p.rank === 0 ? 'dev_fee' : 'winner',
       wallet: p.wallet,
       wallet_display: `${p.wallet.slice(0, 6)}...${p.wallet.slice(-4)}`,
-      amount_eth: (p.amountTokens || 0).toFixed(6),
-      amount_usd: (p.amount || 0).toFixed(2),
+      amount_eth: formatPayoutAmount(amountTokens, amountAsset),
+      amount_unit: amountUnit,
+      amount_asset: amountAsset,
+      amount_usd: formatHistoryUsd(amountUsd),
       drawdown_pct: p.rank > 0 ? p.drawdownPct?.toFixed(2) ?? null : null,
       loss_usd: p.rank > 0 ? p.lossUsd?.toFixed(2) ?? null : null,
       tx_hash: p.txHash,
@@ -177,8 +201,12 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
     })
 
     if (p.status === 'success') {
-      cycle.total_eth += p.amountTokens || 0
-      cycle.total_usd += p.amount || 0
+      cycle.total_usd += amountUsd
+      if (amountAsset === 'sol') {
+        cycle.total_sol += amountTokens
+      } else {
+        cycle.total_token_amount += amountTokens
+      }
       cycle.success_count++
     } else {
       cycle.failed_count++
@@ -196,8 +224,13 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
       token_mint_explorer_url: getTokenMintExplorerUrl(c.token_mint),
       timestamp: new Date(c.timestamp).toISOString(),
       payouts: c.payouts.sort((a, b) => a.rank - b.rank),
-      total_eth: c.total_eth.toFixed(6),
-      total_usd: c.total_usd.toFixed(2),
+      total_eth: c.total_sol.toFixed(6),
+      total_usd: formatHistoryUsd(c.total_usd),
+      total_usd_formatted: formatHistoryUsdLabel(c.total_usd),
+      total_sol: formatPayoutAmount(c.total_sol, 'sol'),
+      total_token_amount:
+        c.total_token_amount > 0 ? formatPayoutAmount(c.total_token_amount, 'token') : null,
+      total_token_symbol: c.total_token_amount > 0 ? c.token_symbol : null,
       success_count: c.success_count,
       failed_count: c.failed_count,
       status:
@@ -208,7 +241,11 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
 
   const allPayouts = await Payout.find().lean()
   const successfulPayouts = allPayouts.filter(p => p.status === 'success')
-  const totalDistributed = successfulPayouts.reduce((sum, p) => sum + (p.amountTokens || 0), 0)
+  const totalDistributedUsd = successfulPayouts.reduce((sum, p) => sum + (p.amount || 0), 0)
+  const totalDistributedSol = successfulPayouts.reduce((sum, p) => {
+    const asset = resolvePayoutAmountAsset(p.rank, p.amountTokens || 0, p.amount || 0)
+    return asset === 'sol' ? sum + (p.amountTokens || 0) : sum
+  }, 0)
   const uniqueCycles = new Set(allPayouts.map(p => `${p.tenantSlug || '_legacy'}:${p.cycle}`))
   const uniqueSessions = new Set(allPayouts.map(p => p.tenantSlug || '_legacy'))
 
@@ -218,7 +255,9 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
     stats: {
       total_cycles: uniqueCycles.size,
       total_payouts: successfulPayouts.length,
-      total_distributed_eth: totalDistributed.toFixed(6),
+      total_distributed_eth: totalDistributedSol.toFixed(6),
+      total_distributed_usd: formatHistoryUsd(totalDistributedUsd),
+      total_distributed_usd_formatted: formatHistoryUsdLabel(totalDistributedUsd),
       failed_payouts: allPayouts.length - successfulPayouts.length,
       sessions: uniqueSessions.size,
     },
