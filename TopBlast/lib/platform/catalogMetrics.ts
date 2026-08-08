@@ -2,7 +2,7 @@ import 'server-only'
 
 import connectDB from '@/lib/db'
 import { Payout, PayoutVolumeSwap, TimerState } from '@/lib/db/models'
-import { getSolPrice, formatUsd } from '@/lib/solana/price'
+import { getSolPrice, formatUsd, formatCompactUsd, formatCompactSol } from '@/lib/solana/price'
 import { getWalletSolBalance } from '@/lib/solana/transfer'
 import { buildLivePoolBalance } from '@/lib/payout/poolBalance'
 import { computePayoutSecondsRemaining } from '@/lib/payout/timerMath'
@@ -175,7 +175,8 @@ export async function enrichCatalogTenants(
       total_distributed_usd_formatted: formatUsd(volume.total_usd),
       total_generated_volume_sol: generated.total_sol,
       total_generated_volume_usd: generated.total_usd,
-      total_generated_volume_usd_formatted: formatUsd(generated.total_usd),
+      total_generated_volume_usd_formatted: formatCompactUsd(generated.total_usd),
+      total_generated_volume_sol_formatted: formatCompactSol(generated.total_sol),
       payout_timer_status: payoutTimerStatus,
       payout_seconds_remaining: payoutSecondsRemaining,
       payout_current_cycle: timer?.currentCycle ?? 0,

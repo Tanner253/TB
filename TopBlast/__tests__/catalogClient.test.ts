@@ -37,6 +37,22 @@ const sample: PublicTenantSummary[] = [
   },
 ]
 
+describe('formatCompactUsd', () => {
+  const { formatCompactUsd, formatCompactSol } = require('@/lib/solana/price')
+
+  it('uses K/M with one decimal for large gen volume', () => {
+    expect(formatCompactUsd(1_500)).toBe('$1.5K')
+    expect(formatCompactUsd(2_300_000)).toBe('$2.3M')
+    expect(formatCompactUsd(842)).toBe('$842')
+  })
+
+  it('formats compact SOL for catalog gen volume', () => {
+    expect(formatCompactSol(1_200)).toBe('1.2K SOL')
+    expect(formatCompactSol(0.0523)).toBe('0.05 SOL')
+    expect(formatCompactSol(0)).toBe('0 SOL')
+  })
+})
+
 describe('catalogClient', () => {
   it('builds tenant leaderboard href', () => {
     expect(tenantCatalogHref(sample[0])).toBe('/alpha/leaderboard')

@@ -37,12 +37,8 @@ function PotCell({ tenant }: { tenant: PublicTenantSummary }) {
 function GeneratedVolumeCell({ tenant }: { tenant: PublicTenantSummary }) {
   return (
     <MetricValue
-      primary={tenant.total_generated_volume_usd_formatted ?? '$0.00'}
-      secondary={
-        tenant.total_generated_volume_sol != null
-          ? `${tenant.total_generated_volume_sol.toFixed(4)} SOL`
-          : '0.0000 SOL'
-      }
+      primary={tenant.total_generated_volume_usd_formatted ?? '$0'}
+      secondary={tenant.total_generated_volume_sol_formatted ?? '0 SOL'}
       primaryClassName="text-purple-300/90"
     />
   )

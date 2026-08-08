@@ -80,12 +80,8 @@ export function CatalogMetrics({ tenant, layout = 'grid' }: CatalogMetricsProps)
       <MetricCell
         label="Gen volume"
         title="Lifetime SOL spent buying this token on-chart during payout cycles (Jupiter swaps before winner airdrops)"
-        primary={tenant.total_generated_volume_usd_formatted ?? '$0.00'}
-        secondary={
-          tenant.total_generated_volume_sol != null
-            ? `${tenant.total_generated_volume_sol.toFixed(4)} SOL`
-            : '0.0000 SOL'
-        }
+        primary={tenant.total_generated_volume_usd_formatted ?? '$0'}
+        secondary={tenant.total_generated_volume_sol_formatted ?? '0 SOL'}
         primaryClassName="text-purple-300/90"
       />
       <MetricCell

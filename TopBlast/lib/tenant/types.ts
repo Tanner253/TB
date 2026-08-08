@@ -69,6 +69,7 @@ export interface PublicTenantSummary {
   total_generated_volume_sol?: number | null
   total_generated_volume_usd?: number | null
   total_generated_volume_usd_formatted?: string | null
+  total_generated_volume_sol_formatted?: string | null
   /** Payout countdown state from TimerState (waiting = paused for eligible losers). */
   payout_timer_status?: 'waiting' | 'active'
   /** Seconds until next cycle when timer is active. */

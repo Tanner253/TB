@@ -79,6 +79,48 @@ export function formatUsd(amount: number): string {
   return `$${amount.toFixed(2)}`
 }
 
+/** One decimal for K/M/B; whole dollars below 1K — for catalog gen volume etc. */
+export function formatCompactUsd(amount: number): string {
+  if (!Number.isFinite(amount) || amount <= 0) return '$0'
+  if (amount < 1) return '<$1'
+
+  if (amount >= 1_000_000_000) {
+    return `$${formatCompactUnit(amount / 1_000_000_000)}B`
+  }
+  if (amount >= 1_000_000) {
+    return `$${formatCompactUnit(amount / 1_000_000)}M`
+  }
+  if (amount >= 1_000) {
+    return `$${formatCompactUnit(amount / 1_000)}K`
+  }
+
+  return `$${Math.round(amount).toLocaleString('en-US')}`
+}
+
+/** Compact SOL for catalog gen volume — K/M above 1K, coarse below. */
+export function formatCompactSol(sol: number): string {
+  if (!Number.isFinite(sol) || sol <= 0) return '0 SOL'
+
+  if (sol >= 1_000_000) {
+    return `${formatCompactUnit(sol / 1_000_000)}M SOL`
+  }
+  if (sol >= 1_000) {
+    return `${formatCompactUnit(sol / 1_000)}K SOL`
+  }
+  if (sol >= 1) {
+    return `${formatCompactUnit(sol)} SOL`
+  }
+  if (sol >= 0.01) {
+    return `${sol.toFixed(2)} SOL`
+  }
+  return '<0.01 SOL'
+}
+
+function formatCompactUnit(value: number): string {
+  const rounded = Math.round(value * 10) / 10
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
+}
+
 export function formatTokens(amount: number): string {
   if (amount >= 1_000_000_000) {
     return `${(amount / 1_000_000_000).toFixed(2)}B`

@@ -65,8 +65,11 @@ export function formatCatalogVolume(tenant: PublicTenantSummary): string | null 
 }
 
 export function formatCatalogGeneratedVolume(tenant: PublicTenantSummary): string | null {
-  if (tenant.total_generated_volume_usd_formatted != null && tenant.total_generated_volume_sol != null) {
-    return `${tenant.total_generated_volume_usd_formatted} · ${tenant.total_generated_volume_sol.toFixed(4)} SOL`
+  if (
+    tenant.total_generated_volume_usd_formatted != null &&
+    tenant.total_generated_volume_sol_formatted != null
+  ) {
+    return `${tenant.total_generated_volume_usd_formatted} · ${tenant.total_generated_volume_sol_formatted}`
   }
   return null
 }
