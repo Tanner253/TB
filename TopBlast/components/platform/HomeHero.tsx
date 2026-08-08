@@ -9,7 +9,7 @@ export function HomeHero() {
   const motionProps = reduceMotion ? {} : fadeUp(0)
 
   return (
-    <motion.header {...motionProps} className="mb-14 md:mb-16 max-w-2xl">
+    <motion.header {...motionProps} className="mb-14 md:mb-16 max-w-4xl">
       <h1 className="text-3xl sm:text-4xl md:text-[2.75rem] font-bold tracking-tight text-white leading-[1.08] text-balance">
         Creator fees become{' '}
         <span className="gradient-text-accent">on-chart volume</span>

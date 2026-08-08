@@ -44,7 +44,7 @@ export function HomeSection({
           {label}
         </p>
         <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white">{title}</h2>
-        {description ? <p className="text-sm text-gray-500 mt-2 max-w-xl leading-relaxed">{description}</p> : null}
+        {description ? <p className="text-sm text-gray-500 mt-2 max-w-3xl leading-relaxed">{description}</p> : null}
       </div>
       {children}
     </motion.section>

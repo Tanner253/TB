@@ -30,44 +30,6 @@ const TABS: { id: FlowTab; label: string; hint: string }[] = [
 
 const EASE = [0.22, 1, 0.36, 1] as const
 
-function StepTimeline({ steps }: { steps: readonly { title: string; body: string }[] }) {
-  const reduceMotion = useReducedMotion()
-
-  return (
-    <ol className="space-y-0 max-w-xl">
-      {steps.map((step, index) => (
-        <motion.li
-          key={step.title}
-          initial={reduceMotion ? false : { opacity: 0, x: -8 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.35, delay: index * 0.08, ease: EASE }}
-          className="relative pl-9 pb-7 last:pb-0"
-        >
-          {index < steps.length - 1 ? (
-            <motion.span
-              className="absolute left-[13px] top-7 bottom-0 w-px origin-top bg-gradient-to-b from-sol-mint/35 to-white/5"
-              initial={reduceMotion ? false : { scaleY: 0 }}
-              animate={{ scaleY: 1 }}
-              transition={{ duration: 0.4, delay: index * 0.08 + 0.15, ease: EASE }}
-              aria-hidden
-            />
-          ) : null}
-          <motion.span
-            className="absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-full border border-white/12 bg-[#0a0a0a] text-[11px] font-mono text-gray-500"
-            initial={reduceMotion ? false : { borderColor: 'rgba(255,255,255,0.12)' }}
-            animate={{ borderColor: 'rgba(20, 241, 149, 0.35)', color: 'rgba(20, 241, 149, 0.85)' }}
-            transition={{ duration: 0.35, delay: index * 0.08 + 0.1, ease: EASE }}
-          >
-            {index + 1}
-          </motion.span>
-          <p className="text-sm font-medium text-white pt-0.5">{step.title}</p>
-          <p className="text-sm text-gray-500 mt-1 leading-relaxed">{step.body}</p>
-        </motion.li>
-      ))}
-    </ol>
-  )
-}
-
 function DeployersTab() {
   const { title, subtitle, cashback, topblast } = HOME_VS_CASHBACK
   const reduceMotion = useReducedMotion()
@@ -126,15 +88,15 @@ function DeployersTab() {
 function GetStartedTab() {
   return (
     <div className="space-y-5">
-      <p className="text-sm text-gray-400 max-w-xl leading-relaxed">
+      <p className="text-sm text-gray-400 max-w-3xl leading-relaxed">
         No custom contract. Point creator fees at TopBlast and the protocol handles rankings, buybacks, and
         airdrops.
       </p>
-      <ol className="space-y-0 max-w-xl">
+      <ol className="grid gap-4 sm:grid-cols-2">
         {HOME_LAUNCH_STEPS.map((step, index) => (
           <li
             key={step.title}
-            className="group flex gap-4 pb-5 last:pb-0 border-b border-white/[0.04] last:border-0 mb-5 last:mb-0"
+            className="group flex gap-4 rounded-lg border border-white/[0.06] bg-black/20 p-4 h-full"
           >
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/50 text-xs font-mono text-gray-500 transition-colors group-hover:border-sol-mint/35 group-hover:text-sol-mint">
               {index + 1}
@@ -159,9 +121,22 @@ function GetStartedTab() {
 function SessionTab() {
   return (
     <div className="space-y-6">
-      <p className="text-sm text-gray-400 max-w-xl leading-relaxed">{CHART_VOLUME_ENGINE.intro}</p>
-      <StepTimeline steps={CHART_VOLUME_ENGINE.steps} />
-      <p className="text-xs text-gray-600 border-t border-white/[0.06] pt-4 max-w-xl">
+      <p className="text-sm text-gray-400 max-w-3xl leading-relaxed">{CHART_VOLUME_ENGINE.intro}</p>
+      <div className="grid gap-4 md:grid-cols-3">
+        {CHART_VOLUME_ENGINE.steps.map((step, index) => (
+          <article
+            key={step.title}
+            className="rounded-lg border border-white/[0.08] bg-black/25 p-4 h-full"
+          >
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-sol-mint/30 bg-sol-mint/5 text-[11px] font-mono text-sol-mint mb-3">
+              {index + 1}
+            </span>
+            <p className="text-sm font-medium text-white">{step.title}</p>
+            <p className="text-sm text-gray-500 mt-1 leading-relaxed">{step.body}</p>
+          </article>
+        ))}
+      </div>
+      <p className="text-xs text-gray-600 border-t border-white/[0.06] pt-4 max-w-3xl">
         {DEV_FEE_PCT}% of each cycle goes to the platform treasury — separate from the winner buyback.
         See the <span className="text-gray-500">Protocol fee</span> tab.
       </p>
@@ -171,7 +146,7 @@ function SessionTab() {
 
 function PlatformTab() {
   return (
-    <div className="space-y-5 max-w-xl">
+    <div className="space-y-5 max-w-3xl">
       <p className="text-sm text-gray-400 leading-relaxed">
         Every listing pays a flat {DEV_FEE_PCT}% protocol fee from the payout pool each cycle. This is
         independent of the Jupiter buyback that funds holder rewards.
@@ -231,7 +206,7 @@ function CompareTab() {
           ))}
         </tbody>
       </table>
-      <p className="text-xs text-gray-600 mt-5 max-w-xl leading-relaxed">{CHART_VOLUME_ENGINE.footer}</p>
+      <p className="text-xs text-gray-600 mt-5 max-w-3xl leading-relaxed">{CHART_VOLUME_ENGINE.footer}</p>
     </div>
   )
 }
