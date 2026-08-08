@@ -60,7 +60,7 @@ export function WhoGetsPaidRules({ variant = 'homepage', slug, className = '' }:
           of the winner pool. Each cycle: pool SOL market-buys your session token on-chart, then tokens airdrop to winners automatically.
         </p>
         <p className="text-xs text-gray-500">
-          The countdown timer stays in &quot;launch limbo&quot; until the first eligible holder appears — holding tokens
+          The countdown timer stays in &quot;listing limbo&quot; until the first eligible holder appears — holding tokens
           alone does not start a payout cycle.
         </p>
       </div>

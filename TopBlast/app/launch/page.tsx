@@ -55,12 +55,12 @@ export default function LaunchPage() {
       })
       const json = await res.json()
       if (!json.success) {
-        throw new Error(json.error || 'Launch failed')
+        throw new Error(json.error || 'Listing failed')
       }
       setForm(f => ({ ...f, payoutWalletPrivateKey: '' }))
       router.push(`/${json.data.slug}/leaderboard`)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Launch failed')
+      setError(err instanceof Error ? err.message : 'Listing failed')
     } finally {
       setSubmitting(false)
     }
@@ -73,7 +73,7 @@ export default function LaunchPage() {
       <main className="max-w-3xl mx-auto px-6 py-10 md:py-12">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           <header className="mb-8">
-            <p className="text-sol-mint text-xs font-semibold uppercase tracking-[0.14em] mb-2">Self-serve launch</p>
+            <p className="text-sol-mint text-xs font-semibold uppercase tracking-[0.14em] mb-2">Self-serve listing</p>
             <h1 className="text-3xl font-bold mb-2">{DEV_HERO.cta}</h1>
             <p className="text-gray-400 text-sm md:text-base max-w-2xl">{DEV_HERO.subhead}</p>
           </header>

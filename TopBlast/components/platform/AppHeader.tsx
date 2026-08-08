@@ -170,7 +170,7 @@ export function AppHeader({ active, trailing }: AppHeaderProps) {
                 active === 'launch' ? 'ring-2 ring-sol-mint/50' : ''
               }`}
             >
-              Launch
+              List
             </Link>
             <button
               type="button"

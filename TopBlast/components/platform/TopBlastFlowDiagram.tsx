@@ -24,7 +24,7 @@ type FlowTab = 'deployers' | 'volume' | 'getstarted' | 'session' | 'platform' | 
 const TABS: { id: FlowTab; label: string; hint: string }[] = [
   { id: 'deployers', label: 'Why not cashback', hint: 'Skip the cashback bot' },
   { id: 'volume', label: 'Chart volume', hint: 'Buys on your mint' },
-  { id: 'getstarted', label: 'Get started', hint: 'Launch in four steps' },
+  { id: 'getstarted', label: 'Get started', hint: 'List in four steps' },
   { id: 'session', label: 'Payout cycle', hint: 'Timer & splits' },
   { id: 'platform', label: 'Protocol fee', hint: 'Platform flywheel' },
   { id: 'compare', label: 'Why TopBlast', hint: 'vs cashback & dev tax' },
@@ -193,7 +193,7 @@ function GetStartedTab() {
         href="/launch"
         className="inline-block text-sm font-medium text-sol-mint hover:text-white transition-colors"
       >
-        Open launch page →
+        Open list page →
       </Link>
     </div>
   )
@@ -203,7 +203,7 @@ function SessionTab() {
   return (
     <div className="space-y-6">
       <p className="text-sm text-gray-400 max-w-3xl leading-relaxed">
-        Each listing runs on the payout schedule you pick at launch. When the first eligible underwater holder
+        Each listing runs on the payout schedule you pick when listing. When the first eligible underwater holder
         appears, the timer starts — no manual trigger. See the{' '}
         <span className="text-gray-300">Chart volume</span> tab for how Jupiter buys feed your chart each cycle.
       </p>

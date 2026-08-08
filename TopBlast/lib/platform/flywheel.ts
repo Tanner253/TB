@@ -31,7 +31,7 @@ export const FLYWHEEL_INTRO =
   'Every SaaS listing pays a flat 12% protocol fee in SOL on each payout cycle. Fees route to the TopBlast platform treasury — half funds platform-token buyback, half funds ops and growth.'
 
 export const FLYWHEEL_STEPS = [
-  'Projects launch loss-mining via self-serve TopBlast',
+  'Projects list tokens for loss-mining via self-serve TopBlast',
   FLYWHEEL_TREE.root,
   FLYWHEEL_TREE.buyback,
   FLYWHEEL_TREE.burn,

@@ -81,7 +81,7 @@ export function FlywheelTokenomics({ compact = false }: FlywheelTokenomicsProps)
             Separate from each listing&apos;s session volume engine (on-chart buys + token airdrops to winners). This
             flywheel routes the 12% platform fee to TopBlast treasury buyback and ops.{' '}
             <Link href="/launch" className="text-rh-green hover:text-rh-lime transition-colors">
-              Launch your token →
+              List your token →
             </Link>
           </p>
         )}

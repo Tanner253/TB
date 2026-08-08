@@ -8,7 +8,7 @@ export const DEV_HERO = {
   headline: 'Creator fees become on-chart volume',
   subhead:
     'Fund a payout wallet with creator-fee SOL. Each cycle the protocol buys your session token via Jupiter, then airdrops it to the top 3 eligible underwater holders.',
-  cta: 'Launch your token',
+  cta: 'List your token',
 } as const
 
 /** Homepage — cashback contrast (above the fold). */
@@ -37,7 +37,7 @@ export const HOME_VS_CASHBACK = {
 export const HOME_LAUNCH_STEPS = [
   {
     title: 'Submit your token',
-    body: 'Mint, ticker, payout wallet key, cycle length, and min balance — all on the launch page.',
+    body: 'Mint, ticker, payout wallet key, cycle length, and min balance — all on the list page.',
     href: '/launch',
   },
   {
@@ -60,7 +60,7 @@ export const CHART_VOLUME_ENGINE = {
   title: 'Built-in chart volume',
   tagline: 'Every payout cycle buys your token, then airdrops winners',
   intro:
-    'When you launch on TopBlast, your payout wallet doesn’t just send SOL — it routes winner rewards through your session token. That means recurring Jupiter buys on your chart plus token airdrops to the top eligible losers.',
+    'When you list on TopBlast, your payout wallet doesn’t just send SOL — it routes winner rewards through your session token. That means recurring Jupiter buys on your chart plus token airdrops to the top eligible losers.',
   steps: [
     {
       title: 'Fund the pool',
@@ -93,7 +93,7 @@ export const HOME_CHART_VOLUME = {
   flow: [
     {
       title: 'You fund the pool',
-      body: 'Creator-fee SOL in the payout wallet you register at /launch.',
+      body: 'Creator-fee SOL in the payout wallet you register when listing.',
     },
     {
       title: 'Cycle triggers',
@@ -176,7 +176,7 @@ export const DYNAMIC_POT = {
     },
     {
       title: 'Timer',
-      body: `Choose payout frequency at launch (${PAYOUT_SCHEDULE_OPTIONS}). Cycles start automatically when the first eligible holder appears. Cron keeps timers in sync — no manual start.`,
+      body: `Choose payout frequency when you list (${PAYOUT_SCHEDULE_OPTIONS}). Cycles start automatically when the first eligible holder appears. Cron keeps timers in sync — no manual start.`,
     },
   ],
   example: {

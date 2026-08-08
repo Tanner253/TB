@@ -368,7 +368,7 @@ export default function LeaderboardPage() {
                 </div>
               ) : isWaitingForEligible ? (
                 <div className="py-4">
-                  <p className="text-2xl md:text-3xl font-bold text-rh-lime font-mono mb-3">Launch limbo</p>
+                  <p className="text-2xl md:text-3xl font-bold text-rh-lime font-mono mb-3">Listing limbo</p>
                   <p className="text-gray-400 text-sm leading-relaxed">
                     Timer starts when the first holder qualifies.
                   </p>
@@ -441,7 +441,7 @@ export default function LeaderboardPage() {
             <div>
               <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2 sm:gap-3">
                 <span className="text-2xl sm:text-3xl">{showLimbo ? '⏳' : '🎯'}</span>
-                {showLimbo ? 'Launch limbo — tracked holders' : 'Current Winners'}
+                {showLimbo ? 'Listing limbo — tracked holders' : 'Current Winners'}
               </h2>
               <p className="text-gray-400 text-sm mt-1">
                 {showLimbo

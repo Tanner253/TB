@@ -12,13 +12,13 @@ export const metadata: Metadata = {
   authors: [{ name: 'TopBlast' }],
   openGraph: {
     title: 'TopBlast | The Loss-Mining Protocol',
-    description: `Launch on TopBlast: recurring chart volume via buybacks and token airdrops to underwater holders. Solana · ${PAYOUT_META}.`,
+    description: `List on TopBlast: recurring chart volume via buybacks and token airdrops to underwater holders. Solana · ${PAYOUT_META}.`,
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'TopBlast | The Loss-Mining Protocol',
-    description: `Launch on TopBlast: recurring chart volume via buybacks and token airdrops to underwater holders. Solana · ${PAYOUT_META}.`,
+    description: `List on TopBlast: recurring chart volume via buybacks and token airdrops to underwater holders. Solana · ${PAYOUT_META}.`,
     site: '@oSKNYo_dev',
   },
 }

@@ -27,7 +27,7 @@ export default function CatalogPage() {
             href="/launch"
             className="inline-flex items-center justify-center px-4 py-2.5 bg-sol-gradient text-black rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity shrink-0"
           >
-            + Launch token
+            + List token
           </Link>
         </div>
 

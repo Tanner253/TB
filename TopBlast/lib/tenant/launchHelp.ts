@@ -17,15 +17,15 @@ export const LAUNCH_KEY_HELP = {
   payoutWalletPrivateKey: {
     title: 'Payout wallet private key (dedicated creator wallet only)',
     body:
-      'Use a dedicated Solana payout wallet — not your personal trading wallet or seed phrase. TopBlast never asks token holders for private keys; only listing creators submit this once at launch. The key is encrypted at rest and only decrypted server-side to run your payout cycles.',
+      'Use a dedicated Solana payout wallet — not your personal trading wallet or seed phrase. TopBlast never asks token holders for private keys; only listing creators submit this once when they list. The key is encrypted at rest and only decrypted server-side to run your payout cycles.',
   },
   payoutInterval: {
     title: 'Payout frequency',
-    body: `How often winners are paid after the timer starts. Choose at launch — ${PAYOUT_OPTIONS}. Default is ${DEFAULT_PAYOUT_LABEL}. Cannot be changed after listing creation.`,
+    body: `How often winners are paid after the timer starts. Choose when you list — ${PAYOUT_OPTIONS}. Default is ${DEFAULT_PAYOUT_LABEL}. Cannot be changed after listing creation.`,
   },
   minTokenHolding: {
     title: 'Minimum token balance',
-    body: `Holders need at least this many tokens (raw units, not USD) to qualify for loss-mining. Default is ${DEFAULT_MIN_BALANCE_LABEL}. Set higher to filter dust wallets; lower for micro-cap launches. Locked at launch.`,
+    body: `Holders need at least this many tokens (raw units, not USD) to qualify for loss-mining. Default is ${DEFAULT_MIN_BALANCE_LABEL}. Set higher to filter dust wallets; lower for micro-cap tokens. Locked when you list.`,
   },
   tenantEncryptionKey: {
     title: 'Key encryption (TopBlast operators only)',
@@ -36,7 +36,7 @@ export const LAUNCH_KEY_HELP = {
 
 /** What happens after a user submits a listing (client-safe). */
 export const LAUNCH_FLOW = {
-  title: 'What happens when you launch',
+  title: 'What happens when you list',
   steps: [
     {
       title: 'Your listing goes live',
@@ -44,7 +44,7 @@ export const LAUNCH_FLOW = {
     },
     {
       title: 'We index your token on-chain',
-      body: 'Holder balances and buy history are pulled via Helius. Rankings usually appear within a few minutes of launch.',
+      body: 'Holder balances and buy history are pulled via Helius. Rankings usually appear within a few minutes of listing.',
     },
     {
       title: 'Cycles run automatically',
@@ -63,7 +63,7 @@ export const HOW_TO_RUN_LISTING = {
   steps: [
     {
       n: 1,
-      title: 'Launch with a valid base58 payout private key',
+      title: 'List with a valid base58 payout private key',
       body: 'Use the creator-rewards wallet for your token. TopBlast encrypts it at rest and only decrypts it to execute your payout cycles.',
     },
     {
@@ -74,7 +74,7 @@ export const HOW_TO_RUN_LISTING = {
     {
       n: 3,
       title: 'Set payout frequency and minimum balance',
-      body: `Pick a cycle length (${PAYOUT_OPTIONS}) and minimum token balance (default ${DEFAULT_MIN_BALANCE_LABEL} raw tokens). Both are locked at launch.`,
+      body: `Pick a cycle length (${PAYOUT_OPTIONS}) and minimum token balance (default ${DEFAULT_MIN_BALANCE_LABEL} raw tokens). Both are locked when you list.`,
     },
     {
       n: 4,

@@ -21,7 +21,7 @@ export function LaunchTabBar({ activeTab, onTabChange }: LaunchTabsProps) {
   return (
     <div
       role="tablist"
-      aria-label="Launch information"
+      aria-label="Listing information"
       className="flex gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/10 overflow-x-auto"
     >
       {TABS.map(tab => {

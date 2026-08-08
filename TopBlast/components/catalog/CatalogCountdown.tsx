@@ -59,7 +59,7 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
   if (paused) {
     return (
       <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>
-        <p className={`font-medium text-amber-200/90 ${textSize} leading-snug`}>Launch limbo</p>
+        <p className={`font-medium text-amber-200/90 ${textSize} leading-snug`}>Listing limbo</p>
         <p className={`text-gray-500 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
           Waiting for eligible holders
         </p>

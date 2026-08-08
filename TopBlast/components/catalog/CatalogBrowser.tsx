@@ -159,12 +159,12 @@ export function CatalogBrowser() {
           ) : (
             <>
               <p className="text-gray-300 mb-2">No listings yet</p>
-              <p className="text-sm text-gray-500 mb-6">Be the first to launch loss-mining for your token.</p>
+              <p className="text-sm text-gray-500 mb-6">Be the first to list your token on TopBlast.</p>
               <Link
                 href="/launch"
                 className="inline-flex px-5 py-2.5 bg-sol-gradient text-black rounded-lg font-semibold text-sm"
               >
-                Launch your token
+                List your token
               </Link>
             </>
           )}

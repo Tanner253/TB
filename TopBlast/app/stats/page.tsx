@@ -417,7 +417,7 @@ export default function StatsPage() {
               {
                 label: 'Payout Cycle',
                 value: stats?.thresholds?.payout_interval_display || PAYOUT_INTERVAL_RANGE_COMPACT,
-                sub: stats?.thresholds?.payout_interval_display ? 'this listing' : 'choose at launch',
+                sub: stats?.thresholds?.payout_interval_display ? 'this listing' : 'choose when listing',
               },
             ].map((item) => (
               <div key={item.label} className="bg-white/5 rounded-xl p-4 text-center">

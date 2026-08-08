@@ -140,7 +140,7 @@ export function buildTenantDiagnostics(input: TenantDiagnosticsInput): TenantDia
       severity: 'info',
       title: 'Indexing holders from chain',
       message:
-        'After launch, TopBlast pulls holders and buy history via Helius. This usually takes 1–5 minutes.',
+        'After listing, TopBlast pulls holders and buy history via Helius. This usually takes 1–5 minutes.',
       action: 'No action needed — refresh the leaderboard shortly. Ensure HELIUS can see your mint.',
     })
   } else if (trackedHolders === 0) {

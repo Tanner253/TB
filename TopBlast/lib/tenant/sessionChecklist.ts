@@ -179,7 +179,7 @@ export function buildSessionChecklist(
       id: 'balance',
       group: 'winner',
       label: `Hold ≥ ${minBalance} tokens`,
-      detail: 'Minimum balance set when this token was launched',
+      detail: 'Minimum balance set when this token was listed',
       status: ruleStatus('balance'),
     },
     {
