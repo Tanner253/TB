@@ -8,7 +8,6 @@ import { useRealtimePrice, useTimeSince } from '@/hooks/useRealtime'
 import { useTenantRouting } from '@/hooks/useTenantRouting'
 import { AnimatedNumber, PriceTicker } from '@/components/ui/AnimatedNumber'
 import { AppHeader } from '@/components/platform/AppHeader'
-import { SessionNav } from '@/components/platform/SessionNav'
 import { TenantStatusPanel } from '@/components/tenant/TenantStatusPanel'
 import { CopyContractAddress } from '@/components/ui/CopyContractAddress'
 import type { TenantDiagnostics } from '@/lib/tenant/diagnostics'
@@ -92,7 +91,7 @@ interface PoolData {
 }
 
 export default function StatsPage() {
-  const { slug, basePath } = useTenantRouting()
+  const { slug } = useTenantRouting()
   const [stats, setStats] = useState<StatsData | null>(null)
   const [pool, setPool] = useState<PoolData | null>(null)
   const [diagnostics, setDiagnostics] = useState<TenantDiagnostics | null>(null)
@@ -170,7 +169,6 @@ export default function StatsPage() {
       </div>
 
       <AppHeader active="stats" />
-      <SessionNav basePath={basePath} active="stats" symbol={stats?.token.symbol} />
 
       <main className="relative max-w-5xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
         {/* Page Title */}

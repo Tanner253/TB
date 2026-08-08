@@ -7,7 +7,6 @@ import { useTenantRouting } from '@/hooks/useTenantRouting'
 import Image from 'next/image'
 import { getDevFeePercent } from '@/lib/payout/shares'
 import { AppHeader } from '@/components/platform/AppHeader'
-import { SessionNav } from '@/components/platform/SessionNav'
 import { CopyContractAddress } from '@/components/ui/CopyContractAddress'
 
 const DEV_FEE = getDevFeePercent()
@@ -201,11 +200,6 @@ export default function HistoryPage() {
       </div>
 
       <AppHeader active="history" />
-      <SessionNav
-        basePath={basePath}
-        active="history"
-        symbol={data?.cycles?.[0]?.token_symbol}
-      />
 
       <main className="relative max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
         {/* Page Title */}

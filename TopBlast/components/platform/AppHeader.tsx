@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
 import { EXTERNAL_LINKS, WHITEPAPER_URL } from '@/lib/marketing/devValueProp'
+import { useTenantRouting } from '@/hooks/useTenantRouting'
 
 export type AppHeaderActive =
   | 'home'
@@ -59,7 +60,9 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ active, trailing }: AppHeaderProps) {
+  const { basePath } = useTenantRouting()
   const [menuOpen, setMenuOpen] = useState(false)
+  const sessionRoot = basePath || ''
 
   useEffect(() => {
     if (!menuOpen) return
@@ -77,9 +80,13 @@ export function AppHeader({ active, trailing }: AppHeaderProps) {
   const platformLinks: NavItem[] = [
     { href: '/', label: 'Home', active: active === 'home' },
     { href: '/catalog', label: 'Catalog', active: active === 'catalog' },
-    { href: '/leaderboard', label: 'Platform Token', active: active === 'leaderboard' },
-    { href: '/history', label: 'History', active: active === 'history' },
-    { href: '/stats', label: 'Stats', active: active === 'stats' },
+    {
+      href: `${sessionRoot}/leaderboard`,
+      label: basePath ? 'Leaderboard' : 'Platform Token',
+      active: active === 'leaderboard',
+    },
+    { href: `${sessionRoot}/history`, label: 'History', active: active === 'history' },
+    { href: `${sessionRoot}/stats`, label: 'Stats', active: active === 'stats' },
   ]
 
   const extraLinks: NavItem[] = [

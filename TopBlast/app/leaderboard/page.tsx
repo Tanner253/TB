@@ -8,7 +8,6 @@ import { useTenantRouting } from '@/hooks/useTenantRouting'
 import { AnimatedNumber, Countdown, PriceTicker } from '@/components/ui/AnimatedNumber'
 import { LeaderboardCardSkeleton, TableRowSkeleton } from '@/components/ui/Skeleton'
 import { AppHeader } from '@/components/platform/AppHeader'
-import { SessionNav } from '@/components/platform/SessionNav'
 import { getWinnerSharePercents, getPayoutForEligibleRank } from '@/lib/payout/shares'
 import { HolderStatus, HoldTimeBadge, HolderIneligibleCallout } from '@/components/HoldTimeBadge'
 import { SessionStatusBar } from '@/components/tenant/SessionStatusBar'
@@ -177,21 +176,29 @@ export default function LeaderboardPage() {
   const rankings = ((data?.rankings || []) as Winner[])
   const hasRankedHolders = rankings.length > 0
   const isSyncingHolders = !isInitializing && !hasRankedHolders && (data?.tracked_holders ?? 0) === 0
-  const isWaitingForEligible =
-    isSyncingHolders ||
-    timerStatus === 'waiting' ||
-    data?.timer_status === 'waiting'
-  const isPayoutDueNow =
-    !isWaitingForEligible &&
-    (data?.eligible_count ?? 0) > 0 &&
-    ((countdown !== null && countdown <= 0) || data?.seconds_remaining === 0)
 
   const top3Eligible = (
     data?.eligible_winners?.length
       ? data.eligible_winners
       : rankings.filter((h: Winner) => h.is_eligible === true)
   ).slice(0, 3) as Winner[]
-  const showLimbo = top3Eligible.length === 0 && hasRankedHolders
+
+  const eligibleCount = data?.eligible_count ?? top3Eligible.length
+  const hasEligible = eligibleCount > 0
+  const effectiveTimerStatus = timerStatus ?? data?.timer_status ?? 'waiting'
+  const isListingLimbo = !isSyncingHolders && !hasEligible && hasRankedHolders
+  const isTimerStarting = !isSyncingHolders && hasEligible && effectiveTimerStatus === 'waiting'
+  const isTimerActive = !isSyncingHolders && hasEligible && effectiveTimerStatus === 'active'
+  const isPayoutDueNow =
+    isTimerActive &&
+    ((countdown !== null && countdown <= 0) || data?.seconds_remaining === 0)
+  const showLimbo = isListingLimbo
+  const sessionChecklist = (data?.session_checklist as SessionChecklist | null) ?? null
+  const showSessionStatusBar =
+    !!sessionChecklist &&
+    (sessionChecklist.overall === 'blocked' ||
+      sessionChecklist.overall === 'loading' ||
+      isListingLimbo)
   const featuredCards = top3Eligible.length > 0 ? top3Eligible : rankings.slice(0, 3)
   
   // Pool balance in USD for payout estimates (prefer raw number from API)
@@ -234,8 +241,6 @@ export default function LeaderboardPage() {
           </>
         }
       />
-
-      <SessionNav basePath={basePath} active="leaderboard" symbol={tokenSymbol} />
 
       {platformTestBanner ? <PlatformTestBanner banner={platformTestBanner} /> : null}
 
@@ -343,21 +348,23 @@ export default function LeaderboardPage() {
             <div className="relative">
               <div className="flex items-center gap-2 text-rh-green text-sm font-medium mb-4">
                 <motion.div
-                  animate={isWaitingForEligible ? { scale: [1, 1.1, 1] } : { rotate: 360 }}
-                  transition={isWaitingForEligible
-                    ? { duration: 2, repeat: Infinity, ease: 'easeInOut' }
-                    : { duration: 2, repeat: Infinity, ease: 'linear' }}
+                  animate={isTimerActive && !isPayoutDueNow ? { rotate: 360 } : { scale: [1, 1.1, 1] }}
+                  transition={isTimerActive && !isPayoutDueNow
+                    ? { duration: 2, repeat: Infinity, ease: 'linear' }
+                    : { duration: 2, repeat: Infinity, ease: 'easeInOut' }}
                   className="w-4 h-4"
                 >
-                  {isWaitingForEligible ? '⏳' : '⏱️'}
+                  {isTimerActive && !isPayoutDueNow ? '⏱️' : '⏳'}
                 </motion.div>
                 {isSyncingHolders
                   ? 'SYNCING HOLDERS'
-                  : isWaitingForEligible
+                  : isListingLimbo
                     ? 'WAITING FOR FIRST ELIGIBLE HOLDER'
-                    : isPayoutDueNow
-                      ? 'PAYOUT PROCESSING'
-                      : 'NEXT PAYOUT IN'}
+                    : isTimerStarting
+                      ? 'PAYOUT TIMER STARTING'
+                      : isPayoutDueNow
+                        ? 'PAYOUT PROCESSING'
+                        : 'NEXT PAYOUT IN'}
               </div>
               {isSyncingHolders ? (
                 <div className="py-4">
@@ -366,11 +373,20 @@ export default function LeaderboardPage() {
                     Loading holders and swap history for this token from Solana.
                   </p>
                 </div>
-              ) : isWaitingForEligible ? (
+              ) : isListingLimbo ? (
                 <div className="py-4">
                   <p className="text-2xl md:text-3xl font-bold text-rh-lime font-mono mb-3">Listing limbo</p>
                   <p className="text-gray-400 text-sm leading-relaxed">
-                    Timer starts when the first holder qualifies.
+                    Holders are tracked but none pass every rule yet. The payout timer starts when the first wallet qualifies.
+                  </p>
+                </div>
+              ) : isTimerStarting ? (
+                <div className="py-4">
+                  <p className="text-2xl md:text-3xl font-bold text-rh-lime font-mono mb-3">
+                    {eligibleCount} eligible {eligibleCount === 1 ? 'holder' : 'holders'}
+                  </p>
+                  <p className="text-gray-400 text-sm leading-relaxed">
+                    Winners are set — starting the payout timer on the next sync.
                   </p>
                 </div>
               ) : isPayoutDueNow ? (
@@ -382,13 +398,15 @@ export default function LeaderboardPage() {
                 <Countdown seconds={countdown ?? 0} size="xl" className="text-rh-green" />
               )}
               <p className="text-gray-400 text-sm mt-4">
-                {isWaitingForEligible
+                {isListingLimbo
                   ? 'No payout cycle until someone qualifies'
-                  : isPayoutDueNow
-                    ? 'On-chart buy + token airdrops — timer resets after completion'
-                    : payoutRetryMode
-                      ? `Retry scheduled — faster ${payoutRetryMinutes ?? 3} min interval after swap failure`
-                      : 'Top 3 losers receive session tokens via on-chart buyback each cycle'}
+                  : isTimerStarting
+                    ? 'Top 3 eligible losers will receive pool SOL each cycle once the timer is live'
+                    : isPayoutDueNow
+                      ? 'On-chart buy + token airdrops — timer resets after completion'
+                      : payoutRetryMode
+                        ? `Retry scheduled — faster ${payoutRetryMinutes ?? 3} min interval after swap failure`
+                        : 'Top 3 losers receive session tokens via on-chart buyback each cycle'}
               </p>
             </div>
           </motion.div>
@@ -424,11 +442,13 @@ export default function LeaderboardPage() {
           </motion.div>
         </div>
 
-        <SessionStatusBar
-          checklist={(data?.session_checklist as SessionChecklist | null) ?? null}
-          eligibleCount={data?.eligible_count}
-          timerStatus={timerStatus ?? data?.timer_status}
-        />
+        {showSessionStatusBar ? (
+          <SessionStatusBar
+            checklist={sessionChecklist}
+            eligibleCount={eligibleCount}
+            timerStatus={effectiveTimerStatus}
+          />
+        ) : null}
 
         {/* Winners Section */}
         <motion.div
