@@ -1,5 +1,6 @@
 import connectDB from '@/lib/db'
-import { Payout, PayoutVolumeSwap } from '@/lib/db/models'
+import { Payout } from '@/lib/db/models'
+import { aggregateSuccessfulPayoutTotals } from '@/lib/payout/payoutTotals'
 import { tenantFilter } from '@/lib/tenant/scope'
 
 export interface TenantPayoutStats {
@@ -27,14 +28,9 @@ export async function fetchTenantPayoutStats(): Promise<TenantPayoutStats> {
     cycleSet.add(p.cycle)
   }
 
+  const paidOut = aggregateSuccessfulPayoutTotals(successful)
+  const winnerPaidOut = aggregateSuccessfulPayoutTotals(successful, { winnersOnly: true })
   const winnerCount = winnerPayouts.length
-
-  const swapRows = await PayoutVolumeSwap.find(tenantFilter()).select('swapSol swapUsd').lean()
-  const totalGeneratedVolumeUsd = swapRows.reduce((sum, row) => sum + (row.swapUsd || 0), 0)
-  const totalGeneratedVolumeSol = swapRows.reduce((sum, row) => sum + (row.swapSol || 0), 0)
-  // Chart buy volume is what gets paid out to winners (SOL swapped on-chart before airdrops).
-  const totalDistributedUsd = totalGeneratedVolumeUsd
-  const totalDistributedSol = totalGeneratedVolumeSol
 
   const winCountByWallet = new Map<string, number>()
   for (const p of winnerPayouts) {
@@ -58,12 +54,12 @@ export async function fetchTenantPayoutStats(): Promise<TenantPayoutStats> {
 
   return {
     total_cycles: cycleSet.size,
-    total_distributed_usd: totalDistributedUsd,
-    total_distributed_sol: totalDistributedSol,
-    total_generated_volume_usd: totalGeneratedVolumeUsd,
-    total_generated_volume_sol: totalGeneratedVolumeSol,
+    total_distributed_usd: paidOut.total_usd,
+    total_distributed_sol: paidOut.total_sol,
+    total_generated_volume_usd: paidOut.total_usd,
+    total_generated_volume_sol: paidOut.total_sol,
     successful_winner_payouts: winnerCount,
-    average_payout_usd: winnerCount > 0 ? totalDistributedUsd / winnerCount : 0,
+    average_payout_usd: winnerCount > 0 ? winnerPaidOut.total_usd / winnerCount : 0,
     last_payout_at: lastPayoutAt,
     most_wins: mostWins,
   }

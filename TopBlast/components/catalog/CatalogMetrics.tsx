@@ -84,7 +84,7 @@ export function CatalogMetrics({ tenant, layout = 'grid' }: CatalogMetricsProps)
       />
       <MetricCell
         label="Paid out"
-        title="Lifetime USD value of on-chart buys funding winner payouts"
+        title="Lifetime value distributed from payout history"
         primary={tenant.total_distributed_usd_formatted ?? '—'}
         primaryClassName="text-sol-mint/90"
       />

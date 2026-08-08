@@ -1,5 +1,6 @@
 import connectDB from '@/lib/db'
-import { Payout, PayoutVolumeSwap, Tenant } from '@/lib/db/models'
+import { Payout, Tenant } from '@/lib/db/models'
+import { aggregateSuccessfulPayoutTotals } from '@/lib/payout/payoutTotals'
 import { getTokenMintExplorerUrl, getTxExplorerUrl } from '@/lib/solana/explorer'
 import {
   formatHistoryUsd,
@@ -241,9 +242,9 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
 
   const allPayouts = await Payout.find().lean()
   const successfulPayouts = allPayouts.filter(p => p.status === 'success')
-  const swapRows = await PayoutVolumeSwap.find().select('swapSol swapUsd').lean()
-  const totalDistributedUsd = swapRows.reduce((sum, row) => sum + (row.swapUsd || 0), 0)
-  const totalDistributedSol = swapRows.reduce((sum, row) => sum + (row.swapSol || 0), 0)
+  const paidOut = aggregateSuccessfulPayoutTotals(successfulPayouts)
+  const totalDistributedUsd = paidOut.total_usd
+  const totalDistributedSol = paidOut.total_sol
   const uniqueCycles = new Set(allPayouts.map(p => `${p.tenantSlug || '_legacy'}:${p.cycle}`))
   const uniqueSessions = new Set(allPayouts.map(p => p.tenantSlug || '_legacy'))
 

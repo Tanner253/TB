@@ -1,8 +1,9 @@
 import 'server-only'
 
 import connectDB from '@/lib/db'
-import { CurrentRankings, PayoutVolumeSwap, TimerState } from '@/lib/db/models'
+import { CurrentRankings, Payout, TimerState } from '@/lib/db/models'
 import { deriveSessionDisplayState } from '@/lib/session/displayState'
+import { aggregateSuccessfulPayoutTotals } from '@/lib/payout/payoutTotals'
 import { getSolPrice, formatCompactUsd, formatCompactSol } from '@/lib/solana/price'
 import { getWalletSolBalance } from '@/lib/solana/transfer'
 import { buildLivePoolBalance } from '@/lib/payout/poolBalance'
@@ -21,22 +22,21 @@ export function catalogPayoutTenantKey(tenant: PublicTenantSummary): string {
   return tenant.slug
 }
 
-async function fetchGeneratedVolumesByTenantKey(): Promise<Map<string, CatalogPayoutVolume>> {
+async function fetchPayoutTotalsByTenantKey(): Promise<Map<string, CatalogPayoutVolume>> {
   await connectDB()
 
-  const rows = await PayoutVolumeSwap.aggregate<{ _id: string; total_sol: number; total_usd: number }>([
-    {
-      $group: {
-        _id: { $ifNull: ['$tenantSlug', '_legacy'] },
-        total_sol: { $sum: { $ifNull: ['$swapSol', 0] } },
-        total_usd: { $sum: { $ifNull: ['$swapUsd', 0] } },
-      },
-    },
-  ])
+  const payouts = await Payout.find({ status: 'success' })
+    .select('tenantSlug rank amount amountTokens status')
+    .lean()
 
   const map = new Map<string, CatalogPayoutVolume>()
-  for (const row of rows) {
-    map.set(row._id, { total_sol: row.total_sol, total_usd: row.total_usd })
+  for (const p of payouts) {
+    const key = p.tenantSlug || '_legacy'
+    const entry = map.get(key) ?? { total_sol: 0, total_usd: 0 }
+    const totals = aggregateSuccessfulPayoutTotals([p])
+    entry.total_usd += totals.total_usd
+    entry.total_sol += totals.total_sol
+    map.set(key, entry)
   }
   return map
 }
@@ -120,9 +120,9 @@ export async function enrichCatalogTenants(
 ): Promise<PublicTenantSummary[]> {
   if (tenants.length === 0) return tenants
 
-  const [solPrice, generatedByKey, timerByKey, eligibilityByKey] = await Promise.all([
+  const [solPrice, paidOutByKey, timerByKey, eligibilityByKey] = await Promise.all([
     getSolPrice(),
-    fetchGeneratedVolumesByTenantKey(),
+    fetchPayoutTotalsByTenantKey(),
     fetchPayoutTimerByTenantKey(),
     fetchRankingsEligibilityByTenantKey(),
   ])
@@ -147,7 +147,7 @@ export async function enrichCatalogTenants(
 
   return tenants.map(tenant => {
     const payoutKey = catalogPayoutTenantKey(tenant)
-    const generated = generatedByKey.get(payoutKey) ?? { total_sol: 0, total_usd: 0 }
+    const paidOut = paidOutByKey.get(payoutKey) ?? { total_sol: 0, total_usd: 0 }
     const timer = timerByKey.get(payoutKey)
     const eligibility = eligibilityByKey.get(payoutKey)
     const rawTimerStatus = timer?.timerStatus ?? 'waiting'
@@ -185,14 +185,14 @@ export async function enrichCatalogTenants(
       pot_sol: pool?.poolSol ?? null,
       pot_usd: pool?.poolUsd ?? null,
       pot_usd_formatted: pool?.poolUsdFormatted ?? null,
-      // Paid out equals on-chart buy volume (Jupiter swaps), not token amounts distributed.
-      total_distributed_sol: generated.total_sol,
-      total_distributed_usd: generated.total_usd,
-      total_distributed_usd_formatted: formatCompactUsd(generated.total_usd),
-      total_generated_volume_sol: generated.total_sol,
-      total_generated_volume_usd: generated.total_usd,
-      total_generated_volume_usd_formatted: formatCompactUsd(generated.total_usd),
-      total_generated_volume_sol_formatted: formatCompactSol(generated.total_sol),
+      total_distributed_sol: paidOut.total_sol,
+      total_distributed_usd: paidOut.total_usd,
+      total_distributed_usd_formatted: formatCompactUsd(paidOut.total_usd),
+      // Gen volume mirrors paid-out totals from payout history (not swap ledger).
+      total_generated_volume_sol: paidOut.total_sol,
+      total_generated_volume_usd: paidOut.total_usd,
+      total_generated_volume_usd_formatted: formatCompactUsd(paidOut.total_usd),
+      total_generated_volume_sol_formatted: formatCompactSol(paidOut.total_sol),
       payout_timer_status: payoutTimerStatus,
       payout_seconds_remaining: payoutSecondsRemaining,
       payout_current_cycle: timer?.currentCycle ?? 0,
