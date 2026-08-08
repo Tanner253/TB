@@ -8,6 +8,7 @@ import { useTenantRouting } from '@/hooks/useTenantRouting'
 import { AnimatedNumber, Countdown, PriceTicker } from '@/components/ui/AnimatedNumber'
 import { LeaderboardCardSkeleton, TableRowSkeleton } from '@/components/ui/Skeleton'
 import { AppHeader } from '@/components/platform/AppHeader'
+import { SessionNav } from '@/components/platform/SessionNav'
 import { getWinnerSharePercents, getPayoutForEligibleRank } from '@/lib/payout/shares'
 import { HolderStatus, HoldTimeBadge, HolderIneligibleCallout } from '@/components/HoldTimeBadge'
 import { SessionStatusBar } from '@/components/tenant/SessionStatusBar'
@@ -197,6 +198,9 @@ export default function LeaderboardPage() {
   const poolValue = data?.pool_balance_usd_raw ?? parseFloat(data?.pool_balance_usd?.replace(/[$,]/g, '') || '0')
   const wsConnected = data?.ws_connected
   const platformTestBanner = data?.platform_test_banner ?? null
+  const lastPayoutError = data?.last_payout_error ?? null
+  const payoutRetryMode = data?.payout_retry_mode === true
+  const payoutRetryMinutes = data?.payout_retry_minutes ?? null
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
@@ -208,8 +212,7 @@ export default function LeaderboardPage() {
       </div>
 
       <AppHeader
-        active="leaderboard"
-        sessionBasePath={basePath}
+        active="catalog"
         trailing={
           <>
             <ConnectionIndicator state={connectionState} wsConnected={wsConnected} />
@@ -232,7 +235,24 @@ export default function LeaderboardPage() {
         }
       />
 
+      <SessionNav basePath={basePath} active="leaderboard" symbol={tokenSymbol} />
+
       {platformTestBanner ? <PlatformTestBanner banner={platformTestBanner} /> : null}
+
+      {lastPayoutError ? (
+        <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 pt-4">
+          <div className="rounded-xl border border-amber-500/30 bg-amber-950/30 px-4 py-3 text-sm">
+            <p className="font-semibold text-amber-200 mb-1">Last payout attempt failed</p>
+            <p className="text-amber-100/90 leading-relaxed">{lastPayoutError}</p>
+            <p className="text-xs text-amber-200/70 mt-2">
+              {payoutRetryMode && payoutRetryMinutes
+                ? `Pool SOL is safe — automatic retry in ~${payoutRetryMinutes} min (faster than the normal cycle).`
+                : 'Pool SOL is safe — the timer will retry automatically.'}{' '}
+              See <Link href={`${basePath}/history`} className="underline hover:text-white">History</Link> for details.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <main className="relative max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
         {/* Price Ticker Bar */}
@@ -356,7 +376,7 @@ export default function LeaderboardPage() {
               ) : isPayoutDueNow ? (
                 <div className="py-4">
                   <p className="text-4xl md:text-5xl font-bold text-rh-lime font-mono mb-3 animate-pulse">00:00</p>
-                  <p className="text-gray-400 text-sm">Sending SOL to top losers…</p>
+                  <p className="text-gray-400 text-sm">Buying your token on-chart and airdropping winners…</p>
                 </div>
               ) : (
                 <Countdown seconds={countdown ?? 0} size="xl" className="text-rh-green" />
@@ -365,8 +385,10 @@ export default function LeaderboardPage() {
                 {isWaitingForEligible
                   ? 'No payout cycle until someone qualifies'
                   : isPayoutDueNow
-                    ? 'Sending SOL to top losers — timer resets after completion'
-                    : 'Top 3 losers receive native SOL automatically'}
+                    ? 'On-chart buy + token airdrops — timer resets after completion'
+                    : payoutRetryMode
+                      ? `Retry scheduled — faster ${payoutRetryMinutes ?? 3} min interval after swap failure`
+                      : 'Top 3 losers receive session tokens via on-chart buyback each cycle'}
               </p>
             </div>
           </motion.div>

@@ -78,7 +78,8 @@ export function FlywheelTokenomics({ compact = false }: FlywheelTokenomicsProps)
 
         {!compact && (
           <p className="text-xs text-gray-500 text-center">
-            SaaS utility is the priority — the flywheel aligns platform growth with every launch on the network.{' '}
+            Separate from each listing&apos;s session volume engine (on-chart buys + token airdrops to winners). This
+            flywheel routes the 12% platform fee to TopBlast treasury buyback and ops.{' '}
             <Link href="/launch" className="text-rh-green hover:text-rh-lime transition-colors">
               Launch your token →
             </Link>

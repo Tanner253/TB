@@ -12,7 +12,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://typescriptlang.org)
 [![MongoDB](https://img.shields.io/badge/MongoDB-8.5-green?style=flat-square&logo=mongodb)](https://mongodb.com)
 
-[Live App](https://www.topblastweb3.xyz) • [Documentation](#features) • [How It Works](#how-it-works) • [Get Started](#getting-started)
+[Live App](https://topblasted.fun) • [Documentation](#features) • [How It Works](#how-it-works) • [Get Started](#getting-started)
 
 </div>
 
@@ -435,7 +435,7 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 
 ## 📞 Support
 
-- **Live App**: [www.topblastweb3.xyz](https://www.topblastweb3.xyz)
+- **Live App**: [topblasted.fun](https://topblasted.fun)
 - **Documentation**: This README and inline code comments
 - **Issues**: [GitHub Issues](https://github.com/your-org/topblast/issues)
 

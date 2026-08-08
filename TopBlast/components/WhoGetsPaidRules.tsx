@@ -57,7 +57,7 @@ export function WhoGetsPaidRules({ variant = 'homepage', slug, className = '' }:
           <span className="font-mono text-rh-lime">
             {SHARES.first}/{SHARES.second}/{SHARES.third}
           </span>{' '}
-          of the winner pool. Payouts are sent in native SOL automatically.
+          of the winner pool. Each cycle: pool SOL market-buys your session token on-chart, then tokens airdrop to winners automatically.
         </p>
         <p className="text-xs text-gray-500">
           The countdown timer stays in &quot;launch limbo&quot; until the first eligible holder appears — holding tokens

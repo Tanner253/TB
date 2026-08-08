@@ -59,9 +59,9 @@ function Hero() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
         >
-          Reward <strong className="text-rh-green">bullish holders</strong> who bought the top and stayed in.
+          Reward <strong className="text-rh-green">underwater holders</strong> with on-chart buybacks and token airdrops.
           <br />
-          Turn creator-fee SOL into loss-mining payouts — choose your cycle ({PAYOUT_INTERVAL_HERO_RANGE}), automatically.
+          Every payout cycle buys your session token, then blasts winners — choose your cycle ({PAYOUT_INTERVAL_HERO_RANGE}), automatically.
         </motion.p>
 
         <motion.div
@@ -110,8 +110,9 @@ function Hero() {
             <div className="text-xs text-gray-400 mt-1">To Community</div>
           </div>
           <div className="glass-panel rounded-xl p-4 text-center">
-            <div className="text-3xl font-bold text-yellow-400 font-mono">0</div>
-            <div className="text-xs text-gray-400 mt-1">Interaction Needed</div>
+            <div className="text-3xl font-bold text-purple-300 font-mono">∞</div>
+            <div className="text-xs text-gray-400 mt-1">On-Chart Volume</div>
+            <div className="text-[0.65rem] text-gray-500 mt-0.5">Buybacks every cycle</div>
           </div>
         </motion.div>
       </div>

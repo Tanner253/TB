@@ -16,6 +16,8 @@ export async function GET() {
         current_cycle: timer.current_cycle,
         next_cycle: timer.next_cycle,
         seconds_remaining: timer.seconds_remaining,
+        last_payout_error: timer.last_payout_error,
+        payout_retry_mode: timer.payout_retry_mode,
       },
     })
   } catch (error) {

@@ -21,6 +21,7 @@ import {
   getCurrentPayoutCycle,
   maybeExecuteDuePayout,
 } from '@/lib/payout/executor'
+import { getPayoutFailureRetryMinutes } from '@/lib/payout/payoutRetry'
 import { getPayoutForEligibleRank } from '@/lib/payout/shares'
 import { buildHoldTimeFields } from '@/lib/eligibility/holdDuration'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
@@ -240,6 +241,12 @@ export async function GET(request: NextRequest) {
           timer_status: timerAfterPayout.timer_status,
           cycle: timerAfterPayout.next_cycle,
           seconds_remaining: timerAfterPayout.seconds_remaining,
+          last_payout_error: timerAfterPayout.last_payout_error,
+          last_payout_error_at: timerAfterPayout.last_payout_error_at,
+          payout_retry_mode: timerAfterPayout.payout_retry_mode,
+          payout_retry_minutes: timerAfterPayout.payout_retry_mode
+            ? getPayoutFailureRetryMinutes()
+            : null,
           ...poolFields,
           token_price: 'Loading...',
           token_symbol: config.tokenSymbol,
@@ -489,6 +496,12 @@ export async function GET(request: NextRequest) {
         timer_status: timerAfterPayout.timer_status,
         cycle: timerAfterPayout.next_cycle,
         seconds_remaining: timerAfterPayout.seconds_remaining,
+        last_payout_error: timerAfterPayout.last_payout_error,
+        last_payout_error_at: timerAfterPayout.last_payout_error_at,
+        payout_retry_mode: timerAfterPayout.payout_retry_mode,
+        payout_retry_minutes: timerAfterPayout.payout_retry_mode
+          ? getPayoutFailureRetryMinutes()
+          : null,
         ...poolFields,
         token_price: formatPrice(liveTokenPrice),
         token_price_raw: liveTokenPrice,

@@ -18,7 +18,7 @@ export function FeaturedTokens({ limit = 3 }: FeaturedTokensProps) {
       <div className="flex items-end justify-between gap-4 mb-5">
         <div>
           <h2 className="text-lg font-semibold">Top listings</h2>
-          <p className="text-sm text-gray-500">Featured loss-mining sessions on TopBlast</p>
+          <p className="text-sm text-gray-500">Featured sessions — Gen volume tracks SOL bought on-chart each cycle</p>
         </div>
         <Link
           href="/catalog"

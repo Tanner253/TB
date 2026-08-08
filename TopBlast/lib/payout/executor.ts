@@ -7,6 +7,12 @@ import connectDB from '@/lib/db'
 import { Payout, Disqualification, TimerState } from '@/lib/db/models'
 import { resetDeploymentState } from '@/lib/payout/resetDeployment'
 import { transferSol, MIN_TRANSFER_SOL } from '@/lib/solana/transfer'
+import { swapSolForToken, isNativeTokenPayoutEnabled } from '@/lib/solana/jupiterSwap'
+import {
+  transferSessionToken,
+  getPayoutWalletTokenBalance,
+  allocateTokenAmountsBySolShare,
+} from '@/lib/solana/tokenTransfer'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
@@ -19,6 +25,11 @@ import {
   loadLastWinCycleByWallet,
 } from '@/lib/payout/winnerPersistence'
 import { saveRankingsToDb, loadRankingsFromDb, markWinnersCooldown, getServiceStatus, refreshPoolUsdCache } from '@/lib/tracker/holderService'
+import { recordPayoutVolumeSwap } from '@/lib/payout/volumeSwap'
+import {
+  getEffectivePayoutIntervalMinutes,
+  getPayoutFailureRetryMinutes,
+} from '@/lib/payout/payoutRetry'
 
 import { getTimerKey } from '@/lib/tenant/keys'
 import { getTenantSlug } from '@/lib/tenant/context'
@@ -27,6 +38,7 @@ import { isPayoutExecutionAuthorized, runAuthorizedPayout } from '@/lib/payout/p
 import {
   assertProductionPayoutConfig,
   assertPayoutTransferAllowed,
+  assertPayoutTokenTransferAllowed,
   filterWinnersHoldingSessionToken,
   maxDistributableSol,
 } from '@/lib/payout/payoutSecurity'
@@ -42,6 +54,10 @@ export interface PayoutTimerInfo {
   seconds_remaining: number | null
   current_cycle: number
   next_cycle: number
+  last_payout_error: string | null
+  last_payout_error_at: string | null
+  payout_retry_mode: boolean
+  failed_attempts: number
 }
 
 type TimerCacheState = {
@@ -50,6 +66,9 @@ type TimerCacheState = {
   timerStatus: PayoutTimerStatus
   tokenMint: string
   lastSync: number
+  failedAttempts: number
+  lastPayoutError: string | null
+  lastPayoutErrorAt: number | null
 }
 
 declare global {
@@ -64,6 +83,9 @@ function emptyTimerCache(tokenMint = ''): TimerCacheState {
     timerStatus: 'waiting',
     tokenMint,
     lastSync: 0,
+    failedAttempts: 0,
+    lastPayoutError: null,
+    lastPayoutErrorAt: null,
   }
 }
 
@@ -104,6 +126,9 @@ async function resetForNewToken(tokenMint: string): Promise<void> {
   cache.lastPayoutTime = null
   cache.currentCycle = 0
   cache.timerStatus = 'waiting'
+  cache.failedAttempts = 0
+  cache.lastPayoutError = null
+  cache.lastPayoutErrorAt = null
   cache.tokenMint = tokenMint
   cache.lastSync = Date.now()
 }
@@ -113,6 +138,9 @@ function applyTimerDoc(state: {
   timerStatus?: PayoutTimerStatus
   lastPayoutTime?: Date | null
   currentCycle?: number
+  failedAttempts?: number
+  lastPayoutError?: string | null
+  lastPayoutErrorAt?: Date | null
 }): void {
   const tokenMint = state.tokenMint || config.tokenMint
   const timerStatus: PayoutTimerStatus =
@@ -124,6 +152,11 @@ function applyTimerDoc(state: {
   cache.currentCycle = state.currentCycle || 0
   cache.timerStatus = timerStatus
   cache.tokenMint = tokenMint
+  cache.failedAttempts = state.failedAttempts ?? 0
+  cache.lastPayoutError = state.lastPayoutError ?? null
+  cache.lastPayoutErrorAt = state.lastPayoutErrorAt
+    ? new Date(state.lastPayoutErrorAt).getTime()
+    : null
   cache.lastSync = Date.now()
   syncHolderServiceCycle(cache.currentCycle)
 }
@@ -185,8 +218,29 @@ async function loadTimerState(): Promise<void> {
 async function saveTimerState(
   lastPayoutTime: number | null,
   currentCycle: number,
-  timerStatus: PayoutTimerStatus = getTimerCache().timerStatus
+  timerStatus: PayoutTimerStatus = getTimerCache().timerStatus,
+  options?: {
+    failedAttempts?: number
+    lastPayoutError?: string | null
+    lastPayoutErrorAt?: number | null
+    clearPayoutError?: boolean
+  }
 ): Promise<void> {
+  const cache = getTimerCache()
+  const failedAttempts =
+    options?.failedAttempts ??
+    (options?.clearPayoutError ? 0 : cache.failedAttempts)
+  const lastPayoutError = options?.clearPayoutError
+    ? null
+    : options?.lastPayoutError !== undefined
+      ? options.lastPayoutError
+      : cache.lastPayoutError
+  const lastPayoutErrorAt = options?.clearPayoutError
+    ? null
+    : options?.lastPayoutErrorAt !== undefined
+      ? options.lastPayoutErrorAt
+      : cache.lastPayoutErrorAt
+
   try {
     await TimerState.findOneAndUpdate(
       { key: getTimerKey() },
@@ -196,17 +250,21 @@ async function saveTimerState(
           timerStatus,
           lastPayoutTime: lastPayoutTime ? new Date(lastPayoutTime) : null,
           currentCycle,
-          failedAttempts: 0,
+          failedAttempts,
+          lastPayoutError,
+          lastPayoutErrorAt: lastPayoutErrorAt ? new Date(lastPayoutErrorAt) : null,
           isPayoutInProgress: false,
         },
       },
       { upsert: true }
     )
-    const cache = getTimerCache()
     cache.lastPayoutTime = lastPayoutTime
     cache.currentCycle = currentCycle
     cache.timerStatus = timerStatus
     cache.tokenMint = config.tokenMint
+    cache.failedAttempts = failedAttempts
+    cache.lastPayoutError = lastPayoutError
+    cache.lastPayoutErrorAt = lastPayoutErrorAt
     cache.lastSync = Date.now()
   } catch (error) {
     console.error('[Payout] Failed to save timer state:', error)
@@ -236,10 +294,15 @@ async function setAccruedDevFeeEth(amount: number): Promise<void> {
 
 export function getSecondsUntilNextPayout(): number | null {
   const cache = getTimerCache()
+  const intervalMinutes = getEffectivePayoutIntervalMinutes(
+    config.payoutIntervalMinutes,
+    cache.failedAttempts
+  )
   return computePayoutSecondsRemaining({
     timerStatus: cache.timerStatus,
-    lastPayoutTime: cache.lastPayoutTime,
-    payoutIntervalMinutes: config.payoutIntervalMinutes,
+    lastPayoutTime:
+      cache.lastPayoutTime != null ? new Date(cache.lastPayoutTime) : null,
+    payoutIntervalMinutes: intervalMinutes,
   })
 }
 
@@ -252,11 +315,19 @@ export function getPayoutTimerStatus(): PayoutTimerStatus {
 }
 
 export function getPayoutTimerInfo(): PayoutTimerInfo {
+  const cache = getTimerCache()
+  const retryMode = cache.failedAttempts > 0 && Boolean(cache.lastPayoutError)
   return {
-    timer_status: getTimerCache().timerStatus,
+    timer_status: cache.timerStatus,
     seconds_remaining: getSecondsUntilNextPayout(),
-    current_cycle: getTimerCache().currentCycle,
-    next_cycle: getTimerCache().currentCycle + 1,
+    current_cycle: cache.currentCycle,
+    next_cycle: cache.currentCycle + 1,
+    last_payout_error: cache.lastPayoutError,
+    last_payout_error_at: cache.lastPayoutErrorAt
+      ? new Date(cache.lastPayoutErrorAt).toISOString()
+      : null,
+    payout_retry_mode: retryMode,
+    failed_attempts: cache.failedAttempts,
   }
 }
 
@@ -454,12 +525,60 @@ async function pausePayoutForNoWinners(reason: string): Promise<PayoutResult> {
   return { success: true, data: { skipped: true, reason: 'No eligible winners' } }
 }
 
-/** Drop aborted cycle records so history is not filled with failed attempts. */
+/** Drop aborted cycle records when nobody was eligible — not for execution failures. */
 async function cleanupAbortedCycleRecords(cycle: number): Promise<void> {
   try {
     await Payout.deleteMany({ ...tenantFields(), cycle })
   } catch (error) {
     console.error('[Payout] Failed to cleanup aborted cycle records:', error)
+  }
+}
+
+/** Remove prior failed-only cycle rows before retrying the same cycle number. */
+async function clearStaleFailedCycleRecords(cycle: number): Promise<void> {
+  try {
+    const existing = await Payout.find({ ...tenantFields(), cycle }).select('status').lean()
+    if (existing.length === 0) return
+    const hasSuccess = existing.some(p => p.status === 'success')
+    if (hasSuccess) return
+    await Payout.deleteMany({ ...tenantFields(), cycle })
+  } catch (error) {
+    console.error('[Payout] Failed to clear stale failed cycle records:', error)
+  }
+}
+
+async function handlePayoutExecutionFailure(
+  cycle: number,
+  reason: string
+): Promise<PayoutResult> {
+  const cache = getTimerCache()
+  const nextFailedAttempts = cache.failedAttempts + 1
+  const now = Date.now()
+  const retryMinutes = getPayoutFailureRetryMinutes()
+  const trimmedReason = reason.slice(0, 500)
+
+  console.log(
+    `[Payout] Cycle ${cycle} failed — ${trimmedReason}. Retrying in ${retryMinutes} min (attempt ${nextFailedAttempts}).`
+  )
+
+  await saveTimerState(now, cache.currentCycle, 'active', {
+    failedAttempts: nextFailedAttempts,
+    lastPayoutError: trimmedReason,
+    lastPayoutErrorAt: now,
+  })
+  await releasePayoutLock()
+
+  return {
+    success: false,
+    error: trimmedReason,
+    cycle,
+    data: {
+      failed: true,
+      reason: trimmedReason,
+      retry_minutes: retryMinutes,
+      failed_attempts: nextFailedAttempts,
+      payouts: [],
+    },
   }
 }
 
@@ -492,6 +611,8 @@ export async function executePayout(): Promise<PayoutResult> {
       console.log('[Payout] Payout already in progress — skipping duplicate request')
       return { success: false, error: 'Payout already in progress' }
     }
+
+    await clearStaleFailedCycleRecords(nextCycle)
 
     console.log('')
     console.log('[Payout] ╔════════════════════════════════════════════════════════╗')
@@ -605,10 +726,217 @@ export async function executePayout(): Promise<PayoutResult> {
 
     console.log(`[Payout] Created ${winnerPending.length} pending winner records`)
 
+    const payWinnersInNativeToken =
+      isNativeTokenPayoutEnabled() && Boolean(config.tokenMint) && config.executePayouts
+
+    if (payWinnersInNativeToken) {
+      console.log('[Payout] Winner payouts: SOL → session token swap, then SPL transfer to winners')
+    }
+
+    let tokenAmountByRank = new Map<number, number>()
+    let swapTxHash: string | null = null
+
+    if (payWinnersInNativeToken && winnerPending.length > 0) {
+      const preSwapBalance = await getPayoutWalletTokenBalance(
+        config.tokenMint!,
+        config.tokenDecimals
+      )
+
+      for (const pending of winnerPending) {
+        const transferCheck = await assertPayoutTransferAllowed({
+          rank: pending.rank,
+          recipient: pending.wallet,
+          amountSol: pending.amountSol,
+          walletSol: (await getLivePoolBalance()).walletSol,
+          allowedWinners: eligibleWinners,
+          expectedWinnerAmounts: payoutAmounts,
+        })
+        if (!transferCheck.ok) {
+          console.error(`[Payout] #${pending.rank} pre-swap BLOCKED: ${transferCheck.reason}`)
+          await Payout.findByIdAndUpdate(pending.id, {
+            status: 'failed',
+            errorMessage: transferCheck.reason,
+          })
+        }
+      }
+
+      const swapCandidates: typeof winnerPending = []
+      for (const pending of winnerPending) {
+        const doc = await Payout.findById(pending.id).select('status').lean()
+        if (doc?.status === 'pending') swapCandidates.push(pending)
+      }
+
+      if (swapCandidates.length > 0) {
+        const swapSol = swapCandidates.reduce((sum, p) => sum + p.amountSol, 0)
+        const swapResult = await swapSolForToken(
+          swapSol,
+          config.tokenMint!,
+          config.tokenDecimals
+        )
+
+        if (!swapResult.success) {
+          for (const pending of swapCandidates) {
+            await Payout.findByIdAndUpdate(pending.id, {
+              status: 'failed',
+              errorMessage: swapResult.error || 'Token swap failed',
+            })
+          }
+        } else {
+          swapTxHash = swapResult.txHash
+          const postSwapBalance = await getPayoutWalletTokenBalance(
+            config.tokenMint!,
+            config.tokenDecimals
+          )
+          const tokensReceived = Math.max(0, postSwapBalance - preSwapBalance)
+          const totalTokens =
+            tokensReceived > 0
+              ? tokensReceived
+              : swapResult.outputAmountHuman ?? 0
+
+          console.log(
+            `[Payout] Swap delivered ~${totalTokens.toFixed(4)} ${config.tokenSymbol} for winner pool`
+          )
+
+          await recordPayoutVolumeSwap({
+            cycle: nextCycle,
+            swapSol,
+            swapUsd: swapSol * solPrice,
+            txHash: swapResult.txHash,
+          })
+
+          tokenAmountByRank = allocateTokenAmountsBySolShare(
+            swapCandidates.map(p => ({ rank: p.rank, amountSol: p.amountSol })),
+            totalTokens
+          )
+        }
+      }
+    }
+
     for (const pending of winnerPending) {
       const label = `#${pending.rank}`
+      const existing = await Payout.findById(pending.id).select('status errorMessage').lean()
+      if (existing?.status !== 'pending') {
+        if (
+          existing?.status === 'failed' &&
+          !results.some(r => r.type === 'winner' && r.rank === pending.rank)
+        ) {
+          results.push({
+            rank: pending.rank,
+            type: 'winner',
+            wallet: pending.wallet,
+            amount_eth: pending.amountSol.toFixed(6),
+            status: 'failed',
+            tx_hash: swapTxHash,
+            error: existing.errorMessage,
+          })
+        }
+        continue
+      }
+
       const currentLive = await getLivePoolBalance()
       const availableSol = currentLive.walletSol
+      const sessionTokenPrice =
+        (await getTokenPrice(config.tokenMint!)) ?? solPrice
+
+      if (payWinnersInNativeToken) {
+        const tokenAmount = tokenAmountByRank.get(pending.rank)
+        if (tokenAmount == null || tokenAmount <= 0) {
+          const reason =
+            swapTxHash == null
+              ? 'Token swap did not produce a distributable balance'
+              : 'Winner token share is zero after swap'
+          await Payout.findByIdAndUpdate(pending.id, {
+            status: 'failed',
+            errorMessage: reason,
+          })
+          results.push({
+            rank: pending.rank,
+            type: 'winner',
+            wallet: pending.wallet,
+            amount_eth: pending.amountSol.toFixed(6),
+            status: 'failed',
+            tx_hash: swapTxHash,
+            error: reason,
+          })
+          continue
+        }
+
+        const tokenCheck = await assertPayoutTokenTransferAllowed({
+          rank: pending.rank,
+          recipient: pending.wallet,
+          amountTokens: tokenAmount,
+          allowedWinners: eligibleWinners,
+        })
+
+        if (!tokenCheck.ok) {
+          console.error(`[Payout] ${label} BLOCKED: ${tokenCheck.reason}`)
+          await Payout.findByIdAndUpdate(pending.id, {
+            status: 'failed',
+            errorMessage: tokenCheck.reason,
+          })
+          results.push({
+            rank: pending.rank,
+            type: 'winner',
+            wallet: pending.wallet,
+            amount_eth: pending.amountSol.toFixed(6),
+            status: 'failed',
+            tx_hash: null,
+            error: tokenCheck.reason,
+          })
+          continue
+        }
+
+        console.log(
+          `[Payout] ${label}: Sending ${tokenAmount.toFixed(4)} ${config.tokenSymbol} to ${pending.wallet.slice(0, 10)}...`
+        )
+
+        const txResult = config.executePayouts
+          ? await transferSessionToken(
+              pending.wallet,
+              tokenAmount,
+              config.tokenMint!,
+              config.tokenDecimals,
+              config.tokenSymbol
+            )
+          : { success: false, txHash: null, error: 'EXECUTE_PAYOUTS disabled' }
+
+        console.log(
+          `[Payout] ${label} result: ${txResult.success ? '✅' : '❌'} ${txResult.txHash || txResult.error}`
+        )
+
+        const tokenUsd = tokenAmount * sessionTokenPrice
+        await Payout.findByIdAndUpdate(pending.id, {
+          txHash: txResult.txHash || swapTxHash,
+          amount: tokenUsd,
+          amountTokens: tokenAmount,
+          status: txResult.success ? 'success' : 'failed',
+          errorMessage: txResult.error,
+        })
+
+        if (txResult.success) {
+          totalPaidSol += pending.amountSol
+
+          await Disqualification.create({
+            wallet: pending.wallet,
+            reason: 'winner_cooldown',
+            expiresAt: new Date(Date.now() + config.payoutIntervalMinutes * 60 * 1000 * 2),
+          }).catch(() => {})
+
+          await persistWinnerAfterPayout(pending.wallet, nextCycle, sessionTokenPrice)
+        }
+
+        results.push({
+          rank: pending.rank,
+          type: 'winner',
+          wallet: pending.wallet,
+          amount_eth: pending.amountSol.toFixed(6),
+          amount_tokens: tokenAmount.toFixed(4),
+          status: txResult.success ? 'success' : 'failed',
+          tx_hash: txResult.txHash,
+          error: txResult.error,
+        })
+        continue
+      }
 
       const transferCheck = await assertPayoutTransferAllowed({
         rank: pending.rank,
@@ -691,6 +1019,14 @@ export async function executePayout(): Promise<PayoutResult> {
       .map(r => r.wallet)
 
     if (successfulWinnerWallets.length === 0) {
+      const failureReason =
+        results.find(r => r.type === 'winner' && r.status === 'failed' && r.error)?.error ||
+        'No successful winner payouts this cycle'
+
+      if (eligibleWinners.length > 0) {
+        return handlePayoutExecutionFailure(nextCycle, failureReason)
+      }
+
       await cleanupAbortedCycleRecords(nextCycle)
       return pausePayoutForNoWinners('No successful winner payouts this cycle')
     }
@@ -771,7 +1107,7 @@ export async function executePayout(): Promise<PayoutResult> {
       console.warn('[Payout] DEV_WALLET_ADDRESS missing or invalid — dev fee stays in pool wallet')
     }
 
-    await saveTimerState(now, nextCycle, 'active')
+    await saveTimerState(now, nextCycle, 'active', { clearPayoutError: true })
 
     markWinnersCooldown(successfulWinnerWallets, nextCycle)
     console.log(`[Payout] Updated ${successfulWinnerWallets.length} winners with cooldown in memory`)

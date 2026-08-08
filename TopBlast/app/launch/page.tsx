@@ -10,6 +10,7 @@ import {
   LaunchSkippedCyclesNote,
 } from '@/components/tenant/LaunchHowTo'
 import { ForCreatorsSection } from '@/components/platform/ForCreatorsSection'
+import { ChartVolumeExplainer } from '@/components/platform/ChartVolumeExplainer'
 import { DynamicPotExplainer } from '@/components/platform/DynamicPotExplainer'
 import { EligibilityRequirements } from '@/components/tenant/EligibilityRequirements'
 import { AppHeader } from '@/components/platform/AppHeader'
@@ -227,6 +228,7 @@ export default function LaunchPage() {
 
           <LaunchTabPanel tabId="payouts" activeTab={activeTab}>
             <div className="space-y-6">
+              <ChartVolumeExplainer compact showCatalogLink={false} />
               <DynamicPotExplainer compact hideTimer />
               <section className="rounded-2xl border border-white/10 bg-black/40 p-6">
                 <h2 className="text-lg font-bold mb-4">Eligibility requirements</h2>

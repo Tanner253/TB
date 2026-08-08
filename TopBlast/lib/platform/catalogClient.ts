@@ -64,6 +64,13 @@ export function formatCatalogVolume(tenant: PublicTenantSummary): string | null 
   return null
 }
 
+export function formatCatalogGeneratedVolume(tenant: PublicTenantSummary): string | null {
+  if (tenant.total_generated_volume_usd_formatted != null && tenant.total_generated_volume_sol != null) {
+    return `${tenant.total_generated_volume_usd_formatted} · ${tenant.total_generated_volume_sol.toFixed(4)} SOL`
+  }
+  return null
+}
+
 export function catalogCardSubtitle(tenant: PublicTenantSummary): string {
   if (tenant.payoutIntervalMinutes) {
     return `Payouts every ${formatPayoutInterval(tenant.payoutIntervalMinutes)}`

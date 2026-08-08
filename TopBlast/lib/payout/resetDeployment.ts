@@ -49,6 +49,8 @@ export async function resetDeploymentState(): Promise<DeploymentResetResult> {
         lastPayoutTime: null,
         currentCycle: 0,
         failedAttempts: 0,
+        lastPayoutError: null,
+        lastPayoutErrorAt: null,
         isPayoutInProgress: false,
         lockAcquiredAt: null,
         lockCycle: null,

@@ -56,14 +56,11 @@ type NavItem = { href: string; label: string; active: boolean; external?: boolea
 
 interface AppHeaderProps {
   active?: AppHeaderActive
-  sessionBasePath?: string
   trailing?: React.ReactNode
 }
 
-export function AppHeader({ active, sessionBasePath, trailing }: AppHeaderProps) {
+export function AppHeader({ active, trailing }: AppHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const inSession = sessionBasePath !== undefined
-  const sessionRoot = sessionBasePath || ''
 
   useEffect(() => {
     if (!menuOpen) return
@@ -84,19 +81,13 @@ export function AppHeader({ active, sessionBasePath, trailing }: AppHeaderProps)
     { href: '/launch', label: 'Launch', active: active === 'launch' },
   ]
 
-  const sessionLinks: NavItem[] = [
-    { href: `${sessionRoot}/leaderboard`, label: 'Leaderboard', active: active === 'leaderboard' },
-    { href: `${sessionRoot}/history`, label: 'History', active: active === 'history' },
-    { href: `${sessionRoot}/stats`, label: 'Stats', active: active === 'stats' },
-  ]
-
   const extraLinks: NavItem[] = [
     { href: WHITEPAPER_URL, label: 'Docs', active: false, external: true },
     { href: EXTERNAL_LINKS.github, label: 'GitHub', active: false, external: true },
     { href: EXTERNAL_LINKS.twitter, label: 'X / Twitter', active: false, external: true },
   ]
 
-  const navLinks = [...platformLinks, ...(inSession ? sessionLinks : []), ...extraLinks]
+  const navLinks = [...platformLinks, ...extraLinks]
 
   function renderNavLink(item: NavItem, block = false) {
     const className = navLinkClass(item.active, block)
@@ -140,7 +131,6 @@ export function AppHeader({ active, sessionBasePath, trailing }: AppHeaderProps)
 
           <nav className="hidden lg:flex items-center gap-1 text-sm">
             {platformLinks.map(item => renderNavLink(item))}
-            {inSession ? sessionLinks.map(item => renderNavLink(item)) : null}
             <a
               href={WHITEPAPER_URL}
               target="_blank"
@@ -176,14 +166,12 @@ export function AppHeader({ active, sessionBasePath, trailing }: AppHeaderProps)
             <div className="hidden md:block">
               <SolanaBadge compact />
             </div>
-            {!inSession ? (
-              <Link
-                href="/launch"
-                className="hidden sm:inline-flex px-3.5 py-1.5 bg-sol-gradient text-black rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity whitespace-nowrap"
-              >
-                Launch
-              </Link>
-            ) : null}
+            <Link
+              href="/launch"
+              className="hidden sm:inline-flex px-3.5 py-1.5 bg-sol-gradient text-black rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity whitespace-nowrap"
+            >
+              Launch
+            </Link>
             <button
               type="button"
               className="lg:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-300 hover:bg-white/[0.06] hover:text-white transition-colors"

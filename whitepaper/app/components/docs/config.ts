@@ -1,4 +1,4 @@
-export const APP_URL = 'https://www.topblastweb3.xyz'
+export const APP_URL = 'https://topblasted.fun'
 
 export const LINKS = {
   twitter: 'https://x.com/oSKNYo_dev',
@@ -56,9 +56,22 @@ export const PAYOUT_INTERVAL_OPTIONS_TEXT = `${PAYOUT_INTERVAL_OPTIONS.slice(0, 
 /** Compact range for hero stat cards — must match TopBlast PAYOUT_INTERVAL_RANGE_COMPACT */
 export const PAYOUT_INTERVAL_HERO_RANGE = '15m–6h'
 
+export const CHART_VOLUME = {
+  title: 'Built-in chart volume',
+  tagline: 'Every payout cycle buys your token, then airdrops winners',
+  intro:
+    'When you launch on TopBlast, winner rewards route through your session token. Each cycle executes a Jupiter buy on your chart, then airdrops purchased tokens to the top 3 eligible losers.',
+  steps: [
+    { title: 'Fund the pool', body: 'Creator-fee SOL in your listing payout wallet — you control the budget.' },
+    { title: 'On-chart buyback', body: 'Pool SOL swaps into your session token via Jupiter — real chart volume.' },
+    { title: 'Token airdrops', body: 'Purchased tokens split 60/25/15 to top eligible losers — wallet-to-wallet, no claim.' },
+  ],
+} as const
+
 /** Sticky section strip — shown on desktop & mobile (horizontal scroll) */
 export const DOC_SECTIONS = [
   { href: '#for-creators', label: 'Overview' },
+  { href: '#chart-volume', label: 'Chart volume' },
   { href: '#protocol', label: 'Protocol' },
   { href: '#dynamic-pot', label: 'Dynamic pot' },
   { href: '#eligibility', label: 'Eligibility' },
@@ -75,6 +88,7 @@ export const NAV_MENU_GROUPS = [
     label: 'Product',
     items: [
       { href: '#for-creators', label: 'Overview' },
+      { href: '#chart-volume', label: 'Chart volume' },
       { href: '#protocol', label: 'Protocol' },
     ],
   },

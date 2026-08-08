@@ -25,7 +25,7 @@ function getRpcUrl(): string {
 /**
  * Generic JSON-RPC helper to avoid WebSockets completely
  */
-async function jsonRpcCall(rpcUrl: string, method: string, params: any[]): Promise<any> {
+export async function jsonRpcCall(rpcUrl: string, method: string, params: any[]): Promise<any> {
   const response = await fetch(rpcUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -54,7 +54,7 @@ async function jsonRpcCall(rpcUrl: string, method: string, params: any[]): Promi
  * Wait for transaction confirmation using HTTP polling (no WebSockets)
  * This is required for serverless environments like Vercel
  */
-async function confirmTransactionWithPolling(
+export async function confirmTransactionWithPolling(
   rpcUrl: string,
   signature: string,
   maxRetries: number = 30,
@@ -91,7 +91,7 @@ async function confirmTransactionWithPolling(
 /**
  * Helper to get latest blockhash via HTTP (avoiding WebSockets)
  */
-async function getLatestBlockhashHttp(rpcUrl: string): Promise<{ blockhash: string; lastValidBlockHeight: number }> {
+export async function getLatestBlockhashHttp(rpcUrl: string): Promise<{ blockhash: string; lastValidBlockHeight: number }> {
   try {
     const result = await jsonRpcCall(rpcUrl, 'getLatestBlockhash', [{ commitment: 'confirmed' }])
     return result.value
@@ -103,7 +103,7 @@ async function getLatestBlockhashHttp(rpcUrl: string): Promise<{ blockhash: stri
 /**
  * Helper to send raw transaction via HTTP (avoiding WebSockets)
  */
-async function sendRawTransactionHttp(
+export async function sendRawTransactionHttp(
   serializedTransaction: Buffer | Uint8Array,
   rpcUrl: string,
   options: { skipPreflight?: boolean; preflightCommitment?: string } = {}

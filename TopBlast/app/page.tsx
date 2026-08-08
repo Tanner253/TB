@@ -8,6 +8,7 @@ import { FeaturedTokens } from '@/components/catalog/FeaturedTokens'
 import { ForCreatorsSection } from '@/components/platform/ForCreatorsSection'
 import { DynamicPotExplainer } from '@/components/platform/DynamicPotExplainer'
 import { FlywheelTokenomics } from '@/components/platform/FlywheelTokenomics'
+import { ChartVolumeExplainer } from '@/components/platform/ChartVolumeExplainer'
 import { DEV_HERO } from '@/lib/marketing/devValueProp'
 
 export default function HomePage() {
@@ -25,6 +26,9 @@ export default function HomePage() {
       <main className="relative z-10 max-w-6xl mx-auto px-3 sm:px-5 py-8 sm:py-10">
         <div className="mb-10">
           <p className="text-sol-mint text-xs font-semibold uppercase tracking-[0.14em] mb-2">Solana SaaS</p>
+          <div className="inline-flex items-center gap-2 rounded-full border border-purple-500/30 bg-purple-950/30 px-3 py-1 text-xs text-purple-200 mb-3">
+            On-chart buybacks + token airdrops every payout cycle
+          </div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">{DEV_HERO.headline}</h1>
           <p className="text-gray-400 max-w-2xl text-sm md:text-base leading-relaxed">{DEV_HERO.subhead}</p>
           <div className="mt-6 flex flex-wrap gap-3">
@@ -45,6 +49,10 @@ export default function HomePage() {
 
         <section className="mb-12">
           <FeaturedTokens limit={3} />
+        </section>
+
+        <section className="mb-12">
+          <ChartVolumeExplainer />
         </section>
 
         <section className="mb-12">

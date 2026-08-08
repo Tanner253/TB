@@ -1,11 +1,13 @@
 import connectDB from '@/lib/db'
-import { Payout } from '@/lib/db/models'
+import { Payout, PayoutVolumeSwap } from '@/lib/db/models'
 import { tenantFilter } from '@/lib/tenant/scope'
 
 export interface TenantPayoutStats {
   total_cycles: number
   total_distributed_usd: number
   total_distributed_sol: number
+  total_generated_volume_usd: number
+  total_generated_volume_sol: number
   successful_winner_payouts: number
   average_payout_usd: number
   last_payout_at: Date | null
@@ -28,6 +30,10 @@ export async function fetchTenantPayoutStats(): Promise<TenantPayoutStats> {
   const totalDistributedUsd = winnerPayouts.reduce((sum, p) => sum + (p.amount || 0), 0)
   const totalDistributedSol = winnerPayouts.reduce((sum, p) => sum + (p.amountTokens || 0), 0)
   const winnerCount = winnerPayouts.length
+
+  const swapRows = await PayoutVolumeSwap.find(tenantFilter()).select('swapSol swapUsd').lean()
+  const totalGeneratedVolumeUsd = swapRows.reduce((sum, row) => sum + (row.swapUsd || 0), 0)
+  const totalGeneratedVolumeSol = swapRows.reduce((sum, row) => sum + (row.swapSol || 0), 0)
 
   const winCountByWallet = new Map<string, number>()
   for (const p of winnerPayouts) {
@@ -53,6 +59,8 @@ export async function fetchTenantPayoutStats(): Promise<TenantPayoutStats> {
     total_cycles: cycleSet.size,
     total_distributed_usd: totalDistributedUsd,
     total_distributed_sol: totalDistributedSol,
+    total_generated_volume_usd: totalGeneratedVolumeUsd,
+    total_generated_volume_sol: totalGeneratedVolumeSol,
     successful_winner_payouts: winnerCount,
     average_payout_usd: winnerCount > 0 ? totalDistributedUsd / winnerCount : 0,
     last_payout_at: lastPayoutAt,

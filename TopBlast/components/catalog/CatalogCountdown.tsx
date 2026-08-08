@@ -13,6 +13,9 @@ interface CatalogCountdownProps {
   compact?: boolean
 }
 
+/** Fixed-height slot so catalog cards/rows stay aligned when limbo vs countdown. */
+const COUNTDOWN_SLOT_CLASS = 'min-h-[2.75rem] flex flex-col justify-center'
+
 export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownProps) {
   const serverSeconds = tenant.payout_seconds_remaining
   const [seconds, setSeconds] = useState<number | null>(serverSeconds ?? null)
@@ -50,16 +53,16 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
 
   const subtitle = catalogCountdownSubtitle(tenant)
   const paused = isCatalogPayoutPaused(tenant)
+  const textSize = compact ? 'text-xs' : 'text-sm'
+  const monoSize = compact ? 'text-sm' : 'text-base'
 
   if (paused) {
     return (
-      <div className={compact ? 'mt-1' : 'mt-1.5'}>
-        <p className={`text-amber-200/80 ${compact ? 'text-xs' : 'text-sm'}`}>
-          Launch limbo — waiting for eligible holders
+      <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>
+        <p className={`font-medium text-amber-200/90 ${textSize} leading-snug`}>Launch limbo</p>
+        <p className={`text-gray-500 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
+          Waiting for eligible holders
         </p>
-        {subtitle ? (
-          <p className={`text-gray-500 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5`}>{subtitle}</p>
-        ) : null}
       </div>
     )
   }
@@ -67,33 +70,39 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
   if (tenant.payout_timer_status === 'active' && seconds != null) {
     const due = seconds <= 0
     return (
-      <div className={compact ? 'mt-1' : 'mt-1.5'}>
+      <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>
         <p
-          className={`font-mono font-semibold tabular-nums ${
+          className={`font-mono font-semibold tabular-nums leading-snug ${
             due ? 'text-sol-mint animate-pulse' : 'text-white'
-          } ${compact ? 'text-sm' : 'text-base'}`}
+          } ${monoSize}`}
         >
-          {due ? '00:00 · payout due' : `${formatPayoutCountdown(seconds)} · next payout`}
+          {due ? '00:00 · due' : `${formatPayoutCountdown(seconds)} · next`}
         </p>
-        {tenant.payout_current_cycle != null && tenant.payout_current_cycle > 0 ? (
-          <p className={`text-gray-500 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5`}>
-            Cycle {tenant.payout_current_cycle + 1}
-            {subtitle ? ` · ${subtitle.toLowerCase()}` : ''}
-          </p>
-        ) : subtitle ? (
-          <p className={`text-gray-500 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5`}>{subtitle}</p>
-        ) : null}
+        <p className={`text-gray-500 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
+          {tenant.payout_current_cycle != null && tenant.payout_current_cycle > 0
+            ? `Cycle ${tenant.payout_current_cycle + 1}`
+            : 'Next payout'}
+        </p>
       </div>
     )
   }
 
-  if (tenant.payoutIntervalMinutes) {
-    return (
-      <p className={`text-gray-400 ${compact ? 'text-xs' : 'text-sm'} mt-1`}>
-        Payouts every {tenant.payoutIntervalMinutes} minutes
+  return (
+    <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>
+      <p className={`text-gray-400 ${textSize} leading-snug`}>
+        {tenant.payoutIntervalMinutes
+          ? `Every ${tenant.payoutIntervalMinutes} min`
+          : 'Awaiting start'}
       </p>
-    )
-  }
-
-  return null
+      {subtitle ? (
+        <p className={`text-gray-500 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
+          {subtitle}
+        </p>
+      ) : (
+        <p className={`text-gray-600 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 invisible`} aria-hidden>
+          placeholder
+        </p>
+      )}
+    </div>
+  )
 }

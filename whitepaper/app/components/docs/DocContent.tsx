@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { CopyContractAddress } from '../CopyContractAddress'
 import {
   APP_URL,
+  CHART_VOLUME,
   DEFAULT_MIN_TOKEN_HOLDING,
   DEFAULT_MIN_TOKEN_HOLDING_LABEL,
   FLYWHEEL,
@@ -53,7 +54,7 @@ const UPDATES = [
     date: 'Aug 2026',
     tag: 'Solana',
     items: [
-      'Native SOL payouts on Solana mainnet',
+      'On-chart buybacks + token airdrops on Solana mainnet',
       'Helius holder indexing and VWAP engine',
       '12% dev fee · 88% to top 3 eligible losers (60/25/15)',
     ],
@@ -61,7 +62,7 @@ const UPDATES = [
 ]
 
 const ROADMAP = [
-  { phase: '1', title: 'Solana launch', status: 'Done', detail: 'Loss-mining live with Helius, SOL payouts, eligibility-gated timer.' },
+  { phase: '1', title: 'Solana launch', status: 'Done', detail: 'Loss-mining live with Helius, on-chart buybacks, token airdrops, eligibility-gated timer.' },
   { phase: '2', title: 'Multi-tenant SaaS', status: 'Done', detail: 'Self-serve listings, catalog, per-slug sessions, encrypted keys.' },
   { phase: '3', title: 'Growth & automation', status: 'Now', detail: 'Buyback bot, creator analytics, public API.' },
   { phase: '4', title: 'Scale', status: '2027', detail: 'Launch partners, premium tiers, automated treasury ops.' },
@@ -75,8 +76,8 @@ export function DocContent() {
       <DocSection id="for-creators">
         <DocHeader
           eyebrow="For Solana builders"
-          title="Reward bullish holders — not sellers"
-          description="TopBlast turns creator-fee SOL into loss-mining rewards for holders who bought the top and stayed in. No cashback sell pressure. No dev-tax FUD."
+          title="Reward holders — and bring volume to your chart"
+          description="TopBlast turns creator-fee SOL into loss-mining rewards for underwater holders. Every payout cycle market-buys your token on-chart, then airdrops tokens to winners — real buy pressure, not cashback sell spam."
         />
         <DocTable
           headers={['Approach', 'Holder behavior', 'Chart effect']}
@@ -84,7 +85,7 @@ export function DocContent() {
           rows={[
             ['Cashback / rebates', 'Buy → claim → sell', 'Instant sell pressure'],
             ['Creator rewards only', 'Fees accumulate to dev', 'No direct holder loop'],
-            ['TopBlast loss-mining', 'Hold underwater, compete for SOL', 'Rewards conviction, not exits'],
+            ['TopBlast loss-mining', 'Hold underwater, compete for rewards', 'On-chart buybacks + token airdrops every cycle'],
           ]}
         />
         <DocGrid cols={2}>
@@ -95,7 +96,12 @@ export function DocContent() {
           </DocCard>
           <DocCard title="Hands-off ops" accent="mint">
             <p className="doc-prose">
-              Choose payout frequency and minimum balance at launch ({PAYOUT_INTERVAL_OPTIONS_TEXT}; default {DEFAULT_MIN_TOKEN_HOLDING_LABEL} tokens). Cron indexes holders, ranks eligible losers, and sends native SOL from your funded wallet on that schedule.
+              Choose payout frequency and minimum balance at launch ({PAYOUT_INTERVAL_OPTIONS_TEXT}; default {DEFAULT_MIN_TOKEN_HOLDING_LABEL} tokens). Cron indexes holders, ranks eligible losers, executes on-chart buys, and airdrops session tokens from your funded wallet on that schedule.
+            </p>
+          </DocCard>
+          <DocCard title="Chart volume">
+            <p className="doc-prose">
+              Each cycle swaps pool SOL into your session token via Jupiter before distributing to winners. Lifetime buys are tracked as <strong>Gen volume</strong> in the catalog.
             </p>
           </DocCard>
           <DocCard title="Dynamic pot">
@@ -115,11 +121,35 @@ export function DocContent() {
         </div>
       </DocSection>
 
+      <DocSection id="chart-volume">
+        <DocHeader
+          eyebrow="Volume engine"
+          title={CHART_VOLUME.title}
+          description={CHART_VOLUME.intro}
+        />
+        <p className="doc-prose text-purple-200/90 font-medium mb-6">{CHART_VOLUME.tagline}</p>
+        <DocGrid cols={3}>
+          {CHART_VOLUME.steps.map((step, index) => (
+            <DocCard key={step.title} title={`${index + 1} · ${step.title}`} accent="purple">
+              <p className="doc-prose">{step.body}</p>
+            </DocCard>
+          ))}
+        </DocGrid>
+        <DocCard title="Why this matters for launchers">
+          <p className="doc-prose">
+            Unlike cashback bots that pay users to sell, TopBlast rewards conviction: winners must hold through drawdown to qualify — and they receive your token from on-chart buys, not exit liquidity. Every cycle adds measurable buy pressure to your chart.
+          </p>
+        </DocCard>
+        <div className="doc-cta-row">
+          <DocCta href={LINKS.catalog} label="See Gen volume live" variant="ghost" />
+        </div>
+      </DocSection>
+
       <DocSection id="protocol">
         <DocHeader
           eyebrow="Protocol"
           title="How loss-mining works"
-          description="Three automated steps — track entry, rank drawdown, blast SOL to the top 3 eligible losers."
+          description="Three automated steps — track entry, rank drawdown, buy your token on-chart and airdrop winners."
         />
         <DocGrid cols={3}>
           <DocCard title="1 · Track entry" accent="purple">
@@ -130,7 +160,7 @@ export function DocContent() {
           </DocCard>
           <DocCard title="3 · Blast rewards" accent="mint">
             <p className="doc-prose">
-              Top 3 receive {PAYOUT.first}/{PAYOUT.second}/{PAYOUT.third} of the winner pool. Native SOL — no claim step.
+              Top 3 receive {PAYOUT.first}/{PAYOUT.second}/{PAYOUT.third} of the winner pool. Pool SOL swaps into your session token on-chart, then tokens airdrop to winners — no claim step.
             </p>
           </DocCard>
         </DocGrid>
@@ -278,7 +308,7 @@ Platform token (TopBlast): configured by operators via server env — runs at /t
         </DocGrid>
         <DocCard title="Launcher payout key">
           <p className="doc-prose">
-            Submitted at /launch — usually the wallet receiving Pump.fun or Raydium creator fees. TopBlast signs SOL transfers to winners from this wallet only. Never logged in plain text.
+            Submitted at /launch — usually the wallet receiving Pump.fun or Raydium creator fees. TopBlast signs Jupiter swaps and token airdrops from this wallet only. Never logged in plain text.
           </p>
         </DocCard>
       </DocSection>
@@ -334,7 +364,7 @@ Platform token (TopBlast): configured by operators via server env — runs at /t
               <strong className="text-sol-mint">Price pumps</strong> — token appreciates, standard upside.
             </p>
             <p className="doc-prose">
-              <strong className="text-red-400">Price dumps</strong> — drawdown climbs, eligible holders compete for SOL from the pool.
+              <strong className="text-red-400">Price dumps</strong> — drawdown climbs, eligible holders compete for on-chart buybacks and token airdrops from the pool.
             </p>
           </DocCard>
         </DocGrid>
@@ -359,7 +389,7 @@ Platform token (TopBlast): configured by operators via server env — runs at /t
             <DocList items={['DexScreener WebSocket + 1s REST fallback in browser', 'Server: DexScreener → Jupiter → Helius (no TTL cache)', 'Auto pair switch on Pump.fun migration']} />
           </DocCard>
           <DocCard title="Runtime">
-            <DocList items={['Next.js 14 on Vercel', 'Multi-tenant cron /api/cron/tenants', '@solana/web3.js native SOL transfers']} />
+            <DocList items={['Next.js 14 on Vercel', 'Multi-tenant cron /api/cron/tenants', 'Jupiter swaps + SPL token airdrops per cycle']} />
           </DocCard>
         </DocGrid>
         <div className="doc-faq">

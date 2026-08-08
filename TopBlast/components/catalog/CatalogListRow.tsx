@@ -6,38 +6,66 @@ import { formatCatalogStatus, tenantCatalogHref } from '@/lib/platform/catalogCl
 import { CatalogTimerBadge } from '@/components/catalog/CatalogTimerBadge'
 import { CatalogCountdown } from '@/components/catalog/CatalogCountdown'
 
-function PayoutCell({ tenant }: { tenant: PublicTenantSummary }) {
+function MetricValue({
+  primary,
+  secondary,
+  primaryClassName = 'text-white',
+}: {
+  primary: string
+  secondary?: string | null
+  primaryClassName?: string
+}) {
   return (
-    <div className="min-w-0 hidden lg:block">
-      <CatalogCountdown tenant={tenant} compact />
+    <div className="min-w-0">
+      <p className={`text-sm font-medium tabular-nums truncate ${primaryClassName}`}>{primary}</p>
+      <p className="text-[0.65rem] text-gray-500 tabular-nums truncate">
+        {secondary ?? '\u00A0'}
+      </p>
     </div>
   )
 }
 
 function PotCell({ tenant }: { tenant: PublicTenantSummary }) {
   return (
-    <div className="min-w-0">
-      <p className="text-sm font-medium text-white tabular-nums truncate">
-        {tenant.pot_usd_formatted ?? '—'}
-      </p>
-      {tenant.pot_sol != null ? (
-        <p className="text-[0.65rem] text-gray-500 tabular-nums">{tenant.pot_sol.toFixed(4)} SOL</p>
-      ) : null}
-    </div>
+    <MetricValue
+      primary={tenant.pot_usd_formatted ?? '—'}
+      secondary={tenant.pot_sol != null ? `${tenant.pot_sol.toFixed(4)} SOL` : null}
+    />
   )
 }
 
-function VolumeCell({ tenant }: { tenant: PublicTenantSummary }) {
+function GeneratedVolumeCell({ tenant }: { tenant: PublicTenantSummary }) {
   return (
-    <div className="min-w-0">
-      <p className="text-sm font-medium text-sol-mint/90 tabular-nums truncate">
-        {tenant.total_distributed_usd_formatted ?? '—'}
-      </p>
-      {tenant.total_distributed_sol != null ? (
-        <p className="text-[0.65rem] text-gray-500 tabular-nums">
-          {tenant.total_distributed_sol.toFixed(4)} SOL
-        </p>
-      ) : null}
+    <MetricValue
+      primary={tenant.total_generated_volume_usd_formatted ?? '$0.00'}
+      secondary={
+        tenant.total_generated_volume_sol != null
+          ? `${tenant.total_generated_volume_sol.toFixed(4)} SOL`
+          : '0.0000 SOL'
+      }
+      primaryClassName="text-purple-300/90"
+    />
+  )
+}
+
+function PaidOutCell({ tenant }: { tenant: PublicTenantSummary }) {
+  return (
+    <MetricValue
+      primary={tenant.total_distributed_usd_formatted ?? '—'}
+      secondary={
+        tenant.total_distributed_sol != null
+          ? `${tenant.total_distributed_sol.toFixed(4)} SOL`
+          : null
+      }
+      primaryClassName="text-sol-mint/90"
+    />
+  )
+}
+
+function PayoutCell({ tenant }: { tenant: PublicTenantSummary }) {
+  return (
+    <div className="min-w-[7.5rem] max-w-[9rem] hidden lg:block">
+      <CatalogCountdown tenant={tenant} compact />
     </div>
   )
 }
@@ -48,7 +76,7 @@ export function CatalogListRow({ tenant }: { tenant: PublicTenantSummary }) {
   return (
     <Link
       href={tenantCatalogHref(tenant)}
-      className={`group flex flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_auto_auto] sm:gap-3 md:gap-4 sm:items-center px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors ${
+      className={`group flex flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(7.5rem,9rem)_auto] sm:gap-3 md:gap-4 sm:items-center px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors ${
         isPlatform ? 'bg-sol-purple/[0.04]' : ''
       }`}
     >
@@ -78,7 +106,7 @@ export function CatalogListRow({ tenant }: { tenant: PublicTenantSummary }) {
         </div>
 
         <span
-          className={`shrink-0 text-[0.65rem] uppercase tracking-wider px-2 py-1 rounded-full border whitespace-nowrap sm:order-6 ${
+          className={`shrink-0 text-[0.65rem] uppercase tracking-wider px-2 py-1 rounded-full border whitespace-nowrap sm:order-7 ${
             tenant.status === 'active'
               ? 'bg-sol-mint/10 text-sol-mint border-sol-mint/20'
               : 'bg-white/5 text-gray-400 border-white/10'
@@ -88,14 +116,21 @@ export function CatalogListRow({ tenant }: { tenant: PublicTenantSummary }) {
         </span>
       </div>
 
-      <div className="sm:hidden grid grid-cols-2 gap-3">
-        <div>
-          <p className="text-[0.65rem] uppercase tracking-wider text-gray-500 mb-0.5">Pot</p>
-          <PotCell tenant={tenant} />
-        </div>
-        <div>
-          <p className="text-[0.65rem] uppercase tracking-wider text-gray-500 mb-0.5">Paid out</p>
-          <VolumeCell tenant={tenant} />
+      <div className="sm:hidden space-y-2">
+        <CatalogCountdown tenant={tenant} compact />
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <p className="text-[0.65rem] uppercase tracking-wider text-gray-500 mb-0.5">Pot</p>
+            <PotCell tenant={tenant} />
+          </div>
+          <div>
+            <p className="text-[0.65rem] uppercase tracking-wider text-gray-500 mb-0.5">Gen vol</p>
+            <GeneratedVolumeCell tenant={tenant} />
+          </div>
+          <div>
+            <p className="text-[0.65rem] uppercase tracking-wider text-gray-500 mb-0.5">Paid out</p>
+            <PaidOutCell tenant={tenant} />
+          </div>
         </div>
       </div>
 
@@ -108,7 +143,11 @@ export function CatalogListRow({ tenant }: { tenant: PublicTenantSummary }) {
       </div>
 
       <div className="hidden sm:block">
-        <VolumeCell tenant={tenant} />
+        <GeneratedVolumeCell tenant={tenant} />
+      </div>
+
+      <div className="hidden sm:block">
+        <PaidOutCell tenant={tenant} />
       </div>
 
       <PayoutCell tenant={tenant} />

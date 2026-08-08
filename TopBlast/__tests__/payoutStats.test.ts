@@ -1,6 +1,6 @@
 import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
-import { Payout } from '@/lib/db/models'
+import { Payout, PayoutVolumeSwap } from '@/lib/db/models'
 import { fetchTenantPayoutStats } from '@/lib/payout/payoutStats'
 import { runWithTenant } from '@/lib/tenant/context'
 import type { TenantRuntimeConfig } from '@/lib/tenant/types'
@@ -35,6 +35,7 @@ describe('fetchTenantPayoutStats', () => {
 
   beforeEach(async () => {
     await Payout.deleteMany({})
+    await PayoutVolumeSwap.deleteMany({})
   })
 
   it('aggregates cycles, distributed totals, and most wins for tenant', async () => {
@@ -95,5 +96,39 @@ describe('fetchTenantPayoutStats', () => {
       wallet: 'Winner1111111111111111111111111111111111111',
       win_count: 2,
     })
+  })
+
+  it('aggregates generated swap volume for tenant', async () => {
+    await PayoutVolumeSwap.insertMany([
+      {
+        tenantSlug: 'pepe',
+        tokenMint: TENANT.tokenMint,
+        cycle: 1,
+        swapSol: 0.05,
+        swapUsd: 7.5,
+        txHash: 'swap1',
+      },
+      {
+        tenantSlug: 'pepe',
+        tokenMint: TENANT.tokenMint,
+        cycle: 2,
+        swapSol: 0.03,
+        swapUsd: 4.5,
+        txHash: 'swap2',
+      },
+      {
+        tenantSlug: 'other',
+        tokenMint: 'OtherMint',
+        cycle: 1,
+        swapSol: 1,
+        swapUsd: 100,
+        txHash: 'swap3',
+      },
+    ])
+
+    const stats = await runWithTenant(TENANT, () => fetchTenantPayoutStats())
+
+    expect(stats.total_generated_volume_sol).toBeCloseTo(0.08)
+    expect(stats.total_generated_volume_usd).toBeCloseTo(12)
   })
 })

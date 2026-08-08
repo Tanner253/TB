@@ -130,6 +130,30 @@ const PayoutSchema = new Schema<IPayout>({
   errorMessage: { type: String, default: null },
 }, { timestamps: true })
 
+/** Jupiter SOL → session token buy recorded per payout cycle (chart volume). */
+export interface IPayoutVolumeSwap extends Document {
+  tenantSlug: string
+  tokenMint: string
+  tokenSymbol: string | null
+  cycle: number
+  swapSol: number
+  swapUsd: number
+  txHash: string | null
+  createdAt: Date
+}
+
+const PayoutVolumeSwapSchema = new Schema<IPayoutVolumeSwap>({
+  tenantSlug: { type: String, default: '_legacy', index: true },
+  tokenMint: { type: String, required: true },
+  tokenSymbol: { type: String, default: null },
+  cycle: { type: Number, required: true },
+  swapSol: { type: Number, required: true },
+  swapUsd: { type: Number, required: true },
+  txHash: { type: String, default: null },
+}, { timestamps: true })
+
+PayoutVolumeSwapSchema.index({ tenantSlug: 1, cycle: 1 }, { unique: true })
+
 // Disqualification Interface
 export interface IDisqualification extends Document {
   tenantSlug: string
@@ -190,6 +214,8 @@ export interface ITimerState extends Document {
   lastPayoutTime: Date | null
   currentCycle: number
   failedAttempts: number
+  lastPayoutError: string | null
+  lastPayoutErrorAt: Date | null
   isPayoutInProgress: boolean
   lockAcquiredAt: Date | null // When the current lock was acquired
   lockCycle: number | null // Which cycle holds the lock
@@ -204,6 +230,8 @@ const TimerStateSchema = new Schema<ITimerState>({
   lastPayoutTime: { type: Date, default: null },
   currentCycle: { type: Number, default: 0 },
   failedAttempts: { type: Number, default: 0 },
+  lastPayoutError: { type: String, default: null },
+  lastPayoutErrorAt: { type: Date, default: null },
   isPayoutInProgress: { type: Boolean, default: false },
   lockAcquiredAt: { type: Date, default: null },
   lockCycle: { type: Number, default: null },
@@ -254,6 +282,9 @@ export const Tenant: Model<ITenant> = mongoose.models.Tenant || mongoose.model<I
 export const Holder: Model<IHolder> = mongoose.models.Holder || mongoose.model<IHolder>('Holder', HolderSchema)
 export const Snapshot: Model<ISnapshot> = mongoose.models.Snapshot || mongoose.model<ISnapshot>('Snapshot', SnapshotSchema)
 export const Payout: Model<IPayout> = mongoose.models.Payout || mongoose.model<IPayout>('Payout', PayoutSchema)
+export const PayoutVolumeSwap: Model<IPayoutVolumeSwap> =
+  mongoose.models.PayoutVolumeSwap ||
+  mongoose.model<IPayoutVolumeSwap>('PayoutVolumeSwap', PayoutVolumeSwapSchema)
 export const Disqualification: Model<IDisqualification> = mongoose.models.Disqualification || mongoose.model<IDisqualification>('Disqualification', DisqualificationSchema)
 export const PoolBalance: Model<IPoolBalance> = mongoose.models.PoolBalance || mongoose.model<IPoolBalance>('PoolBalance', PoolBalanceSchema)
 export const PriceCache: Model<IPriceCache> = mongoose.models.PriceCache || mongoose.model<IPriceCache>('PriceCache', PriceCacheSchema)

@@ -8,6 +8,7 @@ import { useRealtimePrice, useTimeSince } from '@/hooks/useRealtime'
 import { useTenantRouting } from '@/hooks/useTenantRouting'
 import { AnimatedNumber, PriceTicker } from '@/components/ui/AnimatedNumber'
 import { AppHeader } from '@/components/platform/AppHeader'
+import { SessionNav } from '@/components/platform/SessionNav'
 import { TenantStatusPanel } from '@/components/tenant/TenantStatusPanel'
 import { CopyContractAddress } from '@/components/ui/CopyContractAddress'
 import type { TenantDiagnostics } from '@/lib/tenant/diagnostics'
@@ -39,6 +40,8 @@ interface StatsData {
   protocol: {
     total_cycles: number
     total_distributed_usd: string
+    total_generated_volume_usd?: string
+    total_generated_volume_sol?: string
     average_pool_size_usd: string
     current_pool_usd: string
     average_payout_usd?: string
@@ -166,7 +169,8 @@ export default function StatsPage() {
         <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-rh-lime/5 rounded-full blur-3xl" />
       </div>
 
-      <AppHeader active="stats" sessionBasePath={basePath} />
+      <AppHeader active="catalog" />
+      <SessionNav basePath={basePath} active="stats" symbol={stats?.token.symbol} />
 
       <main className="relative max-w-5xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
         {/* Page Title */}
@@ -262,10 +266,21 @@ export default function StatsPage() {
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
             <span>💰</span> Reward Pool
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Current Balance</div>
               <div className="text-3xl font-bold text-rh-green">{pool?.balance_usd || stats?.protocol.current_pool_usd || '$0'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Total Generated Volume</div>
+              <div className="text-2xl font-bold text-purple-300">
+                {stats?.protocol.total_generated_volume_usd || '$0'}
+              </div>
+              {stats?.protocol.total_generated_volume_sol ? (
+                <div className="text-xs text-gray-500 mt-1 font-mono">
+                  {stats.protocol.total_generated_volume_sol} SOL bought on-chart
+                </div>
+              ) : null}
             </div>
             <div>
               <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Total Distributed</div>

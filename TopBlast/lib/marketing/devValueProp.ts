@@ -5,10 +5,39 @@ import { formatPayoutIntervalOptionsList } from '@/lib/platform/payoutIntervals'
 const PAYOUT_SCHEDULE_OPTIONS = formatPayoutIntervalOptionsList()
 
 export const DEV_HERO = {
-  headline: 'Reward bullish holders — not sellers',
+  headline: 'Reward holders — and bring volume to your chart',
   subhead:
-    'TopBlast turns creator-fee SOL into loss-mining rewards for holders who bought the top and stayed in. No cashback sell pressure. No “dev tax” FUD.',
+    'TopBlast turns creator-fee SOL into loss-mining rewards for underwater holders. Every payout cycle market-buys your token on-chart, then airdrops tokens to winners — real buy pressure, not cashback sell spam.',
   cta: 'Launch your token',
+} as const
+
+/** How session listings generate on-chart volume for launchers. */
+export const CHART_VOLUME_ENGINE = {
+  title: 'Built-in chart volume',
+  tagline: 'Every payout cycle buys your token, then airdrops winners',
+  intro:
+    'When you launch on TopBlast, your payout wallet doesn’t just send SOL — it routes winner rewards through your session token. That means recurring Jupiter buys on your chart plus token airdrops to the top eligible losers.',
+  steps: [
+    {
+      title: 'Fund the pool',
+      body: 'Creator-fee SOL sits in your listing’s payout wallet — you control the budget.',
+    },
+    {
+      title: 'On-chart buyback',
+      body: 'Each cycle, the protocol swaps pool SOL into your session token via Jupiter. Buys show as real chart volume.',
+    },
+    {
+      title: 'Token airdrops',
+      body: 'Purchased tokens are split 60/25/15 and sent to the top 3 eligible losers — no claim button, wallet-to-wallet.',
+    },
+  ],
+  stats: [
+    { label: 'Buy pressure', value: 'Every cycle', hint: 'Jupiter route into your mint' },
+    { label: 'Distribution', value: 'Top 3', hint: 'Eligible losers only' },
+    { label: 'Tracking', value: 'Gen volume', hint: 'Lifetime SOL bought on-chart' },
+  ],
+  footer:
+    'Unlike cashback bots that pay users to sell, TopBlast rewards conviction: winners must hold through drawdown to qualify — and they receive your token, not exit liquidity.',
 } as const
 
 export const ALTERNATIVES_COMPARISON = [
@@ -31,9 +60,9 @@ export const ALTERNATIVES_COMPARISON = [
   {
     id: 'topblast',
     name: 'TopBlast loss-mining',
-    holderBehavior: 'Buy, hold through drawdown, compete for SOL',
-    chartEffect: 'Rewards conviction — winners hold to qualify',
-    devOptics: 'Community rewards funded from your creator wallet',
+    holderBehavior: 'Buy, hold through drawdown, compete for rewards',
+    chartEffect: 'On-chart buybacks + token airdrops every cycle',
+    devOptics: 'Funded volume engine — your chart, your holders',
     tone: 'positive' as const,
   },
 ] as const
@@ -53,7 +82,7 @@ export const DYNAMIC_POT = {
     },
     {
       title: 'Winners',
-      body: 'Top 3 eligible losers by drawdown % (most underwater first). Not biggest wallet — must pass every rule.',
+      body: 'Top 3 eligible losers by drawdown %. Each cycle: SOL swaps into your session token on-chart, then tokens airdrop to winners (60/25/15 split).',
     },
     {
       title: 'Timer',
@@ -69,6 +98,10 @@ export const DYNAMIC_POT = {
 
 export const CREATOR_BENEFITS = [
   {
+    title: 'Recurring chart volume',
+    body: 'Every payout cycle executes an on-chart buy of your session token before distributing to winners — tracked as Gen volume in the catalog.',
+  },
+  {
     title: 'Incentivize holding, not exiting',
     body: 'Holders compete while underwater — they do not farm a rebate and immediately sell.',
   },
@@ -78,7 +111,7 @@ export const CREATOR_BENEFITS = [
   },
   {
     title: 'Hands-off operations',
-    body: `Rankings, eligibility, timer, and SOL payouts run on autopilot per listing — on the schedule you pick (${PAYOUT_SCHEDULE_OPTIONS}).`,
+    body: `Rankings, eligibility, timer, buybacks, and token airdrops run on autopilot per listing — on the schedule you pick (${PAYOUT_SCHEDULE_OPTIONS}).`,
   },
   {
     title: 'Built for Pump.fun → migration',

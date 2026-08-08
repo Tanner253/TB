@@ -143,8 +143,70 @@ export async function assertPayoutTransferAllowed(input: {
     return { ok: false, reason: 'Token mint not configured' }
   }
 
-  const holdsToken = await holderOwnsSessionToken(recipient, config.tokenMint)
-  if (!holdsToken) {
+  const holders = await getTokenHolders(config.tokenMint, 500)
+  const balanceByWallet = new Map<string, number>()
+  for (const row of holders) {
+    if (!row.isContract) {
+      balanceByWallet.set(row.wallet, row.balance / Math.pow(10, config.tokenDecimals))
+    }
+  }
+
+  if (!holderOwnsSessionToken(recipient, balanceByWallet)) {
+    return {
+      ok: false,
+      reason: 'Recipient does not hold the session token on-chain — payout blocked',
+    }
+  }
+
+  return { ok: true }
+}
+
+export async function assertPayoutTokenTransferAllowed(input: {
+  rank: number
+  recipient: string
+  amountTokens: number
+  allowedWinners: PayableWinner[]
+}): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const { rank, recipient, amountTokens, allowedWinners } = input
+
+  if (!isValidSolanaAddress(recipient)) {
+    return { ok: false, reason: 'Recipient is not a valid Solana address' }
+  }
+
+  if (isExcludedParticipantWallet(recipient)) {
+    return { ok: false, reason: 'Recipient is an excluded protocol wallet' }
+  }
+
+  if (rank < 1 || rank > 3) {
+    return { ok: false, reason: `Invalid winner rank ${rank}` }
+  }
+
+  if (amountTokens <= 0) {
+    return { ok: false, reason: 'Token payout amount must be greater than 0' }
+  }
+
+  const winnerIndex = rank - 1
+  const expected = allowedWinners[winnerIndex]
+  if (!expected || expected.wallet !== recipient) {
+    return {
+      ok: false,
+      reason: `Recipient ${recipient.slice(0, 8)}... is not live eligible winner #${rank}`,
+    }
+  }
+
+  if (!config.tokenMint) {
+    return { ok: false, reason: 'Token mint not configured' }
+  }
+
+  const holders = await getTokenHolders(config.tokenMint, 500)
+  const balanceByWallet = new Map<string, number>()
+  for (const row of holders) {
+    if (!row.isContract) {
+      balanceByWallet.set(row.wallet, row.balance / Math.pow(10, config.tokenDecimals))
+    }
+  }
+
+  if (!holderOwnsSessionToken(recipient, balanceByWallet)) {
     return {
       ok: false,
       reason: 'Recipient does not hold the session token on-chain — payout blocked',

@@ -6,18 +6,18 @@ const PAYOUT_META = `Configurable payout cycles (${PAYOUT_INTERVAL_RANGE_COMPACT
 
 export const metadata: Metadata = {
   title: 'TopBlast | The Loss-Mining Protocol',
-  description: `The Loss-Mining Protocol on Solana. Top 3 eligible losers win native SOL payouts. ${PAYOUT_META}.`,
+  description: `The Loss-Mining Protocol on Solana. On-chart buybacks and token airdrops for top eligible losers — volume for launchers. ${PAYOUT_META}.`,
   keywords: ['solana', 'spl', 'defi', 'loss-mining', 'crypto', 'topblast', 'helius'],
   authors: [{ name: 'TopBlast' }],
   openGraph: {
     title: 'TopBlast | The Loss-Mining Protocol',
-    description: `Get paid in native SOL for being a top loser. Solana · ${PAYOUT_META}.`,
+    description: `Launch on TopBlast: recurring chart volume via buybacks and token airdrops to underwater holders. Solana · ${PAYOUT_META}.`,
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'TopBlast | The Loss-Mining Protocol',
-    description: `Get paid in native SOL for being a top loser. Solana · ${PAYOUT_META}.`,
+    description: `Launch on TopBlast: recurring chart volume via buybacks and token airdrops to underwater holders. Solana · ${PAYOUT_META}.`,
     site: '@oSKNYo_dev',
   },
 }
