@@ -18,7 +18,7 @@ import {
   getPayoutTimerInfo,
   maybeStartPayoutTimer,
   ensureTimerStateSync,
-  pausePayoutTimerToWaiting,
+  syncPayoutTimerWithEligibility,
   getCurrentPayoutCycle,
   maybeExecuteDuePayout,
 } from '@/lib/payout/executor'
@@ -179,21 +179,10 @@ export async function GET(request: NextRequest) {
     } else {
       await maybeStartPayoutTimer(0)
     }
+    await syncPayoutTimerWithEligibility(liveEligibleCount ?? 0)
     await ensureTimerStateSync()
 
-    const timer = getPayoutTimerInfo()
-    const eligibleCount = liveEligibleCount
-
-    // Unstick timer when due but nobody is eligible (e.g. after accidental DB wipe)
-    if (
-      timer.timer_status === 'active' &&
-      isPayoutDue() &&
-      eligibleCount === 0
-    ) {
-      await pausePayoutTimerToWaiting()
-      await ensureTimerStateSync()
-    }
-
+    const eligibleCount = liveEligibleCount ?? 0
     const timerAfterPause = getPayoutTimerInfo()
 
     let timerAfterPayout = timerAfterPause

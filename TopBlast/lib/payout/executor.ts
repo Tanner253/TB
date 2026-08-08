@@ -279,6 +279,17 @@ export async function pausePayoutTimerToWaiting(): Promise<void> {
   console.log('[Payout] Timer paused — waiting for eligible holders')
 }
 
+/**
+ * Stop an active countdown when nobody qualifies — avoids a ticking timer with no possible payout.
+ * Restart happens via maybeStartPayoutTimer when eligibility returns.
+ */
+export async function syncPayoutTimerWithEligibility(eligibleCount: number): Promise<void> {
+  await ensureTimerStateSync()
+  if (getTimerCache().timerStatus === 'active' && eligibleCount <= 0) {
+    await pausePayoutTimerToWaiting()
+  }
+}
+
 export async function resetTimerForNextInterval(): Promise<void> {
   const now = Date.now()
   await saveTimerState(now, getTimerCache().currentCycle, 'active')
@@ -469,28 +480,28 @@ export async function executePayout(): Promise<PayoutResult> {
     console.log(`[Payout] Pool: ${poolSol.toFixed(6)} SOL ($${poolUsd.toFixed(2)})`)
 
     if (!livePool.available || livePool.walletSol <= 0) {
-      console.log('[Payout] No balance — skipping and resetting timer')
+      console.log('[Payout] No balance — pausing timer until pool is funded')
       await releasePayoutLock()
-      await resetTimerForNextInterval()
+      await pausePayoutTimerToWaiting()
       return { success: false, error: 'No wallet balance' }
     }
 
     if (poolSol < config.minPoolSol) {
       console.log(
-        `[Payout] Pool ${poolSol.toFixed(6)} SOL below minimum ${config.minPoolSol} SOL — skipping and resetting timer`
+        `[Payout] Pool ${poolSol.toFixed(6)} SOL below minimum ${config.minPoolSol} SOL — pausing timer until pool grows`
       )
       await releasePayoutLock()
-      await resetTimerForNextInterval()
+      await pausePayoutTimerToWaiting()
       return { success: false, error: 'Pool below minimum' }
     }
 
     const distributableCap = maxDistributableSol(livePool.walletSol)
     if (distributableCap < MIN_TRANSFER_SOL) {
       console.log(
-        `[Payout] Distributable ${distributableCap.toFixed(6)} SOL below minimum after wallet reserve — skipping`
+        `[Payout] Distributable ${distributableCap.toFixed(6)} SOL below minimum after wallet reserve — pausing timer`
       )
       await releasePayoutLock()
-      await resetTimerForNextInterval()
+      await pausePayoutTimerToWaiting()
       return { success: false, error: 'Insufficient balance after reserve' }
     }
 

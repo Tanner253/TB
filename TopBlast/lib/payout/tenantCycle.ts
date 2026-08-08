@@ -15,9 +15,9 @@ import { loadLastWinCycleByWallet } from '@/lib/payout/winnerPersistence'
 import {
   ensureTimerStateSync,
   maybeStartPayoutTimer,
-  pausePayoutTimerToWaiting,
+  syncPayoutTimerWithEligibility,
   isPayoutDue,
-  executePayout,
+  maybeExecuteDuePayout,
   getPayoutTimerInfo,
   getCurrentPayoutCycle,
 } from '@/lib/payout/executor'
@@ -72,15 +72,10 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
   }
 
   await maybeStartPayoutTimer(eligibleCount)
+  await syncPayoutTimerWithEligibility(eligibleCount)
   await ensureTimerStateSync()
 
-  let timer = getPayoutTimerInfo()
-
-  if (timer.timer_status === 'active' && isPayoutDue() && eligibleCount === 0) {
-    await pausePayoutTimerToWaiting()
-    await ensureTimerStateSync()
-    timer = getPayoutTimerInfo()
-  }
+  const timer = getPayoutTimerInfo()
 
   if (
     isPayoutDue() &&
@@ -88,7 +83,7 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
     dbRankings &&
     eligibleCount > 0
   ) {
-    const result = await executePayout()
+    const result = await maybeExecuteDuePayout(eligibleCount)
     await ensureTimerStateSync()
     return {
       indexed,

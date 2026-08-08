@@ -239,7 +239,7 @@ export function buildTenantDiagnostics(input: TenantDiagnosticsInput): TenantDia
       message:
         eligibleCount > 0
           ? `Next cycle in ~${mins} minute(s) if pool stays funded.`
-          : `Timer is running but no eligible winners right now — this cycle will skip payout until someone qualifies.`,
+          : `No eligible winners — timer should pause until someone qualifies.`,
       action:
         eligibleCount === 0
           ? `Review eligibility requirements below (hold time, balance, loss vs pool, no sells, cooldown).`
