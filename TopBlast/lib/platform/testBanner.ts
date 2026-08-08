@@ -12,7 +12,8 @@ export interface PlatformTestBanner {
 /** Hardcoded until official platform token launch — remove with testBanner module. */
 export const HARDCODED_PLATFORM_TEST_BANNER: PlatformTestBanner = {
   label: 'TEST',
-  message: 'NOT OFFICIAL TOKEN',
+  message:
+    'This is a test coin. All volume on this coin helps support development via testing, but an official coin is yet to be launched and will replace the TBLAST token.',
 }
 
 /** Leaderboard only: env-driven platform token (TOKEN_MINT_ADDRESS + payout key), not SaaS tenants. */

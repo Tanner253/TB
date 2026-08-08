@@ -14,11 +14,8 @@ export function PlatformTestBanner({ banner }: { banner: PlatformTestBannerData 
           <span className="inline-flex items-center justify-center self-center px-4 py-1.5 rounded-md bg-red-500 text-black font-black text-lg sm:text-xl tracking-[0.2em] uppercase shadow-lg ring-2 ring-red-300/80 animate-pulse">
             {banner.label}
           </span>
-          <p className="text-red-100 font-bold text-base sm:text-xl uppercase tracking-wide">
+          <p className="text-red-100 font-semibold text-sm sm:text-base max-w-4xl leading-snug">
             {banner.message}
-          </p>
-          <p className="text-red-200/80 text-xs sm:text-sm max-w-xl">
-            This session uses a test mint from operator env — not the official TopBlast token.
           </p>
         </div>
       </div>

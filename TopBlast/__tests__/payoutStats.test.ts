@@ -131,4 +131,30 @@ describe('fetchTenantPayoutStats', () => {
     expect(stats.total_generated_volume_sol).toBeCloseTo(0.08)
     expect(stats.total_generated_volume_usd).toBeCloseTo(12)
   })
+
+  it('sums multiple swap txs for the same cycle (retry buys)', async () => {
+    await PayoutVolumeSwap.insertMany([
+      {
+        tenantSlug: 'pepe',
+        tokenMint: TENANT.tokenMint,
+        cycle: 9,
+        swapSol: 0.068,
+        swapUsd: 5.15,
+        txHash: 'swap-cycle9-a',
+      },
+      {
+        tenantSlug: 'pepe',
+        tokenMint: TENANT.tokenMint,
+        cycle: 9,
+        swapSol: 0.032,
+        swapUsd: 2.43,
+        txHash: 'swap-cycle9-b',
+      },
+    ])
+
+    const stats = await runWithTenant(TENANT, () => fetchTenantPayoutStats())
+
+    expect(stats.total_generated_volume_sol).toBeCloseTo(0.1)
+    expect(stats.total_generated_volume_usd).toBeCloseTo(7.58)
+  })
 })

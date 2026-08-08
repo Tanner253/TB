@@ -24,7 +24,8 @@ describe('getPlatformTestBanner', () => {
     const { getPlatformTestBanner } = await import('@/lib/platform/testBanner')
     expect(getPlatformTestBanner()).toEqual({
       label: 'TEST',
-      message: 'NOT OFFICIAL TOKEN',
+      message:
+        'This is a test coin. All volume on this coin helps support development via testing, but an official coin is yet to be launched and will replace the TBLAST token.',
     })
   })
 

@@ -130,7 +130,7 @@ const PayoutSchema = new Schema<IPayout>({
   errorMessage: { type: String, default: null },
 }, { timestamps: true })
 
-/** Jupiter SOL → session token buy recorded per payout cycle (chart volume). */
+/** Jupiter SOL → session token buy (chart volume). One row per on-chain swap tx. */
 export interface IPayoutVolumeSwap extends Document {
   tenantSlug: string
   tokenMint: string
@@ -138,7 +138,7 @@ export interface IPayoutVolumeSwap extends Document {
   cycle: number
   swapSol: number
   swapUsd: number
-  txHash: string | null
+  txHash: string
   createdAt: Date
 }
 
@@ -149,10 +149,10 @@ const PayoutVolumeSwapSchema = new Schema<IPayoutVolumeSwap>({
   cycle: { type: Number, required: true },
   swapSol: { type: Number, required: true },
   swapUsd: { type: Number, required: true },
-  txHash: { type: String, default: null },
+  txHash: { type: String, required: true },
 }, { timestamps: true })
 
-PayoutVolumeSwapSchema.index({ tenantSlug: 1, cycle: 1 }, { unique: true })
+PayoutVolumeSwapSchema.index({ tenantSlug: 1, txHash: 1 }, { unique: true })
 
 // Disqualification Interface
 export interface IDisqualification extends Document {

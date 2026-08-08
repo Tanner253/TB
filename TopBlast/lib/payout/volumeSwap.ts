@@ -12,18 +12,34 @@ export interface RecordPayoutVolumeSwapInput {
   txHash: string | null
 }
 
+let volumeSwapIndexesEnsured = false
+
+/** Drop legacy per-cycle unique index so retries record separate swap txs. */
+async function ensurePayoutVolumeSwapIndexes(): Promise<void> {
+  if (volumeSwapIndexesEnsured) return
+  await connectDB()
+  try {
+    await PayoutVolumeSwap.collection.dropIndex('tenantSlug_1_cycle_1')
+  } catch {
+    /* legacy index may not exist */
+  }
+  await PayoutVolumeSwap.syncIndexes()
+  volumeSwapIndexesEnsured = true
+}
+
 /** Persist chart buy volume from a Jupiter SOL → session token swap. */
 export async function recordPayoutVolumeSwap(input: RecordPayoutVolumeSwapInput): Promise<void> {
-  if (input.swapSol <= 0) return
+  if (input.swapSol <= 0 || !input.txHash) return
 
-  await connectDB()
+  await ensurePayoutVolumeSwapIndexes()
 
   await PayoutVolumeSwap.findOneAndUpdate(
-    { ...tenantFields(), cycle: input.cycle },
+    { ...tenantFields(), txHash: input.txHash },
     {
-      $set: {
+      $setOnInsert: {
         tokenMint: config.tokenMint,
         tokenSymbol: config.tokenSymbol,
+        cycle: input.cycle,
         swapSol: input.swapSol,
         swapUsd: input.swapUsd,
         txHash: input.txHash,
