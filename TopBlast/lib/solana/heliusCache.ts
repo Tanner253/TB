@@ -4,6 +4,7 @@
  */
 
 import type { ParsedTransaction } from '@/lib/solana/helius'
+import { tenantCacheKey } from '@/lib/tenant/tenantCacheKey'
 
 type CacheEntry<T> = { value: T; expiresAt: number }
 
@@ -31,10 +32,10 @@ function indexThrottle() {
   return global._heliusIndexThrottle
 }
 
-/** DAS getTokenAccounts — cache 2 minutes per mint. */
+/** DAS getTokenAccounts — cache 2 minutes per tenant+mint. */
 export const HOLDER_LIST_TTL_MS = 2 * 60 * 1000
 
-/** Enhanced wallet history — cache 10 minutes per wallet+mint. */
+/** Enhanced wallet history — cache 10 minutes per tenant+wallet+mint. */
 export const WALLET_TX_TTL_MS = 10 * 60 * 1000
 
 /** Minimum gap between full re-index attempts per tenant mint. */
@@ -55,7 +56,7 @@ function write<T>(map: Map<string, CacheEntry<T>>, key: string, value: T, ttlMs:
 }
 
 export function getCachedTokenHolders(mint: string): { wallet: string; balance: number }[] | null {
-  return read(holderCache(), `holders:${mint}`)
+  return read(holderCache(), tenantCacheKey('holders', mint))
 }
 
 export function setCachedTokenHolders(
@@ -63,11 +64,11 @@ export function setCachedTokenHolders(
   holders: { wallet: string; balance: number }[],
   ttlMs = HOLDER_LIST_TTL_MS
 ) {
-  write(holderCache(), `holders:${mint}`, holders, ttlMs)
+  write(holderCache(), tenantCacheKey('holders', mint), holders, ttlMs)
 }
 
 export function getCachedWalletTransactions(wallet: string, mint: string): ParsedTransaction[] | null {
-  return read(txCache(), `tx:${mint}:${wallet}`)
+  return read(txCache(), tenantCacheKey('tx', mint, wallet))
 }
 
 export function setCachedWalletTransactions(
@@ -76,18 +77,18 @@ export function setCachedWalletTransactions(
   txs: ParsedTransaction[],
   ttlMs = WALLET_TX_TTL_MS
 ) {
-  write(txCache(), `tx:${mint}:${wallet}`, txs, ttlMs)
+  write(txCache(), tenantCacheKey('tx', mint, wallet), txs, ttlMs)
 }
 
 export function shouldThrottleFullReindex(tenantKey: string): boolean {
-  const last = indexThrottle().get(tenantKey) ?? 0
+  const last = indexThrottle().get(tenantCacheKey('reindex', tenantKey)) ?? 0
   return Date.now() - last < INDEX_THROTTLE_MS
 }
 
 export function markFullReindex(tenantKey: string) {
-  indexThrottle().set(tenantKey, Date.now())
+  indexThrottle().set(tenantCacheKey('reindex', tenantKey), Date.now())
 }
 
 export function invalidateWalletTxCache(wallet: string, mint: string) {
-  txCache().delete(`tx:${mint}:${wallet}`)
+  txCache().delete(tenantCacheKey('tx', mint, wallet))
 }

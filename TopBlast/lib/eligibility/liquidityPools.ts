@@ -9,6 +9,8 @@ import {
   DEXSCREENER_TOKEN_API,
   type DexScreenerPairLike,
 } from '@/lib/solana/dexscreenerShared'
+import { config } from '@/lib/config'
+import { clearTenantCacheEntries, tenantCacheKey } from '@/lib/tenant/tenantCacheKey'
 
 /** Pump.fun program (mainnet) */
 const PUMP_PROGRAM_ID = new PublicKey('6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P')
@@ -21,7 +23,21 @@ type PoolCacheEntry = {
   fetchedAt: number
 }
 
-const poolCacheByMint = new Map<string, PoolCacheEntry>()
+declare global {
+  // eslint-disable-next-line no-var
+  var _liquidityPoolCacheByKey: Map<string, PoolCacheEntry> | undefined
+}
+
+function poolCacheMap(): Map<string, PoolCacheEntry> {
+  if (!global._liquidityPoolCacheByKey) {
+    global._liquidityPoolCacheByKey = new Map()
+  }
+  return global._liquidityPoolCacheByKey
+}
+
+function poolCacheKey(mint: string): string {
+  return tenantCacheKey('lp', mint.trim())
+}
 
 export function getLiquidityPoolExclusionReason(): string {
   return LIQUIDITY_POOL_REASON
@@ -66,17 +82,17 @@ export async function refreshLiquidityPoolAddresses(mint: string): Promise<Set<s
     // DexScreener optional — bonding-curve PDA still applies for Pump tokens
   }
 
-  poolCacheByMint.set(normalizedMint, { addresses, fetchedAt: Date.now() })
+  poolCacheMap().set(poolCacheKey(normalizedMint), { addresses, fetchedAt: Date.now() })
   return addresses
 }
 
 export function getCachedLiquidityPoolAddresses(mint: string): Set<string> {
-  return poolCacheByMint.get(mint.trim())?.addresses ?? new Set()
+  return poolCacheMap().get(poolCacheKey(mint))?.addresses ?? new Set()
 }
 
 export async function ensureLiquidityPoolAddresses(mint: string): Promise<Set<string>> {
   const normalizedMint = mint.trim()
-  const cached = poolCacheByMint.get(normalizedMint)
+  const cached = poolCacheMap().get(poolCacheKey(normalizedMint))
   if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
     return cached.addresses
   }
@@ -86,20 +102,16 @@ export async function ensureLiquidityPoolAddresses(mint: string): Promise<Set<st
 export function isLiquidityPoolWallet(wallet: string, mint?: string): boolean {
   if (!wallet) return false
 
-  if (mint) {
-    return getCachedLiquidityPoolAddresses(mint).has(wallet)
-  }
+  const resolvedMint = mint?.trim() || config.tokenMint?.trim()
+  if (!resolvedMint) return false
 
-  for (const entry of poolCacheByMint.values()) {
-    if (entry.addresses.has(wallet)) return true
-  }
-  return false
+  return getCachedLiquidityPoolAddresses(resolvedMint).has(wallet)
 }
 
 export function resetLiquidityPoolCache(mint?: string): void {
   if (mint) {
-    poolCacheByMint.delete(mint.trim())
+    poolCacheMap().delete(poolCacheKey(mint))
     return
   }
-  poolCacheByMint.clear()
+  clearTenantCacheEntries(global._liquidityPoolCacheByKey)
 }

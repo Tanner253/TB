@@ -36,6 +36,7 @@ describe('Payout timer', () => {
 
   beforeEach(async () => {
     ;(global as any).mongoose = { conn: null, promise: null }
+    global._payoutTimerCaches = undefined
     await TimerState.deleteMany({})
     await Holder.deleteMany({})
     await CurrentRankings.deleteMany({})

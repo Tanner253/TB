@@ -11,6 +11,7 @@ import {
   getCurrentPrice,
   isServiceInitialized,
 } from './holderService'
+import { getTenantSlug } from '@/lib/tenant/context'
 
 // Re-export types and functions from holderService for backwards compatibility
 export { getCurrentPrice, getHolderCount, isServiceInitialized }
@@ -18,21 +19,33 @@ export { getCurrentPrice, getHolderCount, isServiceInitialized }
 // Server start timestamp
 const serverStartTime = Date.now()
 
-// Baseline price (set on first request)
-let baselinePrice: number | null = null
+declare global {
+  // eslint-disable-next-line no-var
+  var _baselinePriceByTenant: Map<string, number> | undefined
+}
+
+function baselinePriceMap(): Map<string, number> {
+  if (!global._baselinePriceByTenant) {
+    global._baselinePriceByTenant = new Map()
+  }
+  return global._baselinePriceByTenant
+}
 
 export function getServerStartTime(): number {
   return serverStartTime
 }
 
 export function setBaselinePrice(price: number): void {
-  if (!baselinePrice) {
-    baselinePrice = price
+  const slug = getTenantSlug()
+  const map = baselinePriceMap()
+  if (!map.has(slug)) {
+    map.set(slug, price)
   }
 }
 
 export function getBaselinePrice(): number | null {
-  return baselinePrice || getCurrentPrice()
+  const price = baselinePriceMap().get(getTenantSlug())
+  return price ?? getCurrentPrice()
 }
 
 // Record a new buy transaction (delegates to HolderService)

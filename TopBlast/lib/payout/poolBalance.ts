@@ -2,10 +2,11 @@
  * Single source of truth for reward pool size — payout wallet SOL balance on-chain.
  */
 
-import { getPayoutWalletBalance } from '@/lib/solana/transfer'
+import { getPayoutWalletBalance, getPayoutWalletAddressFromKey } from '@/lib/solana/transfer'
 import { getSolPrice, formatUsd } from '@/lib/solana/price'
 import { config } from '@/lib/config'
 import { maxDistributableSol } from '@/lib/payout/payoutSecurity'
+import { clearTenantCacheEntries, tenantCacheKey } from '@/lib/tenant/tenantCacheKey'
 
 export interface LivePoolBalance {
   payoutWalletAddress: string | null
@@ -32,92 +33,55 @@ const POOL_BALANCE_CACHE_TTL_MS = 45 * 1000
 
 declare global {
   // eslint-disable-next-line no-var
-  var _livePoolBalanceCache: { value: LivePoolBalance; expiresAt: number } | undefined
+  var _livePoolBalanceCacheByKey: Map<string, { value: LivePoolBalance; expiresAt: number }> | undefined
 }
 
-function readPoolBalanceCache(): LivePoolBalance | null {
-  const hit = global._livePoolBalanceCache
+function poolBalanceCacheKey(walletAddress: string | null): string {
+  return tenantCacheKey('pool', walletAddress ?? 'none')
+}
+
+function getCacheMap(): Map<string, { value: LivePoolBalance; expiresAt: number }> {
+  if (!global._livePoolBalanceCacheByKey) {
+    global._livePoolBalanceCacheByKey = new Map()
+  }
+  return global._livePoolBalanceCacheByKey
+}
+
+function readPoolBalanceCache(cacheKey: string): LivePoolBalance | null {
+  const hit = getCacheMap().get(cacheKey)
   if (!hit) return null
   if (Date.now() > hit.expiresAt) {
-    global._livePoolBalanceCache = undefined
+    getCacheMap().delete(cacheKey)
     return null
   }
   return hit.value
 }
 
-function writePoolBalanceCache(value: LivePoolBalance) {
-  global._livePoolBalanceCache = {
+function writePoolBalanceCache(cacheKey: string, value: LivePoolBalance) {
+  getCacheMap().set(cacheKey, {
     value,
     expiresAt: Date.now() + POOL_BALANCE_CACHE_TTL_MS,
-  }
+  })
 }
 
-export function invalidateLivePoolBalanceCache() {
-  global._livePoolBalanceCache = undefined
+export function invalidateLivePoolBalanceCache(tenantSlug?: string) {
+  clearTenantCacheEntries(global._livePoolBalanceCacheByKey, tenantSlug)
 }
 
-export async function getLivePoolBalance(options?: {
-  bypassCache?: boolean
-}): Promise<LivePoolBalance> {
-  if (!options?.bypassCache) {
-    const cached = readPoolBalanceCache()
-    if (cached) return cached
-  }
-
-  const solPrice = (await getSolPrice()) || 150
-  const walletBalance = await getPayoutWalletBalance()
-
-  if (!walletBalance) {
-    const result: LivePoolBalance = {
-      payoutWalletAddress: null,
-      walletSol: 0,
-      poolSol: 0,
-      poolUsd: 0,
-      solPrice,
-      poolUsdFormatted: formatUsd(0),
-      poolSolFormatted: '0.0000',
-      walletEth: 0,
-      poolEth: 0,
-      ethPrice: solPrice,
-      poolEthFormatted: '0.0000',
-      minLossUsd: 0,
-      minLossUsdFormatted: formatUsd(0),
-      available: false,
-      balanceLookupFailed: false,
-    }
-    writePoolBalanceCache(result)
-    return result
-  }
-
-  if (walletBalance.rpcError) {
-    const result: LivePoolBalance = {
-      payoutWalletAddress: walletBalance.address,
-      walletSol: 0,
-      poolSol: 0,
-      poolUsd: 0,
-      solPrice,
-      poolUsdFormatted: formatUsd(0),
-      poolSolFormatted: '0.0000',
-      walletEth: 0,
-      poolEth: 0,
-      ethPrice: solPrice,
-      poolEthFormatted: '0.0000',
-      minLossUsd: 0,
-      minLossUsdFormatted: formatUsd(0),
-      available: false,
-      balanceLookupFailed: true,
-    }
-    writePoolBalanceCache(result)
-    return result
-  }
-
-  const walletSol = walletBalance.sol
+/** Shared pot math for leaderboard, catalog, and stats. */
+export function buildLivePoolBalance(
+  walletSol: number,
+  payoutWalletAddress: string | null,
+  solPrice: number,
+  options?: { available?: boolean; balanceLookupFailed?: boolean }
+): LivePoolBalance {
   const poolSol = maxDistributableSol(walletSol)
   const poolUsd = poolSol * solPrice
   const minLossUsd = poolUsd * (config.minLossThresholdPct / 100)
+  const available = options?.available ?? true
 
-  const result: LivePoolBalance = {
-    payoutWalletAddress: walletBalance.address,
+  return {
+    payoutWalletAddress,
     walletSol,
     poolSol,
     poolUsd,
@@ -130,9 +94,41 @@ export async function getLivePoolBalance(options?: {
     poolEthFormatted: poolSol.toFixed(4),
     minLossUsd,
     minLossUsdFormatted: formatUsd(minLossUsd),
-    available: true,
-    balanceLookupFailed: false,
+    available,
+    balanceLookupFailed: options?.balanceLookupFailed ?? false,
   }
-  writePoolBalanceCache(result)
+}
+
+export async function getLivePoolBalance(options?: {
+  bypassCache?: boolean
+}): Promise<LivePoolBalance> {
+  const payoutWalletAddress = getPayoutWalletAddressFromKey()
+  const cacheKey = poolBalanceCacheKey(payoutWalletAddress)
+
+  if (!options?.bypassCache) {
+    const cached = readPoolBalanceCache(cacheKey)
+    if (cached) return cached
+  }
+
+  const solPrice = (await getSolPrice()) || 150
+  const walletBalance = await getPayoutWalletBalance()
+
+  if (!walletBalance) {
+    const result = buildLivePoolBalance(0, null, solPrice, { available: false })
+    writePoolBalanceCache(cacheKey, result)
+    return result
+  }
+
+  if (walletBalance.rpcError) {
+    const result = buildLivePoolBalance(0, walletBalance.address, solPrice, {
+      available: false,
+      balanceLookupFailed: true,
+    })
+    writePoolBalanceCache(cacheKey, result)
+    return result
+  }
+
+  const result = buildLivePoolBalance(walletBalance.sol, walletBalance.address, solPrice)
+  writePoolBalanceCache(cacheKey, result)
   return result
 }

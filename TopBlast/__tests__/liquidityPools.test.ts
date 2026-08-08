@@ -12,13 +12,52 @@ import {
 } from '@/lib/eligibility/excludedWallets'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 
+jest.mock('@/lib/config', () => ({
+  config: {
+    get tokenMint() {
+      return process.env.TOKEN_MINT_ADDRESS || 'So11111111111111111111111111111111111111112'
+    },
+    get devWalletAddress() {
+      return process.env.DEV_WALLET_ADDRESS || ''
+    },
+  },
+}))
+
+jest.mock('@/lib/tenant/context', () => ({
+  getTenantSlug: jest.fn(() => 'tbla'),
+  getPayoutPrivateKey: jest.fn(() => undefined),
+  getTenantRuntime: jest.fn(() => undefined),
+}))
+
+import { getTenantSlug } from '@/lib/tenant/context'
+
 const TEST_MINT = 'So11111111111111111111111111111111111111112'
 const DEV_WALLET = '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuQosgAsU'
+
+describe('liquidityPools tenant isolation', () => {
+  beforeEach(() => {
+    global._liquidityPoolCacheByKey = undefined
+    resetLiquidityPoolCache()
+    jest.clearAllMocks()
+    ;(getTenantSlug as jest.Mock).mockReturnValue('tbla')
+  })
+
+  it('scopes LP cache per tenant', async () => {
+    await refreshLiquidityPoolAddresses(TEST_MINT)
+    const bonding = derivePumpBondingCurveAddress(TEST_MINT)!
+    expect(isLiquidityPoolWallet(bonding, TEST_MINT)).toBe(true)
+
+    ;(getTenantSlug as jest.Mock).mockReturnValue('wagmi')
+    expect(isLiquidityPoolWallet(bonding, TEST_MINT)).toBe(false)
+  })
+})
 
 describe('liquidityPools', () => {
   const originalMint = process.env.TOKEN_MINT_ADDRESS
 
   beforeEach(() => {
+    global._liquidityPoolCacheByKey = undefined
+    ;(getTenantSlug as jest.Mock).mockReturnValue('tbla')
     process.env.TOKEN_MINT_ADDRESS = TEST_MINT
     resetLiquidityPoolCache()
     resetExcludedWalletCache()

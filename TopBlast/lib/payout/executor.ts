@@ -22,6 +22,7 @@ import {
 import { saveRankingsToDb, loadRankingsFromDb, markWinnersCooldown, getServiceStatus, refreshPoolUsdCache } from '@/lib/tracker/holderService'
 
 import { getTimerKey } from '@/lib/tenant/keys'
+import { getTenantSlug } from '@/lib/tenant/context'
 import { tenantFields } from '@/lib/tenant/scope'
 import { isPayoutExecutionAuthorized, runAuthorizedPayout } from '@/lib/payout/payoutAuthContext'
 import {
@@ -43,18 +44,45 @@ export interface PayoutTimerInfo {
   next_cycle: number
 }
 
-let timerCache: {
+type TimerCacheState = {
   lastPayoutTime: number | null
   currentCycle: number
   timerStatus: PayoutTimerStatus
   tokenMint: string
   lastSync: number
-} = {
-  lastPayoutTime: null,
-  currentCycle: 0,
-  timerStatus: 'waiting',
-  tokenMint: '',
-  lastSync: 0,
+}
+
+declare global {
+  // eslint-disable-next-line no-var
+  var _payoutTimerCaches: Map<string, TimerCacheState> | undefined
+}
+
+function emptyTimerCache(tokenMint = ''): TimerCacheState {
+  return {
+    lastPayoutTime: null,
+    currentCycle: 0,
+    timerStatus: 'waiting',
+    tokenMint,
+    lastSync: 0,
+  }
+}
+
+function getTimerCacheMap(): Map<string, TimerCacheState> {
+  if (!global._payoutTimerCaches) {
+    global._payoutTimerCaches = new Map()
+  }
+  return global._payoutTimerCaches
+}
+
+function getTimerCache(): TimerCacheState {
+  const slug = getTenantSlug()
+  const map = getTimerCacheMap()
+  let state = map.get(slug)
+  if (!state) {
+    state = emptyTimerCache()
+    map.set(slug, state)
+  }
+  return state
 }
 
 function getIntervalSeconds(): number {
@@ -79,13 +107,12 @@ function payoutTokenFields() {
 async function resetForNewToken(tokenMint: string): Promise<void> {
   console.log(`[Payout] New token detected (${tokenMint.slice(0, 10)}...) — resetting deployment state`)
   await resetDeploymentState()
-  timerCache = {
-    lastPayoutTime: null,
-    currentCycle: 0,
-    timerStatus: 'waiting',
-    tokenMint,
-    lastSync: Date.now(),
-  }
+  const cache = getTimerCache()
+  cache.lastPayoutTime = null
+  cache.currentCycle = 0
+  cache.timerStatus = 'waiting'
+  cache.tokenMint = tokenMint
+  cache.lastSync = Date.now()
 }
 
 function applyTimerDoc(state: {
@@ -99,13 +126,12 @@ function applyTimerDoc(state: {
     state.timerStatus ||
     ((state.currentCycle || 0) > 0 ? 'active' : 'waiting')
 
-  timerCache = {
-    lastPayoutTime: state.lastPayoutTime ? new Date(state.lastPayoutTime).getTime() : null,
-    currentCycle: state.currentCycle || 0,
-    timerStatus,
-    tokenMint,
-    lastSync: Date.now(),
-  }
+  const cache = getTimerCache()
+  cache.lastPayoutTime = state.lastPayoutTime ? new Date(state.lastPayoutTime).getTime() : null
+  cache.currentCycle = state.currentCycle || 0
+  cache.timerStatus = timerStatus
+  cache.tokenMint = tokenMint
+  cache.lastSync = Date.now()
 }
 
 async function loadTimerState(): Promise<void> {
@@ -136,13 +162,12 @@ async function loadTimerState(): Promise<void> {
         failedAttempts: 0,
         isPayoutInProgress: false,
       })
-      timerCache = {
+      applyTimerDoc({
+        tokenMint: config.tokenMint,
+        timerStatus: 'waiting',
         lastPayoutTime: null,
         currentCycle: 0,
-        timerStatus: 'waiting',
-        tokenMint: config.tokenMint,
-        lastSync: Date.now(),
-      }
+      })
       console.log('[Payout] Timer initialized in waiting state (starts when first holder is eligible)')
       return
     }
@@ -156,7 +181,7 @@ async function loadTimerState(): Promise<void> {
 async function saveTimerState(
   lastPayoutTime: number | null,
   currentCycle: number,
-  timerStatus: PayoutTimerStatus = timerCache.timerStatus
+  timerStatus: PayoutTimerStatus = getTimerCache().timerStatus
 ): Promise<void> {
   try {
     await TimerState.findOneAndUpdate(
@@ -173,14 +198,12 @@ async function saveTimerState(
       },
       { upsert: true }
     )
-    timerCache = {
-      ...timerCache,
-      lastPayoutTime,
-      currentCycle,
-      timerStatus,
-      tokenMint: config.tokenMint,
-      lastSync: Date.now(),
-    }
+    const cache = getTimerCache()
+    cache.lastPayoutTime = lastPayoutTime
+    cache.currentCycle = currentCycle
+    cache.timerStatus = timerStatus
+    cache.tokenMint = config.tokenMint
+    cache.lastSync = Date.now()
   } catch (error) {
     console.error('[Payout] Failed to save timer state:', error)
   }
@@ -208,36 +231,36 @@ async function setAccruedDevFeeEth(amount: number): Promise<void> {
 }
 
 export function getSecondsUntilNextPayout(): number | null {
-  if (timerCache.timerStatus !== 'active') {
+  if (getTimerCache().timerStatus !== 'active') {
     return null
   }
-  if (!timerCache.lastPayoutTime) {
+  if (!getTimerCache().lastPayoutTime) {
     return getIntervalSeconds()
   }
   const intervalMs = config.payoutIntervalMinutes * 60 * 1000
-  const elapsed = Date.now() - timerCache.lastPayoutTime
+  const elapsed = Date.now() - getTimerCache().lastPayoutTime
   return Math.max(0, Math.floor((intervalMs - elapsed) / 1000))
 }
 
 export function getCurrentPayoutCycle(): number {
-  return timerCache.currentCycle
+  return getTimerCache().currentCycle
 }
 
 export function getPayoutTimerStatus(): PayoutTimerStatus {
-  return timerCache.timerStatus
+  return getTimerCache().timerStatus
 }
 
 export function getPayoutTimerInfo(): PayoutTimerInfo {
   return {
-    timer_status: timerCache.timerStatus,
+    timer_status: getTimerCache().timerStatus,
     seconds_remaining: getSecondsUntilNextPayout(),
-    current_cycle: timerCache.currentCycle,
-    next_cycle: timerCache.currentCycle + 1,
+    current_cycle: getTimerCache().currentCycle,
+    next_cycle: getTimerCache().currentCycle + 1,
   }
 }
 
 export async function ensureTimerStateSync(): Promise<void> {
-  if (Date.now() - timerCache.lastSync < 5000 && timerCache.lastSync > 0) {
+  if (Date.now() - getTimerCache().lastSync < 5000 && getTimerCache().lastSync > 0) {
     return
   }
   await loadTimerState()
@@ -247,7 +270,7 @@ export async function ensureTimerStateSync(): Promise<void> {
 export async function maybeStartPayoutTimer(eligibleCount: number): Promise<boolean> {
   await ensureTimerStateSync()
 
-  if (timerCache.timerStatus === 'active') {
+  if (getTimerCache().timerStatus === 'active') {
     return false
   }
   if (eligibleCount <= 0) {
@@ -255,25 +278,25 @@ export async function maybeStartPayoutTimer(eligibleCount: number): Promise<bool
   }
 
   const now = Date.now()
-  await saveTimerState(now, timerCache.currentCycle, 'active')
+  await saveTimerState(now, getTimerCache().currentCycle, 'active')
   console.log(`[Payout] Timer started — ${eligibleCount} eligible holder(s)`)
   return true
 }
 
 /** Pause timer when stuck at 0 with nobody eligible (e.g. after DB wipe). */
 export async function pausePayoutTimerToWaiting(): Promise<void> {
-  await saveTimerState(null, timerCache.currentCycle, 'waiting')
+  await saveTimerState(null, getTimerCache().currentCycle, 'waiting')
   console.log('[Payout] Timer paused — waiting for eligible holders')
 }
 
 export async function resetTimerForNextInterval(): Promise<void> {
   const now = Date.now()
-  await saveTimerState(now, timerCache.currentCycle, 'active')
+  await saveTimerState(now, getTimerCache().currentCycle, 'active')
   console.log(`[Payout] Timer reset for next interval (${config.payoutIntervalMinutes} min)`)
 }
 
 export function isPayoutDue(): boolean {
-  if (timerCache.timerStatus !== 'active') {
+  if (getTimerCache().timerStatus !== 'active') {
     return false
   }
   const secondsUntil = getSecondsUntilNextPayout()
@@ -424,12 +447,12 @@ export async function executePayout(): Promise<PayoutResult> {
 
   await ensureTimerStateSync()
 
-  if (timerCache.timerStatus !== 'active') {
+  if (getTimerCache().timerStatus !== 'active') {
     return { success: false, error: 'Payout timer not started' }
   }
 
   const now = Date.now()
-  const nextCycle = timerCache.currentCycle + 1
+  const nextCycle = getTimerCache().currentCycle + 1
 
   try {
     await connectDB()

@@ -4,7 +4,7 @@ import connectDB from '@/lib/db'
 import { Payout, TimerState } from '@/lib/db/models'
 import { getSolPrice, formatUsd } from '@/lib/solana/price'
 import { getWalletSolBalance } from '@/lib/solana/transfer'
-import { maxDistributableSol } from '@/lib/payout/payoutSecurity'
+import { buildLivePoolBalance } from '@/lib/payout/poolBalance'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
 
 export interface CatalogPayoutVolume {
@@ -59,10 +59,6 @@ async function fetchPayoutTimerStatusByTenantKey(): Promise<Map<string, 'waiting
   return map
 }
 
-function distributablePotSol(walletSol: number): number {
-  return maxDistributableSol(walletSol)
-}
-
 /** Attach live pot size and lifetime payout volume to catalog listings. */
 export async function enrichCatalogTenants(
   tenants: PublicTenantSummary[]
@@ -100,14 +96,16 @@ export async function enrichCatalogTenants(
 
     const walletAddress = tenant.payoutWalletAddress?.trim()
     const walletSol = walletAddress ? balanceByAddress.get(walletAddress) : undefined
-    const potSol = walletSol != null ? distributablePotSol(walletSol) : null
-    const potUsd = potSol != null ? potSol * solPrice : null
+    const pool =
+      walletSol != null && walletAddress
+        ? buildLivePoolBalance(walletSol, walletAddress, solPrice)
+        : null
 
     return {
       ...tenant,
-      pot_sol: potSol,
-      pot_usd: potUsd,
-      pot_usd_formatted: potUsd != null ? formatUsd(potUsd) : null,
+      pot_sol: pool?.poolSol ?? null,
+      pot_usd: pool?.poolUsd ?? null,
+      pot_usd_formatted: pool?.poolUsdFormatted ?? null,
       total_distributed_sol: volume.total_sol,
       total_distributed_usd: volume.total_usd,
       total_distributed_usd_formatted: formatUsd(volume.total_usd),
