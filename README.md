@@ -1,139 +1,134 @@
+<div align="center">
+
 # TopBlast
 
-**Loss-mining rewards and on-chart volume for Solana token launchers.**
+**Loss-mining rewards · on-chart volume · Solana**
 
-TopBlast is a self-serve SaaS platform that turns creator-fee SOL into two things every cycle: **real buy pressure on your chart** and **token airdrops to your most underwater holders**. Winners compete by drawdown — not by farming sell-side volume for rebates.
+Turn creator-fee SOL into Jupiter buybacks and token airdrops for your most underwater holders — every cycle.
 
-[Live app](https://topblasted.fun) · [Launch a listing](https://topblasted.fun/launch) · [Catalog](https://topblasted.fun/catalog) · [Whitepaper](https://whitepaper.topblasted.fun)
+<br />
 
----
+[![App](https://img.shields.io/badge/App-topblasted.fun-9945FF?style=for-the-badge)](https://topblasted.fun)
+[![Launch](https://img.shields.io/badge/Launch-Create%20listing-14F195?style=for-the-badge)](https://topblasted.fun/launch)
+[![Docs](https://img.shields.io/badge/Docs-whitepaper.topblasted.fun-0ea5e9?style=for-the-badge)](https://whitepaper.topblasted.fun)
+[![Catalog](https://img.shields.io/badge/Catalog-Live%20sessions-6366f1?style=for-the-badge)](https://topblasted.fun/catalog)
 
-## What TopBlast does
+<br />
 
-Most cashback bots pay SOL rebates for **volume traded on chart** — often sell-side. That rewards trading activity, not holders. TopBlast routes the winner pool differently:
+![Solana](https://img.shields.io/badge/Solana-mainnet-9945FF?logo=solana&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white)
 
-1. **Fund a payout wallet** with creator-fee SOL (you control the budget).
-2. **Each cycle**, ~88% of pool SOL swaps into **your session token via Jupiter** — measurable on-chart volume.
-3. **Purchased tokens airdrop** to the top 3 eligible underwater holders (60% / 25% / 15%).
-4. **12% protocol fee** goes to the TopBlast platform treasury (buyback + ops flywheel).
+<br />
 
-That makes TopBlast both a **loss-mining protocol** and a **chart volume engine**. Lifetime SOL bought on-chart is tracked as **Gen volume** on every catalog listing.
+[Whitepaper](https://whitepaper.topblasted.fun) · [GitHub](https://github.com/Tanner253/TB) · [X / @oSKNYo_dev](https://x.com/oSKNYo_dev)
 
----
+</div>
 
-## Why launchers use it
+<br />
 
-| | Cashback / rebates | TopBlast |
-|---|-------------------|----------|
-| Holder behavior | Trade for SOL rebates | Hold underwater to qualify |
-| Chart effect | Sell-side volume rewarded | Jupiter buys your token each cycle |
-| Rewards | Exit liquidity (SOL) | Your session token |
-| Volume | None | Gen volume tracked in catalog |
+## At a glance
 
----
+| | **Cashback bots** | **TopBlast** |
+| :-- | :-- | :-- |
+| Who gets paid | Traders farming sell-side volume | Underwater holders in drawdown |
+| Chart effect | Rebates reward exits | Jupiter **buys your token** each cycle |
+| Reward type | SOL (exit liquidity) | Your session token |
+| Volume tracking | — | **Gen volume** in catalog |
 
-## Payout cycle (per listing)
+> **Gen volume** = cumulative SOL the protocol has market-bought into your mint across all payout cycles.
 
+<br />
+
+## How a cycle works
+
+```mermaid
+flowchart TD
+  A[Creator-fee SOL<br/>in payout wallet] --> B[~99% of balance<br/>each cycle]
+  B --> C{Split}
+  C -->|88%| D[Jupiter buy<br/>your session token]
+  C -->|12%| E[Platform treasury<br/>6% buyback · 6% ops]
+  D --> F[SPL airdrop<br/>top 3 eligible losers]
+  F --> G[60% · 25% · 15%]
+  D --> H[(Gen volume<br/>tracked in catalog)]
 ```
-Creator-fee SOL (payout wallet)
-        │
-        ▼
-   ~99% of wallet balance used each cycle
-        │
-        ├─ 88% winner pool ──► Jupiter buy (your mint) ──► SPL airdrop top 3 losers
-        │
-        └─ 12% protocol fee ──► platform treasury (6% buyback / 6% ops)
-```
 
-**Winner split:** 1st 60% · 2nd 25% · 3rd 15% of the winner pool (after dev fee).
+| Setting | Value |
+| :-- | :-- |
+| Winner split | **60%** · **25%** · **15%** (1st / 2nd / 3rd) |
+| Cycle length | **15m** · 30m · 1h · 2h · 4h · 6h — set at launch |
+| Timer starts | When the **first eligible holder** appears |
+| Default payouts | `PAYOUT_AS_NATIVE_TOKEN=true` → token airdrops, not SOL |
 
-**Payout frequency:** chosen at launch — 15m, 30m, 1h, 2h, 4h, or 6h. Timer starts when the first eligible holder appears.
+<br />
 
-**Default payout mode:** `PAYOUT_AS_NATIVE_TOKEN=true` — winners receive your token, not SOL. Set `false` for legacy SOL payouts.
+## Features
 
----
+<table>
+<tr>
+<td width="50%" valign="top">
 
-## Platform features
+### For launchers
 
-### For token launchers
+- **Self-serve** — [`/launch`](https://topblasted.fun/launch) with encrypted payout keys
+- **Isolated sessions** — `/[slug]/leaderboard` · `/history` · `/stats`
+- **Live catalog** — sort by pot, Gen volume, total paid out
+- **Diagnostics** — empty pool, indexing, no eligible holders
+- **Pump.fun ready** — DexScreener through bonding curve → migration
 
-- **Self-serve launch** at `/launch` — mint, ticker, payout wallet key (encrypted at rest), cycle length, min balance
-- **Isolated sessions** — each listing gets `/[slug]/leaderboard`, `/history`, `/stats`
-- **Live catalog** — sort by pot, Gen volume, or total paid out
-- **Session diagnostics** — clear status when pool is empty, indexing, or no eligible holders
-- **Pump.fun → migration** — DexScreener price follows bonding curve and Raydium/PumpSwap pairs
+</td>
+<td width="50%" valign="top">
 
 ### For holders
 
-- **VWAP drawdown rankings** from on-chain buy history (Helius)
-- **Eligibility gates** — min balance, 15m hold, dynamic min loss (10% of pool USD), no sells/transfers out, winner cooldown
-- **Automatic airdrops** — no claim button; tokens arrive wallet-to-wallet
+- **VWAP drawdown** rankings via Helius buy history
+- **Eligibility gates** — min balance, 15m hold, dynamic min loss, no sells out
+- **Automatic airdrops** — wallet-to-wallet, no claim button
+- **Winner cooldown** — previous winners sit out one cycle
 
-### Chart volume (Gen volume)
+</td>
+</tr>
+</table>
 
-Each successful payout cycle with eligible winners:
-
-1. Swaps winner-pool SOL → session token on Jupiter (with slippage retries).
-2. Records SOL spent as **generated volume** on the tenant (`total_generated_volume_sol` / USD).
-3. Surfaces in the **catalog** and listing cards as **Gen volume** — lifetime on-chart buy pressure from the protocol.
-
----
+<br />
 
 ## Tech stack
 
-| Layer | Technology |
-|-------|------------|
-| App | Next.js 14, React 18, TypeScript, Tailwind CSS |
-| Chain | Solana mainnet — Helius RPC/DAS, `@solana/web3.js`, SPL |
+| Layer | Stack |
+| :-- | :-- |
+| Frontend | Next.js 14 · React 18 · TypeScript · Tailwind |
+| Chain | Solana mainnet · Helius RPC/DAS · SPL |
 | Swaps | Jupiter (SOL → session token) |
-| Database | MongoDB (tenants, holders, payouts, encrypted keys) |
-| Pricing | DexScreener (+ Jupiter/Helius server fallbacks) |
-| Hosting | Vercel |
+| Data | MongoDB · encrypted tenant keys |
+| Pricing | DexScreener · Jupiter/Helius fallbacks |
+| Deploy | Vercel |
+
+<br />
+
+## Roadmap
+
+| Status | Item |
+| :--: | :-- |
+| ✅ | Solana loss-mining · VWAP drawdown rankings |
+| ✅ | Multi-tenant SaaS · catalog · encrypted keys |
+| ✅ | Native-token payouts · Jupiter buy + SPL airdrop |
+| ✅ | Gen volume tracking · slippage retries |
+| 🔲 | Automated platform-token buyback + burn |
+| 🔲 | Public analytics API for launchers |
+
+<br />
 
 ---
 
-## Repository layout
+<br />
 
-```
-TB/
-├── TopBlast/          # Main Next.js app (app, API, payout engine)
-├── whitepaper/        # Marketing docs site
-└── README.md          # This file
-```
+<details>
+<summary><strong>Local development</strong></summary>
 
-Key TopBlast paths:
+<br />
 
-```
-TopBlast/
-├── app/
-│   ├── page.tsx              # Homepage
-│   ├── launch/               # Self-serve listing form
-│   ├── catalog/              # Multi-tenant catalog
-│   ├── leaderboard/          # Platform token session
-│   ├── [slug]/               # Per-tenant session pages
-│   └── api/
-│       ├── tenants/          # Catalog + launch API
-│       ├── cron/tenants/     # Multi-tenant payout cron
-│       └── t/[slug]/         # Tenant-scoped APIs
-├── lib/
-│   ├── payout/executor.ts    # Payout + Jupiter swap + airdrop
-│   ├── solana/jupiterSwap.ts
-│   ├── platform/catalogMetrics.ts  # Gen volume aggregation
-│   └── tenant/               # Multi-tenant runtime
-└── env.example.txt
-```
-
----
-
-## Getting started (local dev)
-
-### Prerequisites
-
-- Node.js 18+
-- MongoDB (Atlas or local)
-- Helius API key ([helius.dev](https://helius.dev))
-
-### Install
+**Prerequisites:** Node 18+ · MongoDB · [Helius API key](https://helius.dev)
 
 ```bash
 git clone https://github.com/Tanner253/TB.git
@@ -146,89 +141,120 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-### Tests
-
 ```bash
-cd TopBlast
-npm test
+npm test          # unit tests
+npm run lint      # eslint
 ```
 
----
+</details>
 
-## Environment (essentials)
+<details>
+<summary><strong>Environment variables</strong></summary>
 
-See `TopBlast/env.example.txt` for the full list. Critical vars:
+<br />
+
+Full list: `TopBlast/env.example.txt`
 
 | Variable | Purpose |
-|----------|---------|
-| `MONGODB_URI` | Database |
+| :-- | :-- |
+| `MONGODB_URI` | Database connection |
 | `HELIUS_API_KEY` | Holder indexing + tx history |
-| `TENANT_ENCRYPTION_KEY` | Encrypt launcher payout keys at rest |
+| `TENANT_ENCRYPTION_KEY` | AES-256-GCM for payout keys at rest |
 | `PAYOUT_AS_NATIVE_TOKEN` | `true` = Jupiter buy + token airdrop (default) |
-| `PAYOUT_SWAP_MAX_RETRIES` | Slippage escalation retries (default 3) |
+| `PAYOUT_SWAP_MAX_RETRIES` | Slippage escalation retries (default `3`) |
 | `EXECUTE_PAYOUTS` | `true` in production to sign transactions |
 | `DEV_WALLET_ADDRESS` | Receives 12% protocol fee each cycle |
-| `PLATFORM_TENANT_SLUG` | Platform token catalog slug (default `topblast`) |
+| `PLATFORM_TENANT_SLUG` | Platform token slug (default `topblast`) |
+| `CRON_SECRET` | Auth for cron/admin routes |
 
----
+</details>
 
-## API overview
+<details>
+<summary><strong>API reference</strong></summary>
 
-### Public
+<br />
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/tenants` | Catalog listings (pot, Gen volume, status) |
-| `GET /api/leaderboard` | Platform token rankings |
-| `GET /api/t/[slug]/leaderboard` | Tenant rankings |
-| `GET /api/history` | Payout history |
-| `GET /api/stats` | Session stats |
+**Public**
 
-### Protected (cron / admin)
+| Method | Endpoint | Description |
+| :-- | :-- | :-- |
+| `GET` | `/api/tenants` | Catalog listings (pot, Gen volume, status) |
+| `GET` | `/api/leaderboard` | Platform token rankings |
+| `GET` | `/api/t/[slug]/leaderboard` | Tenant rankings |
+| `GET` | `/api/history` | Payout history |
+| `GET` | `/api/stats` | Session stats |
 
-| Endpoint | Description |
-|----------|-------------|
-| `POST /api/cron/tenants` | Run snapshots + payouts for all active tenants |
-| `POST /api/cron/snapshot` | Legacy single-token snapshot |
-| `POST /api/cron/payout` | Legacy single-token payout |
+**Protected** (cron / admin — requires `CRON_SECRET`)
 
-Payouts also trigger when the leaderboard timer reaches zero during API polling.
+| Method | Endpoint | Description |
+| :-- | :-- | :-- |
+| `POST` | `/api/cron/tenants` | Snapshots + payouts for all active tenants |
+| `POST` | `/api/cron/snapshot` | Legacy single-token snapshot |
+| `POST` | `/api/cron/payout` | Legacy single-token payout |
 
----
+Payouts also fire when the leaderboard timer hits zero during API polling.
 
-## Security
+</details>
 
-- Launcher payout private keys encrypted with AES-256-GCM before storage
+<details>
+<summary><strong>Repository layout</strong></summary>
+
+<br />
+
+```
+TB/
+├── TopBlast/          # Main app — payout engine, API, UI
+├── whitepaper/        # Docs site → whitepaper.topblasted.fun
+└── README.md
+```
+
+```
+TopBlast/
+├── app/
+│   ├── launch/              # Self-serve listing form
+│   ├── catalog/             # Multi-tenant catalog
+│   ├── leaderboard/         # Platform token session
+│   ├── [slug]/              # Per-tenant pages
+│   └── api/
+│       ├── tenants/         # Catalog + launch
+│       ├── cron/tenants/    # Multi-tenant payout cron
+│       └── t/[slug]/        # Tenant-scoped APIs
+├── lib/
+│   ├── payout/executor.ts   # Payout + Jupiter + airdrop
+│   ├── platform/catalogMetrics.ts
+│   └── tenant/
+└── env.example.txt
+```
+
+</details>
+
+<details>
+<summary><strong>Security</strong></summary>
+
+<br />
+
+- Payout private keys encrypted with **AES-256-GCM** before MongoDB storage
 - Keys decrypted only during that listing's payout execution
-- Cron and admin routes require `CRON_SECRET`
+- Cron and admin routes require **`CRON_SECRET`**
 - Dev wallet and payout wallet excluded from rankings
-- No wallet connect on the frontend — read-only UI for holders
+- Frontend is read-only — no wallet connect for holders
 
----
+</details>
 
-## Roadmap
-
-- [x] Solana loss-mining with VWAP drawdown rankings
-- [x] Multi-tenant SaaS (`/launch`, catalog, encrypted keys)
-- [x] Native-token payouts (Jupiter buy + SPL airdrop)
-- [x] Gen volume tracking in catalog
-- [x] Payout slippage retries + failure persistence
-- [ ] Automated platform-token buyback + burn bot
-- [ ] Public analytics API for launchers
-
----
-
-## Links
-
-- **App:** [topblasted.fun](https://topblasted.fun)
-- **Docs / whitepaper:** [whitepaper.topblasted.fun](https://whitepaper.topblasted.fun)
-- **GitHub:** [github.com/Tanner253/TB](https://github.com/Tanner253/TB)
-- **X:** [@oSKNYo_dev](https://x.com/oSKNYo_dev)
+<br />
 
 ---
 
 <div align="center">
 
+<br />
+
+**[topblasted.fun](https://topblasted.fun)** · **[whitepaper.topblasted.fun](https://whitepaper.topblasted.fun)**
+
+<br />
+
 *When you drawdown, we blast you up.*
+
+<br />
 
 </div>
