@@ -20,6 +20,20 @@ export function formatCatalogStatus(tenant: PublicTenantSummary): string {
   return tenant.status === 'active' ? 'live' : tenant.status
 }
 
+export function formatCatalogPot(tenant: PublicTenantSummary): string | null {
+  if (tenant.pot_usd_formatted != null && tenant.pot_sol != null) {
+    return `${tenant.pot_usd_formatted} · ${tenant.pot_sol.toFixed(4)} SOL`
+  }
+  return null
+}
+
+export function formatCatalogVolume(tenant: PublicTenantSummary): string | null {
+  if (tenant.total_distributed_usd_formatted != null && tenant.total_distributed_sol != null) {
+    return `${tenant.total_distributed_usd_formatted} · ${tenant.total_distributed_sol.toFixed(4)} SOL`
+  }
+  return null
+}
+
 export function catalogCardSubtitle(tenant: PublicTenantSummary): string {
   if (tenant.payoutIntervalMinutes) {
     return `Payouts every ${formatPayoutInterval(tenant.payoutIntervalMinutes)}`

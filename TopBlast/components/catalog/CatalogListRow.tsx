@@ -10,13 +10,41 @@ function payoutLabel(tenant: PublicTenantSummary): string {
   return catalogCardSubtitle(tenant)
 }
 
+function PotCell({ tenant }: { tenant: PublicTenantSummary }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-sm font-medium text-white tabular-nums truncate">
+        {tenant.pot_usd_formatted ?? '—'}
+      </p>
+      {tenant.pot_sol != null ? (
+        <p className="text-[0.65rem] text-gray-500 tabular-nums">{tenant.pot_sol.toFixed(4)} SOL</p>
+      ) : null}
+    </div>
+  )
+}
+
+function VolumeCell({ tenant }: { tenant: PublicTenantSummary }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-sm font-medium text-sol-mint/90 tabular-nums truncate">
+        {tenant.total_distributed_usd_formatted ?? '—'}
+      </p>
+      {tenant.total_distributed_sol != null ? (
+        <p className="text-[0.65rem] text-gray-500 tabular-nums">
+          {tenant.total_distributed_sol.toFixed(4)} SOL
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 export function CatalogListRow({ tenant }: { tenant: PublicTenantSummary }) {
   const isPlatform = tenant.isPlatformToken
 
   return (
     <Link
       href={tenantCatalogHref(tenant)}
-      className={`group flex flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] sm:gap-3 md:gap-4 sm:items-center px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors ${
+      className={`group flex flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_auto_auto] sm:gap-3 md:gap-4 sm:items-center px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors ${
         isPlatform ? 'bg-sol-purple/[0.04]' : ''
       }`}
     >
@@ -45,7 +73,7 @@ export function CatalogListRow({ tenant }: { tenant: PublicTenantSummary }) {
         </div>
 
         <span
-          className={`shrink-0 text-[0.65rem] uppercase tracking-wider px-2 py-1 rounded-full border whitespace-nowrap sm:order-4 ${
+          className={`shrink-0 text-[0.65rem] uppercase tracking-wider px-2 py-1 rounded-full border whitespace-nowrap sm:order-6 ${
             tenant.status === 'active'
               ? 'bg-sol-mint/10 text-sol-mint border-sol-mint/20'
               : 'bg-white/5 text-gray-400 border-white/10'
@@ -55,11 +83,30 @@ export function CatalogListRow({ tenant }: { tenant: PublicTenantSummary }) {
         </span>
       </div>
 
+      <div className="sm:hidden grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-[0.65rem] uppercase tracking-wider text-gray-500 mb-0.5">Pot</p>
+          <PotCell tenant={tenant} />
+        </div>
+        <div>
+          <p className="text-[0.65rem] uppercase tracking-wider text-gray-500 mb-0.5">Paid out</p>
+          <VolumeCell tenant={tenant} />
+        </div>
+      </div>
+
       <p className="hidden md:block text-xs font-mono text-gray-600 truncate group-hover:text-gray-500">
         {tenant.mint || '—'}
       </p>
 
-      <span className="text-xs text-gray-400 sm:whitespace-nowrap">{payoutLabel(tenant)}</span>
+      <div className="hidden sm:block">
+        <PotCell tenant={tenant} />
+      </div>
+
+      <div className="hidden sm:block">
+        <VolumeCell tenant={tenant} />
+      </div>
+
+      <span className="text-xs text-gray-400 sm:whitespace-nowrap hidden lg:inline">{payoutLabel(tenant)}</span>
     </Link>
   )
 }

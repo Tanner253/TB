@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
 import { formatCatalogStatus, tenantCatalogHref, catalogCardSubtitle } from '@/lib/platform/catalogClient'
+import { CatalogMetrics } from '@/components/catalog/CatalogMetrics'
 
 interface CatalogCardProps {
   tenant: PublicTenantSummary
@@ -61,6 +62,8 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
         ) : null}
 
         <p className={`text-gray-400 ${compact ? 'text-xs' : 'text-sm'}`}>{catalogCardSubtitle(tenant)}</p>
+
+        <CatalogMetrics tenant={tenant} />
 
         <p className="mt-3 text-xs font-medium text-sol-mint opacity-0 group-hover:opacity-100 transition-opacity">
           View leaderboard →

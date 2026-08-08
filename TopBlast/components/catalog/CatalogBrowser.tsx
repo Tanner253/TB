@@ -125,7 +125,7 @@ export function CatalogBrowser() {
         viewMode === 'grid' ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-36 rounded-xl border border-white/[0.06] bg-white/[0.02] animate-pulse" />
+              <div key={i} className="h-44 rounded-xl border border-white/[0.06] bg-white/[0.02] animate-pulse" />
             ))}
           </div>
         ) : (
@@ -181,10 +181,12 @@ export function CatalogBrowser() {
 
       {!loading && !error && filtered.length > 0 && viewMode === 'list' ? (
         <div className="rounded-xl border border-white/[0.08] overflow-hidden bg-black/20">
-          <div className="hidden md:grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] gap-3 md:gap-4 px-4 py-2 text-[0.65rem] uppercase tracking-wider text-gray-500 border-b border-white/[0.06] bg-white/[0.02]">
+          <div className="hidden md:grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_auto_auto] gap-3 md:gap-4 px-4 py-2 text-[0.65rem] uppercase tracking-wider text-gray-500 border-b border-white/[0.06] bg-white/[0.02]">
             <span>Token</span>
             <span>Mint</span>
-            <span>Payouts</span>
+            <span>Pot</span>
+            <span>Paid out</span>
+            <span className="hidden lg:block">Payouts</span>
             <span>Status</span>
           </div>
           {filtered.map(tenant => (

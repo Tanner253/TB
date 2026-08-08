@@ -12,6 +12,7 @@ import type {
 } from './types'
 import { getTimerKey } from './keys'
 import { decorateCatalogTenants } from '@/lib/platform/catalog'
+import { enrichCatalogTenants } from '@/lib/platform/catalogMetrics'
 import { resolvePlatformEnvRuntime, isPlatformEnvConfigured } from '@/lib/platform/envPlatform'
 import { getPlatformTenantSlug } from '@/lib/platform/config'
 import { requirePlatformDevWalletAddress } from '@/lib/platform/devWallet'
@@ -83,7 +84,8 @@ export async function listPublicTenants(): Promise<PublicTenantSummary[]> {
     payoutIntervalMinutes: row.payoutIntervalMinutes,
   }))
 
-  return decorateCatalogTenants(tenants)
+  const decorated = decorateCatalogTenants(tenants)
+  return enrichCatalogTenants(decorated)
 }
 
 export async function getTenantBySlug(slug: string) {

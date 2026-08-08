@@ -292,6 +292,40 @@ export function getPayoutWalletAddressFromKey(): string | null {
 }
 
 /**
+ * On-chain SOL balance for any wallet address (catalog / multi-tenant).
+ */
+export async function getWalletSolBalance(address: string): Promise<{
+  sol: number
+  address: string
+  rpcError?: string
+} | null> {
+  const trimmed = address?.trim()
+  if (!trimmed) return null
+
+  const rpcUrls = getSolanaRpcUrlCandidates()
+  let lastError = 'No RPC endpoints configured'
+
+  for (const rpcUrl of rpcUrls) {
+    try {
+      const balance = await getBalanceHttp(rpcUrl, new PublicKey(trimmed))
+      return {
+        sol: balance / LAMPORTS_PER_SOL,
+        address: trimmed,
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      lastError = message
+      console.warn(
+        `[Transfer] getBalance failed (${rpcUrl.split('?')[0]}): ${message}`
+      )
+    }
+  }
+
+  console.error(`[Transfer] Failed to get wallet balance for ${trimmed.slice(0, 8)}...:`, lastError)
+  return { sol: 0, address: trimmed, rpcError: lastError }
+}
+
+/**
  * Check the payout wallet's SOL balance
  */
 export async function getPayoutWalletBalance(): Promise<{
@@ -304,27 +338,7 @@ export async function getPayoutWalletBalance(): Promise<{
     return null
   }
 
-  const rpcUrls = getSolanaRpcUrlCandidates()
-  let lastError = 'No RPC endpoints configured'
-
-  for (const rpcUrl of rpcUrls) {
-    try {
-      const balance = await getBalanceHttp(rpcUrl, new PublicKey(address))
-      return {
-        sol: balance / LAMPORTS_PER_SOL,
-        address,
-      }
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error)
-      lastError = message
-      console.warn(
-        `[Transfer] getBalance failed (${rpcUrl.split('?')[0]}): ${message}`
-      )
-    }
-  }
-
-  console.error(`[Transfer] Failed to get wallet balance for ${address.slice(0, 8)}...:`, lastError)
-  return { sol: 0, address, rpcError: lastError }
+  return getWalletSolBalance(address)
 }
 
 /**

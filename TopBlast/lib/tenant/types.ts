@@ -57,4 +57,12 @@ export interface PublicTenantSummary {
   /** Live session powered by TOKEN_MINT_ADDRESS + PAYOUT_WALLET_PRIVATE_KEY env */
   runsFromEnv?: boolean
   payoutIntervalMinutes?: number
+  /** Live distributable SOL in the payout wallet (catalog). */
+  pot_sol?: number | null
+  pot_usd?: number | null
+  pot_usd_formatted?: string | null
+  /** Lifetime successful payout volume (winners + dev fees). */
+  total_distributed_sol?: number | null
+  total_distributed_usd?: number | null
+  total_distributed_usd_formatted?: string | null
 }
