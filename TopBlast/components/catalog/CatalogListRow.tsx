@@ -48,11 +48,6 @@ function PaidOutCell({ tenant }: { tenant: PublicTenantSummary }) {
   return (
     <MetricValue
       primary={tenant.total_distributed_usd_formatted ?? '—'}
-      secondary={
-        tenant.total_distributed_sol != null
-          ? `${tenant.total_distributed_sol.toFixed(4)} SOL`
-          : null
-      }
       primaryClassName="text-sol-mint/90"
     />
   )

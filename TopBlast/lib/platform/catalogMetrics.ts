@@ -1,9 +1,9 @@
 import 'server-only'
 
 import connectDB from '@/lib/db'
-import { CurrentRankings, Payout, PayoutVolumeSwap, TimerState } from '@/lib/db/models'
+import { CurrentRankings, PayoutVolumeSwap, TimerState } from '@/lib/db/models'
 import { deriveSessionDisplayState } from '@/lib/session/displayState'
-import { getSolPrice, formatUsd, formatCompactUsd, formatCompactSol } from '@/lib/solana/price'
+import { getSolPrice, formatCompactUsd, formatCompactSol } from '@/lib/solana/price'
 import { getWalletSolBalance } from '@/lib/solana/transfer'
 import { buildLivePoolBalance } from '@/lib/payout/poolBalance'
 import { computePayoutSecondsRemaining } from '@/lib/payout/timerMath'
@@ -19,27 +19,6 @@ export interface CatalogPayoutVolume {
 export function catalogPayoutTenantKey(tenant: PublicTenantSummary): string {
   if (tenant.runsFromEnv) return '_legacy'
   return tenant.slug
-}
-
-async function fetchPayoutVolumesByTenantKey(): Promise<Map<string, CatalogPayoutVolume>> {
-  await connectDB()
-
-  const rows = await Payout.aggregate<{ _id: string; total_sol: number; total_usd: number }>([
-    { $match: { status: 'success' } },
-    {
-      $group: {
-        _id: { $ifNull: ['$tenantSlug', '_legacy'] },
-        total_sol: { $sum: { $ifNull: ['$amountTokens', 0] } },
-        total_usd: { $sum: { $ifNull: ['$amount', 0] } },
-      },
-    },
-  ])
-
-  const map = new Map<string, CatalogPayoutVolume>()
-  for (const row of rows) {
-    map.set(row._id, { total_sol: row.total_sol, total_usd: row.total_usd })
-  }
-  return map
 }
 
 async function fetchGeneratedVolumesByTenantKey(): Promise<Map<string, CatalogPayoutVolume>> {
@@ -141,9 +120,8 @@ export async function enrichCatalogTenants(
 ): Promise<PublicTenantSummary[]> {
   if (tenants.length === 0) return tenants
 
-  const [solPrice, volumeByKey, generatedByKey, timerByKey, eligibilityByKey] = await Promise.all([
+  const [solPrice, generatedByKey, timerByKey, eligibilityByKey] = await Promise.all([
     getSolPrice(),
-    fetchPayoutVolumesByTenantKey(),
     fetchGeneratedVolumesByTenantKey(),
     fetchPayoutTimerByTenantKey(),
     fetchRankingsEligibilityByTenantKey(),
@@ -169,7 +147,6 @@ export async function enrichCatalogTenants(
 
   return tenants.map(tenant => {
     const payoutKey = catalogPayoutTenantKey(tenant)
-    const volume = volumeByKey.get(payoutKey) ?? { total_sol: 0, total_usd: 0 }
     const generated = generatedByKey.get(payoutKey) ?? { total_sol: 0, total_usd: 0 }
     const timer = timerByKey.get(payoutKey)
     const eligibility = eligibilityByKey.get(payoutKey)
@@ -208,9 +185,10 @@ export async function enrichCatalogTenants(
       pot_sol: pool?.poolSol ?? null,
       pot_usd: pool?.poolUsd ?? null,
       pot_usd_formatted: pool?.poolUsdFormatted ?? null,
-      total_distributed_sol: volume.total_sol,
-      total_distributed_usd: volume.total_usd,
-      total_distributed_usd_formatted: formatUsd(volume.total_usd),
+      // Paid out equals on-chart buy volume (Jupiter swaps), not token amounts distributed.
+      total_distributed_sol: generated.total_sol,
+      total_distributed_usd: generated.total_usd,
+      total_distributed_usd_formatted: formatCompactUsd(generated.total_usd),
       total_generated_volume_sol: generated.total_sol,
       total_generated_volume_usd: generated.total_usd,
       total_generated_volume_usd_formatted: formatCompactUsd(generated.total_usd),

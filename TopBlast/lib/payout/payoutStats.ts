@@ -27,13 +27,14 @@ export async function fetchTenantPayoutStats(): Promise<TenantPayoutStats> {
     cycleSet.add(p.cycle)
   }
 
-  const totalDistributedUsd = winnerPayouts.reduce((sum, p) => sum + (p.amount || 0), 0)
-  const totalDistributedSol = winnerPayouts.reduce((sum, p) => sum + (p.amountTokens || 0), 0)
   const winnerCount = winnerPayouts.length
 
   const swapRows = await PayoutVolumeSwap.find(tenantFilter()).select('swapSol swapUsd').lean()
   const totalGeneratedVolumeUsd = swapRows.reduce((sum, row) => sum + (row.swapUsd || 0), 0)
   const totalGeneratedVolumeSol = swapRows.reduce((sum, row) => sum + (row.swapSol || 0), 0)
+  // Chart buy volume is what gets paid out to winners (SOL swapped on-chart before airdrops).
+  const totalDistributedUsd = totalGeneratedVolumeUsd
+  const totalDistributedSol = totalGeneratedVolumeSol
 
   const winCountByWallet = new Map<string, number>()
   for (const p of winnerPayouts) {

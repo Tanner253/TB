@@ -89,13 +89,46 @@ describe('fetchTenantPayoutStats', () => {
     const stats = await runWithTenant(TENANT, () => fetchTenantPayoutStats())
 
     expect(stats.total_cycles).toBe(2)
-    expect(stats.total_distributed_usd).toBe(23)
+    expect(stats.total_distributed_usd).toBe(0)
     expect(stats.successful_winner_payouts).toBe(3)
-    expect(stats.average_payout_usd).toBeCloseTo(23 / 3)
+    expect(stats.average_payout_usd).toBe(0)
     expect(stats.most_wins).toEqual({
       wallet: 'Winner1111111111111111111111111111111111111',
       win_count: 2,
     })
+  })
+
+  it('uses chart buy volume for distributed totals when swaps exist', async () => {
+    await Payout.insertMany([
+      {
+        tenantSlug: 'pepe',
+        cycle: 1,
+        rank: 1,
+        wallet: 'Winner1111111111111111111111111111111111111',
+        amount: 18.89,
+        amountTokens: 2_729_024.664,
+        drawdownPct: -50,
+        lossUsd: 20,
+        status: 'success',
+      },
+    ])
+    await PayoutVolumeSwap.insertMany([
+      {
+        tenantSlug: 'pepe',
+        tokenMint: TENANT.tokenMint,
+        cycle: 1,
+        swapSol: 0.03,
+        swapUsd: 2,
+        txHash: 'swap1',
+      },
+    ])
+
+    const stats = await runWithTenant(TENANT, () => fetchTenantPayoutStats())
+
+    expect(stats.total_distributed_usd).toBeCloseTo(2)
+    expect(stats.total_distributed_sol).toBeCloseTo(0.03)
+    expect(stats.total_generated_volume_usd).toBeCloseTo(2)
+    expect(stats.total_generated_volume_sol).toBeCloseTo(0.03)
   })
 
   it('aggregates generated swap volume for tenant', async () => {

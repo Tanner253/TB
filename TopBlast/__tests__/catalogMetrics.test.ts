@@ -47,7 +47,7 @@ describe('catalogClient formatters', () => {
     }
 
     expect(formatCatalogPot(tenant)).toContain('$0.56')
-    expect(formatCatalogVolume(tenant)).toContain('$6.32')
+    expect(formatCatalogVolume(tenant)).toBe('$6.32')
   })
 })
 

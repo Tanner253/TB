@@ -84,12 +84,8 @@ export function CatalogMetrics({ tenant, layout = 'grid' }: CatalogMetricsProps)
       />
       <MetricCell
         label="Paid out"
+        title="Lifetime USD value of on-chart buys funding winner payouts"
         primary={tenant.total_distributed_usd_formatted ?? '—'}
-        secondary={
-          tenant.total_distributed_sol != null
-            ? `${tenant.total_distributed_sol.toFixed(4)} SOL`
-            : null
-        }
         primaryClassName="text-sol-mint/90"
       />
     </div>
