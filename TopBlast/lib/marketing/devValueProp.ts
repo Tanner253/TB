@@ -84,6 +84,52 @@ export const CHART_VOLUME_ENGINE = {
     'Unlike cashback bots that reward traded volume (often sells), TopBlast rewards underwater holders: winners must hold through drawdown to qualify — and they receive your token from on-chart buys, not exit liquidity.',
 } as const
 
+/** Homepage “How it works” — dedicated chart volume tab. */
+export const HOME_CHART_VOLUME = {
+  eyebrow: 'Your listing, your chart',
+  title: 'Every cycle, pool SOL market-buys your token',
+  lead:
+    'List on TopBlast and fund a payout wallet with creator-fee SOL. On each payout cycle, the protocol swaps ~88% of the pool into your session token via Jupiter — a real market buy on your active pair. Traders see it on your chart; TopBlast tracks the running total as Gen volume.',
+  flow: [
+    {
+      title: 'You fund the pool',
+      body: 'Creator-fee SOL in the payout wallet you register at /launch.',
+    },
+    {
+      title: 'Cycle triggers',
+      body: 'When eligible underwater holders exist, the timer runs and the cycle executes.',
+    },
+    {
+      title: 'Jupiter buys your mint',
+      body: '~88% of pool SOL swaps into your session token on the open market — on-chart buy volume.',
+    },
+    {
+      title: 'Winners airdropped',
+      body: 'Purchased tokens split 60/25/15 to top eligible losers — wallet-to-wallet.',
+    },
+    {
+      title: 'Gen volume updated',
+      body: 'SOL spent on buys accumulates on your catalog listing — proof of protocol-driven chart volume.',
+    },
+  ],
+  callouts: [
+    {
+      label: 'Your mint',
+      value: 'Every buy routes to the token you listed',
+    },
+    {
+      label: 'Your pair',
+      value: 'Volume hits DexScreener / your live chart',
+    },
+    {
+      label: 'Your budget',
+      value: 'You control how much SOL funds cycles',
+    },
+  ],
+  notThis:
+    'This is not a manual dev buy you schedule yourself, and not a cashback rebate that pays traders to sell. TopBlast automates recurring Jupiter buys into your token each cycle you fund the pool.',
+} as const
+
 export const ALTERNATIVES_COMPARISON = [
   {
     id: 'cashback',

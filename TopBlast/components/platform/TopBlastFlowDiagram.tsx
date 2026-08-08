@@ -6,6 +6,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   ALTERNATIVES_COMPARISON,
   CHART_VOLUME_ENGINE,
+  HOME_CHART_VOLUME,
   HOME_LAUNCH_STEPS,
   HOME_VS_CASHBACK,
 } from '@/lib/marketing/devValueProp'
@@ -18,12 +19,13 @@ import {
 } from '@/lib/platform/flywheel'
 import { HomeSection } from '@/components/platform/HomeSection'
 
-type FlowTab = 'deployers' | 'getstarted' | 'session' | 'platform' | 'compare'
+type FlowTab = 'deployers' | 'volume' | 'getstarted' | 'session' | 'platform' | 'compare'
 
 const TABS: { id: FlowTab; label: string; hint: string }[] = [
   { id: 'deployers', label: 'Why not cashback', hint: 'Skip the cashback bot' },
+  { id: 'volume', label: 'Chart volume', hint: 'Buys on your mint' },
   { id: 'getstarted', label: 'Get started', hint: 'Launch in four steps' },
-  { id: 'session', label: 'Payout cycle', hint: 'Your listing' },
+  { id: 'session', label: 'Payout cycle', hint: 'Timer & splits' },
   { id: 'platform', label: 'Protocol fee', hint: 'Platform flywheel' },
   { id: 'compare', label: 'Why TopBlast', hint: 'vs cashback & dev tax' },
 ]
@@ -85,6 +87,85 @@ function DeployersTab() {
   )
 }
 
+function ChartVolumeTab() {
+  const copy = HOME_CHART_VOLUME
+  const reduceMotion = useReducedMotion()
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="home-section-label text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 mb-2">
+          {copy.eyebrow}
+        </p>
+        <p className="text-base sm:text-lg font-semibold text-white leading-snug">{copy.title}</p>
+        <p className="text-sm text-gray-400 mt-2 max-w-4xl leading-relaxed">{copy.lead}</p>
+      </div>
+
+      <div className="hidden lg:flex items-stretch gap-2">
+        {copy.flow.map((step, index) => (
+          <div key={step.title} className="flex items-stretch flex-1 min-w-0">
+            <motion.article
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: index * 0.05, ease: EASE }}
+              className="flex-1 rounded-lg border border-sol-mint/15 bg-sol-mint/[0.04] p-3 min-w-0"
+            >
+              <span className="text-[10px] font-mono uppercase tracking-wider text-sol-mint/80">
+                Step {index + 1}
+              </span>
+              <p className="text-sm font-medium text-white mt-1">{step.title}</p>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">{step.body}</p>
+            </motion.article>
+            {index < copy.flow.length - 1 ? (
+              <span className="flex items-center px-1 text-sol-mint/40 shrink-0" aria-hidden>
+                →
+              </span>
+            ) : null}
+          </div>
+        ))}
+      </div>
+
+      <ol className="grid gap-3 sm:grid-cols-2 lg:hidden">
+        {copy.flow.map((step, index) => (
+          <li
+            key={step.title}
+            className="rounded-lg border border-sol-mint/15 bg-sol-mint/[0.04] p-4"
+          >
+            <span className="text-[10px] font-mono uppercase tracking-wider text-sol-mint/80">
+              Step {index + 1}
+            </span>
+            <p className="text-sm font-medium text-white mt-1">{step.title}</p>
+            <p className="text-xs text-gray-500 mt-1 leading-relaxed">{step.body}</p>
+          </li>
+        ))}
+      </ol>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        {copy.callouts.map(item => (
+          <div
+            key={item.label}
+            className="rounded-lg border border-white/[0.08] bg-black/30 px-4 py-3 text-center"
+          >
+            <p className="text-[0.65rem] uppercase tracking-wider text-gray-500">{item.label}</p>
+            <p className="text-sm text-gray-300 mt-1 leading-snug">{item.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-xs text-gray-600 border-t border-white/[0.06] pt-4 max-w-4xl leading-relaxed">
+        {copy.notThis}
+      </p>
+
+      <Link
+        href="/catalog"
+        className="inline-block text-sm font-medium text-sol-mint hover:text-white transition-colors"
+      >
+        See Gen volume on live listings →
+      </Link>
+    </div>
+  )
+}
+
 function GetStartedTab() {
   return (
     <div className="space-y-5">
@@ -121,25 +202,39 @@ function GetStartedTab() {
 function SessionTab() {
   return (
     <div className="space-y-6">
-      <p className="text-sm text-gray-400 max-w-3xl leading-relaxed">{CHART_VOLUME_ENGINE.intro}</p>
-      <div className="grid gap-4 md:grid-cols-3">
-        {CHART_VOLUME_ENGINE.steps.map((step, index) => (
+      <p className="text-sm text-gray-400 max-w-3xl leading-relaxed">
+        Each listing runs on the payout schedule you pick at launch. When the first eligible underwater holder
+        appears, the timer starts — no manual trigger. See the{' '}
+        <span className="text-gray-300">Chart volume</span> tab for how Jupiter buys feed your chart each cycle.
+      </p>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          {
+            title: 'Pool usage',
+            body: '~99% of your funded payout wallet SOL is used each cycle.',
+          },
+          {
+            title: 'Winner pool',
+            body: '88% swaps into your token via Jupiter, then airdrops to top 3 eligible losers.',
+          },
+          {
+            title: 'Split',
+            body: '1st 60% · 2nd 25% · 3rd 15% of the winner pool.',
+          },
+          {
+            title: 'Protocol fee',
+            body: `${DEV_FEE_PCT}% to platform treasury — see Protocol fee tab.`,
+          },
+        ].map(item => (
           <article
-            key={step.title}
+            key={item.title}
             className="rounded-lg border border-white/[0.08] bg-black/25 p-4 h-full"
           >
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-sol-mint/30 bg-sol-mint/5 text-[11px] font-mono text-sol-mint mb-3">
-              {index + 1}
-            </span>
-            <p className="text-sm font-medium text-white">{step.title}</p>
-            <p className="text-sm text-gray-500 mt-1 leading-relaxed">{step.body}</p>
+            <p className="text-sm font-medium text-white">{item.title}</p>
+            <p className="text-sm text-gray-500 mt-1 leading-relaxed">{item.body}</p>
           </article>
         ))}
       </div>
-      <p className="text-xs text-gray-600 border-t border-white/[0.06] pt-4 max-w-3xl">
-        {DEV_FEE_PCT}% of each cycle goes to the platform treasury — separate from the winner buyback.
-        See the <span className="text-gray-500">Protocol fee</span> tab.
-      </p>
     </div>
   )
 }
@@ -215,6 +310,8 @@ function TabPanel({ tab }: { tab: FlowTab }) {
   switch (tab) {
     case 'deployers':
       return <DeployersTab />
+    case 'volume':
+      return <ChartVolumeTab />
     case 'getstarted':
       return <GetStartedTab />
     case 'session':
@@ -227,14 +324,14 @@ function TabPanel({ tab }: { tab: FlowTab }) {
 }
 
 export function TopBlastFlowDiagram() {
-  const [tab, setTab] = useState<FlowTab>('deployers')
+  const [tab, setTab] = useState<FlowTab>('volume')
   const reduceMotion = useReducedMotion()
 
   return (
     <HomeSection
       label="How it works"
       title="One cycle, end to end"
-      description="Tap a tab — why TopBlast vs cashback, how to launch, and what runs each payout cycle."
+      description="Tap a tab — how chart volume works on your mint, why TopBlast vs cashback, and how each payout cycle runs."
       className="mb-14 md:mb-16"
     >
       <div className="home-flow-panel rounded-xl border border-white/[0.08] backdrop-blur-md overflow-hidden">
