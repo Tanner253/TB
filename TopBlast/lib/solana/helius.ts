@@ -6,6 +6,8 @@ import {
   setCachedTokenHolders,
   getCachedWalletTransactions,
   setCachedWalletTransactions,
+  getHolderFetchCooldownRemaining,
+  getStaleTokenHolders,
 } from '@/lib/solana/heliusCache'
 
 function getHeliusUrl(): string {
@@ -30,6 +32,14 @@ export async function getTokenHolders(mint: string, limit: number = 1000): Promi
   const cached = getCachedTokenHolders(mint)
   if (cached) {
     return cached.slice(0, limit)
+  }
+
+  const cooldownMs = getHolderFetchCooldownRemaining(mint)
+  if (cooldownMs > 0) {
+    const stale = getStaleTokenHolders(mint)
+    if (stale?.length) {
+      return stale.slice(0, limit)
+    }
   }
 
   const rpcUrl = getHeliusUrl()

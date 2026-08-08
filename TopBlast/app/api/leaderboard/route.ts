@@ -30,15 +30,22 @@ import { isLiquidityPoolWallet } from '@/lib/eligibility/liquidityPools'
 import { ensureLiquidityPoolAddresses } from '@/lib/eligibility/liquidityPools'
 import { loadLastWinCycleByWallet } from '@/lib/payout/winnerPersistence'
 import { getTokenHolders } from '@/lib/solana/indexer'
-import { normalizeTokenBalance, formatTokenBalance, rawToHumanTokenAmount, meetsMinTokenHoldingFromChain } from '@/lib/solana/tokenAmount'
-import { getOnChainHolderStats } from '@/lib/solana/holderStats'
+import { normalizeTokenBalance, formatTokenBalance } from '@/lib/solana/tokenAmount'
 import { buildTenantDiagnostics } from '@/lib/tenant/diagnostics'
 import { deriveSessionStatus } from '@/lib/tenant/sessionStatus'
 import { buildSessionChecklist } from '@/lib/tenant/sessionChecklist'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
 import { sortLeaderboardEntries } from '@/lib/leaderboard/sortRankings'
+import { mergeLiveHolderBalances } from '@/lib/leaderboard/mergeLiveHolderBalances'
 import { getTokenMintExplorerUrl } from '@/lib/solana/explorer'
-import { shouldThrottleFullReindex, markFullReindex } from '@/lib/solana/heliusCache'
+import {
+  shouldThrottleFullReindex,
+  markFullReindex,
+  tryInvalidateTokenHoldersCache,
+  getHolderFetchCooldownRemaining,
+  getHolderLastFetchAt,
+  HOLDER_FORCE_REFRESH_COOLDOWN_MS,
+} from '@/lib/solana/heliusCache'
 import { getRankingsKey } from '@/lib/tenant/keys'
 import { getPlatformTestBanner } from '@/lib/platform/testBanner'
 
@@ -70,6 +77,17 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
+    const forceRefresh = searchParams.get('refresh') === '1'
+    let holdersRefreshThrottled = false
+    let holdersRefreshRetryAfterSec = 0
+
+    if (forceRefresh && config.tokenMint) {
+      const attempt = tryInvalidateTokenHoldersCache(config.tokenMint)
+      if (!attempt.allowed) {
+        holdersRefreshThrottled = true
+        holdersRefreshRetryAfterSec = Math.ceil(attempt.retryAfterMs / 1000)
+      }
+    }
 
     const livePool = await getLivePoolBalance()
     const { poolEth, poolUsd, ethPrice, poolUsdFormatted, poolEthFormatted, minLossUsdFormatted, payoutWalletAddress } = livePool
@@ -89,16 +107,8 @@ export async function GET(request: NextRequest) {
       qualifying: dbRankings?.totalHolders ?? 0,
     }
 
-    if (!rankingsFresh || !dbRankings) {
-      onChainStats = await getOnChainHolderStats(config.tokenMint)
-      if (
-        onChainStats.qualifying > (dbRankings?.totalHolders ?? 0) &&
-        !shouldThrottleFullReindex(getRankingsKey())
-      ) {
-        await ensureRankingsIndexed()
-        markFullReindex(getRankingsKey())
-        dbRankings = await loadRankingsFromDb()
-      }
+    if (!dbRankings) {
+      onChainStats = { raw: 0, trackable: 0, qualifying: 0 }
     }
 
     const needsReindex =
@@ -228,45 +238,26 @@ export async function GET(request: NextRequest) {
       dbRankings.rankings.map(h => [h.wallet, h] as const)
     )
 
-    if (!rankingsFresh && onChainStats.qualifying > rankingByWallet.size) {
-      const liveHolders = await getTokenHolders(
-        config.tokenMint,
-        Math.min(config.maxHoldersToProcess, 100)
-      )
-      for (const h of liveHolders) {
-        if (rankingByWallet.has(h.wallet)) continue
-        if (
-          h.isContract ||
-          isExcludedParticipantWallet(h.wallet) ||
-          isLiquidityPoolWallet(h.wallet, config.tokenMint)
-        ) {
-          continue
-        }
-        if (
-          !meetsMinTokenHoldingFromChain(
-            h.balance,
-            config.tokenDecimals,
-            config.minTokenHolding
-          )
-        ) {
-          continue
-        }
+    const liveHolders = await getTokenHolders(
+      config.tokenMint,
+      Math.min(config.maxHoldersToProcess, 1000)
+    )
+    onChainStats = mergeLiveHolderBalances(rankingByWallet, liveHolders, config.tokenMint)
 
-        rankingByWallet.set(h.wallet, {
-          wallet: h.wallet,
-          balance: rawToHumanTokenAmount(h.balance, config.tokenDecimals),
-          vwap: 0,
-          drawdownPct: 0,
-          lossUsd: 0,
-          isEligible: false,
-          ineligibleReason: 'Loading buy history...',
-          firstBuyAt: null,
-          hasSold: false,
-          hasTransferredOut: false,
-          totalTokensBought: 0,
-          lastWinCycle: null,
-          isContract: false,
-        })
+    if (
+      !rankingsFresh &&
+      onChainStats.qualifying > (dbRankings?.totalHolders ?? 0) &&
+      !shouldThrottleFullReindex(getRankingsKey())
+    ) {
+      await ensureRankingsIndexed()
+      markFullReindex(getRankingsKey())
+      dbRankings = await loadRankingsFromDb()
+      if (dbRankings) {
+        rankingByWallet.clear()
+        for (const h of dbRankings.rankings) {
+          rankingByWallet.set(h.wallet, h)
+        }
+        onChainStats = mergeLiveHolderBalances(rankingByWallet, liveHolders, config.tokenMint)
       }
     }
 
@@ -498,6 +489,18 @@ export async function GET(request: NextRequest) {
         rankings,
         eligible_winners: eligibleWinners,
         last_updated: dbRankings.lastCalculated.toISOString(),
+        holders_live_as_of: (() => {
+          const ts = getHolderLastFetchAt(config.tokenMint)
+          return ts ? new Date(ts).toISOString() : null
+        })(),
+        holders_fetch_cooldown_sec: Math.ceil(
+          getHolderFetchCooldownRemaining(config.tokenMint) / 1000
+        ),
+        holders_refresh_throttled: holdersRefreshThrottled,
+        holders_refresh_retry_after_sec: holdersRefreshRetryAfterSec,
+        holders_force_refresh_cooldown_sec: Math.ceil(
+          HOLDER_FORCE_REFRESH_COOLDOWN_MS / 1000
+        ),
         platform_test_banner: platformTestBanner,
       },
     }, { headers: noStoreHeaders })

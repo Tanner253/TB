@@ -56,15 +56,31 @@ export function useRealtimeLeaderboard(pollInterval = 10000, tenantSlug?: string
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [countdown, setCountdown] = useState<number | null>(null)
   const [timerStatus, setTimerStatus] = useState<'waiting' | 'active'>('waiting')
+  const [refreshCooldownSec, setRefreshCooldownSec] = useState(0)
   const countdownRef = useRef<number | null>(null)
 
-  const fetchLeaderboard = useCallback(async () => {
+  useEffect(() => {
+    if (refreshCooldownSec <= 0) return
+    const timer = setInterval(() => {
+      setRefreshCooldownSec(prev => (prev <= 1 ? 0 : prev - 1))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [refreshCooldownSec])
+
+  const fetchLeaderboard = useCallback(async (options?: { force?: boolean }) => {
     try {
-      const res = await fetch(apiPath(tenantSlug, 'leaderboard'), { cache: 'no-store' })
+      const qs = options?.force ? '?refresh=1' : ''
+      const res = await fetch(`${apiPath(tenantSlug, 'leaderboard')}${qs}`, { cache: 'no-store' })
       const json = await res.json()
 
       if (json.success) {
         setData(json.data)
+
+        if (json.data.holders_refresh_throttled && json.data.holders_refresh_retry_after_sec) {
+          setRefreshCooldownSec(json.data.holders_refresh_retry_after_sec)
+        } else if (options?.force && json.data.holders_force_refresh_cooldown_sec) {
+          setRefreshCooldownSec(json.data.holders_force_refresh_cooldown_sec)
+        }
 
         if (json.data.timer_status) {
           setTimerStatus(json.data.timer_status)
@@ -123,6 +139,7 @@ export function useRealtimeLeaderboard(pollInterval = 10000, tenantSlug?: string
     lastUpdate,
     countdown,
     timerStatus,
+    refreshCooldownSec,
     refresh: fetchLeaderboard,
   }
 }

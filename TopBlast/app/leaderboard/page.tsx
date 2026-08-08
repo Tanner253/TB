@@ -154,14 +154,14 @@ function drawdownLabel(pct: number | undefined, hasVwap: boolean): string {
 
 export default function LeaderboardPage() {
   const { slug, basePath } = useTenantRouting()
-  const { data, loading, error, countdown, timerStatus, lastUpdate, refresh } = useRealtimeLeaderboard(30000, slug)
+  const { data, loading, error, countdown, timerStatus, lastUpdate, refresh, refreshCooldownSec } = useRealtimeLeaderboard(30000, slug)
   const { price, marketCap, loading: priceLoading, connection, isLive, mint: priceMint } = useRealtimePrice(undefined, slug)
   const { connectionState } = useRealtime({ autoReconnect: true })
   const [refreshing, setRefreshing] = useState(false)
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true)
-    await refresh()
+    await refresh({ force: true })
     setTimeout(() => setRefreshing(false), 500)
   }, [refresh])
 
@@ -225,10 +225,15 @@ export default function LeaderboardPage() {
           <>
             <ConnectionIndicator state={connectionState} wsConnected={wsConnected} />
             <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: refreshCooldownSec > 0 ? 1 : 1.02 }}
+              whileTap={{ scale: refreshCooldownSec > 0 ? 1 : 0.98 }}
               onClick={handleRefresh}
-              disabled={refreshing}
+              disabled={refreshing || refreshCooldownSec > 0}
+              title={
+                refreshCooldownSec > 0
+                  ? `On-chain refresh available in ${refreshCooldownSec}s`
+                  : 'Refresh holder balances from chain'
+              }
               className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs sm:text-sm font-medium transition-all border border-white/10 disabled:opacity-50"
             >
               <motion.span
@@ -237,7 +242,9 @@ export default function LeaderboardPage() {
               >
                 ↻
               </motion.span>
-              <span className="hidden sm:inline">Refresh</span>
+              <span className="hidden sm:inline">
+                {refreshCooldownSec > 0 ? `${refreshCooldownSec}s` : 'Refresh'}
+              </span>
             </motion.button>
           </>
         }
