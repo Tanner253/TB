@@ -15,6 +15,7 @@ const sample: PublicTenantSummary[] = [
     createdAt: '2026-01-01T00:00:00.000Z',
     payoutWalletAddress: 'Pool1111111111111111111111111111111111',
     featured: false,
+    pot_sol: 2.5,
   },
   {
     slug: 'topblast',
@@ -25,6 +26,7 @@ const sample: PublicTenantSummary[] = [
     payoutWalletAddress: 'Pool2222222222222222222222222222222222',
     featured: true,
     isPlatformToken: true,
+    pot_sol: 0.5,
   },
   {
     slug: 'beta',
@@ -34,6 +36,7 @@ const sample: PublicTenantSummary[] = [
     createdAt: '2026-01-02T00:00:00.000Z',
     payoutWalletAddress: 'Pool3333333333333333333333333333333333',
     featured: false,
+    pot_sol: 5.1,
   },
 ]
 
@@ -69,9 +72,11 @@ describe('catalogClient', () => {
     expect(sorted[0].slug).toBe('topblast')
   })
 
-  it('picks top three for homepage', () => {
+  it('picks platform first then top pots for homepage', () => {
     const top = pickTopCatalogTenants(sample, 3)
     expect(top).toHaveLength(3)
     expect(top[0].slug).toBe('topblast')
+    expect(top[1].slug).toBe('beta')
+    expect(top[2].slug).toBe('alpha')
   })
 })

@@ -5,11 +5,55 @@ import { formatPayoutIntervalOptionsList } from '@/lib/platform/payoutIntervals'
 const PAYOUT_SCHEDULE_OPTIONS = formatPayoutIntervalOptionsList()
 
 export const DEV_HERO = {
-  headline: 'Reward holders — and bring volume to your chart',
+  headline: 'Creator fees become on-chart volume',
   subhead:
-    'TopBlast turns creator-fee SOL into loss-mining rewards for underwater holders. Every payout cycle market-buys your token on-chart, then airdrops tokens to winners — real buy pressure, not cashback sell spam.',
+    'Fund a payout wallet with creator-fee SOL. Each cycle the protocol buys your session token via Jupiter, then airdrops it to the top 3 eligible underwater holders.',
   cta: 'Launch your token',
 } as const
+
+/** Homepage — cashback contrast (above the fold). */
+export const HOME_VS_CASHBACK = {
+  title: 'Skip the cashback bot',
+  subtitle: 'Same creator-fee budget. Different outcome for your chart and your holders.',
+  cashback: {
+    label: 'Cashback / rebate bots',
+    points: [
+      'Pay SOL rebates for volume traded on chart — often sell-side',
+      'Rewards trading activity, not underwater holders',
+      'Mercenary volume — no incentive to hold through drawdown',
+    ],
+  },
+  topblast: {
+    label: 'TopBlast loss-mining',
+    points: [
+      'Holders must stay underwater to qualify for rewards',
+      'Pool SOL market-buys your token via Jupiter each cycle',
+      'Winners receive your token — tracked as Gen volume in the catalog',
+    ],
+  },
+} as const
+
+/** Homepage — how to launch (simplified from launchHelp). */
+export const HOME_LAUNCH_STEPS = [
+  {
+    title: 'Submit your token',
+    body: 'Mint, ticker, payout wallet key, cycle length, and min balance — all on the launch page.',
+    href: '/launch',
+  },
+  {
+    title: 'Fund the payout wallet',
+    body: 'Send creator-fee SOL to the wallet you registered. ~99% of the balance is used each cycle.',
+    href: '/launch',
+  },
+  {
+    title: 'Holders get indexed',
+    body: 'Helius tracks balances and buy prices. Rankings appear on your listing within minutes.',
+  },
+  {
+    title: 'Cycles run on autopilot',
+    body: 'When eligible losers exist, the timer counts down, buys your token, and airdrops winners — no manual start.',
+  },
+] as const
 
 /** How session listings generate on-chart volume for launchers. */
 export const CHART_VOLUME_ENGINE = {
@@ -37,15 +81,15 @@ export const CHART_VOLUME_ENGINE = {
     { label: 'Tracking', value: 'Gen volume', hint: 'Lifetime SOL bought on-chart' },
   ],
   footer:
-    'Unlike cashback bots that pay users to sell, TopBlast rewards conviction: winners must hold through drawdown to qualify — and they receive your token, not exit liquidity.',
+    'Unlike cashback bots that reward traded volume (often sells), TopBlast rewards underwater holders: winners must hold through drawdown to qualify — and they receive your token from on-chart buys, not exit liquidity.',
 } as const
 
 export const ALTERNATIVES_COMPARISON = [
   {
     id: 'cashback',
     name: 'Cashback / rebates',
-    holderBehavior: 'Buy → claim → sell',
-    chartEffect: 'Instant sell pressure',
+    holderBehavior: 'Trade volume → claim SOL rebates',
+    chartEffect: 'Sell-side volume rewarded',
     devOptics: 'Mercenary flow, weak holders',
     tone: 'negative' as const,
   },
@@ -103,7 +147,7 @@ export const CREATOR_BENEFITS = [
   },
   {
     title: 'Incentivize holding, not exiting',
-    body: 'Holders compete while underwater — they do not farm a rebate and immediately sell.',
+    body: 'Holders compete while underwater — they do not farm sell-side volume for rebates.',
   },
   {
     title: 'You fund the program',

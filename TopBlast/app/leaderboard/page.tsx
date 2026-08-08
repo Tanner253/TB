@@ -212,7 +212,7 @@ export default function LeaderboardPage() {
       </div>
 
       <AppHeader
-        active="catalog"
+        active="leaderboard"
         trailing={
           <>
             <ConnectionIndicator state={connectionState} wsConnected={wsConnected} />

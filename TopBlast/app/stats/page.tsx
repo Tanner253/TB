@@ -169,7 +169,7 @@ export default function StatsPage() {
         <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-rh-lime/5 rounded-full blur-3xl" />
       </div>
 
-      <AppHeader active="catalog" />
+      <AppHeader active="stats" />
       <SessionNav basePath={basePath} active="stats" symbol={stats?.token.symbol} />
 
       <main className="relative max-w-5xl mx-auto px-3 sm:px-4 py-6 sm:py-8">

@@ -133,10 +133,32 @@ export function sortCatalogTenants(
   return copy
 }
 
-/** Top N listings for homepage preview (platform first, then newest). */
+/** Top N listings for homepage: platform token first, then highest pot sizes. */
 export function pickTopCatalogTenants(
   tenants: PublicTenantSummary[],
   limit = 3
 ): PublicTenantSummary[] {
-  return sortCatalogTenants(tenants, 'featured').slice(0, limit)
+  if (limit <= 0 || tenants.length === 0) return []
+
+  const platform =
+    tenants.find(t => t.isPlatformToken) ??
+    tenants.find(t => t.featured && t.isPlatformToken !== false) ??
+    null
+
+  const byPotDesc = (a: PublicTenantSummary, b: PublicTenantSummary) =>
+    (b.pot_sol ?? 0) - (a.pot_sol ?? 0)
+
+  const rest = tenants
+    .filter(t => t.slug !== platform?.slug)
+    .sort(byPotDesc)
+
+  const picked: PublicTenantSummary[] = []
+  if (platform) picked.push(platform)
+
+  for (const tenant of rest) {
+    if (picked.length >= limit) break
+    picked.push(tenant)
+  }
+
+  return picked
 }

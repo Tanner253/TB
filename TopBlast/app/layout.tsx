@@ -5,6 +5,7 @@ import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 const PAYOUT_META = `Configurable payout cycles (${PAYOUT_INTERVAL_RANGE_COMPACT})`
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://topblasted.fun'),
   title: 'TopBlast | The Loss-Mining Protocol',
   description: `The Loss-Mining Protocol on Solana. On-chart buybacks and token airdrops for top eligible losers — volume for launchers. ${PAYOUT_META}.`,
   keywords: ['solana', 'spl', 'defi', 'loss-mining', 'crypto', 'topblast', 'helius'],

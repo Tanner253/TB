@@ -1,450 +1,234 @@
-# 🚀 TOPBLAST - The Loss-Mining Protocol
+# TopBlast
 
-<div align="center">
+**Loss-mining rewards and on-chart volume for Solana token launchers.**
 
-![Topblast Logo](https://img.shields.io/badge/TOPBLAST-Loss%20Mining%20Protocol-14F195?style=for-the-badge&logo=solana&logoColor=white)
+TopBlast is a self-serve SaaS platform that turns creator-fee SOL into two things every cycle: **real buy pressure on your chart** and **token airdrops to your most underwater holders**. Winners compete by drawdown — not by farming sell-side volume for rebates.
 
-**The world's first Loss-Mining Protocol on Solana.**  
-*Get paid for being a top blaster.*
-
-[![Solana](https://img.shields.io/badge/Built%20on-Solana-14F195?style=flat-square&logo=solana)](https://solana.com)
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)](https://nextjs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://typescriptlang.org)
-[![MongoDB](https://img.shields.io/badge/MongoDB-8.5-green?style=flat-square&logo=mongodb)](https://mongodb.com)
-
-[Live App](https://topblasted.fun) • [Documentation](#features) • [How It Works](#how-it-works) • [Get Started](#getting-started)
-
-</div>
+[Live app](https://topblasted.fun) · [Launch a listing](https://topblasted.fun/launch) · [Catalog](https://topblasted.fun/catalog) · [Whitepaper](https://whitepaper.topblasted.fun)
 
 ---
 
-## 📖 What is Topblast?
+## What TopBlast does
 
-Topblast flips traditional crypto trading psychology on its head. Instead of only winning when prices go up, **Topblast rewards holders who experience the largest losses**. Every hour, the top 3 "blasters" (biggest losers by drawdown percentage) automatically receive payouts from the reward pool.
+Most cashback bots pay SOL rebates for **volume traded on chart** — often sell-side. That rewards trading activity, not holders. TopBlast routes the winner pool differently:
 
-### The Win-Win Scenario
+1. **Fund a payout wallet** with creator-fee SOL (you control the budget).
+2. **Each cycle**, ~88% of pool SOL swaps into **your session token via Jupiter** — measurable on-chart volume.
+3. **Purchased tokens airdrop** to the top 3 eligible underwater holders (60% / 25% / 15%).
+4. **12% protocol fee** goes to the TopBlast platform treasury (buyback + ops flywheel).
 
-| Scenario | What Happens |
-|----------|-------------|
-| **Price Pumps** 📈 | Your tokens appreciate in value. You win traditionally. |
-| **Price Dumps** 📉 | Your drawdown increases, you climb the leaderboard, and you get paid from the reward pool. |
-
-> *"In a market of gambling, be the casino. If you can't be the casino, be the player who gets paid to lose."*
+That makes TopBlast both a **loss-mining protocol** and a **chart volume engine**. Lifetime SOL bought on-chart is tracked as **Gen volume** on every catalog listing.
 
 ---
 
-## ✨ Features
+## Why launchers use it
 
-### 🎯 Core Functionality
-
-- **📊 Real-time Leaderboard** - Live rankings updated every 5 seconds with smooth animations
-- **💰 Automated Hourly Payouts** - Winners paid automatically via Vercel Cron, no claiming needed
-- **📈 VWAP-based Drawdown Calculations** - Accurate loss tracking using Volume-Weighted Average Price from real on-chain buy transactions
-- **🏆 Full Payout History** - Complete record of all past cycles with Solscan transaction links
-- **⏱️ Live Countdown Timer** - Know exactly when the next payout happens
-
-### 🔒 Anti-Gaming Mechanics
-
-- **Winner Cooldown** - Previous winners sit out 1 cycle
-- **Transfer Detection** - Transferring tokens out triggers disqualification
-- **Sell Detection** - Any sell immediately disqualifies you
-- **Minimum Hold Duration** - Must hold for at least 1 hour to qualify
-- **Minimum Loss Threshold** - Loss must exceed 10% of pool value
-
-### 🎨 Modern UI/UX
-
-- **Framer Motion Animations** - Smooth, professional animations throughout
-- **Real-time Data Updates** - Polling-based updates for serverless compatibility
-- **Mobile Responsive** - Optimized for all screen sizes
-- **Dark Theme** - Beautiful dark mode design with gradient accents
-- **Animated Background** - Subtle, performant visual effects
+| | Cashback / rebates | TopBlast |
+|---|-------------------|----------|
+| Holder behavior | Trade for SOL rebates | Hold underwater to qualify |
+| Chart effect | Sell-side volume rewarded | Jupiter buys your token each cycle |
+| Rewards | Exit liquidity (SOL) | Your session token |
+| Volume | None | Gen volume tracked in catalog |
 
 ---
 
-## 🏗️ Tech Stack
+## Payout cycle (per listing)
 
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| **Frontend** | Next.js 14 + React 18 | Server components + client interactivity |
-| **Styling** | Tailwind CSS | Utility-first styling |
-| **Animations** | Framer Motion | Smooth UI animations |
-| **Database** | MongoDB (Mongoose) | Holder cache, payout history, snapshots |
-| **Blockchain Data** | Helius RPC + DAS API | Token holders, transaction history |
-| **Price Feed** | Jupiter Price API | Real-time token pricing |
-| **Token Transfers** | @solana/web3.js + @solana/spl-token | Execute payout transactions |
-| **Hosting** | Vercel | Frontend + API + Cron |
-| **Validation** | Zod | Runtime type validation |
+```
+Creator-fee SOL (payout wallet)
+        │
+        ▼
+   ~99% of wallet balance used each cycle
+        │
+        ├─ 88% winner pool ──► Jupiter buy (your mint) ──► SPL airdrop top 3 losers
+        │
+        └─ 12% protocol fee ──► platform treasury (6% buyback / 6% ops)
+```
+
+**Winner split:** 1st 60% · 2nd 25% · 3rd 15% of the winner pool (after dev fee).
+
+**Payout frequency:** chosen at launch — 15m, 30m, 1h, 2h, 4h, or 6h. Timer starts when the first eligible holder appears.
+
+**Default payout mode:** `PAYOUT_AS_NATIVE_TOKEN=true` — winners receive your token, not SOL. Set `false` for legacy SOL payouts.
 
 ---
 
-## 💎 How It Works
+## Platform features
 
-### The Mechanism
+### For token launchers
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    TOPBLAST PAYOUT CYCLE                        │
-└─────────────────────────────────────────────────────────────────┘
+- **Self-serve launch** at `/launch` — mint, ticker, payout wallet key (encrypted at rest), cycle length, min balance
+- **Isolated sessions** — each listing gets `/[slug]/leaderboard`, `/history`, `/stats`
+- **Live catalog** — sort by pot, Gen volume, or total paid out
+- **Session diagnostics** — clear status when pool is empty, indexing, or no eligible holders
+- **Pump.fun → migration** — DexScreener price follows bonding curve and Raydium/PumpSwap pairs
 
-  1. BUY $TBLAST    →    2. HOLD & WAIT    →    3. AUTOMATIC PAYOUT
-       │                       │                        │
-       ▼                       ▼                        ▼
-  System tracks         Price drops?            Top 3 losers
-  your VWAP from        Your drawdown %         receive 80/15/5%
-  on-chain buys         increases, you          of the pool
-                        climb the board         automatically!
-```
+### For holders
 
-### Payout Distribution
+- **VWAP drawdown rankings** from on-chain buy history (Helius)
+- **Eligibility gates** — min balance, 15m hold, dynamic min loss (10% of pool USD), no sells/transfers out, winner cooldown
+- **Automatic airdrops** — no claim button; tokens arrive wallet-to-wallet
 
-| Place | Percentage | Description |
-|-------|------------|-------------|
-| 🥇 **1st** | 80% | The "Biggest Loser" - highest drawdown percentage |
-| 🥈 **2nd** | 15% | Runner up by drawdown |
-| 🥉 **3rd** | 5% | Third place by drawdown |
+### Chart volume (Gen volume)
 
-### Eligibility Requirements
+Each successful payout cycle with eligible winners:
 
-| Requirement | Threshold | Purpose |
-|-------------|-----------|---------|
-| **Minimum Balance** | 100,000 tokens | Prevents dust/micro-wallet attacks |
-| **Hold Duration** | ≥ 1 hour | Must hold through at least one cycle |
-| **Minimum Loss** | 10% of pool value | Prevents small-loss gaming |
-| **Loss Position** | Drawdown < 0% | Must actually be underwater |
-| **No Sells** | No sell transactions | Sellers are disqualified |
-| **No Transfers Out** | No outgoing transfers | Transferring disqualifies |
-
-### VWAP Calculation
-
-The system calculates your **Volume-Weighted Average Price** from actual on-chain buy transactions:
-
-```
-VWAP = Total Cost Basis / Total Tokens Bought
-
-Where:
-- Total Cost Basis = Σ(SOL spent × current SOL price) + Σ(stablecoin spent)
-- Drawdown % = ((Current Price - VWAP) / VWAP) × 100
-```
+1. Swaps winner-pool SOL → session token on Jupiter (with slippage retries).
+2. Records SOL spent as **generated volume** on the tenant (`total_generated_volume_sol` / USD).
+3. Surfaces in the **catalog** and listing cards as **Gen volume** — lifetime on-chart buy pressure from the protocol.
 
 ---
 
-## 🚀 Getting Started
+## Tech stack
 
-### Prerequisites
-
-- **Node.js 18+**
-- **MongoDB database** (MongoDB Atlas recommended)
-- **Helius API key** (free tier available at [helius.dev](https://helius.dev))
-- **Solana wallet** with SOL for payouts (optional - only needed for live payouts)
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/your-org/topblast.git
-
-# Navigate to project directory
-cd TopBlast
-
-# Install dependencies
-npm install
-```
-
-### Environment Setup
-
-1. Copy the example environment file:
-```bash
-cp env.example.txt .env.local
-```
-
-2. Configure your environment variables:
-
-```env
-# Required - Database
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/topblast
-
-# Required - Helius RPC
-HELIUS_API_KEY=your_helius_api_key
-
-# Required - Token Configuration
-TOKEN_MINT_ADDRESS=your_token_mint_address
-TOKEN_DECIMALS=6
-TOKEN_SYMBOL=TBLAST
-
-# Pool Configuration
-MIN_POOL_SOL=0.025
-POOL_BALANCE_USD=500
-
-# Eligibility Thresholds
-MIN_TOKEN_HOLDING=100000
-MIN_HOLD_DURATION_HOURS=1
-MIN_LOSS_THRESHOLD_PCT=10
-
-# Payout Configuration (set to true when ready for live payouts)
-EXECUTE_PAYOUTS=false
-PAYOUT_WALLET_PRIVATE_KEY=
-DEV_WALLET_ADDRESS=
-
-# Security
-CRON_SECRET=your_random_secret_here
-```
-
-### Development
-
-```bash
-# Start development server
-npm run dev
-```
-
-Visit [http://localhost:3000](http://localhost:3000)
-
-### Testing
-
-```bash
-# Run all tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Generate coverage report
-npm run test:coverage
-```
+| Layer | Technology |
+|-------|------------|
+| App | Next.js 14, React 18, TypeScript, Tailwind CSS |
+| Chain | Solana mainnet — Helius RPC/DAS, `@solana/web3.js`, SPL |
+| Swaps | Jupiter (SOL → session token) |
+| Database | MongoDB (tenants, holders, payouts, encrypted keys) |
+| Pricing | DexScreener (+ Jupiter/Helius server fallbacks) |
+| Hosting | Vercel |
 
 ---
 
-## 📡 API Reference
+## Repository layout
 
-### Public Endpoints (Read-Only)
-
-All public endpoints require no authentication. Data is derived from public blockchain state.
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/leaderboard` | GET | Current rankings with countdown, pool balance, and eligible holders |
-| `/api/leaderboard/history` | GET | Past payout cycles with winners and transaction links |
-| `/api/pool` | GET | Reward pool status including balance and payout status |
-| `/api/stats` | GET | Protocol statistics (holders, cycles, distributions) |
-| `/api/countdown` | GET | Time until next payout |
-| `/api/realtime/price` | GET | Current token price and market cap |
-
-### Protected Endpoints
-
-These endpoints require authentication via `CRON_SECRET`.
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/cron/snapshot` | POST | Create holder snapshot (automated) |
-| `/api/cron/payout` | POST | Execute payouts (automated) |
-| `/api/admin/pool` | POST | Update pool balance (operator) |
-| `/api/admin/seed` | POST | Seed initial data (development) |
-
-### Example: Fetch Leaderboard
-
-```bash
-curl https://your-domain.com/api/leaderboard
+```
+TB/
+├── TopBlast/          # Main Next.js app (app, API, payout engine)
+├── whitepaper/        # Marketing docs site
+└── README.md          # This file
 ```
 
-Response:
-```json
-{
-  "success": true,
-  "data": {
-    "status": "ready",
-    "cycle": 42,
-    "seconds_remaining": 1847,
-    "pool_balance_usd": "$547.32",
-    "pool_balance_sol": "2.4878",
-    "token_price": "$0.00001234",
-    "total_holders": 1547,
-    "eligible_count": 23,
-    "rankings": [
-      {
-        "rank": 1,
-        "wallet": "7xKXt...Fa1",
-        "wallet_display": "7xKXt...Fa1",
-        "balance": "45,000,000",
-        "drawdown_pct": -72.5,
-        "loss_usd": "$892.50",
-        "is_eligible": true,
-        "payout_usd": "$437.86"
-      }
-    ]
-  }
-}
-```
-
----
-
-## 📁 Project Structure
+Key TopBlast paths:
 
 ```
 TopBlast/
 ├── app/
-│   ├── api/
-│   │   ├── leaderboard/        # Rankings API
-│   │   │   ├── route.ts        # GET current rankings
-│   │   │   └── history/        # GET past payouts
-│   │   ├── cron/               # Automated jobs
-│   │   │   ├── snapshot/       # Hourly snapshot creation
-│   │   │   └── payout/         # Hourly payout execution
-│   │   ├── pool/               # Pool status
-│   │   ├── stats/              # Protocol statistics
-│   │   ├── countdown/          # Next payout countdown
-│   │   ├── realtime/           # Live price data
-│   │   └── admin/              # Operator endpoints
-│   ├── leaderboard/            # Leaderboard page
-│   │   └── page.tsx
-│   ├── history/                # Payout history page
-│   │   └── page.tsx
-│   ├── stats/                  # Statistics page
-│   │   └── page.tsx
-│   ├── page.tsx                # Homepage
-│   ├── layout.tsx              # Root layout
-│   └── globals.css             # Global styles
-├── components/
-│   └── ui/
-│       ├── AnimatedNumber.tsx  # Animated counters & price tickers
-│       ├── LiveIndicator.tsx   # Connection status indicator
-│       └── Skeleton.tsx        # Loading skeletons
-├── hooks/
-│   └── useRealtime.ts          # Real-time data hooks
+│   ├── page.tsx              # Homepage
+│   ├── launch/               # Self-serve listing form
+│   ├── catalog/              # Multi-tenant catalog
+│   ├── leaderboard/          # Platform token session
+│   ├── [slug]/               # Per-tenant session pages
+│   └── api/
+│       ├── tenants/          # Catalog + launch API
+│       ├── cron/tenants/     # Multi-tenant payout cron
+│       └── t/[slug]/         # Tenant-scoped APIs
 ├── lib/
-│   ├── config.ts               # Environment configuration
-│   ├── db/
-│   │   ├── index.ts            # MongoDB connection
-│   │   └── models.ts           # Database schemas
-│   ├── engine/
-│   │   └── calculations.ts     # VWAP, drawdown, ranking logic
-│   ├── payout/
-│   │   └── executor.ts         # Payout execution & timer
-│   ├── solana/
-│   │   ├── helius.ts           # Helius RPC integration
-│   │   ├── holders.ts          # Holder data utilities
-│   │   ├── price.ts            # Price fetching (Jupiter)
-│   │   └── transfer.ts         # SOL/SPL token transfers
-│   └── tracker/
-│       ├── holderService.ts    # Holder management service
-│       ├── init.ts             # Service initialization
-│       ├── realtime.ts         # Real-time updates
-│       └── vwap.ts             # VWAP calculation
-├── __tests__/                  # Test files
-├── vercel.json                 # Vercel configuration & cron
-├── package.json
-└── README.md
+│   ├── payout/executor.ts    # Payout + Jupiter swap + airdrop
+│   ├── solana/jupiterSwap.ts
+│   ├── platform/catalogMetrics.ts  # Gen volume aggregation
+│   └── tenant/               # Multi-tenant runtime
+└── env.example.txt
 ```
 
 ---
 
-## 🔄 Deployment
+## Getting started (local dev)
 
-### Deploy to Vercel
+### Prerequisites
 
-1. Connect your repository to Vercel
-2. Configure environment variables in Vercel dashboard
-3. Deploy:
+- Node.js 18+
+- MongoDB (Atlas or local)
+- Helius API key ([helius.dev](https://helius.dev))
 
-```bash
-vercel deploy --prod
-```
-
-### Cron Jobs
-
-Cron jobs are configured in `vercel.json`:
-
-```json
-{
-  "crons": [
-    {
-      "path": "/api/cron/snapshot",
-      "schedule": "0 0 * * *"
-    }
-  ]
-}
-```
-
-For custom intervals, the payout executor handles timing internally based on `PAYOUT_INTERVAL_MINUTES`.
-
----
-
-## 🧪 Testing
-
-### Manual Testing
+### Install
 
 ```bash
-# Trigger snapshot manually
-curl -X POST http://localhost:3000/api/cron/snapshot
-
-# Trigger payout manually  
-curl -X POST http://localhost:3000/api/cron/payout
+git clone https://github.com/Tanner253/TB.git
+cd TB/TopBlast
+npm install
+cp env.example.txt .env.local
+# Edit .env.local — see env.example.txt
+npm run dev
 ```
 
-### Unit Tests
+Open [http://localhost:3000](http://localhost:3000).
 
-The project includes comprehensive tests for:
-
-- VWAP calculation logic
-- Drawdown calculations  
-- Eligibility checking
-- Ranking algorithms
-- Payout distribution
+### Tests
 
 ```bash
+cd TopBlast
 npm test
 ```
 
 ---
 
-## 🔐 Security Considerations
+## Environment (essentials)
 
-| Area | Implementation |
-|------|----------------|
-| **Cron Protection** | All cron endpoints protected by `CRON_SECRET` |
-| **Read-Only Frontend** | No wallet connection, no user transactions |
-| **Input Validation** | Zod schemas for all API inputs |
-| **Private Key Security** | Payout wallet key stored in environment only |
-| **Rate Limiting** | Helius API rate limits respected with batching |
+See `TopBlast/env.example.txt` for the full list. Critical vars:
 
----
-
-## 🗺️ Roadmap
-
-- [x] Real-time leaderboard with live rankings
-- [x] Automated hourly payouts
-- [x] VWAP calculation from on-chain data
-- [x] Anti-gaming mechanisms
-- [x] Full payout history with transaction links
-- [ ] Clockwork integration for fully decentralized automation
-- [ ] Multi-token support
-- [ ] Advanced analytics dashboard
-- [ ] Mobile app
+| Variable | Purpose |
+|----------|---------|
+| `MONGODB_URI` | Database |
+| `HELIUS_API_KEY` | Holder indexing + tx history |
+| `TENANT_ENCRYPTION_KEY` | Encrypt launcher payout keys at rest |
+| `PAYOUT_AS_NATIVE_TOKEN` | `true` = Jupiter buy + token airdrop (default) |
+| `PAYOUT_SWAP_MAX_RETRIES` | Slippage escalation retries (default 3) |
+| `EXECUTE_PAYOUTS` | `true` in production to sign transactions |
+| `DEV_WALLET_ADDRESS` | Receives 12% protocol fee each cycle |
+| `PLATFORM_TENANT_SLUG` | Platform token catalog slug (default `topblast`) |
 
 ---
 
-## 📄 License
+## API overview
 
-MIT License - see [LICENSE](LICENSE) for details.
+### Public
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/tenants` | Catalog listings (pot, Gen volume, status) |
+| `GET /api/leaderboard` | Platform token rankings |
+| `GET /api/t/[slug]/leaderboard` | Tenant rankings |
+| `GET /api/history` | Payout history |
+| `GET /api/stats` | Session stats |
+
+### Protected (cron / admin)
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/cron/tenants` | Run snapshots + payouts for all active tenants |
+| `POST /api/cron/snapshot` | Legacy single-token snapshot |
+| `POST /api/cron/payout` | Legacy single-token payout |
+
+Payouts also trigger when the leaderboard timer reaches zero during API polling.
 
 ---
 
-## 🤝 Contributing
+## Security
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) before submitting a PR.
+- Launcher payout private keys encrypted with AES-256-GCM before storage
+- Keys decrypted only during that listing's payout execution
+- Cron and admin routes require `CRON_SECRET`
+- Dev wallet and payout wallet excluded from rankings
+- No wallet connect on the frontend — read-only UI for holders
 
 ---
 
-## 📞 Support
+## Roadmap
 
-- **Live App**: [topblasted.fun](https://topblasted.fun)
-- **Documentation**: This README and inline code comments
-- **Issues**: [GitHub Issues](https://github.com/your-org/topblast/issues)
+- [x] Solana loss-mining with VWAP drawdown rankings
+- [x] Multi-tenant SaaS (`/launch`, catalog, encrypted keys)
+- [x] Native-token payouts (Jupiter buy + SPL airdrop)
+- [x] Gen volume tracking in catalog
+- [x] Payout slippage retries + failure persistence
+- [ ] Automated platform-token buyback + burn bot
+- [ ] Public analytics API for launchers
+
+---
+
+## Links
+
+- **App:** [topblasted.fun](https://topblasted.fun)
+- **Docs / whitepaper:** [whitepaper.topblasted.fun](https://whitepaper.topblasted.fun)
+- **GitHub:** [github.com/Tanner253/TB](https://github.com/Tanner253/TB)
+- **X:** [@oSKNYo_dev](https://x.com/oSKNYo_dev)
 
 ---
 
 <div align="center">
 
-**Built with 💀 for the degens who HODL through the pain.**
-
-*"When you drawdown, we blast you up."*
+*When you drawdown, we blast you up.*
 
 </div>

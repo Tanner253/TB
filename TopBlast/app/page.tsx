@@ -1,88 +1,92 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useState } from 'react'
-import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { AppHeader } from '@/components/platform/AppHeader'
 import { FeaturedTokens } from '@/components/catalog/FeaturedTokens'
 import { ForCreatorsSection } from '@/components/platform/ForCreatorsSection'
 import { DynamicPotExplainer } from '@/components/platform/DynamicPotExplainer'
-import { FlywheelTokenomics } from '@/components/platform/FlywheelTokenomics'
-import { ChartVolumeExplainer } from '@/components/platform/ChartVolumeExplainer'
-import { DEV_HERO } from '@/lib/marketing/devValueProp'
+import { HomeHero } from '@/components/platform/HomeHero'
+import { TopBlastFlowDiagram } from '@/components/platform/TopBlastFlowDiagram'
+import { HomeReveal } from '@/components/platform/HomeSection'
+
+const CandlestickBackground = dynamic(
+  () => import('@/components/platform/CandlestickBackground').then(m => m.CandlestickBackground),
+  { ssr: false }
+)
 
 export default function HomePage() {
-  const [showLearn, setShowLearn] = useState(false)
+  const [showDetails, setShowDetails] = useState(false)
 
   return (
     <div className="min-h-screen bg-[#030303] text-white">
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-sol-purple/10 rounded-full blur-[120px]" />
-        <div className="absolute inset-0 bg-grid-pattern opacity-30" />
+      {/* Candlesticks visible; scrim keeps text readable without washing out the chart */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden>
+        <CandlestickBackground />
+        <div className="absolute inset-0 bg-[#030303]/25" />
+        <div className="absolute inset-y-0 left-0 w-1/4 bg-gradient-to-r from-[#030303]/80 to-transparent" />
+        <div className="absolute inset-y-0 right-0 w-1/3 bg-gradient-to-l from-[#030303]/60 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-[#030303]/70 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-[#030303]/90 to-transparent" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-sol-purple/10 rounded-full blur-[100px] home-orb" />
+        <div className="absolute inset-0 bg-grid-pattern opacity-[0.07]" />
       </div>
 
-      <AppHeader active="home" />
+      <div className="relative z-10">
+        <AppHeader active="home" />
 
-      <main className="relative z-10 max-w-6xl mx-auto px-3 sm:px-5 py-8 sm:py-10">
-        <div className="mb-10">
-          <p className="text-sol-mint text-xs font-semibold uppercase tracking-[0.14em] mb-2">Solana SaaS</p>
-          <div className="inline-flex items-center gap-2 rounded-full border border-purple-500/30 bg-purple-950/30 px-3 py-1 text-xs text-purple-200 mb-3">
-            On-chart buybacks + token airdrops every payout cycle
-          </div>
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">{DEV_HERO.headline}</h1>
-          <p className="text-gray-400 max-w-2xl text-sm md:text-base leading-relaxed">{DEV_HERO.subhead}</p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              href="/catalog"
-              className="inline-flex px-5 py-2.5 bg-sol-gradient text-black rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
+        <main className="max-w-3xl mx-auto px-4 sm:px-5 py-8 sm:py-12">
+          <HomeHero />
+
+          <HomeReveal className="mb-14 md:mb-16">
+            <FeaturedTokens limit={3} />
+          </HomeReveal>
+
+          <TopBlastFlowDiagram />
+
+          <section className="border-t border-white/[0.06] pt-6">
+            <button
+              type="button"
+              onClick={() => setShowDetails(v => !v)}
+              className="flex items-center justify-between w-full text-left py-3 group cursor-pointer"
             >
-              Browse catalog
-            </Link>
-            <Link
-              href="/launch"
-              className="inline-flex px-5 py-2.5 rounded-lg font-semibold text-sm border border-white/15 text-white hover:border-sol-mint/40 hover:text-sol-mint transition-colors"
-            >
-              Launch your token
-            </Link>
-          </div>
-        </div>
+              <div>
+                <span className="text-sm font-medium text-gray-400 group-hover:text-gray-200 transition-colors">
+                  Protocol details
+                </span>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  Eligibility rules, dynamic pot, creator benefits
+                </p>
+              </div>
+              <motion.span
+                animate={{ rotate: showDetails ? 45 : 0 }}
+                transition={{ duration: 0.2 }}
+                className="text-gray-600 text-lg w-6 text-center inline-block"
+              >
+                +
+              </motion.span>
+            </button>
 
-        <section className="mb-12">
-          <FeaturedTokens limit={3} />
-        </section>
-
-        <section className="mb-12">
-          <ChartVolumeExplainer />
-        </section>
-
-        <section className="mb-12">
-          <FlywheelTokenomics />
-        </section>
-
-        <section className="border-t border-white/[0.06] pt-8">
-          <button
-            type="button"
-            onClick={() => setShowLearn(v => !v)}
-            className="flex items-center justify-between w-full text-left py-2 group"
-          >
-            <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">
-              How TopBlast works
-            </span>
-            <span className="text-gray-500 text-lg">{showLearn ? '−' : '+'}</span>
-          </button>
-
-          {showLearn ? (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-6 space-y-8 pb-8"
-            >
-              <ForCreatorsSection showLaunchCta={false} />
-              <DynamicPotExplainer />
-            </motion.div>
-          ) : null}
-        </section>
-      </main>
+            <AnimatePresence initial={false}>
+              {showDetails ? (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-4 space-y-10 pb-8">
+                    <ForCreatorsSection showLaunchCta={false} />
+                    <DynamicPotExplainer />
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+          </section>
+        </main>
+      </div>
     </div>
   )
 }

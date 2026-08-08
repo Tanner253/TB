@@ -2,14 +2,19 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'TopBlast | Bullish-Holder Rewards for Solana Devs',
+  metadataBase: new URL('https://whitepaper.topblasted.fun'),
+  title: 'TopBlast | Loss-Mining + Chart Volume for Solana',
   description:
-    'Turn creator-fee SOL into loss-mining rewards for holders who bought the top and stayed in. Self-serve SaaS for any SPL token — no cashback sell pressure.',
+    'Turn creator-fee SOL into on-chart Jupiter buybacks and token airdrops for underwater holders. Self-serve SaaS for any SPL token — Gen volume tracked in the catalog.',
   keywords: [
     'solana',
     'spl',
     'pump.fun',
     'loss-mining',
+    'chart volume',
+    'gen volume',
+    'jupiter',
+    'buyback',
     'token creator',
     'creator rewards',
     'topblast',
@@ -18,16 +23,16 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: 'TopBlast' }],
   openGraph: {
-    title: 'TopBlast | Bullish-Holder Rewards for Solana Devs',
+    title: 'TopBlast | Loss-Mining + Chart Volume for Solana',
     description:
-      'Reward holders who stay bullish while underwater. Self-serve loss-mining for any Solana token.',
+      'Reward underwater holders with on-chart buybacks and token airdrops. Every cycle adds measurable Gen volume to your chart.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TopBlast | Bullish-Holder Rewards for Solana Devs',
+    title: 'TopBlast | Loss-Mining + Chart Volume for Solana',
     description:
-      'Turn creator-fee SOL into holder rewards — without cashback sell pressure.',
+      'Creator fees become on-chart volume — Jupiter buys, token airdrops, no cashback sell pressure.',
     site: '@oSKNYo_dev',
   },
 }

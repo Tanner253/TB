@@ -1,12 +1,15 @@
 export const APP_URL = 'https://topblasted.fun'
 
+export const WHITEPAPER_URL = 'https://whitepaper.topblasted.fun'
+
 export const LINKS = {
   twitter: 'https://x.com/oSKNYo_dev',
   github: 'https://github.com/Tanner253/TB',
   app: APP_URL,
+  whitepaper: WHITEPAPER_URL,
   launch: `${APP_URL}/launch`,
   catalog: `${APP_URL}/catalog`,
-  platformLeaderboard: `${APP_URL}/topblast/leaderboard`,
+  platformLeaderboard: `${APP_URL}/leaderboard`,
 } as const
 
 /** Default SaaS launch form value — must match TopBlast lib/platform/minTokenHolding.ts */
@@ -60,12 +63,14 @@ export const CHART_VOLUME = {
   title: 'Built-in chart volume',
   tagline: 'Every payout cycle buys your token, then airdrops winners',
   intro:
-    'When you launch on TopBlast, winner rewards route through your session token. Each cycle executes a Jupiter buy on your chart, then airdrops purchased tokens to the top 3 eligible losers.',
+    'When you launch on TopBlast, winner rewards route through your session token. Each cycle executes a Jupiter buy on your chart, then airdrops purchased tokens to the top 3 eligible losers. Lifetime SOL spent on buys is tracked as Gen volume in the catalog.',
   steps: [
     { title: 'Fund the pool', body: 'Creator-fee SOL in your listing payout wallet — you control the budget.' },
     { title: 'On-chart buyback', body: 'Pool SOL swaps into your session token via Jupiter — real chart volume.' },
     { title: 'Token airdrops', body: 'Purchased tokens split 60/25/15 to top eligible losers — wallet-to-wallet, no claim.' },
   ],
+  genVolume:
+    'Gen volume is the cumulative SOL the protocol has market-bought into your mint across all payout cycles. It appears on catalog cards and listing stats — proof of recurring buy pressure, not rebates or manual dev buys.',
 } as const
 
 /** Sticky section strip — shown on desktop & mobile (horizontal scroll) */

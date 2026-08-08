@@ -30,9 +30,20 @@ const TOKEN_CA = ''
 
 const UPDATES = [
   {
-    version: 'v3.2.0',
+    version: 'v3.3.0',
     date: 'Aug 2026',
     tag: 'Current',
+    items: [
+      'Gen volume — lifetime on-chart SOL tracked per catalog listing',
+      'Native-token payouts default (Jupiter buy + SPL airdrop each cycle)',
+      'Payout slippage retries and failure persistence for production',
+      'Homepage + docs repositioned: loss-mining + chart volume engine',
+    ],
+  },
+  {
+    version: 'v3.2.0',
+    date: 'Aug 2026',
+    tag: 'Shipped',
     items: [
       'Dev-first positioning and unified Solana docs',
       'Live DexScreener price stream with Pump.fun migration',
@@ -62,7 +73,7 @@ const UPDATES = [
 ]
 
 const ROADMAP = [
-  { phase: '1', title: 'Solana launch', status: 'Done', detail: 'Loss-mining live with Helius, on-chart buybacks, token airdrops, eligibility-gated timer.' },
+  { phase: '1', title: 'Solana launch', status: 'Done', detail: 'Loss-mining, Jupiter on-chart buybacks, token airdrops, Gen volume tracking, eligibility-gated timer.' },
   { phase: '2', title: 'Multi-tenant SaaS', status: 'Done', detail: 'Self-serve listings, catalog, per-slug sessions, encrypted keys.' },
   { phase: '3', title: 'Growth & automation', status: 'Now', detail: 'Buyback bot, creator analytics, public API.' },
   { phase: '4', title: 'Scale', status: '2027', detail: 'Launch partners, premium tiers, automated treasury ops.' },
@@ -76,14 +87,14 @@ export function DocContent() {
       <DocSection id="for-creators">
         <DocHeader
           eyebrow="For Solana builders"
-          title="Reward holders — and bring volume to your chart"
-          description="TopBlast turns creator-fee SOL into loss-mining rewards for underwater holders. Every payout cycle market-buys your token on-chart, then airdrops tokens to winners — real buy pressure, not cashback sell spam."
+          title="Creator fees become on-chart volume"
+          description="TopBlast is a loss-mining protocol and chart volume engine. Each payout cycle market-buys your session token via Jupiter, airdrops tokens to the top 3 eligible underwater holders, and tracks lifetime buys as Gen volume in the catalog — real buy pressure for holders, not sell-side rebate volume."
         />
         <DocTable
           headers={['Approach', 'Holder behavior', 'Chart effect']}
           highlightRow={2}
           rows={[
-            ['Cashback / rebates', 'Buy → claim → sell', 'Instant sell pressure'],
+            ['Cashback / rebates', 'Trade volume → claim SOL rebates', 'Sell-side volume rewarded'],
             ['Creator rewards only', 'Fees accumulate to dev', 'No direct holder loop'],
             ['TopBlast loss-mining', 'Hold underwater, compete for rewards', 'On-chart buybacks + token airdrops every cycle'],
           ]}
@@ -137,8 +148,11 @@ export function DocContent() {
         </DocGrid>
         <DocCard title="Why this matters for launchers">
           <p className="doc-prose">
-            Unlike cashback bots that pay users to sell, TopBlast rewards conviction: winners must hold through drawdown to qualify — and they receive your token from on-chart buys, not exit liquidity. Every cycle adds measurable buy pressure to your chart.
+            Unlike cashback bots that reward traded volume (often sells), TopBlast rewards underwater holders: winners must hold through drawdown to qualify — and they receive your token from on-chart buys, not rebate-driven exit liquidity. Every cycle adds measurable buy pressure to your chart.
           </p>
+        </DocCard>
+        <DocCard title="Gen volume" accent="mint">
+          <p className="doc-prose">{CHART_VOLUME.genVolume}</p>
         </DocCard>
         <div className="doc-cta-row">
           <DocCta href={LINKS.catalog} label="See Gen volume live" variant="ghost" />
@@ -246,7 +260,7 @@ Ranking: most negative drawdown % first → USD loss tiebreaker`}</DocCode>
      → /{slug}/leaderboard · stats · history
      → POST /api/cron/tenants (platform cron; each listing uses its chosen interval)
 
-Platform token (TopBlast): configured by operators via server env — runs at /topblast without the SaaS launch form.`}</DocCode>
+Platform token: configured by operators via server env — session at /leaderboard (also in catalog).`}</DocCode>
         </DocCard>
         <DocGrid cols={2}>
           <DocCard title="Payout schedules" accent="amber">
@@ -395,6 +409,10 @@ Platform token (TopBlast): configured by operators via server env — runs at /t
         <div className="doc-faq">
           {[
             {
+              q: 'What is Gen volume?',
+              a: 'Gen volume is the cumulative SOL TopBlast has spent market-buying your session token via Jupiter across all successful payout cycles. It is stored per tenant and shown in the catalog — a public measure of protocol-driven chart volume, separate from organic trading volume.',
+            },
+            {
               q: 'What starts the payout timer?',
               a: 'The timer enters waiting state at launch. Countdown begins when the first holder passes all eligibility rules — not when the token is listed.',
             },
@@ -457,7 +475,7 @@ Platform token (TopBlast): configured by operators via server env — runs at /t
         <div className="doc-footer-inner">
           <div className="doc-footer-brand">
             <Image src="/logo.png" alt="TopBlast" width={28} height={28} className="rounded-md" />
-            <span>TopBlast · Solana loss-mining SaaS</span>
+            <span>TopBlast · Loss-mining + chart volume</span>
           </div>
           <div className="doc-footer-links">
             <a href={APP_URL} target="_blank" rel="noopener noreferrer">App</a>

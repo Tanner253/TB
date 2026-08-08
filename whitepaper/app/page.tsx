@@ -61,7 +61,7 @@ function Hero() {
         >
           Reward <strong className="text-rh-green">underwater holders</strong> with on-chart buybacks and token airdrops.
           <br />
-          Every payout cycle buys your session token, then blasts winners — choose your cycle ({PAYOUT_INTERVAL_HERO_RANGE}), automatically.
+          Every cycle buys your session token and tracks <strong className="text-rh-green">Gen volume</strong> in the catalog — cycles from {PAYOUT_INTERVAL_HERO_RANGE}, automatically.
         </motion.p>
 
         <motion.div

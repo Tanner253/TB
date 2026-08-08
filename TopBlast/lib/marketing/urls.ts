@@ -4,7 +4,7 @@
 export const APP_URL = 'https://topblasted.fun'
 
 /** Docs / whitepaper site. */
-export const WHITEPAPER_URL = 'https://topblastx100.vercel.app'
+export const WHITEPAPER_URL = 'https://whitepaper.topblasted.fun'
 
 /** Host only, for inline hints e.g. "topblasted.fun/your-slug" */
 export const APP_HOSTNAME = 'topblasted.fun'

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
-import { SolanaBadge } from '@/components/ui/SolanaBadge'
 import { EXTERNAL_LINKS, WHITEPAPER_URL } from '@/lib/marketing/devValueProp'
 
 export type AppHeaderActive =
@@ -78,7 +77,9 @@ export function AppHeader({ active, trailing }: AppHeaderProps) {
   const platformLinks: NavItem[] = [
     { href: '/', label: 'Home', active: active === 'home' },
     { href: '/catalog', label: 'Catalog', active: active === 'catalog' },
-    { href: '/launch', label: 'Launch', active: active === 'launch' },
+    { href: '/leaderboard', label: 'Platform Token', active: active === 'leaderboard' },
+    { href: '/history', label: 'History', active: active === 'history' },
+    { href: '/stats', label: 'Stats', active: active === 'stats' },
   ]
 
   const extraLinks: NavItem[] = [
@@ -163,12 +164,11 @@ export function AppHeader({ active, trailing }: AppHeaderProps) {
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {trailing}
-            <div className="hidden md:block">
-              <SolanaBadge compact />
-            </div>
             <Link
               href="/launch"
-              className="hidden sm:inline-flex px-3.5 py-1.5 bg-sol-gradient text-black rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity whitespace-nowrap"
+              className={`inline-flex px-3.5 py-1.5 bg-sol-gradient text-black rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity whitespace-nowrap ${
+                active === 'launch' ? 'ring-2 ring-sol-mint/50' : ''
+              }`}
             >
               Launch
             </Link>
@@ -208,18 +208,6 @@ export function AppHeader({ active, trailing }: AppHeaderProps) {
             <nav className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-1">
               {navLinks.map(item => renderNavLink(item, true))}
             </nav>
-            <div className="px-4 py-4 border-t border-white/[0.06] flex flex-col gap-2">
-              <div className="md:hidden mb-1">
-                <SolanaBadge compact />
-              </div>
-              <Link
-                href="/launch"
-                className="w-full text-center px-4 py-3 bg-sol-gradient text-black rounded-lg font-semibold text-sm"
-                onClick={() => setMenuOpen(false)}
-              >
-                Launch your token
-              </Link>
-            </div>
           </div>
         </div>
       ) : null}

@@ -200,7 +200,7 @@ export default function HistoryPage() {
         <div className="absolute bottom-20 left-20 w-80 h-80 bg-rh-green-dark/5 rounded-full blur-3xl" />
       </div>
 
-      <AppHeader active="catalog" />
+      <AppHeader active="history" />
       <SessionNav
         basePath={basePath}
         active="history"
