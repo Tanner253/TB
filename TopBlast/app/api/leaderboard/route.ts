@@ -149,54 +149,6 @@ export async function GET(request: NextRequest) {
       migrationStage: resolvedPrice?.pair?.migrationStage ?? null,
     }
 
-    let liveEligibleCount = 0
-    let lastWinByWallet = new Map<string, number | null>()
-    if (dbRankings) {
-      lastWinByWallet = await loadLastWinCycleByWallet(
-        dbRankings.rankings.map(h => h.wallet)
-      )
-      liveEligibleCount = dbRankings.rankings.filter(h => {
-        if (h.isContract || isExcludedParticipantWallet(h.wallet)) return false
-        const firstBuyMs = h.firstBuyAt ? new Date(h.firstBuyAt).getTime() : null
-        const lastWinCycle =
-          lastWinByWallet.get(h.wallet) ?? h.lastWinCycle ?? null
-        const live = evaluateHolderEligibility({
-          wallet: h.wallet,
-          balance: normalizeTokenBalance(h.balance, config.tokenDecimals, config.minTokenHolding),
-          vwap: h.vwap || null,
-          tokenPrice: liveTokenPrice,
-          firstBuyTimestamp: firstBuyMs,
-          hasSold: h.hasSold ?? false,
-          hasTransferredOut: h.hasTransferredOut ?? false,
-          lastWinCycle,
-          totalTokensBought: h.totalTokensBought ?? 0,
-          poolUsd: poolUsd,
-          currentCycle: getCurrentPayoutCycle(),
-        })
-        return live.isEligible
-      }).length
-    }
-
-    const payableCount = await syncPayoutTimerWithPayableWinners()
-    await ensureTimerStateSync()
-
-    const eligibleCount = liveEligibleCount ?? 0
-    const timerAfterPause = getPayoutTimerInfo()
-
-    let timerAfterPayout = timerAfterPause
-    if (payableCount > 0 && timerAfterPause.timer_status === 'active' && isPayoutDue()) {
-      try {
-        const payoutResult = await maybeExecuteDuePayout(payableCount)
-        if (payoutResult && !payoutResult.success) {
-          console.warn('[Leaderboard] Payout attempt:', payoutResult.error)
-        }
-        await ensureTimerStateSync()
-        timerAfterPayout = getPayoutTimerInfo()
-      } catch (err) {
-        console.error('[Leaderboard] Payout error:', err)
-      }
-    }
-
     const poolFields = {
       pool_balance_eth: poolEthFormatted,
       pool_balance_usd: poolUsdFormatted,
@@ -211,6 +163,9 @@ export async function GET(request: NextRequest) {
     const platformTestBanner = getPlatformTestBanner()
 
     if (!dbRankings) {
+      await syncPayoutTimerWithPayableWinners()
+      await ensureTimerStateSync()
+      const timerAfterPayout = getPayoutTimerInfo()
       const diagnosticsInput = {
         pool: livePool,
         timer: timerAfterPayout,
@@ -358,8 +313,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Re-load after payout may have persisted winner cooldown in this request
-    lastWinByWallet = await loadLastWinCycleByWallet(
+    let lastWinByWallet = await loadLastWinCycleByWallet(
       sourceRankings.map(h => h.wallet)
     )
 
@@ -453,6 +407,24 @@ export async function GET(request: NextRequest) {
     const eligibleWinners = eligibleSorted.slice(0, 3).map((entry, idx) =>
       mapRankingRow(entry, idx + 1, idx + 1)
     )
+
+    const eligibleCount = eligibleSorted.length
+
+    const payableCount = await syncPayoutTimerWithPayableWinners()
+    await ensureTimerStateSync()
+    let timerAfterPayout = getPayoutTimerInfo()
+    if (payableCount > 0 && timerAfterPayout.timer_status === 'active' && isPayoutDue()) {
+      try {
+        const payoutResult = await maybeExecuteDuePayout(payableCount)
+        if (payoutResult && !payoutResult.success) {
+          console.warn('[Leaderboard] Payout attempt:', payoutResult.error)
+        }
+        await ensureTimerStateSync()
+        timerAfterPayout = getPayoutTimerInfo()
+      } catch (err) {
+        console.error('[Leaderboard] Payout error:', err)
+      }
+    }
 
     const upcomingCount = allRanked.filter(e => !e.live.isEligible && e.live.drawdownPct < 0).length
     const totalLosers = allRanked.filter(e => e.live.drawdownPct < 0).length

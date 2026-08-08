@@ -18,6 +18,7 @@ import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 import { getTokenPrice } from '@/lib/solana/price'
 import { getTokenHolders } from '@/lib/solana/indexer'
+import { normalizeTokenBalance } from '@/lib/solana/tokenAmount'
 import { config } from '@/lib/config'
 import { PublicKey } from '@solana/web3.js'
 import {
@@ -444,7 +445,7 @@ export async function resolveLivePayableWinners(limit = 3): Promise<PayableWinne
         lastWinByWallet.get(h.wallet) ?? h.lastWinCycle ?? null
       const live = evaluateHolderEligibility({
         wallet: h.wallet,
-        balance: h.balance,
+        balance: normalizeTokenBalance(h.balance, config.tokenDecimals, config.minTokenHolding),
         vwap: h.vwap || null,
         tokenPrice,
         firstBuyTimestamp: firstBuyMs,
