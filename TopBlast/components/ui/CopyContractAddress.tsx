@@ -7,6 +7,11 @@ function formatAddress(address: string) {
   return `${address.slice(0, 4)}…${address.slice(-4)}`
 }
 
+function formatWalletAddress(address: string) {
+  if (address.length <= 16) return address
+  return `${address.slice(0, 6)}…${address.slice(-4)}`
+}
+
 export function solscanTokenUrl(mint: string): string {
   return `https://solscan.io/token/${mint}`
 }
@@ -16,8 +21,8 @@ type CopyContractAddressProps = {
   symbol?: string
   explorerUrl?: string | null
   className?: string
-  /** pill = standalone row; inline = compact control for ticker bars */
-  variant?: 'pill' | 'inline'
+  /** pill = standalone row; inline = compact control for ticker bars; footer = pool wallet row */
+  variant?: 'pill' | 'inline' | 'footer'
 }
 
 export function CopyContractAddress({
@@ -39,6 +44,39 @@ export function CopyContractAddress({
       // clipboard unavailable
     }
   }, [address])
+
+  if (variant === 'footer') {
+    return (
+      <span className={`inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs ${className}`}>
+        <span className="text-gray-600">Pool wallet</span>
+        <button
+          type="button"
+          onClick={onCopy}
+          className="group inline-flex items-center gap-1 font-mono text-gray-500 hover:text-rh-lime transition-colors"
+          title={`${address}\nCopy public address to send SOL to the reward pool`}
+          aria-label="Copy payout pool wallet address"
+        >
+          <span>{formatWalletAddress(address)}</span>
+          <span className="font-sans text-[10px] text-gray-500 group-hover:text-rh-lime">
+            {copied ? 'Copied!' : 'Copy'}
+          </span>
+        </button>
+        {resolvedExplorer ? (
+          <a
+            href={resolvedExplorer}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 text-gray-500 hover:text-rh-lime transition-colors"
+            title="View wallet on Solscan"
+            aria-label="View pool wallet on Solscan"
+          >
+            ↗
+          </a>
+        ) : null}
+        <span className="text-gray-600">· live on-chain</span>
+      </span>
+    )
+  }
 
   if (variant === 'inline') {
     return (

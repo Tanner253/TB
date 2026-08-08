@@ -16,6 +16,7 @@ import { ExternalToolsEligibilityNote } from '@/components/tenant/ExternalToolsE
 import type { SessionChecklist } from '@/lib/tenant/sessionChecklist'
 import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 import { CopyContractAddress, solscanTokenUrl } from '@/components/ui/CopyContractAddress'
+import { getAddressExplorerUrl } from '@/lib/solana/explorer'
 import { PlatformTestBanner } from '@/components/platform/PlatformTestBanner'
 
 const WINNER_SHARES = getWinnerSharePercents()
@@ -432,12 +433,19 @@ export default function LeaderboardPage() {
               </div>
               <p className="text-gray-400 text-sm">
                 {data?.pool_balance_eth || '0'} SOL in pool
-                {data?.payout_wallet_address && (
-                  <span className="block text-xs text-gray-600 mt-1 font-mono">
-                    Wallet {data.payout_wallet_address.slice(0, 6)}…{data.payout_wallet_address.slice(-4)} · live on-chain
-                  </span>
-                )}
               </p>
+              {data?.payout_wallet_address ? (
+                <div className="mt-1.5">
+                  <CopyContractAddress
+                    variant="footer"
+                    address={data.payout_wallet_address}
+                    explorerUrl={getAddressExplorerUrl(data.payout_wallet_address)}
+                  />
+                  <p className="text-[0.65rem] text-gray-600 mt-1">
+                    Send SOL to this public address to fund the pool — no account needed.
+                  </p>
+                </div>
+              ) : null}
             </div>
           </motion.div>
         </div>
