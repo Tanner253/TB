@@ -50,3 +50,23 @@ describe('catalogClient formatters', () => {
     expect(formatCatalogVolume(tenant)).toContain('$6.32')
   })
 })
+
+describe('catalogClient payout timer', () => {
+  it('detects paused payout timer on live listings', async () => {
+    const { isCatalogPayoutPaused, catalogPayoutTimerLabel } = await import('@/lib/platform/catalogClient')
+    const paused: PublicTenantSummary = {
+      slug: 'topblast',
+      symbol: 'TBLAST',
+      mint: 'Mint1111111111111111111111111111111111',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      payoutWalletAddress: 'Pool1111111111111111111111111111111111',
+      payout_timer_status: 'waiting',
+    }
+    const running: PublicTenantSummary = { ...paused, payout_timer_status: 'active' }
+
+    expect(isCatalogPayoutPaused(paused)).toBe(true)
+    expect(catalogPayoutTimerLabel(paused)).toBe('Waiting for volume')
+    expect(isCatalogPayoutPaused(running)).toBe(false)
+  })
+})

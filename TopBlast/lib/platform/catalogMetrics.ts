@@ -1,7 +1,7 @@
 import 'server-only'
 
 import connectDB from '@/lib/db'
-import { Payout } from '@/lib/db/models'
+import { Payout, TimerState } from '@/lib/db/models'
 import { getSolPrice, formatUsd } from '@/lib/solana/price'
 import { getWalletSolBalance } from '@/lib/solana/transfer'
 import { maxDistributableSol } from '@/lib/payout/payoutSecurity'
@@ -39,6 +39,26 @@ async function fetchPayoutVolumesByTenantKey(): Promise<Map<string, CatalogPayou
   return map
 }
 
+async function fetchPayoutTimerStatusByTenantKey(): Promise<Map<string, 'waiting' | 'active'>> {
+  await connectDB()
+
+  const docs = await TimerState.find({ key: /payout_timer$/ })
+    .select('key timerStatus')
+    .lean()
+
+  const map = new Map<string, 'waiting' | 'active'>()
+  for (const doc of docs) {
+    const status: 'waiting' | 'active' =
+      doc.timerStatus === 'active' ? 'active' : 'waiting'
+    if (doc.key === 'payout_timer') {
+      map.set('_legacy', status)
+    } else if (doc.key.endsWith(':payout_timer')) {
+      map.set(doc.key.replace(':payout_timer', ''), status)
+    }
+  }
+  return map
+}
+
 function distributablePotSol(walletSol: number): number {
   return maxDistributableSol(walletSol)
 }
@@ -49,9 +69,10 @@ export async function enrichCatalogTenants(
 ): Promise<PublicTenantSummary[]> {
   if (tenants.length === 0) return tenants
 
-  const [solPrice, volumeByKey] = await Promise.all([
+  const [solPrice, volumeByKey, timerByKey] = await Promise.all([
     getSolPrice(),
     fetchPayoutVolumesByTenantKey(),
+    fetchPayoutTimerStatusByTenantKey(),
   ])
 
   const uniqueAddresses = [
@@ -75,6 +96,7 @@ export async function enrichCatalogTenants(
   return tenants.map(tenant => {
     const payoutKey = catalogPayoutTenantKey(tenant)
     const volume = volumeByKey.get(payoutKey) ?? { total_sol: 0, total_usd: 0 }
+    const payoutTimerStatus = timerByKey.get(payoutKey) ?? 'waiting'
 
     const walletAddress = tenant.payoutWalletAddress?.trim()
     const walletSol = walletAddress ? balanceByAddress.get(walletAddress) : undefined
@@ -89,6 +111,7 @@ export async function enrichCatalogTenants(
       total_distributed_sol: volume.total_sol,
       total_distributed_usd: volume.total_usd,
       total_distributed_usd_formatted: formatUsd(volume.total_usd),
+      payout_timer_status: payoutTimerStatus,
     }
   })
 }

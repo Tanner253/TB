@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
 import { formatCatalogStatus, tenantCatalogHref, catalogCardSubtitle } from '@/lib/platform/catalogClient'
 import { CatalogMetrics } from '@/components/catalog/CatalogMetrics'
+import { CatalogTimerBadge } from '@/components/catalog/CatalogTimerBadge'
 
 interface CatalogCardProps {
   tenant: PublicTenantSummary
@@ -41,6 +42,7 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
                   Platform
                 </span>
               ) : null}
+              <CatalogTimerBadge tenant={tenant} compact={compact} />
             </div>
             <p className="text-sm text-gray-500 font-mono">/{tenant.slug}</p>
           </div>

@@ -65,4 +65,6 @@ export interface PublicTenantSummary {
   total_distributed_sol?: number | null
   total_distributed_usd?: number | null
   total_distributed_usd_formatted?: string | null
+  /** Payout countdown state from TimerState (waiting = paused for eligible losers). */
+  payout_timer_status?: 'waiting' | 'active'
 }

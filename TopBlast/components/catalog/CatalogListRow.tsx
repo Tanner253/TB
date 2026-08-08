@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
 import { formatCatalogStatus, tenantCatalogHref, catalogCardSubtitle } from '@/lib/platform/catalogClient'
+import { CatalogTimerBadge } from '@/components/catalog/CatalogTimerBadge'
 
 function payoutLabel(tenant: PublicTenantSummary): string {
   if (tenant.payoutIntervalMinutes) return formatPayoutInterval(tenant.payoutIntervalMinutes)
@@ -67,6 +68,7 @@ export function CatalogListRow({ tenant }: { tenant: PublicTenantSummary }) {
               {isPlatform ? (
                 <span className="text-[0.6rem] uppercase tracking-wider text-sol-mint/80 shrink-0">Platform</span>
               ) : null}
+              <CatalogTimerBadge tenant={tenant} compact />
             </div>
             <p className="text-xs text-gray-500 font-mono truncate">/{tenant.slug}</p>
           </div>

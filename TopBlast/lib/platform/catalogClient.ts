@@ -20,6 +20,17 @@ export function formatCatalogStatus(tenant: PublicTenantSummary): string {
   return tenant.status === 'active' ? 'live' : tenant.status
 }
 
+/** Live session with payout timer paused — waiting for eligible underwater holders. */
+export function isCatalogPayoutPaused(tenant: PublicTenantSummary): boolean {
+  return tenant.status === 'active' && tenant.payout_timer_status === 'waiting'
+}
+
+export function catalogPayoutTimerLabel(tenant: PublicTenantSummary): string {
+  if (tenant.status !== 'active') return formatCatalogStatus(tenant)
+  if (tenant.payout_timer_status === 'active') return 'Payouts active'
+  return 'Waiting for volume'
+}
+
 export function formatCatalogPot(tenant: PublicTenantSummary): string | null {
   if (tenant.pot_usd_formatted != null && tenant.pot_sol != null) {
     return `${tenant.pot_usd_formatted} · ${tenant.pot_sol.toFixed(4)} SOL`
