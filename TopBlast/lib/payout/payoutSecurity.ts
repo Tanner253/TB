@@ -71,6 +71,25 @@ export async function assertPayoutTransferAllowed(input: {
     return { ok: false, reason: 'Recipient is not a valid Solana address' }
   }
 
+  // Dev fee (rank 0) — allowed to DEV_WALLET_ADDRESS even though that wallet cannot win prizes.
+  if (rank === 0) {
+    const dev = config.devWalletAddress?.trim()
+    if (!dev || !isValidSolanaAddress(dev)) {
+      return { ok: false, reason: 'Dev fee blocked — DEV_WALLET_ADDRESS is missing or invalid' }
+    }
+    if (recipient !== dev) {
+      return { ok: false, reason: 'Dev fee recipient does not match DEV_WALLET_ADDRESS' }
+    }
+    const distributable = maxDistributableSol(walletSol)
+    if (amountSol > distributable + 1e-9) {
+      return {
+        ok: false,
+        reason: `Amount ${amountSol.toFixed(6)} SOL exceeds distributable cap ${distributable.toFixed(6)} SOL (reserve ${getMinWalletReserveSol()} SOL)`,
+      }
+    }
+    return { ok: true }
+  }
+
   if (isExcludedParticipantWallet(recipient)) {
     return { ok: false, reason: 'Recipient is an excluded protocol wallet' }
   }
@@ -81,17 +100,6 @@ export async function assertPayoutTransferAllowed(input: {
       ok: false,
       reason: `Amount ${amountSol.toFixed(6)} SOL exceeds distributable cap ${distributable.toFixed(6)} SOL (reserve ${getMinWalletReserveSol()} SOL)`,
     }
-  }
-
-  if (rank === 0) {
-    const dev = config.devWalletAddress?.trim()
-    if (!dev || !isValidSolanaAddress(dev)) {
-      return { ok: false, reason: 'Dev fee blocked — DEV_WALLET_ADDRESS is missing or invalid' }
-    }
-    if (recipient !== dev) {
-      return { ok: false, reason: 'Dev fee recipient does not match DEV_WALLET_ADDRESS' }
-    }
-    return { ok: true }
   }
 
   if (rank < 1 || rank > 3) {

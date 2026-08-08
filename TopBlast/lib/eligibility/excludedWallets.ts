@@ -1,6 +1,7 @@
 /**
- * Wallets that must never rank or receive loss-mining payouts
- * (payout pool wallet, dev fee wallet, optional EXCLUDED_WALLETS).
+ * Wallets that must never rank or receive winner payouts.
+ * Payout pool wallet + dev fee wallet + optional EXCLUDED_WALLETS.
+ * Dev wallet still receives the 12% dev fee transfer (see assertPayoutTransferAllowed rank 0).
  */
 
 import { Keypair, PublicKey } from '@solana/web3.js'

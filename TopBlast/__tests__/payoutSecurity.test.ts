@@ -93,4 +93,35 @@ describe('payoutSecurity', () => {
       expect(result.reason).toMatch(/exceeds distributable cap/)
     }
   })
+
+  it('allows dev fee to DEV_WALLET_ADDRESS even when dev is excluded from competition', async () => {
+    const devWallet = 'oBrNjdETmjiGdutugqkHGzwaHnmdpJKhnpkud1GPpd6'
+    const result = await assertPayoutTransferAllowed({
+      rank: 0,
+      recipient: devWallet,
+      amountSol: 0.006,
+      walletSol: 0.1,
+      allowedWinners: [],
+      expectedWinnerAmounts: [],
+    })
+    expect(result.ok).toBe(true)
+  })
+
+  it('blocks winner payout to dev wallet', async () => {
+    const devWallet = 'oBrNjdETmjiGdutugqkHGzwaHnmdpJKhnpkud1GPpd6'
+    const result = await assertPayoutTransferAllowed({
+      rank: 1,
+      recipient: devWallet,
+      amountSol: 0.01,
+      walletSol: 0.1,
+      allowedWinners: [
+        { wallet: devWallet, drawdownPct: -40, lossUsd: 10 },
+      ],
+      expectedWinnerAmounts: [0.01],
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.reason).toMatch(/excluded protocol wallet/)
+    }
+  })
 })
