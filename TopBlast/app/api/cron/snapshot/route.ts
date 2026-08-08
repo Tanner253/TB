@@ -7,7 +7,7 @@ import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
 import { calculateBatchVwaps, VwapData } from '@/lib/tracker/vwap'
 import { calculateDrawdown, calculateLossUsd, rankHolders, RankedHolder } from '@/lib/engine/calculations'
 import { config, validateConfig } from '@/lib/config'
-import { maybeStartPayoutTimer } from '@/lib/payout/executor'
+import { syncPayoutTimerWithPayableWinners } from '@/lib/payout/executor'
 
 // Verify cron secret
 function verifyCronSecret(request: NextRequest): boolean {
@@ -220,7 +220,7 @@ async function runSnapshot(_request: NextRequest) {
     // 9. Rank by drawdown % (most negative first), tiebreaker: USD loss
     const ranked = rankHolders(rankedHolders)
 
-    await maybeStartPayoutTimer(ranked.length)
+    await syncPayoutTimerWithPayableWinners()
 
     // 10. Save snapshot to database
     const snapshot = await Snapshot.create({

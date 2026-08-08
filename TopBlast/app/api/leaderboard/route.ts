@@ -16,9 +16,8 @@ import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import {
   isPayoutDue,
   getPayoutTimerInfo,
-  maybeStartPayoutTimer,
   ensureTimerStateSync,
-  syncPayoutTimerWithEligibility,
+  syncPayoutTimerWithPayableWinners,
   getCurrentPayoutCycle,
   maybeExecuteDuePayout,
 } from '@/lib/payout/executor'
@@ -175,20 +174,18 @@ export async function GET(request: NextRequest) {
         })
         return live.isEligible
       }).length
-      await maybeStartPayoutTimer(liveEligibleCount)
-    } else {
-      await maybeStartPayoutTimer(0)
     }
-    await syncPayoutTimerWithEligibility(liveEligibleCount ?? 0)
+
+    const payableCount = await syncPayoutTimerWithPayableWinners()
     await ensureTimerStateSync()
 
     const eligibleCount = liveEligibleCount ?? 0
     const timerAfterPause = getPayoutTimerInfo()
 
     let timerAfterPayout = timerAfterPause
-    if (eligibleCount > 0 && timerAfterPause.timer_status === 'active' && isPayoutDue()) {
+    if (payableCount > 0 && timerAfterPause.timer_status === 'active' && isPayoutDue()) {
       try {
-        const payoutResult = await maybeExecuteDuePayout(eligibleCount)
+        const payoutResult = await maybeExecuteDuePayout(payableCount)
         if (payoutResult && !payoutResult.success) {
           console.warn('[Leaderboard] Payout attempt:', payoutResult.error)
         }

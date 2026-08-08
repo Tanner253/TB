@@ -562,7 +562,7 @@ function checkEligibility(
     lastWinCycle,
     totalTokensBought,
     poolUsd: getEffectivePoolUsd(),
-    currentCycle: getState().currentCycle,
+    currentCycle: getHolderServiceCycle(),
   })
 
   return {
@@ -1091,8 +1091,8 @@ export async function saveRankingsToDb(): Promise<void> {
       { upsert: true }
     )
 
-    const { maybeStartPayoutTimer } = await import('@/lib/payout/executor')
-    await maybeStartPayoutTimer(eligibleCount)
+    const { syncPayoutTimerWithPayableWinners } = await import('@/lib/payout/executor')
+    await syncPayoutTimerWithPayableWinners()
     
     console.log(`[HolderService] Rankings saved to DB: ${rankings.length} entries, ${eligibleCount} eligible`)
   } catch (error: any) {

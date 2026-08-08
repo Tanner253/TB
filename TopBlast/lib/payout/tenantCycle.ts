@@ -14,8 +14,7 @@ import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
 import { loadLastWinCycleByWallet } from '@/lib/payout/winnerPersistence'
 import {
   ensureTimerStateSync,
-  maybeStartPayoutTimer,
-  syncPayoutTimerWithEligibility,
+  syncPayoutTimerWithPayableWinners,
   isPayoutDue,
   maybeExecuteDuePayout,
   getPayoutTimerInfo,
@@ -71,8 +70,7 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
     }).length
   }
 
-  await maybeStartPayoutTimer(eligibleCount)
-  await syncPayoutTimerWithEligibility(eligibleCount)
+  const payableCount = await syncPayoutTimerWithPayableWinners()
   await ensureTimerStateSync()
 
   const timer = getPayoutTimerInfo()
@@ -81,9 +79,9 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
     isPayoutDue() &&
     timer.timer_status === 'active' &&
     dbRankings &&
-    eligibleCount > 0
+    payableCount > 0
   ) {
-    const result = await maybeExecuteDuePayout(eligibleCount)
+    const result = await maybeExecuteDuePayout(payableCount)
     await ensureTimerStateSync()
     return {
       indexed,

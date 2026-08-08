@@ -125,6 +125,17 @@ function applyTimerDoc(state: {
   cache.timerStatus = timerStatus
   cache.tokenMint = tokenMint
   cache.lastSync = Date.now()
+  syncHolderServiceCycle(cache.currentCycle)
+}
+
+function syncHolderServiceCycle(cycle: number): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { setCurrentCycle } = require('@/lib/tracker/holderService') as typeof import('@/lib/tracker/holderService')
+    setCurrentCycle(cycle)
+  } catch {
+    // holderService may be unavailable in isolated tests
+  }
 }
 
 async function loadTimerState(): Promise<void> {
@@ -288,6 +299,24 @@ export async function syncPayoutTimerWithEligibility(eligibleCount: number): Pro
   if (getTimerCache().timerStatus === 'active' && eligibleCount <= 0) {
     await pausePayoutTimerToWaiting()
   }
+}
+
+/** Live eligible winners that still hold the session token on-chain (same bar as payout). */
+export async function countVerifiedPayableWinners(limit = 3): Promise<number> {
+  const winners = await resolveLivePayableWinners(limit)
+  if (winners.length === 0) return 0
+  const verified = await filterWinnersHoldingSessionToken(winners)
+  return verified.length
+}
+
+/**
+ * Start or pause the payout timer based on verified payable winners — not stale DB flags.
+ */
+export async function syncPayoutTimerWithPayableWinners(): Promise<number> {
+  const count = await countVerifiedPayableWinners()
+  await maybeStartPayoutTimer(count)
+  await syncPayoutTimerWithEligibility(count)
+  return count
 }
 
 export async function resetTimerForNextInterval(): Promise<void> {

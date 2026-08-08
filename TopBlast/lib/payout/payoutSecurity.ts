@@ -49,12 +49,9 @@ export function maxDistributableSol(walletSol: number): number {
   return Math.min(poolCap, afterReserve)
 }
 
-async function holderOwnsSessionToken(wallet: string, mint: string): Promise<boolean> {
-  const holders = await getTokenHolders(mint, 500)
-  const row = holders.find(h => h.wallet === wallet)
-  if (!row || row.isContract) return false
-  const balance = row.balance / Math.pow(10, config.tokenDecimals)
-  return balance >= config.minTokenHolding
+function holderOwnsSessionToken(wallet: string, balanceByWallet: Map<string, number>): boolean {
+  const balance = balanceByWallet.get(wallet)
+  return balance != null && balance >= config.minTokenHolding
 }
 
 /** Keep only winners that still hold the session token on-chain at payout time. */
@@ -63,15 +60,17 @@ export async function filterWinnersHoldingSessionToken(
   mint?: string
 ): Promise<PayableWinner[]> {
   const tokenMint = mint || config.tokenMint
-  if (!tokenMint) return []
+  if (!tokenMint || winners.length === 0) return []
 
-  const filtered: PayableWinner[] = []
-  for (const winner of winners) {
-    if (await holderOwnsSessionToken(winner.wallet, tokenMint)) {
-      filtered.push(winner)
+  const holders = await getTokenHolders(tokenMint, 500)
+  const balanceByWallet = new Map<string, number>()
+  for (const row of holders) {
+    if (!row.isContract) {
+      balanceByWallet.set(row.wallet, row.balance / Math.pow(10, config.tokenDecimals))
     }
   }
-  return filtered
+
+  return winners.filter(winner => holderOwnsSessionToken(winner.wallet, balanceByWallet))
 }
 
 export async function assertPayoutTransferAllowed(input: {
