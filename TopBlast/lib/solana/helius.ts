@@ -22,6 +22,71 @@ function getHeliusApiKey(): string {
   return apiKey
 }
 
+/** Minimum SOL outflow to treat a token receipt as a paid buy (not rent/ATA dust). */
+const MIN_BUY_SOL_OUTFLOW = 0.001
+
+/** Enhanced API page size (Helius max 100). */
+const ENHANCED_TX_PAGE_SIZE = 100
+
+function parseHeliusMaxPages(): number {
+  const n = parseInt(process.env.HELIUS_WALLET_TX_MAX_PAGES || '12', 10)
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 30) : 12
+}
+
+/**
+ * Paginated Enhanced Transactions fetch.
+ * @see https://www.helius.dev/docs/api-reference/enhanced-transactions/gettransactionsbyaddress
+ * Uses token-accounts=balanceChanged so ATA receives are not missed.
+ */
+export async function fetchEnhancedTransactionsForWallet(
+  wallet: string,
+  options?: { maxPages?: number; mint?: string }
+): Promise<Array<Record<string, unknown>>> {
+  const apiKey = getHeliusApiKey()
+  const url = `https://api.helius.xyz/v0/addresses/${wallet}/transactions`
+  const maxPages = options?.maxPages ?? parseHeliusMaxPages()
+  const all: Array<Record<string, unknown>> = []
+  let beforeSignature: string | undefined
+
+  for (let page = 0; page < maxPages; page++) {
+    const params: Record<string, string | number> = {
+      'api-key': apiKey,
+      limit: ENHANCED_TX_PAGE_SIZE,
+      'token-accounts': 'balanceChanged',
+    }
+    if (beforeSignature) {
+      params['before-signature'] = beforeSignature
+    }
+
+    const response = await axios.get(url, {
+      params,
+      timeout: 20000,
+      validateStatus: status => status === 200 || status === 429,
+    })
+
+    if (response.status === 429) {
+      console.warn(`[Helius] Rate limited paging ${wallet.slice(0, 8)}... (page ${page + 1})`)
+      break
+    }
+
+    const batch = (response.data || []) as Array<Record<string, unknown>>
+    if (batch.length === 0) break
+
+    all.push(...batch)
+
+    beforeSignature = String(batch[batch.length - 1]?.signature || '')
+    if (!beforeSignature) break
+    if (batch.length < ENHANCED_TX_PAGE_SIZE) break
+  }
+
+  return all
+}
+
+function rawTxInvolvesMint(tx: Record<string, unknown>, mint: string): boolean {
+  const transfers = (tx.tokenTransfers as Array<Record<string, unknown>>) || []
+  return transfers.some(t => String(t.mint || '') === mint)
+}
+
 /**
  * Get all token holders for a mint using Helius DAS API
  */
@@ -97,38 +162,23 @@ export async function getTokenHolders(mint: string, limit: number = 1000): Promi
 export async function getWalletTransactions(
   wallet: string,
   mint: string,
-  limit: number = 100
+  maxPages?: number
 ): Promise<ParsedTransaction[]> {
   const cached = getCachedWalletTransactions(wallet, mint)
   if (cached) {
     return cached
   }
 
-  const apiKey = getHeliusApiKey()
-  const url = `https://api.helius.xyz/v0/addresses/${wallet}/transactions`
   const maxAttempts = 3
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const response = await axios.get(url, {
-        params: {
-          'api-key': apiKey,
-          limit: Math.min(limit, 100),
-        },
-        timeout: 15000,
-        validateStatus: status => status === 200 || status === 429,
+      const rawTxs = await fetchEnhancedTransactionsForWallet(wallet, {
+        maxPages: maxPages ?? parseHeliusMaxPages(),
+        mint,
       })
-
-      if (response.status === 429) {
-        const delayMs = attempt * 400
-        console.warn(
-          `[Helius] Rate limited for ${wallet.slice(0, 8)}... retry ${attempt}/${maxAttempts} in ${delayMs}ms`
-        )
-        await new Promise(r => setTimeout(r, delayMs))
-        continue
-      }
-
-      const parsed = parseWalletMintTransactions(wallet, mint, response.data || [])
+      const mintTxs = rawTxs.filter(tx => rawTxInvolvesMint(tx, mint))
+      const parsed = parseWalletMintTransactions(wallet, mint, mintTxs.length > 0 ? mintTxs : rawTxs)
       setCachedWalletTransactions(wallet, mint, parsed)
       return parsed
     } catch (error: unknown) {
@@ -201,16 +251,18 @@ export function parseWalletMintTransactions(
 
       if (to === wallet) {
         const solPaid = walletSolOutflow(tx, wallet)
+        const descUsd = parseDescriptionUsd(description)
         const isSwapBuy =
           txType === 'SWAP' &&
           (feePayer === wallet || from !== wallet)
-        // Pump.fun / Raydium often arrive as TRANSFER or UNKNOWN with SOL leaving the buyer
-        const isPaidAcquisition =
+        // Pump.fun often labels buys as INITIALIZE_ACCOUNT / TRANSFER — key signal is SOL outflow.
+        const isSolPaidBuy = from !== wallet && solPaid >= MIN_BUY_SOL_OUTFLOW
+        const isDescPaidBuy =
           from !== wallet &&
-          solPaid >= 0.001 &&
-          (txType === 'TRANSFER' || txType === 'UNKNOWN' || txType === '')
+          feePayer === wallet &&
+          descUsd > 0
 
-        if (isSwapBuy || isPaidAcquisition) {
+        if (isSwapBuy || isSolPaidBuy || isDescPaidBuy) {
           const key = `${signature}:BUY`
           if (!seen.has(key)) {
             seen.add(key)
@@ -221,33 +273,17 @@ export function parseWalletMintTransactions(
               type: 'BUY',
               tokenAmount,
               solAmount: value.solAmount > 0 ? value.solAmount : solPaid,
-              usdValue: value.usdValue,
-              pricePerToken: value.pricePerToken,
-              isStablecoinSwap: value.isStablecoinSwap,
+              usdValue: value.usdValue > 0 ? value.usdValue : descUsd,
+              pricePerToken:
+                value.pricePerToken > 0
+                  ? value.pricePerToken
+                  : descUsd > 0
+                    ? descUsd / tokenAmount
+                    : 0,
+              isStablecoinSwap: value.isStablecoinSwap || descUsd > 0,
             })
           }
         } else if (from !== wallet) {
-          const descUsd = parseDescriptionUsd(description)
-          const paidBuyMissingNative =
-            feePayer === wallet &&
-            descUsd > 0 &&
-            (txType === 'TRANSFER' || txType === 'UNKNOWN' || txType === '')
-          if (paidBuyMissingNative) {
-            const key = `${signature}:BUY`
-            if (!seen.has(key)) {
-              seen.add(key)
-              transactions.push({
-                signature,
-                timestamp,
-                type: 'BUY',
-                tokenAmount,
-                solAmount: 0,
-                usdValue: descUsd,
-                pricePerToken: descUsd / tokenAmount,
-                isStablecoinSwap: true,
-              })
-            }
-          } else {
           const key = `${signature}:TRANSFER_IN`
           if (!seen.has(key)) {
             seen.add(key)
@@ -261,7 +297,6 @@ export function parseWalletMintTransactions(
               pricePerToken: 0,
               isStablecoinSwap: false,
             })
-          }
           }
         }
       }

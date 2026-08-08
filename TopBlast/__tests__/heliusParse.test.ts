@@ -83,6 +83,37 @@ describe('parseWalletMintTransactions', () => {
     expect(txs.some(t => t.type === 'BUY')).toBe(true)
   })
 
+  it('detects pump.fun INITIALIZE_ACCOUNT buy when wallet pays SOL to bonding curve', () => {
+    const pumpBuyer = 'B6rneBPNPGu5TyJ8nk6NSi7cVnThz75f66wZZ4PTvAZC'
+    const bondingCurve = 'H2uPQ4oa2thbjmsDnGy8u4Rh2pdpstPJ78QXfganw68N'
+    const txs = parseWalletMintTransactions(pumpBuyer, mint, [
+      {
+        signature: 'sig-pump-init',
+        timestamp: 1_700_000_000,
+        type: 'INITIALIZE_ACCOUNT',
+        feePayer: pumpBuyer,
+        tokenTransfers: [
+          {
+            mint,
+            fromUserAccount: bondingCurve,
+            toUserAccount: pumpBuyer,
+            tokenAmount: 5_003_857.236008,
+          },
+        ],
+        nativeTransfers: [
+          { fromUserAccount: pumpBuyer, toUserAccount: bondingCurve, amount: 296_296_296 },
+          { fromUserAccount: pumpBuyer, toUserAccount: '53zkMK3TdAhXPnKkXzNwuVJYhGbpepZos3tDzMJ5osh4', amount: 888_889 },
+        ],
+      },
+    ])
+
+    const buy = txs.find(t => t.type === 'BUY')
+    expect(buy).toBeTruthy()
+    expect(buy?.tokenAmount).toBeCloseTo(5_003_857.236008, 3)
+    expect(buy?.solAmount).toBeGreaterThan(0.29)
+    expect(txs.some(t => t.type === 'TRANSFER_IN')).toBe(false)
+  })
+
   it('marks pool-to-wallet transfer as TRANSFER_IN not BUY', () => {
     const recipient = 'DiiHaXbhwf2HVkyMSNRxkctomAy9jaBxUT1vbPZokgwZ'
     const txs = parseWalletMintTransactions(recipient, mint, [

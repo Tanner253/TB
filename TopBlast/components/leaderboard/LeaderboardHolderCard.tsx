@@ -52,7 +52,10 @@ export function LeaderboardHolderCard({
   minHoldMinutes = 15,
 }: LeaderboardHolderCardProps) {
   const isEligible = holder.is_eligible === true
-  const hasVwap = (holder.vwap_raw ?? 0) > 0
+  const hasVwap =
+    (holder.vwap_raw ?? 0) > 0 &&
+    holder.ineligible_reason !== 'No buy history' &&
+    holder.ineligible_reason !== 'Buy history pending'
   const eligibleRank = holder.eligible_rank != null ? holder.eligible_rank - 1 : -1
   const payoutAmount =
     eligibleRank >= 0 && eligibleRank < 3 ? getPayoutForEligibleRank(poolValue, eligibleRank) : 0

@@ -135,6 +135,9 @@ export function AppHeader({ active, trailing }: AppHeaderProps) {
               <span className="text-sol-mint">TOP</span>
               <span className="text-white">BLAST</span>
             </span>
+            <span className="shrink-0 rounded border border-sol-mint/25 bg-sol-mint/5 px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide text-sol-mint/90">
+              Beta
+            </span>
           </Link>
 
           <nav className="hidden lg:flex items-center gap-1 text-sm">

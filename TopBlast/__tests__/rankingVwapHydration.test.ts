@@ -34,12 +34,23 @@ describe('rankingNeedsVwapHydration', () => {
     ).toBe(true)
   })
 
-  it('skips wallets with real vwap', () => {
+  it('skips wallets with complete vwap and first buy', () => {
     expect(
       rankingNeedsVwapHydration({
         vwap: 0.00001,
         ineligibleReason: null,
+        firstBuyAt: new Date('2026-01-01'),
       })
     ).toBe(false)
+  })
+
+  it('retries partial rows with vwap but no first buy', () => {
+    expect(
+      rankingNeedsVwapHydration({
+        vwap: 0.00001,
+        ineligibleReason: 'No buy history',
+        firstBuyAt: null,
+      })
+    ).toBe(true)
   })
 })

@@ -55,4 +55,13 @@ describe('evaluateHolderEligibility', () => {
     })
     expect(result.ineligibleReason).toBe('Received via transfer')
   })
+
+  it('does not show drawdown when VWAP exists but first buy is missing', () => {
+    const result = evaluateHolderEligibility({
+      ...base,
+      firstBuyTimestamp: null,
+    })
+    expect(result.ineligibleReason).toBe('Buy history pending')
+    expect(result.drawdownPct).toBe(0)
+  })
 })

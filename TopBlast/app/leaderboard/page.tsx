@@ -140,6 +140,17 @@ function InlineSpinner() {
   )
 }
 
+function hasVerifiedBuyHistory(
+  vwapRaw: number | undefined | null,
+  ineligibleReason: string | null | undefined
+): boolean {
+  if ((vwapRaw ?? 0) <= 0) return false
+  if (ineligibleReason === 'No buy history' || ineligibleReason === 'Buy history pending') {
+    return false
+  }
+  return true
+}
+
 function drawdownClass(pct: number | undefined, hasVwap: boolean): string {
   if (!hasVwap || pct == null) return 'text-gray-500'
   if (pct < 0) return 'text-red-400'
@@ -501,7 +512,7 @@ export default function LeaderboardPage() {
                 {featuredCards.map((winner: Winner, idx: number) => {
                   const style = getRankStyle(idx + 1)
                   const isEligible = winner.is_eligible === true
-                  const hasVwap = (winner.vwap_raw ?? 0) > 0
+                  const hasVwap = hasVerifiedBuyHistory(winner.vwap_raw, winner.ineligible_reason)
                   const payoutAmount = isEligible ? getPayoutForEligibleRank(poolValue, idx) : 0
                   const shareLabel = idx === 0 ? `${WINNER_SHARES.first}%` : idx === 1 ? `${WINNER_SHARES.second}%` : `${WINNER_SHARES.third}%`
 
@@ -728,7 +739,7 @@ export default function LeaderboardPage() {
               <tbody>
                 {rankings.slice(0, 10).map((holder: Winner, idx: number) => {
                   const isEligible = holder.is_eligible === true
-                  const hasVwap = (holder.vwap_raw ?? 0) > 0
+                  const hasVwap = hasVerifiedBuyHistory(holder.vwap_raw, holder.ineligible_reason)
                   const eligibleRank = holder.eligible_rank != null ? holder.eligible_rank - 1 : -1
                   const payoutAmount = eligibleRank >= 0 && eligibleRank < 3
                     ? getPayoutForEligibleRank(poolValue, eligibleRank)

@@ -36,9 +36,27 @@ export function rankingNeedsVwapHydration(row: {
   vwap?: number | null
   ineligibleReason?: string | null
   vwapFetchedAt?: Date | string | number | null
+  firstBuyAt?: Date | string | number | null
 }): boolean {
-  if ((row.vwap ?? 0) > 0) return false
+  const hasVwap = (row.vwap ?? 0) > 0
+  const hasFirstBuy = !!row.firstBuyAt
   const reason = (row.ineligibleReason ?? '').trim()
+
+  /** Partial/stale row: VWAP cached without a confirmed first buy — re-fetch from Helius. */
+  if (
+    hasVwap &&
+    (!hasFirstBuy ||
+      reason === 'No buy history' ||
+      reason === 'Buy history pending')
+  ) {
+    const fetchedAt = row.vwapFetchedAt ? new Date(row.vwapFetchedAt).getTime() : 0
+    if (fetchedAt > 0 && Date.now() - fetchedAt < VWAP_HYDRATION_RETRY_MS) {
+      return false
+    }
+    return true
+  }
+
+  if (hasVwap) return false
   if (!reason || reason === 'Loading buy history...' || reason === 'Buy history pending') {
     return true
   }
@@ -1406,7 +1424,7 @@ export async function hydrateRankingsWithVwap<
   const dbByWallet = new Map(dbRows.map(r => [r.wallet, r]))
   let rankingsWithDb = rankings.map(row => {
     const doc = dbByWallet.get(row.wallet)
-    if (!doc?.vwap) return row
+    if (!doc?.vwap || !doc.firstBuyAt) return row
     return {
       ...row,
       vwap: doc.vwap,
@@ -1418,7 +1436,11 @@ export async function hydrateRankingsWithVwap<
 
   const stillNeedingHelius = needsVwap.filter(h => {
     const doc = dbByWallet.get(h.wallet)
-    return !(doc?.vwap && doc.vwap > 0)
+    const row = rankingsWithDb.find(r => r.wallet === h.wallet) ?? h
+    const hasCompleteDbVwap = !!(doc?.vwap && doc.vwap > 0 && doc.firstBuyAt)
+    const hasCompleteRowVwap =
+      (row.vwap ?? 0) > 0 && !!(row.firstBuyAt ?? doc?.firstBuyAt)
+    return !hasCompleteDbVwap && !hasCompleteRowVwap
   })
 
   if (stillNeedingHelius.length === 0) {

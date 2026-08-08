@@ -60,41 +60,43 @@ export function evaluateHolderEligibility(
     }
   }
 
-  let drawdownPct = 0
-  let lossUsd = 0
   const eligibleBalance =
     totalTokensBought > 0 ? Math.min(balance, totalTokensBought) : balance
 
-  if (vwap && vwap > 0) {
-    drawdownPct = ((tokenPrice - vwap) / vwap) * 100
-    if (tokenPrice < vwap) {
-      lossUsd = (vwap - tokenPrice) * eligibleBalance
-    }
-  }
-
   if (!tokenPrice || tokenPrice <= 0) {
-    return { isEligible: false, ineligibleReason: 'Price loading', drawdownPct, lossUsd }
+    return { isEligible: false, ineligibleReason: 'Price loading', drawdownPct: 0, lossUsd: 0 }
   }
 
   if (balance < config.minTokenHolding) {
-    return { isEligible: false, ineligibleReason: 'Insufficient balance', drawdownPct, lossUsd }
+    return { isEligible: false, ineligibleReason: 'Insufficient balance', drawdownPct: 0, lossUsd: 0 }
   }
 
   if (!vwap || vwap === 0) {
     if (hasTransferIn && buyCountWouldBeZero(totalTokensBought, hasTransferIn)) {
-      return { isEligible: false, ineligibleReason: 'Received via transfer', drawdownPct, lossUsd }
+      return { isEligible: false, ineligibleReason: 'Received via transfer', drawdownPct: 0, lossUsd: 0 }
     }
-    return { isEligible: false, ineligibleReason: 'No buy history', drawdownPct, lossUsd }
+    return { isEligible: false, ineligibleReason: 'No buy history', drawdownPct: 0, lossUsd: 0 }
   }
 
-  if (firstBuyTimestamp) {
-    const holdMs = Date.now() - firstBuyTimestamp
-    const minHoldMs = config.minHoldDurationMinutes * 60 * 1000
-    if (holdMs < minHoldMs) {
-      return { isEligible: false, ineligibleReason: 'Hold duration not met', drawdownPct, lossUsd }
+  if (!firstBuyTimestamp) {
+    return {
+      isEligible: false,
+      ineligibleReason: 'Buy history pending',
+      drawdownPct: 0,
+      lossUsd: 0,
     }
-  } else {
-    return { isEligible: false, ineligibleReason: 'No buy history', drawdownPct, lossUsd }
+  }
+
+  let drawdownPct = ((tokenPrice - vwap) / vwap) * 100
+  let lossUsd = 0
+  if (tokenPrice < vwap) {
+    lossUsd = (vwap - tokenPrice) * eligibleBalance
+  }
+
+  const holdMs = Date.now() - firstBuyTimestamp
+  const minHoldMs = config.minHoldDurationMinutes * 60 * 1000
+  if (holdMs < minHoldMs) {
+    return { isEligible: false, ineligibleReason: 'Hold duration not met', drawdownPct, lossUsd }
   }
 
   if (hasSold) {

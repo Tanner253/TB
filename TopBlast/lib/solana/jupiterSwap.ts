@@ -15,8 +15,14 @@ import {
 /** Wrapped/native SOL mint used by Jupiter routes. */
 export const NATIVE_SOL_MINT = 'So11111111111111111111111111111111111111112'
 
-const JUPITER_QUOTE_URL = 'https://quote-api.jup.ag/v6/quote'
-const JUPITER_SWAP_URL = 'https://quote-api.jup.ag/v6/swap'
+/** Jupiter consolidated gateway (quote-api.jup.ag/v6 was sunset Aug 2025). */
+const JUPITER_QUOTE_URL = 'https://api.jup.ag/swap/v1/quote'
+const JUPITER_SWAP_URL = 'https://api.jup.ag/swap/v1/swap'
+
+function getJupiterRequestHeaders(): Record<string, string> {
+  const apiKey = process.env.JUPITER_API_KEY?.trim()
+  return apiKey ? { 'x-api-key': apiKey } : {}
+}
 
 export function getPayoutSwapSlippageBps(): number {
   const raw = parseInt(process.env.PAYOUT_SWAP_SLIPPAGE_BPS || '150', 10)
@@ -111,6 +117,7 @@ async function swapSolForTokenOnce(
       slippageBps,
       swapMode: 'ExactIn',
     },
+    headers: getJupiterRequestHeaders(),
     timeout: 20000,
   })
 
@@ -130,7 +137,7 @@ async function swapSolForTokenOnce(
       dynamicComputeUnitLimit: true,
       prioritizationFeeLamports: 'auto',
     },
-    { timeout: 20000 }
+    { headers: getJupiterRequestHeaders(), timeout: 20000 }
   )
 
   const swapTxBase64 = swapBuild.data?.swapTransaction

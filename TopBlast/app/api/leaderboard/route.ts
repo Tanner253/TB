@@ -488,7 +488,13 @@ export async function GET(request: NextRequest) {
         on_chain_raw_holders: onChainStats.raw,
         min_token_holding: config.minTokenHolding,
         tracked_holders: sourceRankings.length,
-        holders_with_buy_history: sourceRankings.filter(h => (h.vwap ?? 0) > 0).length,
+        holders_with_buy_history: liveEvaluated.filter(
+          e =>
+            (e.holder.vwap ?? 0) > 0 &&
+            !!e.firstBuyAt &&
+            e.live.ineligibleReason !== 'No buy history' &&
+            e.live.ineligibleReason !== 'Buy history pending'
+        ).length,
         holders_with_real_vwap: dbRankings.holdersWithVwap,
         eligible_count: eligibleCount,
         upcoming_count: upcomingCount,
