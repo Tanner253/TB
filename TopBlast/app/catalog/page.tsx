@@ -20,7 +20,7 @@ export default function CatalogPage() {
             <p className="text-sol-mint text-xs font-semibold uppercase tracking-[0.14em] mb-2">Explore</p>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Token catalog</h1>
             <p className="text-sm text-gray-500 mt-1">
-              Live loss-mining sessions — sort by pot, on-chart Gen volume, or total paid out
+              Live reward sessions — sort by pot, on-chart Gen volume, or total paid out
             </p>
           </div>
           <Link

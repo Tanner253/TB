@@ -96,9 +96,9 @@ export function catalogCardSubtitle(tenant: PublicTenantSummary): string {
     return `Pool · ${tenant.payoutWalletAddress.slice(0, 6)}…${tenant.payoutWalletAddress.slice(-4)}`
   }
   if (tenant.runsFromEnv) {
-    return 'Live loss-mining session'
+    return 'Live reward session'
   }
-  return 'Loss-mining session'
+  return 'Conviction reward session'
 }
 
 export function filterCatalogTenants(

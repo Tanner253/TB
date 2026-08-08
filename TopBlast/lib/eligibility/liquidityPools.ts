@@ -1,5 +1,5 @@
 /**
- * Liquidity pool / AMM addresses must never rank or receive loss-mining payouts.
+ * Liquidity pool / AMM addresses must never rank or receive conviction-reward payouts.
  * Sources: Pump.fun bonding-curve PDA, DexScreener pair addresses for the mint.
  */
 

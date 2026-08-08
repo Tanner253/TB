@@ -167,7 +167,7 @@ export function buildTenantDiagnostics(input: TenantDiagnosticsInput): TenantDia
       severity: 'info',
       title: 'Buy history still loading',
       message: 'Holders are visible but VWAP (average buy price) is not ready yet.',
-      action: 'Wait a few minutes. Holders need recorded buys to rank for loss-mining.',
+      action: 'Wait a few minutes. Holders need recorded buys to rank for conviction rewards.',
     })
   }
 
@@ -178,7 +178,7 @@ export function buildTenantDiagnostics(input: TenantDiagnosticsInput): TenantDia
         id: 'all_in_profit',
         severity: 'info',
         title: 'No holders currently in loss',
-        message: 'Loss-mining only pays wallets underwater vs their average buy price.',
+        message: 'Rewards only go to wallets underwater vs their average buy price — conviction holders who stayed in.',
         action: 'Rankings update as price moves. Holders in drawdown will appear when eligible.',
       })
     } else if (upcomingCount > 0) {

@@ -42,7 +42,7 @@ export function WhoGetsPaidRules({ variant = 'homepage', slug, className = '' }:
         <p className="font-medium text-white mb-1">Protocol wallets excluded</p>
         <p>
           Liquidity pools (bonding curve / AMM), the payout pool wallet, and the platform dev fee wallet cannot rank
-          or receive loss-mining payouts.
+          or receive conviction-reward payouts.
         </p>
       </div>
 

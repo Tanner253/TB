@@ -25,7 +25,7 @@ export const LAUNCH_KEY_HELP = {
   },
   minTokenHolding: {
     title: 'Minimum token balance',
-    body: `Holders need at least this many tokens (raw units, not USD) to qualify for loss-mining. Default is ${DEFAULT_MIN_BALANCE_LABEL}. Set higher to filter dust wallets; lower for micro-cap tokens. Locked when you list.`,
+    body: `Holders need at least this many tokens (raw units, not USD) to qualify for rewards. Default is ${DEFAULT_MIN_BALANCE_LABEL}. Set higher to filter dust wallets; lower for micro-cap tokens. Locked when you list.`,
   },
   tenantEncryptionKey: {
     title: 'Key encryption (TopBlast operators only)',

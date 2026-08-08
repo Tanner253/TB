@@ -24,9 +24,9 @@ export const HOME_VS_CASHBACK = {
     ],
   },
   topblast: {
-    label: 'TopBlast loss-mining',
+    label: 'TopBlast conviction rewards',
     points: [
-      'Holders must stay underwater to qualify for rewards',
+      'Rewards holders with conviction who stay underwater',
       'Pool SOL market-buys your token via Jupiter each cycle',
       'Winners receive your token — tracked as Gen volume in the catalog',
     ],
@@ -149,7 +149,7 @@ export const ALTERNATIVES_COMPARISON = [
   },
   {
     id: 'topblast',
-    name: 'TopBlast loss-mining',
+    name: 'TopBlast conviction rewards',
     holderBehavior: 'Buy, hold through drawdown, compete for rewards',
     chartEffect: 'On-chart buybacks + token airdrops every cycle',
     devOptics: 'Funded volume engine — your chart, your holders',
