@@ -4,6 +4,7 @@ import { config } from '@/lib/config'
 import { getPayoutPrivateKey, getTenantSlug } from '@/lib/tenant/context'
 import { getPayoutWalletAddressFromKey } from '@/lib/solana/transfer'
 import { runAuthorizedPayout } from '@/lib/payout/payoutAuthContext'
+import { apiPollsAreReadOnly } from '@/lib/platform/workerMode'
 import { isPumpAutoCollectEnabled } from '@/lib/pump/config'
 import {
   markPumpCollectAttempt,
@@ -65,5 +66,8 @@ export async function collectPumpCreatorFeesForActiveTenant(): Promise<PumpColle
  * Runs at most once per tenant per throttle window when polls hit /api/leaderboard.
  */
 export async function maybeCollectPumpCreatorFeesOnPoll(): Promise<PumpCollectResult | null> {
+  if (apiPollsAreReadOnly()) {
+    return null
+  }
   return runAuthorizedPayout(() => collectPumpCreatorFeesForActiveTenant())
 }

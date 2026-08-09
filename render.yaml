@@ -1,0 +1,28 @@
+# TopBlast — Render Blueprint (connect GitHub repo → New Blueprint)
+#
+# This is a lightweight CRON worker, not the full Next.js app.
+# - Vercel hosts the app + API (set WORKER_OWNS_INDEXING=true there)
+# - Render runs this job every minute → POST /api/cron/tenants on Vercel
+#
+# After deploy, set in Render Dashboard → topblast-tenant-worker → Environment:
+#   TOPBLAST_APP_URL = https://topblasted.fun   (your Vercel production URL)
+#   CRON_SECRET      = same value as Vercel CRON_SECRET
+
+services:
+  - type: cron
+    name: topblast-tenant-worker
+    runtime: node
+    rootDir: TopBlast
+    schedule: "* * * * *"
+    # Script uses only Node built-in fetch — no npm install needed
+    buildCommand: "true"
+    startCommand: node scripts/render-cron-worker.mjs
+    buildFilter:
+      paths:
+        - TopBlast/scripts/render-cron-worker.mjs
+        - render.yaml
+    envVars:
+      - key: TOPBLAST_APP_URL
+        sync: false
+      - key: CRON_SECRET
+        sync: false

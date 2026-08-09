@@ -8,6 +8,7 @@ import Image from 'next/image'
 import { getDevFeePercent } from '@/lib/payout/shares'
 import { AppHeader } from '@/components/platform/AppHeader'
 import { CopyContractAddress } from '@/components/ui/CopyContractAddress'
+import { DEFAULT_HISTORY_POLL_MS } from '@/lib/platform/clientPollIntervals'
 
 const DEV_FEE = getDevFeePercent()
 
@@ -187,7 +188,7 @@ export default function HistoryPage() {
     }
 
     fetchHistory()
-    const interval = setInterval(fetchHistory, 30000)
+    const interval = setInterval(fetchHistory, DEFAULT_HISTORY_POLL_MS)
     return () => clearInterval(interval)
   }, [])
 

@@ -3,6 +3,7 @@ import 'server-only'
 import { listActiveTenantSlugs, runForTenantSlug } from '@/lib/tenant/service'
 import { runAutomatedTenantCycle } from '@/lib/payout/tenantCycle'
 import { runAuthorizedPayout } from '@/lib/payout/payoutAuthContext'
+import { workerOwnsIndexing } from '@/lib/platform/workerMode'
 
 /** Min gap between catalog-driven multi-tenant cycle runs (serverless-safe). */
 const CATALOG_CYCLE_THROTTLE_MS = 30 * 1000
@@ -17,6 +18,9 @@ declare global {
  * Called from GET /api/tenants so catalog/home traffic keeps sessions alive without opening each LB.
  */
 export async function maybeRunTenantCyclesFromCatalog(): Promise<void> {
+  if (workerOwnsIndexing()) {
+    return
+  }
   const now = Date.now()
   if (
     global._lastCatalogTenantCyclesAt != null &&

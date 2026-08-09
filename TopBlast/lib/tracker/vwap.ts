@@ -2,9 +2,10 @@ import { getWalletTransactions } from '../solana/indexer'
 import { getTokenPrice, getSolPrice } from '../solana/price'
 import connectDB from '@/lib/db'
 import { tenantFilter } from '@/lib/tenant/scope'
+import { heliusWalletTxMaxPages } from '@/lib/platform/heliusLimits'
 
 /** Enhanced API pages to scan per wallet (100 txs/page). See HELIUS_WALLET_TX_MAX_PAGES. */
-const VWAP_TX_MAX_PAGES = parseInt(process.env.HELIUS_WALLET_TX_MAX_PAGES || '12', 10)
+const VWAP_TX_MAX_PAGES = heliusWalletTxMaxPages()
 
 export interface VwapData {
   wallet: string

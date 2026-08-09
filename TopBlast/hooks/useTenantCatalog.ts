@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
-
-const CATALOG_POLL_MS = 15_000
+import { DEFAULT_CATALOG_POLL_MS } from '@/lib/platform/clientPollIntervals'
 
 export function useTenantCatalog() {
   const [tenants, setTenants] = useState<PublicTenantSummary[]>([])
@@ -29,7 +28,7 @@ export function useTenantCatalog() {
 
   useEffect(() => {
     fetchTenants()
-    const interval = setInterval(fetchTenants, CATALOG_POLL_MS)
+    const interval = setInterval(fetchTenants, DEFAULT_CATALOG_POLL_MS)
     return () => clearInterval(interval)
   }, [fetchTenants])
 

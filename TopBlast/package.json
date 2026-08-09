@@ -9,7 +9,10 @@
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "worker:ping": "node scripts/proof-of-life.mjs",
+    "worker:run": "node scripts/render-cron-worker.mjs",
+    "worker:execute": "node scripts/proof-of-life.mjs --execute"
   },
   "dependencies": {
     "@pump-fun/pump-sdk": "^1.36.0",

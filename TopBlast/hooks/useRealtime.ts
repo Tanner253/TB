@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useLiveTokenPrice } from '@/hooks/useLiveTokenPrice'
+import { DEFAULT_LEADERBOARD_POLL_MS } from '@/lib/platform/clientPollIntervals'
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error'
 
@@ -49,7 +50,10 @@ export function useRealtimePrice(_pollInterval?: number, tenantSlug?: string) {
 
 export { useLiveTokenPrice } from '@/hooks/useLiveTokenPrice'
 
-export function useRealtimeLeaderboard(pollInterval = 10000, tenantSlug?: string) {
+export function useRealtimeLeaderboard(
+  pollInterval = DEFAULT_LEADERBOARD_POLL_MS,
+  tenantSlug?: string
+) {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

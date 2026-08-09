@@ -6,6 +6,7 @@
 
 import { config } from '@/lib/config'
 import { getTokenHolders, getWalletTransactions } from '@/lib/solana/indexer'
+import { heliusWalletTxMaxPages } from '@/lib/platform/heliusLimits'
 import { normalizeTokenBalance, meetsMinTokenHoldingFromChain, rawToHumanTokenAmount } from '@/lib/solana/tokenAmount'
 import { calculateBatchVwaps } from '@/lib/tracker/vwap'
 import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
@@ -428,7 +429,11 @@ async function calculateHolderData(
   currentSolPrice?: number // Optional: pass in SOL price for batch consistency
 ): Promise<HolderData> {
   // Fetch transaction history
-  const transactions = await getWalletTransactions(wallet, config.tokenMint, 100)
+  const transactions = await getWalletTransactions(
+    wallet,
+    config.tokenMint,
+    heliusWalletTxMaxPages()
+  )
 
   let totalTokensBought = 0
   let totalEthSpent = 0         // Raw SOL amount

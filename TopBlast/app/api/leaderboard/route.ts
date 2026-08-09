@@ -52,13 +52,18 @@ import {
 import { getRankingsKey } from '@/lib/tenant/keys'
 import { getPlatformTestBanner } from '@/lib/platform/testBanner'
 import { maybeCollectPumpCreatorFeesOnPoll } from '@/lib/pump/maybeCollectOnPoll'
+import {
+  apiPollsAreReadOnly,
+  shouldRunHeliusOnLeaderboardPoll,
+} from '@/lib/platform/workerMode'
+import { leaderboardVwapHydrateMaxPerRequest } from '@/lib/platform/heliusLimits'
 
 /** DB rankings younger than this skip Helius DAS on public leaderboard polls. */
 const RANKINGS_FRESH_MS = 2 * 60 * 1000
-/** Max Enhanced-API wallet history fetches per leaderboard request. */
+
 function leaderboardVwapHydrateBudget(holderCount: number): number {
-  const envMax = parseInt(process.env.LEADERBOARD_VWAP_HYDRATE_MAX || '12', 10)
-  const cap = Number.isFinite(envMax) && envMax > 0 ? envMax : 12
+  const cap = leaderboardVwapHydrateMaxPerRequest()
+  if (cap === 0) return 0
   return Math.min(cap, Math.max(holderCount, 1))
 }
 
@@ -86,10 +91,17 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const forceRefresh = searchParams.get('refresh') === '1'
+    const readOnlyPoll = apiPollsAreReadOnly()
+    const runHelius = shouldRunHeliusOnLeaderboardPoll(forceRefresh)
     let holdersRefreshThrottled = false
     let holdersRefreshRetryAfterSec = 0
 
-    if (forceRefresh && config.tokenMint) {
+    if (forceRefresh && readOnlyPoll && !runHelius) {
+      holdersRefreshThrottled = true
+      holdersRefreshRetryAfterSec = 120
+    }
+
+    if (forceRefresh && config.tokenMint && runHelius) {
       const attempt = tryInvalidateTokenHoldersCache(config.tokenMint)
       if (!attempt.allowed) {
         holdersRefreshThrottled = true
@@ -129,14 +141,14 @@ export async function GET(request: NextRequest) {
       dbRankings.rankings.length > 0 &&
       dbRankings.holdersWithVwap === 0
 
-    if (needsReindex) {
+    if (runHelius && needsReindex) {
       if (!shouldThrottleFullReindex(getRankingsKey())) {
         initializeTracker().catch(err => console.error('[Leaderboard] Tracker init error:', err))
         await ensureRankingsIndexed()
         markFullReindex(getRankingsKey())
         dbRankings = await loadRankingsFromDb()
       }
-    } else if (needsVwapRefresh) {
+    } else if (runHelius && needsVwapRefresh) {
       if (!shouldThrottleFullReindex(getRankingsKey())) {
         initializeTracker().catch(err => console.error('[Leaderboard] Tracker init error:', err))
         await ensureVwapCalculated()
@@ -145,7 +157,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (!dbRankings || dbRankings.rankings.length === 0 || dbRankings.totalHolders === 0) {
+    if (runHelius && (!dbRankings || dbRankings.rankings.length === 0 || dbRankings.totalHolders === 0)) {
       if (!shouldThrottleFullReindex(getRankingsKey())) {
         const ephemeral = await buildEphemeralRankingsFromChain()
         if (ephemeral && ephemeral.rankings.length > 0) {
@@ -184,7 +196,9 @@ export async function GET(request: NextRequest) {
     const platformTestBanner = getPlatformTestBanner()
 
     if (!dbRankings) {
-      await syncPayoutTimerWithPayableWinners()
+      if (!readOnlyPoll) {
+        await syncPayoutTimerWithPayableWinners()
+      }
       await ensureTimerStateSync()
       const timerAfterPayout = getPayoutTimerInfo()
       const diagnosticsInput = {
@@ -237,6 +251,8 @@ export async function GET(request: NextRequest) {
           rankings: [],
           last_updated: new Date().toISOString(),
           platform_test_banner: platformTestBanner,
+          read_only_poll: readOnlyPoll,
+          worker_indexing: readOnlyPoll,
         },
       }, { headers: noStoreHeaders })
     }
@@ -249,26 +265,34 @@ export async function GET(request: NextRequest) {
       dbRankings.rankings.map(h => [h.wallet, h] as const)
     )
 
-    const liveHolders = await getTokenHolders(
-      config.tokenMint,
-      Math.min(config.maxHoldersToProcess, 1000)
-    )
-    onChainStats = mergeLiveHolderBalances(rankingByWallet, liveHolders, config.tokenMint)
+    if (runHelius) {
+      const liveHolders = await getTokenHolders(
+        config.tokenMint,
+        Math.min(config.maxHoldersToProcess, 1000)
+      )
+      onChainStats = mergeLiveHolderBalances(rankingByWallet, liveHolders, config.tokenMint)
 
-    if (
-      !rankingsFresh &&
-      onChainStats.qualifying > (dbRankings?.totalHolders ?? 0) &&
-      !shouldThrottleFullReindex(getRankingsKey())
-    ) {
-      await ensureRankingsIndexed()
-      markFullReindex(getRankingsKey())
-      dbRankings = await loadRankingsFromDb()
-      if (dbRankings) {
-        rankingByWallet.clear()
-        for (const h of dbRankings.rankings) {
-          rankingByWallet.set(h.wallet, h)
+      if (
+        !rankingsFresh &&
+        onChainStats.qualifying > (dbRankings?.totalHolders ?? 0) &&
+        !shouldThrottleFullReindex(getRankingsKey())
+      ) {
+        await ensureRankingsIndexed()
+        markFullReindex(getRankingsKey())
+        dbRankings = await loadRankingsFromDb()
+        if (dbRankings) {
+          rankingByWallet.clear()
+          for (const h of dbRankings.rankings) {
+            rankingByWallet.set(h.wallet, h)
+          }
+          onChainStats = mergeLiveHolderBalances(rankingByWallet, liveHolders, config.tokenMint)
         }
-        onChainStats = mergeLiveHolderBalances(rankingByWallet, liveHolders, config.tokenMint)
+      }
+    } else {
+      onChainStats = {
+        raw: dbRankings.totalHolders,
+        trackable: dbRankings.totalHolders,
+        qualifying: dbRankings.totalHolders,
       }
     }
 
@@ -281,7 +305,7 @@ export async function GET(request: NextRequest) {
           config.minTokenHolding
     )
 
-    const walletsNeedingVwap = sourceRankings.filter(rankingNeedsVwapHydration)
+    const walletsNeedingVwap = runHelius ? sourceRankings.filter(rankingNeedsVwapHydration) : []
     if (walletsNeedingVwap.length > 0) {
       if (forceRefresh && config.tokenMint) {
         invalidateWalletTxCaches(
@@ -425,35 +449,42 @@ export async function GET(request: NextRequest) {
 
     const eligibleCount = eligibleSorted.length
 
-    try {
-      await maybeCollectPumpCreatorFeesOnPoll()
-    } catch (err) {
-      console.warn('[Leaderboard] Pump creator fee collect:', err)
-    }
-
-    const { verifiedPayableCount } = await syncPayoutTimerWithPayableWinners(eligibleCount)
-    await ensureTimerStateSync()
     let timerAfterPayout = getPayoutTimerInfo()
-    const payoutDueNow =
-      timerAfterPayout.timer_status === 'active' && isPayoutDue()
-    const payableCount = Math.max(verifiedPayableCount, eligibleCount)
 
-    if (payoutDueNow) {
+    if (!readOnlyPoll) {
       try {
-        const payoutResult = await maybeExecuteDuePayout(
-          Math.max(payableCount, 1),
-          knownPayableWinners.length > 0 ? knownPayableWinners : undefined
-        )
-        if (payoutResult == null) {
-          console.warn('[Leaderboard] Payout due but executor returned null (timer state changed mid-request)')
-        } else if (!payoutResult.success) {
-          console.warn('[Leaderboard] Payout attempt:', payoutResult.error)
-        }
-        await ensureTimerStateSync()
-        timerAfterPayout = getPayoutTimerInfo()
+        await maybeCollectPumpCreatorFeesOnPoll()
       } catch (err) {
-        console.error('[Leaderboard] Payout error:', err)
+        console.warn('[Leaderboard] Pump creator fee collect:', err)
       }
+
+      const { verifiedPayableCount } = await syncPayoutTimerWithPayableWinners(eligibleCount)
+      await ensureTimerStateSync()
+      timerAfterPayout = getPayoutTimerInfo()
+      const payoutDueNow =
+        timerAfterPayout.timer_status === 'active' && isPayoutDue()
+      const payableCount = Math.max(verifiedPayableCount, eligibleCount)
+
+      if (payoutDueNow) {
+        try {
+          const payoutResult = await maybeExecuteDuePayout(
+            Math.max(payableCount, 1),
+            knownPayableWinners.length > 0 ? knownPayableWinners : undefined
+          )
+          if (payoutResult == null) {
+            console.warn('[Leaderboard] Payout due but executor returned null (timer state changed mid-request)')
+          } else if (!payoutResult.success) {
+            console.warn('[Leaderboard] Payout attempt:', payoutResult.error)
+          }
+          await ensureTimerStateSync()
+          timerAfterPayout = getPayoutTimerInfo()
+        } catch (err) {
+          console.error('[Leaderboard] Payout error:', err)
+        }
+      }
+    } else {
+      await ensureTimerStateSync()
+      timerAfterPayout = getPayoutTimerInfo()
     }
 
     const upcomingCount = allRanked.filter(e => !e.live.isEligible && e.live.drawdownPct < 0).length
@@ -549,6 +580,8 @@ export async function GET(request: NextRequest) {
           HOLDER_FORCE_REFRESH_COOLDOWN_MS / 1000
         ),
         platform_test_banner: platformTestBanner,
+        read_only_poll: readOnlyPoll,
+        worker_indexing: readOnlyPoll,
       },
     }, { headers: noStoreHeaders })
   } catch (error: any) {

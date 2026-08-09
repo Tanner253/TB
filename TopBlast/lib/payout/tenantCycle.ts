@@ -22,6 +22,8 @@ import {
   resolveLivePayableWinners,
 } from '@/lib/payout/executor'
 import { config } from '@/lib/config'
+import { collectPumpCreatorFeesForActiveTenant } from '@/lib/pump/maybeCollectOnPoll'
+import { isPumpAutoCollectEnabled } from '@/lib/pump/config'
 
 export interface TenantCycleResult {
   indexed: boolean
@@ -34,6 +36,14 @@ export interface TenantCycleResult {
 
 export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
   await ensureTimerStateSync()
+
+  if (isPumpAutoCollectEnabled()) {
+    try {
+      await collectPumpCreatorFeesForActiveTenant()
+    } catch (err) {
+      console.warn('[TenantCycle] Pump creator fee collect:', err)
+    }
+  }
 
   const indexed = await ensureRankingsIndexed()
   const dbRankings = await loadRankingsFromDb()

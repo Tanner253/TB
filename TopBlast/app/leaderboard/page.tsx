@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useRealtimeLeaderboard, useRealtimePrice, useTimeSince, useRealtime } from '@/hooks/useRealtime'
+import { DEFAULT_LEADERBOARD_POLL_MS } from '@/lib/platform/clientPollIntervals'
 import { useTenantRouting } from '@/hooks/useTenantRouting'
 import { AnimatedNumber, Countdown, PriceTicker } from '@/components/ui/AnimatedNumber'
 import { LeaderboardCardSkeleton, TableRowSkeleton } from '@/components/ui/Skeleton'
@@ -181,7 +182,8 @@ function drawdownLabel(pct: number | undefined, hasVwap: boolean): string {
 
 export default function LeaderboardPage() {
   const { slug, basePath } = useTenantRouting()
-  const { data, loading, error, countdown, timerStatus, lastUpdate, refresh, refreshCooldownSec } = useRealtimeLeaderboard(30000, slug)
+  const { data, loading, error, countdown, timerStatus, lastUpdate, refresh, refreshCooldownSec } =
+    useRealtimeLeaderboard(DEFAULT_LEADERBOARD_POLL_MS, slug)
   const { price, marketCap, loading: priceLoading, connection, isLive, mint: priceMint } = useRealtimePrice(undefined, slug)
   const { connectionState } = useRealtime({ autoReconnect: true })
   const [refreshing, setRefreshing] = useState(false)

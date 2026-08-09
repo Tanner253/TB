@@ -4,6 +4,7 @@ import { listActiveTenantSlugs, runForTenantSlug } from '@/lib/tenant/service'
 import { runAuthorizedPayout } from '@/lib/payout/payoutAuthContext'
 import { isPumpAutoCollectEnabled } from '@/lib/pump/config'
 import { collectPumpCreatorFeesForActiveTenant } from '@/lib/pump/maybeCollectOnPoll'
+import { workerOwnsIndexing } from '@/lib/platform/workerMode'
 
 /** Min gap between catalog-driven multi-tenant Pump collects (matches catalog cycle throttle). */
 const CATALOG_COLLECT_THROTTLE_MS = 30 * 1000
@@ -19,6 +20,7 @@ declare global {
  */
 export async function maybeCollectPumpCreatorFeesFromCatalog(): Promise<void> {
   if (!isPumpAutoCollectEnabled()) return
+  if (workerOwnsIndexing()) return
 
   const now = Date.now()
   if (

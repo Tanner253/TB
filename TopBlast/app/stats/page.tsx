@@ -14,6 +14,7 @@ import type { TenantDiagnostics } from '@/lib/tenant/diagnostics'
 import { getWinnerShareDisplayPercents, getDevFeePercent, formatWinnerSharePercents } from '@/lib/payout/shares'
 import { DEFAULT_WINNER_COUNT } from '@/lib/payout/winnerCount'
 import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
+import { DEFAULT_STATS_POLL_MS } from '@/lib/platform/clientPollIntervals'
 
 const DEV_FEE = getDevFeePercent()
 
@@ -133,7 +134,7 @@ export default function StatsPage() {
     }
 
     fetchData()
-    const interval = setInterval(fetchData, 30000)
+    const interval = setInterval(fetchData, DEFAULT_STATS_POLL_MS)
     return () => clearInterval(interval)
   }, [slug])
 
