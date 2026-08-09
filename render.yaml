@@ -2,7 +2,8 @@
 #
 # This is a lightweight CRON worker, not the full Next.js app.
 # - Vercel hosts the app + API (set WORKER_OWNS_INDEXING=true there)
-# - Render runs this job every minute → POST /api/cron/tenants on Vercel
+# Render runs this job every minute → POST /api/cron/tenants on Vercel
+# Do NOT use */5 — 1-min keeps buy history fresh before 15-min payout cycles.
 #
 # After deploy, set in Render Dashboard → topblast-tenant-worker → Environment:
 #   TOPBLAST_APP_URL=https://www.topblasted.fun   (use www — apex 308 strips Authorization)

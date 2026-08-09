@@ -1388,7 +1388,7 @@ export async function hydrateRankingsWithVwap<
     isContract?: boolean
     hasTransferIn?: boolean
   },
->(rankings: T[], options?: { maxWallets?: number; tokenPrice?: number }): Promise<{
+>(rankings: T[], options?: { maxWallets?: number; tokenPrice?: number; concurrency?: number }): Promise<{
   rankings: T[]
   holdersWithVwap: number
 }> {
@@ -1456,11 +1456,12 @@ export async function hydrateRankingsWithVwap<
   }
 
   const tokenPrice = options?.tokenPrice ?? (await getTokenPrice(config.tokenMint)) ?? 0
+  const concurrency = options?.concurrency ?? Math.min(6, stillNeedingHelius.length)
   const vwapMap = await calculateBatchVwaps(
     stillNeedingHelius.map(h => h.wallet),
     config.tokenMint,
     tokenPrice,
-    Math.min(6, stillNeedingHelius.length)
+    concurrency
   )
 
   const now = new Date()
@@ -1532,6 +1533,59 @@ export async function hydrateRankingsWithVwap<
     rankings: updated,
     holdersWithVwap: updated.filter(h => isTrackable(h) && (h.vwap ?? 0) > 0).length,
   }
+}
+
+/** Continue buy-history hydration for rankings that still need VWAP (worker/cron path). */
+export async function ensureRankingsVwapProgress(options?: {
+  maxWallets?: number
+  tokenPrice?: number
+  concurrency?: number
+}): Promise<{ hydrated: number; holdersWithVwap: number; stillPending: number }> {
+  const dbRankings = await loadRankingsFromDb()
+  if (!dbRankings?.rankings?.length) {
+    return { hydrated: 0, holdersWithVwap: 0, stillPending: 0 }
+  }
+
+  const needing = dbRankings.rankings.filter(rankingNeedsVwapHydration)
+  if (needing.length === 0) {
+    return { hydrated: 0, holdersWithVwap: dbRankings.holdersWithVwap, stillPending: 0 }
+  }
+
+  const before = dbRankings.rankings.filter(h => (h.vwap ?? 0) > 0).length
+  const result = await hydrateRankingsWithVwap(dbRankings.rankings, {
+    maxWallets: options?.maxWallets,
+    tokenPrice: options?.tokenPrice,
+    concurrency: options?.concurrency,
+  })
+  const stillPending = result.rankings.filter(rankingNeedsVwapHydration).length
+  return {
+    hydrated: Math.max(0, result.holdersWithVwap - before),
+    holdersWithVwap: result.holdersWithVwap,
+    stillPending,
+  }
+}
+
+/** Block payout until top-ranked wallets have resolved buy history (avoids wrong winners). */
+export function payoutBlockedByPendingVwap(
+  rankings: Array<{ wallet: string; balance: number; vwap?: number; ineligibleReason?: string | null; isContract?: boolean }>,
+  winnerCount: number
+): boolean {
+  const trackable = rankings
+    .filter(
+      h =>
+        !h.isContract &&
+        !isExcludedParticipantWallet(h.wallet) &&
+        !isLiquidityPoolWallet(h.wallet, config.tokenMint)
+    )
+    .sort((a, b) => (b.balance ?? 0) - (a.balance ?? 0))
+
+  const criticalCount = Math.max(winnerCount * 5, 20)
+  const critical = trackable.slice(0, Math.min(criticalCount, trackable.length))
+  return critical.some(h => {
+    const hasCostBasis = (h.vwap ?? 0) > 0 && !!h.firstBuyAt
+    if (hasCostBasis) return false
+    return rankingNeedsVwapHydration(h)
+  })
 }
 
 /**

@@ -6,8 +6,15 @@
 import {
   ensureRankingsIndexed,
   loadRankingsFromDb,
+  ensureRankingsVwapProgress,
+  payoutBlockedByPendingVwap,
 } from '@/lib/tracker/holderService'
 import { getTokenPrice } from '@/lib/solana/price'
+import {
+  workerVwapHydrateMaxPerCycle,
+  workerVwapHydrateConcurrency,
+  workerVwapHydrateBatchesPerCycle,
+} from '@/lib/platform/heliusLimits'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
@@ -46,12 +53,25 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
   }
 
   const indexed = await ensureRankingsIndexed()
-  const dbRankings = await loadRankingsFromDb()
+  let dbRankings = await loadRankingsFromDb()
 
   const liveTokenPrice =
     (config.tokenMint ? await getTokenPrice(config.tokenMint) : null) ??
     dbRankings?.tokenPrice ??
     0
+
+  if (dbRankings?.rankings?.length) {
+    const hydrateOpts = {
+      maxWallets: workerVwapHydrateMaxPerCycle(),
+      tokenPrice: liveTokenPrice,
+      concurrency: workerVwapHydrateConcurrency(),
+    }
+    for (let batch = 0; batch < workerVwapHydrateBatchesPerCycle(); batch++) {
+      const progress = await ensureRankingsVwapProgress(hydrateOpts)
+      dbRankings = (await loadRankingsFromDb()) ?? dbRankings
+      if (progress.stillPending === 0) break
+    }
+  }
 
   const livePool = await getLivePoolBalance()
 
@@ -87,6 +107,18 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
   const timer = getPayoutTimerInfo()
 
   if (isPayoutDue() && timer.timer_status === 'active' && dbRankings) {
+    if (payoutBlockedByPendingVwap(dbRankings.rankings, config.winnerCount)) {
+      console.warn(
+        '[TenantCycle] Payout deferred — buy history still loading for top-ranked holders'
+      )
+      return {
+        indexed,
+        eligibleCount,
+        timerStatus: timer.timer_status,
+        payoutAttempted: false,
+      }
+    }
+
     const payableCount = Math.max(verifiedPayableCount, eligibleCount)
     const liveWinners =
       payableCount > 0 ? null : await resolveLivePayableWinners(config.winnerCount)
