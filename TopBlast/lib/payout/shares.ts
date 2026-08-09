@@ -1,14 +1,17 @@
-/** Protocol-wide payout constants (same for all tenants) */
-const PAYOUT_SPLIT = { first: 0.60, second: 0.25, third: 0.15 }
+import { DEFAULT_WINNER_COUNT } from '@/lib/payout/winnerCount'
+import {
+  formatWinnerSharePercents,
+  getWinnerShareDisplayPercents,
+  getWinnerShareFractions,
+  getWinnerSharePercentsLegacy,
+} from '@/lib/payout/winnerShares'
+
+/** Protocol-wide dev fee (same for all tenants) */
 const DEV_FEE_PCT = 0.12
 
-/** Winner-pool share labels (of pool after dev fee) */
-export function getWinnerSharePercents() {
-  return {
-    first: Math.round(PAYOUT_SPLIT.first * 100),
-    second: Math.round(PAYOUT_SPLIT.second * 100),
-    third: Math.round(PAYOUT_SPLIT.third * 100),
-  }
+/** Winner-pool share labels for default 3-winner listings */
+export function getWinnerSharePercents(winnerCount: number = DEFAULT_WINNER_COUNT) {
+  return getWinnerSharePercentsLegacy(winnerCount)
 }
 
 export function getDevFeePercent() {
@@ -19,21 +22,29 @@ export function getCommunityPercent() {
   return Math.round((1 - DEV_FEE_PCT) * 100)
 }
 
-/** USD payout for eligible rank (0 = 1st, 1 = 2nd, 2 = 3rd) */
-export function getPayoutForEligibleRank(poolUsd: number, eligibleRank: number): number {
-  if (eligibleRank < 0 || eligibleRank > 2) return 0
+/** USD payout for eligible rank (0 = 1st biggest loser). Unused ranks return 0. */
+export function getPayoutForEligibleRank(
+  poolUsd: number,
+  eligibleRank: number,
+  winnerCount: number = DEFAULT_WINNER_COUNT
+): number {
+  const fractions = getWinnerShareFractions(winnerCount)
+  if (eligibleRank < 0 || eligibleRank >= fractions.length) return 0
   const winnersPool = poolUsd * (1 - DEV_FEE_PCT)
-  const splits = [PAYOUT_SPLIT.first, PAYOUT_SPLIT.second, PAYOUT_SPLIT.third]
-  return winnersPool * splits[eligibleRank]
+  return winnersPool * fractions[eligibleRank]
 }
 
-export function getPayoutSplitLabels() {
-  const shares = getWinnerSharePercents()
+export function getPayoutSplitLabels(winnerCount: number = DEFAULT_WINNER_COUNT) {
+  const shares = getWinnerSharePercents(winnerCount)
   return {
     dev: `${getDevFeePercent()}%`,
     first: `${shares.first}%`,
     second: `${shares.second}%`,
     third: `${shares.third}%`,
     community: `${getCommunityPercent()}%`,
+    all: formatWinnerSharePercents(winnerCount),
+    percents: getWinnerShareDisplayPercents(winnerCount),
   }
 }
+
+export { formatWinnerSharePercents, getWinnerShareDisplayPercents, getWinnerShareFractions }

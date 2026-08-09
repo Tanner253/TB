@@ -23,7 +23,7 @@ import {
   maybeExecuteDuePayout,
 } from '@/lib/payout/executor'
 import { getPayoutFailureRetryMinutes } from '@/lib/payout/payoutRetry'
-import { getPayoutForEligibleRank } from '@/lib/payout/shares'
+import { getPayoutForEligibleRank, getWinnerShareDisplayPercents } from '@/lib/payout/shares'
 import { buildHoldTimeFields } from '@/lib/eligibility/holdDuration'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
@@ -372,7 +372,7 @@ export async function GET(request: NextRequest) {
     const allRanked = sortLeaderboardEntries(liveEvaluated)
 
     const getPayoutForRank = (eligibleRank: number): number =>
-      getPayoutForEligibleRank(poolBal, eligibleRank)
+      getPayoutForEligibleRank(poolBal, eligibleRank, config.winnerCount)
 
     const mapRankingRow = (
       entry: (typeof liveEvaluated)[number],
@@ -412,11 +412,12 @@ export async function GET(request: NextRequest) {
       return mapRankingRow(entry, idx + 1, eligibleRank)
     })
 
-    const eligibleWinners = eligibleSorted.slice(0, 3).map((entry, idx) =>
+    const winnerCount = config.winnerCount
+    const eligibleWinners = eligibleSorted.slice(0, winnerCount).map((entry, idx) =>
       mapRankingRow(entry, idx + 1, idx + 1)
     )
 
-    const knownPayableWinners = eligibleSorted.slice(0, 3).map(entry => ({
+    const knownPayableWinners = eligibleSorted.slice(0, winnerCount).map(entry => ({
       wallet: entry.holder.wallet,
       drawdownPct: entry.live.drawdownPct,
       lossUsd: entry.live.lossUsd,
@@ -530,6 +531,8 @@ export async function GET(request: NextRequest) {
         min_hold_minutes: config.minHoldDurationMinutes,
         payout_interval_minutes: config.payoutIntervalMinutes,
         payout_interval_display: formatPayoutInterval(config.payoutIntervalMinutes),
+        winner_count: winnerCount,
+        winner_share_percents: getWinnerShareDisplayPercents(winnerCount),
         rankings,
         eligible_winners: eligibleWinners,
         last_updated: dbRankings.lastCalculated.toISOString(),

@@ -246,7 +246,7 @@ export function buildSessionChecklist(
     summary = 'Indexing chain data — usually 1–5 minutes'
   } else if (hasEligible && timerActive) {
     headline = `${eligibleCount} eligible · payout timer running`
-    summary = 'Top 3 eligible losers win on cycle end'
+    summary = `Top ${config.winnerCount} eligible losers win on cycle end`
   } else if (hasEligible) {
     headline = `${eligibleCount} eligible · timer starting`
     summary = 'First qualifying holders detected'

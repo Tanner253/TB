@@ -79,7 +79,7 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
   if (isPayoutDue() && timer.timer_status === 'active' && dbRankings) {
     const payableCount = Math.max(verifiedPayableCount, eligibleCount)
     const liveWinners =
-      payableCount > 0 ? null : await resolveLivePayableWinners(3)
+      payableCount > 0 ? null : await resolveLivePayableWinners(config.winnerCount)
     const result = await maybeExecuteDuePayout(
       Math.max(payableCount, liveWinners?.length ?? 0, 1),
       liveWinners && liveWinners.length > 0 ? liveWinners : undefined

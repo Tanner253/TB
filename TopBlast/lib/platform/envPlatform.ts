@@ -1,4 +1,5 @@
 import { Keypair } from '@solana/web3.js'
+import { DEFAULT_WINNER_COUNT, validateWinnerCount } from '@/lib/payout/winnerCount'
 import bs58 from 'bs58'
 import 'server-only'
 import type { PublicTenantSummary, TenantRuntimeConfig } from '@/lib/tenant/types'
@@ -45,6 +46,7 @@ export function buildPlatformEnvCatalogEntry(): PublicTenantSummary {
     createdAt: new Date(0).toISOString(),
     payoutWalletAddress: getPlatformEnvPayoutAddress(),
     payoutIntervalMinutes: getPlatformEnvPayoutIntervalMinutes(),
+    winnerCount: validateWinnerCount(parseInt(process.env.WINNER_COUNT || String(DEFAULT_WINNER_COUNT), 10)),
     featured: true,
     isPlatformToken: true,
     runsFromEnv: true,
@@ -67,6 +69,7 @@ export function resolvePlatformEnvRuntime(slug: string): TenantRuntimeConfig | n
     tokenDecimals: parseInt(process.env.TOKEN_DECIMALS || '6', 10),
     devWalletAddress: getPlatformDevWalletAddress(),
     payoutIntervalMinutes: getPlatformEnvPayoutIntervalMinutes(),
+    winnerCount: validateWinnerCount(parseInt(process.env.WINNER_COUNT || String(DEFAULT_WINNER_COUNT), 10)),
     minTokenHolding: parseInt(process.env.MIN_TOKEN_HOLDING || '1000', 10),
     minLossThresholdPct: parseFloat(process.env.MIN_LOSS_THRESHOLD_PCT || '10'),
     minPoolSol: parseFloat(process.env.MIN_POOL_SOL || process.env.MIN_POOL_ETH || '0.001'),

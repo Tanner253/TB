@@ -18,6 +18,7 @@ import { getPlatformTenantSlug } from '@/lib/platform/config'
 import { requirePlatformDevWalletAddress } from '@/lib/platform/devWallet'
 import { validatePayoutIntervalMinutes } from '@/lib/platform/payoutIntervals'
 import { validateMinTokenHolding } from '@/lib/platform/minTokenHolding'
+import { validateWinnerCount } from '@/lib/payout/winnerCount'
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/
 
@@ -82,6 +83,7 @@ export async function listPublicTenants(): Promise<PublicTenantSummary[]> {
     createdAt: row.createdAt.toISOString(),
     payoutWalletAddress: row.payoutWalletAddress,
     payoutIntervalMinutes: row.payoutIntervalMinutes,
+    winnerCount: row.winnerCount ?? 3,
   }))
 
   const decorated = decorateCatalogTenants(tenants)
@@ -103,6 +105,7 @@ export async function resolveTenantRuntime(slug: string): Promise<TenantRuntimeC
       tokenDecimals: doc.decimals,
       devWalletAddress: requirePlatformDevWalletAddress(),
       payoutIntervalMinutes: doc.payoutIntervalMinutes,
+      winnerCount: doc.winnerCount ?? 3,
       minTokenHolding: doc.minTokenHolding,
       minLossThresholdPct: doc.minLossThresholdPct,
       minPoolSol: doc.minPoolSol,
@@ -126,6 +129,7 @@ export async function createTenant(input: CreateTenantInput) {
   const payoutWalletAddress = derivePayoutAddress(input.payoutWalletPrivateKey)
   const devWalletAddress = requirePlatformDevWalletAddress()
   const payoutIntervalMinutes = validatePayoutIntervalMinutes(input.payoutIntervalMinutes)
+  const winnerCount = validateWinnerCount(input.winnerCount)
   const minTokenHolding = validateMinTokenHolding(input.minTokenHolding)
 
   await connectDB()
@@ -150,6 +154,7 @@ export async function createTenant(input: CreateTenantInput) {
     devWalletAddress,
     status: 'active',
     payoutIntervalMinutes,
+    winnerCount,
     minTokenHolding,
     minLossThresholdPct: 10,
     minPoolSol: 0.001,
@@ -181,6 +186,7 @@ export async function createTenant(input: CreateTenantInput) {
     status: tenant.status,
     payoutWalletAddress: tenant.payoutWalletAddress,
     payoutIntervalMinutes: tenant.payoutIntervalMinutes,
+    winnerCount: tenant.winnerCount,
     appUrl: `/${tenant.slug}/leaderboard`,
   }
 }

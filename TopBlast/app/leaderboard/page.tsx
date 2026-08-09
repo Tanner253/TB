@@ -8,7 +8,8 @@ import { useTenantRouting } from '@/hooks/useTenantRouting'
 import { AnimatedNumber, Countdown, PriceTicker } from '@/components/ui/AnimatedNumber'
 import { LeaderboardCardSkeleton, TableRowSkeleton } from '@/components/ui/Skeleton'
 import { AppHeader } from '@/components/platform/AppHeader'
-import { getWinnerSharePercents, getPayoutForEligibleRank } from '@/lib/payout/shares'
+import { DEFAULT_WINNER_COUNT } from '@/lib/payout/winnerCount'
+import { getWinnerShareDisplayPercents, getPayoutForEligibleRank } from '@/lib/payout/shares'
 import { HolderStatus, HoldTimeBadge, HolderIneligibleCallout } from '@/components/HoldTimeBadge'
 import { SessionStatusBar } from '@/components/tenant/SessionStatusBar'
 import { LeaderboardHolderCard } from '@/components/leaderboard/LeaderboardHolderCard'
@@ -20,7 +21,21 @@ import { getAddressExplorerUrl } from '@/lib/solana/explorer'
 import { PlatformTestBanner } from '@/components/platform/PlatformTestBanner'
 import { deriveSessionDisplayState } from '@/lib/session/displayState'
 
-const WINNER_SHARES = getWinnerSharePercents()
+const PEDESTAL_SLOTS = 3
+
+function getWinnerPayoutInfo(
+  poolValue: number,
+  eligibleRank: number | null | undefined,
+  winnerCount: number,
+  sharePercents: number[]
+) {
+  if (eligibleRank == null || eligibleRank < 1 || eligibleRank > winnerCount) return null
+  const idx = eligibleRank - 1
+  return {
+    amount: getPayoutForEligibleRank(poolValue, idx, winnerCount),
+    sharePercent: sharePercents[idx] ?? getWinnerShareDisplayPercents(winnerCount)[idx] ?? 0,
+  }
+}
 
 interface Winner {
   rank: number
@@ -188,13 +203,18 @@ export default function LeaderboardPage() {
   const rankings = ((data?.rankings || []) as Winner[])
   const hasRankedHolders = rankings.length > 0
 
-  const top3Eligible = (
+  const winnerCount = data?.winner_count ?? DEFAULT_WINNER_COUNT
+  const winnerSharePercents =
+    (data?.winner_share_percents as number[] | undefined) ??
+    getWinnerShareDisplayPercents(winnerCount)
+
+  const topEligible = (
     data?.eligible_winners?.length
       ? data.eligible_winners
       : rankings.filter((h: Winner) => h.is_eligible === true)
-  ).slice(0, 3) as Winner[]
+  ).slice(0, winnerCount) as Winner[]
 
-  const eligibleCount = data?.eligible_count ?? top3Eligible.length
+  const eligibleCount = data?.eligible_count ?? topEligible.length
   const isInitializing = data?.status === 'initializing'
   const effectiveTimerStatus = timerStatus ?? data?.timer_status ?? 'waiting'
   const sessionDisplay = deriveSessionDisplayState({
@@ -220,7 +240,10 @@ export default function LeaderboardPage() {
       ? data.minimum_pool_usd_raw
       : parseFloat(String(data?.minimum_pool_usd ?? '5').replace(/[$,]/g, '')) || 5
   const showSessionStatusBar = !!sessionChecklist
-  const featuredCards = top3Eligible.length > 0 ? top3Eligible : rankings.slice(0, 3)
+  const featuredCards = (topEligible.length > 0 ? topEligible : rankings.slice(0, PEDESTAL_SLOTS)).slice(
+    0,
+    PEDESTAL_SLOTS
+  )
   
   const wsConnected = data?.ws_connected
   const platformTestBanner = data?.platform_test_banner ?? null
@@ -441,12 +464,12 @@ export default function LeaderboardPage() {
                   : isListingLimbo
                     ? 'No payout cycle until someone qualifies'
                     : isTimerStarting
-                    ? 'Top 3 eligible losers will receive pool SOL each cycle once the timer is live'
+                    ? `Top ${winnerCount} eligible losers will receive pool SOL each cycle once the timer is live`
                     : isPayoutDueNow
                       ? 'On-chart buy + token airdrops — timer resets after completion'
                       : payoutRetryMode
                         ? `Retry scheduled — faster ${payoutRetryMinutes ?? 3} min interval after swap failure`
-                        : 'Top 3 losers receive session tokens via on-chart buyback each cycle'}
+                        : `Top ${winnerCount} losers receive session tokens via on-chart buyback each cycle`}
               </p>
             </div>
           </motion.div>
@@ -494,6 +517,7 @@ export default function LeaderboardPage() {
             checklist={sessionChecklist}
             eligibleCount={eligibleCount}
             timerStatus={effectiveTimerStatus}
+            winnerCount={winnerCount}
           />
         ) : null}
 
@@ -519,6 +543,8 @@ export default function LeaderboardPage() {
                   ? `Payout wallet is below $${minimumPoolUsd.toFixed(0)} USD in SOL — cycles stay paused until it is refilled.`
                   : showLimbo
                     ? 'No one eligible yet — each card shows why. Timer starts when the first holder passes every rule.'
+                  : winnerCount > PEDESTAL_SLOTS
+                    ? `Top ${PEDESTAL_SLOTS} highlighted · ${winnerCount} winners paid each cycle — see table for all payout shares`
                     : 'These wallets will receive payouts when the timer hits zero'}
               </p>
             </div>
@@ -534,8 +560,11 @@ export default function LeaderboardPage() {
                   const style = getRankStyle(idx + 1)
                   const isEligible = winner.is_eligible === true
                   const hasVwap = hasVerifiedBuyHistory(winner.vwap_raw, winner.ineligible_reason)
-                  const payoutAmount = isEligible ? getPayoutForEligibleRank(poolValue, idx) : 0
-                  const shareLabel = idx === 0 ? `${WINNER_SHARES.first}%` : idx === 1 ? `${WINNER_SHARES.second}%` : `${WINNER_SHARES.third}%`
+                  const eligibleRank = winner.eligible_rank ?? (isEligible ? idx + 1 : null)
+                  const payoutInfo = isEligible
+                    ? getWinnerPayoutInfo(poolValue, eligibleRank, winnerCount, winnerSharePercents)
+                    : null
+                  const shareLabel = payoutInfo ? `${payoutInfo.sharePercent}%` : '—'
 
                   return (
                     <motion.div
@@ -586,9 +615,9 @@ export default function LeaderboardPage() {
                         </motion.span>
                         <div className="text-right">
                           <div className="text-sm text-gray-400 font-mono">{winner.wallet_display}</div>
-                          {isEligible ? (
+                          {isEligible && payoutInfo ? (
                             <div className="text-rh-green font-bold text-lg">
-                              <AnimatedNumber value={payoutAmount} format="currency" />
+                              <AnimatedNumber value={payoutInfo.amount} format="currency" />
                             </div>
                           ) : winner.drawdown_pct != null && hasVwap ? (
                             <div className={`font-bold text-lg font-mono ${drawdownClass(winner.drawdown_pct, hasVwap)}`}>
@@ -706,6 +735,9 @@ export default function LeaderboardPage() {
               <h2 className="text-lg sm:text-xl font-bold">All tracked holders</h2>
               <p className="text-xs sm:text-sm text-gray-400 mt-1">
                 {data?.eligible_count || 0} eligible
+                {winnerCount > PEDESTAL_SLOTS ? (
+                  <> · top {winnerCount} paid per cycle</>
+                ) : null}
                 {hasRankedHolders && (data?.eligible_count ?? 0) === 0 ? (
                   <> · {rankings.length} shown with status</>
                 ) : null}
@@ -737,6 +769,8 @@ export default function LeaderboardPage() {
                 holder={holder}
                 index={idx}
                 poolValue={poolValue}
+                winnerCount={winnerCount}
+                winnerSharePercents={winnerSharePercents}
                 minHoldMinutes={data?.min_hold_minutes ?? 15}
               />
             ))}
@@ -761,25 +795,33 @@ export default function LeaderboardPage() {
                 {rankings.slice(0, 10).map((holder: Winner, idx: number) => {
                   const isEligible = holder.is_eligible === true
                   const hasVwap = hasVerifiedBuyHistory(holder.vwap_raw, holder.ineligible_reason)
-                  const eligibleRank = holder.eligible_rank != null ? holder.eligible_rank - 1 : -1
-                  const payoutAmount = eligibleRank >= 0 && eligibleRank < 3
-                    ? getPayoutForEligibleRank(poolValue, eligibleRank)
-                    : 0
-                  const style = isEligible ? getRankStyle(Math.min(idx + 1, 3)) : getRankStyle(idx + 1)
+                  const eligibleRank = holder.eligible_rank
+                  const isWinnerSlot =
+                    isEligible && eligibleRank != null && eligibleRank >= 1 && eligibleRank <= winnerCount
+                  const isPedestal = isWinnerSlot && eligibleRank <= PEDESTAL_SLOTS
+                  const payoutInfo = getWinnerPayoutInfo(
+                    poolValue,
+                    eligibleRank,
+                    winnerCount,
+                    winnerSharePercents
+                  )
+                  const style = isPedestal ? getRankStyle(eligibleRank) : getRankStyle(idx + 1)
 
                   return (
                     <motion.tr
                       key={`row-${holder.wallet}`}
                       initial={false}
                       animate={{ opacity: 1, x: 0 }}
-                      className={`border-b border-white/5 hover:bg-white/5 transition-colors ${!isEligible ? 'bg-white/[0.01]' : ''}`}
+                      className={`border-b border-white/5 hover:bg-white/5 transition-colors ${!isEligible ? 'bg-white/[0.01]' : isWinnerSlot ? 'bg-rh-green/[0.03]' : ''}`}
                     >
                       <td className="px-6 py-4 align-top">
                         <div className="flex items-center gap-2">
-                          <span className="text-xl">{isEligible && idx < 3 ? style.emoji : '🏅'}</span>
-                          {isEligible && idx < 3 ? (
-                            <span className={`${style.badge} w-6 h-6 rounded-full flex items-center justify-center text-black text-xs font-bold`}>
-                              {holder.eligible_rank ?? idx + 1}
+                          <span className="text-xl">{isPedestal ? style.emoji : '🏅'}</span>
+                          {isWinnerSlot ? (
+                            <span
+                              className={`${isPedestal ? style.badge : 'bg-rh-green/20 text-rh-lime border border-rh-green/30'} w-6 h-6 rounded-full flex items-center justify-center ${isPedestal ? 'text-black text-xs font-bold' : 'text-xs font-bold font-mono'}`}
+                            >
+                              {eligibleRank}
                             </span>
                           ) : (
                             <span className="text-gray-500 font-mono text-sm">#{holder.rank ?? idx + 1}</span>
@@ -809,10 +851,15 @@ export default function LeaderboardPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-right align-top">
-                        {payoutAmount > 0 && isEligible ? (
-                          <span className="text-rh-green font-bold font-mono">
-                            ${payoutAmount.toFixed(2)}
-                          </span>
+                        {payoutInfo && isEligible ? (
+                          <div>
+                            <span className="text-rh-green font-bold font-mono">
+                              ${payoutInfo.amount.toFixed(2)}
+                            </span>
+                            <span className="block text-xs text-gray-500 mt-0.5">
+                              {payoutInfo.sharePercent}% share
+                            </span>
+                          </div>
                         ) : (
                           <span className="text-gray-600">-</span>
                         )}
@@ -867,7 +914,7 @@ export default function LeaderboardPage() {
             Real-time tracking via Helius
           </div>
           <p className="text-xs text-gray-500">
-            {data?.tracked_holders || 0} holders tracked • Top 3 losers paid every{' '}
+            {data?.tracked_holders || 0} holders tracked • Top {winnerCount} losers paid every{' '}
             {data?.payout_interval_display || PAYOUT_INTERVAL_RANGE_COMPACT}
           </p>
         </motion.div>

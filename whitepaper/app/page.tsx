@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import { SolanaBadge } from './components/SolanaBadge'
 import { DocNavbar, DocSubnav } from './components/docs/DocNavbar'
 import { DocContent } from './components/docs/DocContent'
-import { APP_URL, PAYOUT, PAYOUT_INTERVAL_HERO_RANGE } from './components/docs/config'
+import { APP_URL, PAYOUT, PAYOUT_INTERVAL_HERO_RANGE, WINNER_COUNT } from './components/docs/config'
 
 const CandlestickBackground = dynamic(() => import('./components/CandlestickBackground'), {
   ssr: false,
@@ -97,8 +97,9 @@ function Hero() {
           transition={{ delay: 0.8 }}
         >
           <div className="glass-panel rounded-xl p-4 text-center">
-            <div className="text-3xl font-bold text-rh-green font-mono">{PAYOUT.first}%</div>
-            <div className="text-xs text-gray-400 mt-1">1st Place Payout</div>
+            <div className="text-3xl font-bold text-rh-green font-mono">{WINNER_COUNT.rangeLabel}</div>
+            <div className="text-xs text-gray-400 mt-1">Winners / Cycle</div>
+            <div className="text-[0.65rem] text-gray-500 mt-0.5">Set at launch</div>
           </div>
           <div className="glass-panel rounded-xl p-4 text-center">
             <div className="text-3xl font-bold text-rh-lime font-mono">{PAYOUT_INTERVAL_HERO_RANGE}</div>

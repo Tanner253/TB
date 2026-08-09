@@ -11,10 +11,10 @@ import { AppHeader } from '@/components/platform/AppHeader'
 import { TenantStatusPanel } from '@/components/tenant/TenantStatusPanel'
 import { CopyContractAddress } from '@/components/ui/CopyContractAddress'
 import type { TenantDiagnostics } from '@/lib/tenant/diagnostics'
-import { getWinnerSharePercents, getDevFeePercent } from '@/lib/payout/shares'
+import { getWinnerShareDisplayPercents, getDevFeePercent, formatWinnerSharePercents } from '@/lib/payout/shares'
+import { DEFAULT_WINNER_COUNT } from '@/lib/payout/winnerCount'
 import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 
-const SHARES = getWinnerSharePercents()
 const DEV_FEE = getDevFeePercent()
 
 interface StatsData {
@@ -48,7 +48,10 @@ interface StatsData {
       first: string
       second: string
       third: string
+      all?: string
     }
+    winner_count?: number
+    winner_share_percents?: number[]
   }
   leaderboard: {
     most_wins: {
@@ -66,6 +69,7 @@ interface StatsData {
     min_hold_display: string
     min_loss_pct: number
     payout_interval_display?: string
+    winner_count?: number
   }
   service: {
     initialized: boolean
@@ -132,6 +136,12 @@ export default function StatsPage() {
     const interval = setInterval(fetchData, 30000)
     return () => clearInterval(interval)
   }, [slug])
+
+  const winnerCount = stats?.protocol.winner_count ?? stats?.thresholds?.winner_count ?? DEFAULT_WINNER_COUNT
+  const winnerSharePercents =
+    stats?.protocol.winner_share_percents ?? getWinnerShareDisplayPercents(winnerCount)
+  const shareSplitLabel =
+    stats?.protocol.payout_split?.all ?? formatWinnerSharePercents(winnerCount)
 
   if (loading) {
     return (
@@ -406,12 +416,13 @@ export default function StatsPage() {
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
             <span>📋</span> Eligibility Thresholds
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
             {[
+              { label: 'Winners / cycle', value: String(winnerCount), sub: 'locked at launch' },
               { label: 'Min Balance', value: stats?.thresholds?.min_balance || '1,000', sub: 'tokens' },
               { label: 'Hold Duration', value: stats?.thresholds?.min_hold_display || '15 min', sub: 'minimum' },
               { label: 'Min Loss', value: `${stats?.thresholds?.min_loss_pct || 10}%`, sub: 'of pool value' },
-              { label: 'Min Pool', value: pool?.minimum_pool_usd || '$50', sub: 'for payouts' },
+              { label: 'Min Pool', value: pool?.minimum_pool_usd || '$5', sub: 'for payouts' },
               {
                 label: 'Payout Cycle',
                 value: stats?.thresholds?.payout_interval_display || PAYOUT_INTERVAL_RANGE_COMPACT,
@@ -427,30 +438,47 @@ export default function StatsPage() {
           </div>
 
           <div className="border-t border-white/10 pt-4">
-            <h3 className="text-sm font-bold mb-3">Payout Distribution</h3>
-            <div className="flex gap-2 h-10 rounded-lg overflow-hidden">
-              <motion.div
-                className="bg-gradient-to-r from-yellow-500 to-amber-400 flex items-center justify-center text-black font-bold text-sm"
-                style={{ width: `${SHARES.first}%` }}
-                whileHover={{ scale: 1.02 }}
-              >
-                🥇 {SHARES.first}%
-              </motion.div>
-              <motion.div
-                className="bg-gradient-to-r from-gray-400 to-gray-300 flex items-center justify-center text-black font-bold text-xs"
-                style={{ width: `${SHARES.second}%` }}
-                whileHover={{ scale: 1.02 }}
-              >
-                🥈 {SHARES.second}%
-              </motion.div>
-              <motion.div
-                className="bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center text-black font-bold text-xs"
-                style={{ width: `${SHARES.third}%` }}
-                whileHover={{ scale: 1.02 }}
-              >
-                🥉 {SHARES.third}%
-              </motion.div>
-            </div>
+            <h3 className="text-sm font-bold mb-1">Payout distribution</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Top {winnerCount} eligible losers · {shareSplitLabel} of winner pool (after {DEV_FEE}% dev fee)
+            </p>
+            {winnerCount <= 3 ? (
+              <div className="flex gap-2 h-10 rounded-lg overflow-hidden">
+                <motion.div
+                  className="bg-gradient-to-r from-yellow-500 to-amber-400 flex items-center justify-center text-black font-bold text-sm"
+                  style={{ width: `${winnerSharePercents[0] ?? 60}%` }}
+                  whileHover={{ scale: 1.02 }}
+                >
+                  🥇 {winnerSharePercents[0]}%
+                </motion.div>
+                <motion.div
+                  className="bg-gradient-to-r from-gray-400 to-gray-300 flex items-center justify-center text-black font-bold text-xs"
+                  style={{ width: `${winnerSharePercents[1] ?? 25}%` }}
+                  whileHover={{ scale: 1.02 }}
+                >
+                  🥈 {winnerSharePercents[1]}%
+                </motion.div>
+                <motion.div
+                  className="bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center text-black font-bold text-xs"
+                  style={{ width: `${winnerSharePercents[2] ?? 15}%` }}
+                  whileHover={{ scale: 1.02 }}
+                >
+                  🥉 {winnerSharePercents[2]}%
+                </motion.div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                {winnerSharePercents.map((pct, idx) => (
+                  <div
+                    key={`share-${idx + 1}`}
+                    className="rounded-lg border border-rh-green/20 bg-rh-green/5 px-3 py-2 text-center"
+                  >
+                    <p className="text-[0.65rem] uppercase tracking-wider text-gray-500">#{idx + 1}</p>
+                    <p className="text-sm font-bold font-mono text-rh-lime">{pct}%</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </motion.div>
 

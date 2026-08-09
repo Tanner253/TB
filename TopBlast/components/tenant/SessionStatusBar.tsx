@@ -41,12 +41,14 @@ interface SessionStatusBarProps {
   checklist?: SessionChecklist | null
   eligibleCount?: number
   timerStatus?: string
+  winnerCount?: number
 }
 
 export function SessionStatusBar({
   checklist,
   eligibleCount = 0,
   timerStatus,
+  winnerCount = 3,
 }: SessionStatusBarProps) {
   const [open, setOpen] = useState(false)
   const [flash, setFlash] = useState<string | null>(null)
@@ -138,7 +140,7 @@ export function SessionStatusBar({
                     Winner requirements
                   </p>
                   <p className="text-xs text-gray-500 mb-3">
-                    Holders must pass every rule. Top 3 eligible losers by drawdown % win SOL from the pool.
+                    Holders must pass every rule. Top {winnerCount} eligible losers by drawdown % win from the pool.
                   </p>
                   <ul>
                     {winnerItems.map(item => (

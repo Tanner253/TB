@@ -8,6 +8,7 @@ export interface TenantRecord {
   devWalletAddress: string
   status: TenantStatus
   payoutIntervalMinutes: number
+  winnerCount: number
   minTokenHolding: number
   minLossThresholdPct: number
   minPoolSol: number
@@ -24,6 +25,7 @@ export interface TenantRuntimeConfig {
   tokenDecimals: number
   devWalletAddress: string
   payoutIntervalMinutes: number
+  winnerCount: number
   minTokenHolding: number
   minLossThresholdPct: number
   minPoolSol: number
@@ -39,6 +41,7 @@ export interface CreateTenantInput {
   decimals?: number
   payoutWalletPrivateKey: string
   payoutIntervalMinutes?: number
+  winnerCount?: number
   minTokenHolding?: number
 }
 
@@ -57,6 +60,7 @@ export interface PublicTenantSummary {
   /** Live session powered by TOKEN_MINT_ADDRESS + PAYOUT_WALLET_PRIVATE_KEY env */
   runsFromEnv?: boolean
   payoutIntervalMinutes?: number
+  winnerCount?: number
   /** Live distributable SOL in the payout wallet (catalog). */
   pot_sol?: number | null
   pot_usd?: number | null

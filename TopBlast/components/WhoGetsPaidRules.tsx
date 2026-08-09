@@ -2,9 +2,14 @@
 
 import { EligibilityRequirements } from '@/components/tenant/EligibilityRequirements'
 import { ExternalToolsEligibilityNote } from '@/components/tenant/ExternalToolsEligibilityNote'
-import { getWinnerSharePercents, getDevFeePercent, getCommunityPercent } from '@/lib/payout/shares'
+import { DEFAULT_WINNER_COUNT } from '@/lib/payout/winnerCount'
+import {
+  formatWinnerSharePercents,
+  getCommunityPercent,
+  getDevFeePercent,
+  getWinnerShareDisplayPercents,
+} from '@/lib/payout/shares'
 
-const SHARES = getWinnerSharePercents()
 const DEV_FEE = getDevFeePercent()
 const COMMUNITY = getCommunityPercent()
 
@@ -12,9 +17,21 @@ interface WhoGetsPaidRulesProps {
   variant?: 'homepage' | 'compact'
   slug?: string
   className?: string
+  winnerCount?: number
 }
 
-export function WhoGetsPaidRules({ variant = 'homepage', slug, className = '' }: WhoGetsPaidRulesProps) {
+export function WhoGetsPaidRules({
+  variant = 'homepage',
+  slug,
+  className = '',
+  winnerCount = DEFAULT_WINNER_COUNT,
+}: WhoGetsPaidRulesProps) {
+  const sharePercents = getWinnerShareDisplayPercents(winnerCount)
+  const shareLabel = formatWinnerSharePercents(winnerCount)
+  const winnerLabel =
+    winnerCount === DEFAULT_WINNER_COUNT
+      ? `top ${winnerCount} eligible (3–10 at launch)`
+      : `top ${winnerCount} eligible`
 
   const isHomepage = variant === 'homepage'
 
@@ -51,13 +68,11 @@ export function WhoGetsPaidRules({ variant = 'homepage', slug, className = '' }:
       <div className="rounded-xl border border-rh-green/20 bg-black/40 p-5 text-left">
         <p className="text-sm font-semibold uppercase tracking-wider text-rh-lime mb-2">Payout split</p>
         <p className="text-gray-300 text-sm leading-relaxed mb-3">
-          The <span className="text-white font-semibold">top 3 eligible</span> wallets receive{' '}
+          The <span className="text-white font-semibold">{winnerLabel}</span> wallets receive{' '}
           <span className="text-rh-green font-semibold">{COMMUNITY}%</span> of the payout pool (after a{' '}
           {DEV_FEE}% dev fee), split{' '}
-          <span className="font-mono text-rh-lime">
-            {SHARES.first}/{SHARES.second}/{SHARES.third}
-          </span>{' '}
-          of the winner pool. Each cycle: pool SOL market-buys your session token on-chart, then tokens airdrop to winners automatically.
+          <span className="font-mono text-rh-lime">{shareLabel}</span>{' '}
+          of the winner pool (biggest loser gets {sharePercents[0]}%). Each cycle: pool SOL market-buys your session token on-chart, then tokens airdrop to winners automatically.
         </p>
         <p className="text-xs text-gray-500">
           The countdown timer stays in &quot;listing limbo&quot; until the first eligible holder appears — holding tokens

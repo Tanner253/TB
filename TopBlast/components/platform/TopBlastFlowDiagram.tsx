@@ -215,11 +215,11 @@ function SessionTab() {
           },
           {
             title: 'Winner pool',
-            body: '88% swaps into your token via Jupiter, then airdrops to top 3 eligible losers.',
+            body: '88% swaps into your token via Jupiter, then airdrops to eligible losers (3–10 per listing).',
           },
           {
             title: 'Split',
-            body: '1st 60% · 2nd 25% · 3rd 15% of the winner pool.',
+            body: 'Descending by rank — biggest loser gets the largest share each cycle.',
           },
           {
             title: 'Protocol fee',

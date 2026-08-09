@@ -23,6 +23,8 @@ interface LeaderboardHolderCardProps {
   holder: LeaderboardRow
   index: number
   poolValue: number
+  winnerCount?: number
+  winnerSharePercents?: number[]
   minHoldMinutes?: number
 }
 
@@ -49,6 +51,8 @@ export function LeaderboardHolderCard({
   holder,
   index,
   poolValue,
+  winnerCount = 3,
+  winnerSharePercents = [],
   minHoldMinutes = 15,
 }: LeaderboardHolderCardProps) {
   const isEligible = holder.is_eligible === true
@@ -56,24 +60,29 @@ export function LeaderboardHolderCard({
     (holder.vwap_raw ?? 0) > 0 &&
     holder.ineligible_reason !== 'No buy history' &&
     holder.ineligible_reason !== 'Buy history pending'
-  const eligibleRank = holder.eligible_rank != null ? holder.eligible_rank - 1 : -1
+  const eligibleRank = holder.eligible_rank
+  const isWinnerSlot =
+    isEligible && eligibleRank != null && eligibleRank >= 1 && eligibleRank <= winnerCount
+  const isPedestal = isWinnerSlot && eligibleRank <= 3
+  const payoutIdx = isWinnerSlot ? eligibleRank - 1 : -1
   const payoutAmount =
-    eligibleRank >= 0 && eligibleRank < 3 ? getPayoutForEligibleRank(poolValue, eligibleRank) : 0
+    payoutIdx >= 0 ? getPayoutForEligibleRank(poolValue, payoutIdx, winnerCount) : 0
+  const sharePercent = payoutIdx >= 0 ? winnerSharePercents[payoutIdx] : null
 
   return (
     <article
-      className={`p-4 border-b border-white/[0.06] ${!isEligible ? 'bg-white/[0.01]' : ''}`}
+      className={`p-4 border-b border-white/[0.06] ${!isEligible ? 'bg-white/[0.01]' : isWinnerSlot ? 'bg-rh-green/[0.03]' : ''}`}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-lg shrink-0">
-            {isEligible && index < 3 ? ['🥇', '🥈', '🥉'][index] : '🏅'}
+            {isPedestal ? ['🥇', '🥈', '🥉'][eligibleRank - 1] : isWinnerSlot ? '🏅' : '🏅'}
           </span>
           <div className="min-w-0">
             <p className="font-mono text-sm text-gray-200 truncate">{holder.wallet_display}</p>
             <p className="text-xs text-gray-500 mt-0.5">
               #{holder.rank ?? index + 1}
-              {isEligible && holder.eligible_rank ? ` · eligible #${holder.eligible_rank}` : ''}
+              {isWinnerSlot ? ` · winner #${eligibleRank}` : ''}
             </p>
           </div>
         </div>
@@ -100,7 +109,16 @@ export function LeaderboardHolderCard({
         <div>
           <dt className="text-[0.65rem] uppercase tracking-wider text-gray-500">Payout</dt>
           <dd className="font-mono font-semibold text-rh-green">
-            {payoutAmount > 0 && isEligible ? `$${payoutAmount.toFixed(2)}` : '—'}
+            {payoutAmount > 0 && isWinnerSlot ? (
+              <>
+                ${payoutAmount.toFixed(2)}
+                {sharePercent != null ? (
+                  <span className="block text-xs font-normal text-gray-500">{sharePercent}% share</span>
+                ) : null}
+              </>
+            ) : (
+              '—'
+            )}
           </dd>
         </div>
       </dl>

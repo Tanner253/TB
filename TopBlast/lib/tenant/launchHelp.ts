@@ -7,6 +7,12 @@ import {
   DEFAULT_MIN_TOKEN_HOLDING,
   formatMinTokenHolding,
 } from '@/lib/platform/minTokenHolding'
+import {
+  DEFAULT_WINNER_COUNT,
+  minPoolForWinnerCount,
+  WINNER_COUNT_OPTIONS,
+} from '@/lib/payout/winnerCount'
+import { formatWinnerSharePercents } from '@/lib/payout/shares'
 
 const PAYOUT_OPTIONS = formatPayoutIntervalOptionsList()
 const DEFAULT_PAYOUT_LABEL = formatPayoutInterval(DEFAULT_PAYOUT_INTERVAL_MINUTES)
@@ -26,6 +32,10 @@ export const LAUNCH_KEY_HELP = {
   minTokenHolding: {
     title: 'Minimum token balance',
     body: `Holders need at least this many tokens (raw units, not USD) to qualify for rewards. Default is ${DEFAULT_MIN_BALANCE_LABEL}. Set higher to filter dust wallets; lower for micro-cap tokens. Locked when you list.`,
+  },
+  winnerCount: {
+    title: 'Winners per cycle',
+    body: `How many eligible losers get paid each cycle (3–10). Default is ${DEFAULT_WINNER_COUNT}. More winners means smaller shares for everyone — biggest loser always gets the most. Locked when you list.`,
   },
   tenantEncryptionKey: {
     title: 'Key encryption (TopBlast operators only)',
@@ -73,8 +83,8 @@ export const HOW_TO_RUN_LISTING = {
     },
     {
       n: 3,
-      title: 'Set payout frequency and minimum balance',
-      body: `Pick a cycle length (${PAYOUT_OPTIONS}) and minimum token balance (default ${DEFAULT_MIN_BALANCE_LABEL} raw tokens). Both are locked when you list.`,
+      title: 'Set payout frequency, winners, and minimum balance',
+      body: `Pick a cycle length (${PAYOUT_OPTIONS}), winners per cycle (3–10, default ${DEFAULT_WINNER_COUNT}), and minimum token balance (default ${DEFAULT_MIN_BALANCE_LABEL} raw tokens). All locked when you list.`,
     },
     {
       n: 4,
@@ -90,3 +100,8 @@ export const HOW_TO_RUN_LISTING = {
 } as const
 
 export { PAYOUT_OPTIONS, DEFAULT_PAYOUT_LABEL }
+
+export function formatWinnerCountPreview(count: number): string {
+  const minPool = minPoolForWinnerCount(count)
+  return `${count} winners · ${formatWinnerSharePercents(count)} split · $${minPool.toFixed(2)} min pool`
+}

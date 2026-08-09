@@ -16,6 +16,7 @@ jest.mock('@/lib/config', () => ({
     minPoolEth: 0.025,
     minPoolForPayout: 5,
     devFeePct: 0.12,
+    winnerCount: 3,
     payoutSplit: { first: 0.60, second: 0.25, third: 0.15 },
     executePayouts: false,
   },

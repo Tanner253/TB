@@ -7,7 +7,7 @@ const PAYOUT_SCHEDULE_OPTIONS = formatPayoutIntervalOptionsList()
 export const DEV_HERO = {
   headline: 'Creator fees become on-chart volume',
   subhead:
-    'Fund a payout wallet with creator-fee SOL. Each cycle the protocol buys your session token via Jupiter, then airdrops it to the top 3 eligible underwater holders.',
+    'Fund a payout wallet with creator-fee SOL. Each cycle the protocol buys your session token via Jupiter, then airdrops it to eligible underwater holders (3–10 winners, set at launch).',
   cta: 'List your token',
 } as const
 
@@ -72,12 +72,12 @@ export const CHART_VOLUME_ENGINE = {
     },
     {
       title: 'Token airdrops',
-      body: 'Purchased tokens are split 60/25/15 and sent to the top 3 eligible losers — no claim button, wallet-to-wallet.',
+      body: 'Purchased tokens split by rank (biggest loser gets most) and airdrop to eligible losers — no claim button, wallet-to-wallet.',
     },
   ],
   stats: [
     { label: 'Buy pressure', value: 'Every cycle', hint: 'Jupiter route into your mint' },
-    { label: 'Distribution', value: 'Top 3', hint: 'Eligible losers only' },
+    { label: 'Distribution', value: '3–10 winners', hint: 'Set when you list' },
     { label: 'Tracking', value: 'Gen volume', hint: 'Lifetime SOL bought on-chart' },
   ],
   footer:
@@ -105,7 +105,7 @@ export const HOME_CHART_VOLUME = {
     },
     {
       title: 'Winners airdropped',
-      body: 'Purchased tokens split 60/25/15 to top eligible losers — wallet-to-wallet.',
+      body: 'Purchased tokens split by rank to top eligible losers — wallet-to-wallet.',
     },
     {
       title: 'Gen volume updated',
@@ -172,7 +172,7 @@ export const DYNAMIC_POT = {
     },
     {
       title: 'Winners',
-      body: 'Top 3 eligible losers by drawdown %. Each cycle: SOL swaps into your session token on-chart, then tokens airdrop to winners (60/25/15 split).',
+      body: 'Eligible losers by drawdown % (3–10 winners per listing). Each cycle: SOL swaps into your session token on-chart, then tokens airdrop in descending rank order.',
     },
     {
       title: 'Timer',

@@ -16,6 +16,9 @@ import {
   PAYOUT,
   PAYOUT_INTERVAL_OPTIONS,
   PAYOUT_INTERVAL_OPTIONS_TEXT,
+  WINNER_COUNT,
+  firstPlaceSharePercent,
+  formatWinnerSharePercents,
 } from './config'
 import {
   DocCard,
@@ -37,10 +40,10 @@ const UPDATES = [
     date: 'Aug 2026',
     tag: 'Current',
     items: [
+      'Configurable winners per cycle (3–10 at launch, descending split)',
       'Gen volume — lifetime on-chart SOL tracked per catalog listing',
       'Native-token payouts default (Jupiter buy + SPL airdrop each cycle)',
       'Payout slippage retries and failure persistence for production',
-      'Homepage + docs repositioned: loss-mining + chart volume engine',
     ],
   },
   {
@@ -70,7 +73,7 @@ const UPDATES = [
     items: [
       'On-chart buybacks + token airdrops on Solana mainnet',
       'Helius holder indexing and VWAP engine',
-      '12% dev fee · 88% to top 3 eligible losers (60/25/15)',
+      '12% dev fee · 88% to eligible losers (3–10 winners per listing)',
     ],
   },
 ]
@@ -91,7 +94,7 @@ export function DocContent() {
         <DocHeader
           eyebrow="For Solana builders"
           title="Creator fees become on-chart volume"
-          description="TopBlast is a loss-mining protocol and chart volume engine. Each payout cycle market-buys your session token via Jupiter, airdrops tokens to the top 3 eligible underwater holders, and tracks lifetime buys as Gen volume in the catalog — real buy pressure for holders, not sell-side rebate volume."
+          description={`TopBlast is a loss-mining protocol and chart volume engine. Each payout cycle market-buys your session token via Jupiter, airdrops tokens to eligible underwater holders (${WINNER_COUNT.rangeLabel} winners per listing), and tracks lifetime buys as Gen volume in the catalog — real buy pressure for holders, not sell-side rebate volume.`}
         />
         <DocTable
           headers={['Approach', 'Holder behavior', 'Chart effect']}
@@ -105,12 +108,12 @@ export function DocContent() {
         <DocGrid cols={2}>
           <DocCard title="Self-serve SaaS" accent="purple">
             <p className="doc-prose">
-              Community tokens launch at <strong>/launch</strong> — mint, ticker, payout frequency, minimum token balance, and encrypted payout wallet. Each listing gets an isolated URL and cron session.
+              Community tokens launch at <strong>/launch</strong> — mint, ticker, winners per cycle ({WINNER_COUNT.rangeLabel}), payout frequency, minimum token balance, and encrypted payout wallet. Each listing gets an isolated URL and cron session.
             </p>
           </DocCard>
           <DocCard title="Hands-off ops" accent="mint">
             <p className="doc-prose">
-              Choose payout frequency and minimum balance at launch ({PAYOUT_INTERVAL_OPTIONS_TEXT}; default {DEFAULT_MIN_TOKEN_HOLDING_LABEL} tokens). Cron indexes holders, ranks eligible losers, executes on-chart buys, and airdrops session tokens from your funded wallet on that schedule.
+              Choose winners per cycle ({WINNER_COUNT.rangeLabel}, default {WINNER_COUNT.default}), payout frequency, and minimum balance at launch ({PAYOUT_INTERVAL_OPTIONS_TEXT}; default {DEFAULT_MIN_TOKEN_HOLDING_LABEL} tokens). Cron indexes holders, ranks eligible losers, executes on-chart buys, and airdrops session tokens from your funded wallet on that schedule.
             </p>
           </DocCard>
           <DocCard title="Chart volume">
@@ -177,7 +180,7 @@ export function DocContent() {
           </DocCard>
           <DocCard title="3 · Blast rewards" accent="mint">
             <p className="doc-prose">
-              Top 3 receive {PAYOUT.first}/{PAYOUT.second}/{PAYOUT.third} of the winner pool. Pool SOL swaps into your session token on-chart, then tokens airdrop to winners — no claim step.
+              Top {WINNER_COUNT.rangeLabel} eligible losers share the winner pool in descending rank order (biggest loser gets the largest slice; default {WINNER_COUNT.default}-winner split is {formatWinnerSharePercents(WINNER_COUNT.default)}). Pool SOL swaps into your session token on-chart, then tokens airdrop — no claim step.
             </p>
           </DocCard>
         </DocGrid>
@@ -189,7 +192,7 @@ Ranking: most negative drawdown % first → USD loss tiebreaker`}</DocCode>
         </DocCard>
         <DocGrid cols={4}>
           <DocStat label="Cycle" value="Configurable" hint={PAYOUT_INTERVAL_OPTIONS_TEXT} />
-          <DocStat label="Winners" value="Top 3" hint="Eligible only" />
+          <DocStat label="Winners" value={WINNER_COUNT.rangeLabel} hint="Set at launch" />
           <DocStat label="Community" value={`${PAYOUT.community}%`} hint="Of payout pool" />
           <DocStat label="Dev fee" value={`${PAYOUT.dev}%`} hint="Platform wallet" />
         </DocGrid>
@@ -213,7 +216,7 @@ Ranking: most negative drawdown % first → USD loss tiebreaker`}</DocCode>
           </DocCard>
           <DocCard title="Example">
             <p className="doc-prose">
-              $2,000 pool → ~$200 min loss → 1st place ≈ <strong className="text-sol-mint">$1,056</strong> SOL ({PAYOUT.first}% of {PAYOUT.community}% winner pool after {PAYOUT.dev}% fee).
+              $2,000 pool → ~$200 min loss → 1st place ≈ <strong className="text-sol-mint">$1,056</strong> with default {WINNER_COUNT.default} winners ({firstPlaceSharePercent(WINNER_COUNT.default)}% of {PAYOUT.community}% winner pool after {PAYOUT.dev}% fee). More winners → smaller shares for everyone.
             </p>
           </DocCard>
         </DocGrid>
@@ -238,6 +241,7 @@ Ranking: most negative drawdown % first → USD loss tiebreaker`}</DocCode>
             ['Dynamic min loss', 'USD loss ≥ 10% of live pool balance.'],
             ['No sells or transfers out', 'Any sell or outgoing transfer disqualifies immediately.'],
             ['Winner cooldown', 'Previous cycle winners sit out one full cycle.'],
+            ['Winners per cycle', `Set at /launch — ${WINNER_COUNT.rangeLabel} eligible losers (default ${WINNER_COUNT.default}). Locked after creation.`],
             ['Payout frequency', `Set at /launch — ${PAYOUT_INTERVAL_OPTIONS_TEXT}. Default 15 minutes.`],
           ].map(([title, body], i) => (
             <li key={title} className="doc-step">
@@ -259,7 +263,7 @@ Ranking: most negative drawdown % first → USD loss tiebreaker`}</DocCode>
           description="One stack, many isolated listings. Each token gets its own session, payout wallet, and cron cycle."
         />
         <DocCard title="Launcher flow">
-          <DocCode>{`/launch → mint + ticker + payout frequency + min token balance + payout private key (encrypted)
+          <DocCode>{`/launch → mint + ticker + winners per cycle (${WINNER_COUNT.rangeLabel}) + payout frequency + min token balance + payout private key (encrypted)
      → /{slug}/leaderboard · stats · history
      → POST /api/cron/tenants (platform cron; each listing uses its chosen interval)
 
@@ -275,7 +279,7 @@ Platform token: configured by operators via server env — session at /leaderboa
           <DocCard title="For launchers" accent="mint">
             <DocList
               items={[
-                'Pick payout frequency and minimum token balance in the launch form',
+                `Pick winners per cycle (${WINNER_COUNT.rangeLabel}), payout frequency, and minimum token balance in the launch form`,
                 'Fund your creator-rewards wallet with SOL',
                 'Session diagnostics explain empty pool, indexing, or no eligible holders',
                 `Flat ${PAYOUT.dev}% protocol fee each cycle → platform treasury`,
@@ -297,7 +301,7 @@ Platform token: configured by operators via server env — session at /leaderboa
         <div className="doc-fee-flow">
           <span>Payout pool (SOL)</span>
           <span className="doc-fee-arrow">→</span>
-          <span className="doc-fee-pill doc-fee-pill--winners">{PAYOUT.community}% winners · 60/25/15</span>
+          <span className="doc-fee-pill doc-fee-pill--winners">{PAYOUT.community}% winners · {WINNER_COUNT.rangeLabel} · descending split</span>
           <span className="doc-fee-plus">+</span>
           <span className="doc-fee-pill doc-fee-pill--dev">{PAYOUT.dev}% dev · {FLYWHEEL.buybackPctOfPool}% buyback</span>
         </div>
@@ -373,7 +377,7 @@ Platform token: configured by operators via server env — session at /leaderboa
               </div>
             </div>
             <p className="doc-prose doc-prose--muted mt-4">
-              Winner pool split: {PAYOUT.first}% / {PAYOUT.second}% / {PAYOUT.third}% for 1st / 2nd / 3rd eligible losers.
+              Winner pool: {WINNER_COUNT.rangeLabel} eligible losers per listing, descending by rank. Default {WINNER_COUNT.default}-winner split: {formatWinnerSharePercents(WINNER_COUNT.default)} (1st / 2nd / 3rd). More winners dilute each share — biggest loser always gets the most.
             </p>
           </DocCard>
           <DocCard title="Win-win thesis">

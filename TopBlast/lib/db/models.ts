@@ -13,6 +13,7 @@ export interface ITenant extends Document {
   devWalletAddress: string
   status: TenantStatus
   payoutIntervalMinutes: number
+  winnerCount: number
   minTokenHolding: number
   minLossThresholdPct: number
   minPoolSol: number
@@ -31,6 +32,7 @@ const TenantSchema = new Schema<ITenant>({
   devWalletAddress: { type: String, default: '' },
   status: { type: String, enum: ['pending', 'active', 'paused'], default: 'active' },
   payoutIntervalMinutes: { type: Number, default: 15 },
+  winnerCount: { type: Number, default: 3, min: 3, max: 10 },
   minTokenHolding: { type: Number, default: 1000 },
   minLossThresholdPct: { type: Number, default: 10 },
   minPoolSol: { type: Number, default: 0.001 },

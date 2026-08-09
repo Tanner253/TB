@@ -15,7 +15,6 @@ import { DynamicPotExplainer } from '@/components/platform/DynamicPotExplainer'
 import { EligibilityRequirements } from '@/components/tenant/EligibilityRequirements'
 import { AppHeader } from '@/components/platform/AppHeader'
 import { LaunchTabBar, LaunchTabPanel, useLaunchTabs } from '@/components/launch/LaunchTabs'
-import { LAUNCH_KEY_HELP } from '@/lib/tenant/launchHelp'
 import { DEV_HERO, TRUST_FOOTER } from '@/lib/marketing/devValueProp'
 import { appHostname } from '@/lib/marketing/urls'
 import {
@@ -23,7 +22,8 @@ import {
   PAYOUT_INTERVAL_OPTIONS,
 } from '@/lib/platform/payoutIntervals'
 import { DEFAULT_MIN_TOKEN_HOLDING } from '@/lib/platform/minTokenHolding'
-
+import { LAUNCH_KEY_HELP, formatWinnerCountPreview } from '@/lib/tenant/launchHelp'
+import { DEFAULT_WINNER_COUNT, WINNER_COUNT_OPTIONS } from '@/lib/payout/winnerCount'
 
 export default function LaunchPage() {
   const router = useRouter()
@@ -35,6 +35,7 @@ export default function LaunchPage() {
     payoutWalletPrivateKey: '',
     payoutIntervalMinutes: DEFAULT_PAYOUT_INTERVAL_MINUTES,
     minTokenHolding: DEFAULT_MIN_TOKEN_HOLDING,
+    winnerCount: DEFAULT_WINNER_COUNT,
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -152,6 +153,22 @@ export default function LaunchPage() {
               </label>
 
               <label className="block">
+                <span className="text-sm text-gray-400">{LAUNCH_KEY_HELP.winnerCount.title}</span>
+                <select
+                  value={form.winnerCount}
+                  onChange={e => setForm(f => ({ ...f, winnerCount: Number(e.target.value) }))}
+                  className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 text-sm focus:border-rh-green/50 outline-none"
+                >
+                  {WINNER_COUNT_OPTIONS.map(n => (
+                    <option key={n} value={n}>
+                      {formatWinnerCountPreview(n)}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-2">{LAUNCH_KEY_HELP.winnerCount.body}</p>
+              </label>
+
+              <label className="block">
                 <span className="text-sm text-gray-400">{LAUNCH_KEY_HELP.minTokenHolding.title}</span>
                 <input
                   required
@@ -229,7 +246,7 @@ export default function LaunchPage() {
           <LaunchTabPanel tabId="payouts" activeTab={activeTab}>
             <div className="space-y-6">
               <ChartVolumeExplainer compact showCatalogLink={false} />
-              <DynamicPotExplainer compact hideTimer />
+              <DynamicPotExplainer compact hideTimer winnerCount={form.winnerCount} />
               <section className="rounded-2xl border border-white/10 bg-black/40 p-6">
                 <h2 className="text-lg font-bold mb-4">Eligibility requirements</h2>
                 <EligibilityRequirements variant="compact" />

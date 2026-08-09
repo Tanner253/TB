@@ -23,6 +23,7 @@ import { isPoolFundedForPayout, minPoolForPayoutLabel } from '@/lib/payout/poolM
 import { getTokenHolders } from '@/lib/solana/indexer'
 import { normalizeTokenBalance } from '@/lib/solana/tokenAmount'
 import { config } from '@/lib/config'
+import { getWinnerShareFractions } from '@/lib/payout/winnerShares'
 import { PublicKey } from '@solana/web3.js'
 import {
   persistWinnerAfterPayout,
@@ -408,8 +409,9 @@ async function syncPayoutTimerWithPoolMinimum(): Promise<void> {
 }
 
 /** Live eligible winners that still hold the session token on-chain (same bar as payout). */
-export async function countVerifiedPayableWinners(limit = 3): Promise<number> {
-  const winners = await resolveLivePayableWinners(limit)
+export async function countVerifiedPayableWinners(limit?: number): Promise<number> {
+  const winnerLimit = limit ?? config.winnerCount
+  const winners = await resolveLivePayableWinners(winnerLimit)
   if (winners.length === 0) return 0
   const verified = await filterWinnersHoldingSessionToken(winners)
   return verified.length
@@ -462,7 +464,8 @@ export function isPayoutDue(): boolean {
 }
 
 /** Live eligibility for payout — do not trust stale Mongo isEligible flags. */
-export async function resolveLivePayableWinners(limit = 3): Promise<PayableWinner[]> {
+export async function resolveLivePayableWinners(limit?: number): Promise<PayableWinner[]> {
+  const winnerLimit = limit ?? config.winnerCount
   const dbRankings = await loadRankingsFromDb()
   if (!dbRankings?.rankings?.length || !config.tokenMint) {
     return []
@@ -535,7 +538,7 @@ export async function resolveLivePayableWinners(limit = 3): Promise<PayableWinne
       if (a.drawdownPct !== b.drawdownPct) return a.drawdownPct - b.drawdownPct
       return b.lossUsd - a.lossUsd
     })
-    .slice(0, limit)
+    .slice(0, winnerLimit)
     .map(({ wallet, drawdownPct, lossUsd }) => ({ wallet, drawdownPct, lossUsd }))
 }
 
@@ -802,8 +805,9 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
 
     let eligibleWinners: PayableWinner[] =
       knownWinners && knownWinners.length > 0
-        ? knownWinners
-        : await resolveLivePayableWinners(3)
+        ? knownWinners.slice(0, config.winnerCount)
+        : await resolveLivePayableWinners(config.winnerCount)
+    eligibleWinners = eligibleWinners.slice(0, config.winnerCount)
     eligibleWinners = await filterWinnersHoldingSessionToken(eligibleWinners)
 
     console.log(`[Payout] Live eligible winners (on-chain verified): ${eligibleWinners.length}`)
@@ -819,11 +823,8 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
 
     const devFeeSol = poolSol * config.devFeePct
     const winnersPoolSol = poolSol - devFeeSol
-    const payoutAmounts = [
-      winnersPoolSol * config.payoutSplit.first,
-      winnersPoolSol * config.payoutSplit.second,
-      winnersPoolSol * config.payoutSplit.third,
-    ]
+    const shareFractions = getWinnerShareFractions(config.winnerCount)
+    const payoutAmounts = shareFractions.map(fraction => winnersPoolSol * fraction)
 
     const accruedDevFee = await getAccruedDevFeeEth()
     const devWalletValid = (() => {
@@ -1415,7 +1416,7 @@ export async function maybeExecuteDuePayout(
   }
 
   if (eligibleCount <= 0) {
-    const liveWinners = await resolveLivePayableWinners(3)
+    const liveWinners = await resolveLivePayableWinners(config.winnerCount)
     if (liveWinners.length > 0) {
       console.warn(
         `[Payout] Due with caller eligibleCount=0 but ${liveWinners.length} live winner(s) — executing`

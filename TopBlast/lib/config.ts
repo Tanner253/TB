@@ -2,6 +2,8 @@
 // When a tenant request is active (AsyncLocalStorage), values come from that tenant.
 
 import { MIN_HOLD_DURATION_MINUTES } from '@/lib/eligibility/holdDuration'
+import { DEFAULT_WINNER_COUNT, minPoolForWinnerCount, validateWinnerCount } from '@/lib/payout/winnerCount'
+import { getWinnerShareFractions } from '@/lib/payout/winnerShares'
 import type { TenantRuntimeConfig } from '@/lib/tenant/types'
 
 type ConfigShape = {
@@ -23,6 +25,7 @@ type ConfigShape = {
   payoutIntervalMinutes: number
   devWalletAddress: string
   devFeePct: number
+  winnerCount: number
   payoutSplit: { first: number; second: number; third: number }
   maxHoldersToProcess: number
   cronSecret: string
@@ -32,7 +35,17 @@ type ConfigShape = {
   tenantSlug: string
 }
 
+function legacyPayoutSplit(winnerCount: number) {
+  const fractions = getWinnerShareFractions(winnerCount)
+  return {
+    first: fractions[0] ?? 0,
+    second: fractions[1] ?? 0,
+    third: fractions[2] ?? 0,
+  }
+}
+
 function envConfig(): ConfigShape {
+  const winnerCount = validateWinnerCount(parseInt(process.env.WINNER_COUNT || String(DEFAULT_WINNER_COUNT), 10))
   return {
     tokenMint: process.env.TOKEN_MINT_ADDRESS || '',
     tokenDecimals: parseInt(process.env.TOKEN_DECIMALS || '6'),
@@ -48,11 +61,12 @@ function envConfig(): ConfigShape {
     minTokenHolding: parseInt(process.env.MIN_TOKEN_HOLDING || '1000'),
     minHoldDurationMinutes: MIN_HOLD_DURATION_MINUTES,
     minLossThresholdPct: parseFloat(process.env.MIN_LOSS_THRESHOLD_PCT || '10'),
-    minPoolForPayout: parseFloat(process.env.MIN_POOL_FOR_PAYOUT || '5'),
+    minPoolForPayout: parseFloat(process.env.MIN_POOL_FOR_PAYOUT || String(minPoolForWinnerCount(winnerCount))),
     payoutIntervalMinutes: parseInt(process.env.PAYOUT_INTERVAL_MINUTES || '15'),
     devWalletAddress: process.env.DEV_WALLET_ADDRESS || '',
     devFeePct: 0.12,
-    payoutSplit: { first: 0.60, second: 0.25, third: 0.15 },
+    winnerCount,
+    payoutSplit: legacyPayoutSplit(winnerCount),
     maxHoldersToProcess: parseInt(process.env.MAX_HOLDERS_TO_PROCESS || '50000'),
     cronSecret: process.env.CRON_SECRET || '',
     isDev: process.env.NODE_ENV === 'development',
@@ -79,6 +93,8 @@ function resolveConfig(): ConfigShape {
   const tenant = getActiveTenant()
   if (!tenant) return base
 
+  const winnerCount = validateWinnerCount(tenant.winnerCount ?? DEFAULT_WINNER_COUNT)
+
   return {
     ...base,
     tenantSlug: tenant.tenantSlug,
@@ -92,6 +108,9 @@ function resolveConfig(): ConfigShape {
     minPoolSol: tenant.minPoolSol,
     minPoolEth: tenant.minPoolEth,
     executePayouts: tenant.executePayouts,
+    winnerCount,
+    minPoolForPayout: minPoolForWinnerCount(winnerCount),
+    payoutSplit: legacyPayoutSplit(winnerCount),
   }
 }
 

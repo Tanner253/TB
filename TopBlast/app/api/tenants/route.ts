@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
       decimals: body.decimals,
       payoutWalletPrivateKey: body.payoutWalletPrivateKey,
       payoutIntervalMinutes: body.payoutIntervalMinutes,
+      winnerCount: body.winnerCount,
       minTokenHolding: body.minTokenHolding,
     })
 

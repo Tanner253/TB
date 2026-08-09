@@ -2,22 +2,31 @@
 
 import { DYNAMIC_POT } from '@/lib/marketing/devValueProp'
 import { DEV_FEE_PCT } from '@/lib/platform/flywheel'
-import { getWinnerSharePercents, getCommunityPercent } from '@/lib/payout/shares'
+import {
+  formatWinnerSharePercents,
+  getCommunityPercent,
+  getWinnerShareDisplayPercents,
+} from '@/lib/payout/shares'
+import { DEFAULT_WINNER_COUNT, WINNER_COUNT_OPTIONS } from '@/lib/payout/winnerCount'
 
-const SHARES = getWinnerSharePercents()
 const COMMUNITY = getCommunityPercent()
 
 export function DynamicPotExplainer({
   compact = false,
   hideTimer = false,
+  winnerCount = DEFAULT_WINNER_COUNT,
 }: {
   compact?: boolean
   hideTimer?: boolean
+  winnerCount?: number
 }) {
   const ex = DYNAMIC_POT.example
   const winnerPool = ex.poolUsd * (COMMUNITY / 100)
-  const firstShare = winnerPool * (SHARES.first / 100)
+  const sharePercents = getWinnerShareDisplayPercents(winnerCount)
+  const firstShare = winnerPool * ((sharePercents[0] ?? 60) / 100)
   const bullets = hideTimer ? DYNAMIC_POT.bullets.filter(b => b.title !== 'Timer') : DYNAMIC_POT.bullets
+  const shareLabel = formatWinnerSharePercents(winnerCount)
+  const isDefaultWinners = winnerCount === DEFAULT_WINNER_COUNT
 
   return (
     <section
@@ -48,10 +57,17 @@ export function DynamicPotExplainer({
           Pool ≈ <span className="text-white font-mono">${ex.poolUsd.toLocaleString()}</span> → min
           eligible loss ≈{' '}
           <span className="text-amber-300 font-mono">${ex.minLossUsd.toLocaleString()}</span>{' '}
-          (10% of pool). After {DEV_FEE_PCT}% platform fee, 1st place ≈{' '}
+          (10% of pool). With <span className="text-white font-semibold">{winnerCount} winners</span>{' '}
+          ({shareLabel} split), after {DEV_FEE_PCT}% platform fee, 1st place ≈{' '}
           <span className="text-rh-lime font-mono">${Math.round(firstShare).toLocaleString()}</span>{' '}
-          ({SHARES.first}% of {COMMUNITY}% winner pool).
+          ({sharePercents[0]}% of {COMMUNITY}% winner pool).
         </p>
+        {!isDefaultWinners || WINNER_COUNT_OPTIONS.length > 1 ? (
+          <p className="text-xs text-gray-500 mt-2">
+            Choose {WINNER_COUNT_OPTIONS[0]}–{WINNER_COUNT_OPTIONS[WINNER_COUNT_OPTIONS.length - 1]} winners
+            at launch — more winners means smaller shares; biggest loser always gets the most.
+          </p>
+        ) : null}
       </div>
     </section>
   )

@@ -234,7 +234,7 @@ async function runSnapshot(_request: NextRequest) {
     })
 
     // 11. Log winners
-    const top3 = ranked.slice(0, 3).map(h => ({
+    const topWinners = ranked.slice(0, config.winnerCount).map(h => ({
       rank: h.rank,
       wallet: h.wallet,
       wallet_short: `${h.wallet.slice(0, 4)}...${h.wallet.slice(-4)}`,
@@ -244,9 +244,9 @@ async function runSnapshot(_request: NextRequest) {
     }))
 
     console.log(`[Snapshot] ✅ Cycle ${currentCycle} complete`)
-    if (top3.length > 0) {
+    if (topWinners.length > 0) {
       console.log(`[Snapshot] Winners:`)
-      top3.forEach(w => console.log(`  #${w.rank}: ${w.wallet_short} | ${w.drawdown_pct}% | $${w.loss_usd}`))
+      topWinners.forEach(w => console.log(`  #${w.rank}: ${w.wallet_short} | ${w.drawdown_pct}% | $${w.loss_usd}`))
     } else {
       console.log(`[Snapshot] No eligible winners this cycle`)
     }
@@ -261,7 +261,7 @@ async function runSnapshot(_request: NextRequest) {
         pool_balance: poolBal,
         total_holders: holders.length,
         eligible_count: ranked.length,
-        winners: top3,
+        winners: topWinners,
         snapshot_id: snapshot._id.toString(),
       },
     })

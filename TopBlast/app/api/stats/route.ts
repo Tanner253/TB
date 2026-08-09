@@ -7,6 +7,7 @@ import { config } from '@/lib/config'
 import { formatHoldDuration } from '@/lib/eligibility/holdDuration'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
 import { getPayoutSplitLabels } from '@/lib/payout/shares'
+import { getWinnerShareDisplayPercents } from '@/lib/payout/winnerShares'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { fetchTenantPayoutStats } from '@/lib/payout/payoutStats'
 import { buildSessionHolderStats } from '@/lib/stats/sessionStats'
@@ -70,7 +71,11 @@ export async function GET() {
           current_pool_usd: livePool.poolUsdFormatted,
           current_pool_usd_raw: livePool.poolUsd,
           payout_wallet_address: livePool.payoutWalletAddress,
-          payout_split: getPayoutSplitLabels(),
+          payout_split: getPayoutSplitLabels(config.winnerCount),
+          winner_count: config.winnerCount,
+          winner_share_percents: getWinnerShareDisplayPercents(config.winnerCount),
+          minimum_pool_usd: formatUsd(config.minPoolForPayout),
+          minimum_pool_usd_raw: config.minPoolForPayout,
           last_payout_at: payoutStats.last_payout_at?.toISOString() ?? null,
         },
         leaderboard: {
@@ -89,6 +94,7 @@ export async function GET() {
           min_loss_pct: config.minLossThresholdPct,
           payout_interval_minutes: config.payoutIntervalMinutes,
           payout_interval_display: formatPayoutInterval(config.payoutIntervalMinutes),
+          winner_count: config.winnerCount,
         },
         service: {
           initialized: holderStats.has_rankings,

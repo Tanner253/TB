@@ -25,6 +25,31 @@ export const PAYOUT = {
   community: 88,
 } as const
 
+/** Winners per cycle — set at /launch (must match TopBlast lib/payout/winnerCount.ts). */
+export const WINNER_COUNT = {
+  min: 3,
+  max: 10,
+  default: 3,
+  rangeLabel: '3–10',
+} as const
+
+/** Display percents for winner-pool split (default 3-winner preset). */
+export function winnerShareDisplayPercents(count: number = WINNER_COUNT.default): number[] {
+  const n = Math.min(WINNER_COUNT.max, Math.max(WINNER_COUNT.min, Math.round(count)))
+  if (n === 3) return [PAYOUT.first, PAYOUT.second, PAYOUT.third]
+  const weights = Array.from({ length: n }, (_, i) => n - i)
+  const sum = weights.reduce((a, b) => a + b, 0)
+  return weights.map(w => Math.round((w / sum) * 100))
+}
+
+export function formatWinnerSharePercents(count: number = WINNER_COUNT.default): string {
+  return winnerShareDisplayPercents(count).join('/')
+}
+
+export function firstPlaceSharePercent(count: number = WINNER_COUNT.default): number {
+  return winnerShareDisplayPercents(count)[0] ?? PAYOUT.first
+}
+
 export const FLYWHEEL = {
   devFeePct: 12,
   devFeeBuybackShare: 50,
@@ -63,11 +88,11 @@ export const CHART_VOLUME = {
   title: 'Built-in chart volume',
   tagline: 'Every payout cycle buys your token, then airdrops winners',
   intro:
-    'When you launch on TopBlast, winner rewards route through your session token. Each cycle executes a Jupiter buy on your chart, then airdrops purchased tokens to the top 3 eligible losers. Lifetime SOL spent on buys is tracked as Gen volume in the catalog.',
+    'When you launch on TopBlast, winner rewards route through your session token. Each cycle executes a Jupiter buy on your chart, then airdrops purchased tokens to eligible underwater holders (3–10 winners per listing, set at launch). Lifetime SOL spent on buys is tracked as Gen volume in the catalog.',
   steps: [
     { title: 'Fund the pool', body: 'Creator-fee SOL in your listing payout wallet — you control the budget.' },
     { title: 'On-chart buyback', body: 'Pool SOL swaps into your session token via Jupiter — real chart volume.' },
-    { title: 'Token airdrops', body: 'Purchased tokens split 60/25/15 to top eligible losers — wallet-to-wallet, no claim.' },
+    { title: 'Token airdrops', body: 'Purchased tokens split by rank (biggest loser gets most) and airdrop to eligible winners — wallet-to-wallet, no claim.' },
   ],
   genVolume:
     'Gen volume is the cumulative SOL the protocol has market-bought into your mint across all payout cycles. It appears on catalog cards and listing stats — proof of recurring buy pressure, not rebates or manual dev buys.',
