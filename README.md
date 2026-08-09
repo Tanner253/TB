@@ -22,7 +22,7 @@ Turn creator-fee SOL into Jupiter buybacks and token airdrops for your most unde
 
 <br />
 
-[Whitepaper](https://whitepaper.topblasted.fun) · [GitHub](https://github.com/Tanner253/TB) · [X / @oSKNYo_dev](https://x.com/oSKNYo_dev)
+[Whitepaper](https://whitepaper.topblasted.fun) · [GitHub](https://github.com/Tanner253/TB) · [X Community](https://x.com/i/communities/2019975359567983064)
 
 </div>
 

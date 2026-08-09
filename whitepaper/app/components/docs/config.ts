@@ -3,7 +3,7 @@ export const APP_URL = 'https://topblasted.fun'
 export const WHITEPAPER_URL = 'https://whitepaper.topblasted.fun'
 
 export const LINKS = {
-  twitter: 'https://x.com/oSKNYo_dev',
+  twitter: 'https://x.com/i/communities/2019975359567983064',
   github: 'https://github.com/Tanner253/TB',
   app: APP_URL,
   whitepaper: WHITEPAPER_URL,
