@@ -123,7 +123,7 @@ describe('Payout timer', () => {
     expect(isPayoutDue()).toBe(false)
   })
 
-  it('maybeExecuteDuePayout pauses when due with zero eligible holders', async () => {
+  it('maybeExecuteDuePayout holds at 00:00 when due with zero eligible holders', async () => {
     await TimerState.findOneAndUpdate(
       { key: 'payout_timer' },
       {
@@ -140,8 +140,10 @@ describe('Payout timer', () => {
     await mod.ensureTimerStateSync()
 
     const result = await mod.maybeExecuteDuePayout(0)
-    expect(result?.data?.skipped).toBe(true)
-    expect(mod.getPayoutTimerInfo().timer_status).toBe('waiting')
+    expect(result?.success).toBe(false)
+    expect(mod.getPayoutTimerInfo().timer_status).toBe('active')
+    expect(mod.isPayoutDue()).toBe(true)
+    expect(mod.getPayoutTimerInfo().seconds_remaining).toBe(0)
   })
 
   it('does not start countdown when pool is below USD minimum', async () => {
@@ -207,7 +209,8 @@ describe('Payout timer', () => {
 
     const result = await mod.maybeExecuteDuePayout(1)
     expect(result?.success).toBe(false)
-    expect(mod.getPayoutTimerInfo().timer_status).toBe('waiting')
+    expect(mod.getPayoutTimerInfo().timer_status).toBe('active')
+    expect(mod.isPayoutDue()).toBe(true)
   })
 
   it('syncPayoutTimerWithEligibility pauses active timer when eligible drops to zero before due', async () => {
@@ -234,6 +237,33 @@ describe('Payout timer', () => {
     expect(mod.getPayoutTimerInfo().timer_status).toBe('waiting')
     expect(mod.getPayoutTimerInfo().seconds_remaining).toBeNull()
     expect(mod.getPayoutTimerInfo().current_cycle).toBe(3)
+  })
+
+  it('syncPayoutTimerWithEligibility does not pause when payout is due at 00:00', async () => {
+    const past = new Date(Date.now() - 130 * 60 * 1000)
+    await TimerState.findOneAndUpdate(
+      { key: 'payout_timer' },
+      {
+        tokenMint: 'So11111111111111111111111111111111111111112',
+        timerStatus: 'active',
+        lastPayoutTime: past,
+        currentCycle: 2,
+        isPayoutInProgress: false,
+      },
+      { upsert: true }
+    )
+    jest.resetModules()
+    const mod = await import('@/lib/payout/executor')
+    await mod.ensureTimerStateSync()
+
+    expect(mod.isPayoutDue()).toBe(true)
+    expect(mod.getPayoutTimerInfo().seconds_remaining).toBe(0)
+
+    await mod.syncPayoutTimerWithEligibility(0)
+
+    expect(mod.getPayoutTimerInfo().timer_status).toBe('active')
+    expect(mod.isPayoutDue()).toBe(true)
+    expect(mod.getPayoutTimerInfo().seconds_remaining).toBe(0)
   })
 
   it('syncPayoutTimerWithPayableWinners starts timer from known eligible count', async () => {

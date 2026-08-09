@@ -32,7 +32,6 @@ import { saveRankingsToDb, loadRankingsFromDb, markWinnersCooldown, getServiceSt
 import { recordPayoutVolumeSwap } from '@/lib/payout/volumeSwap'
 import {
   getEffectivePayoutIntervalMinutes,
-  getPayoutFailureRetryMinutes,
 } from '@/lib/payout/payoutRetry'
 
 import { getTimerKey } from '@/lib/tenant/keys'
@@ -346,6 +345,9 @@ export async function ensureTimerStateSync(): Promise<void> {
 export async function maybeStartPayoutTimer(eligibleCount: number): Promise<boolean> {
   await ensureTimerStateSync()
 
+  if (isPayoutDue()) {
+    return false
+  }
   if (getTimerCache().timerStatus === 'active') {
     return false
   }
@@ -380,6 +382,12 @@ export async function pausePayoutTimerToWaiting(): Promise<void> {
 export async function syncPayoutTimerWithEligibility(eligibleCount: number): Promise<void> {
   await ensureTimerStateSync()
   if (getTimerCache().timerStatus === 'active' && eligibleCount <= 0) {
+    if (isPayoutDue()) {
+      console.warn(
+        '[Payout] Timer at 00:00 with stale zero eligible count — holding due state until payout runs'
+      )
+      return
+    }
     await pausePayoutTimerToWaiting()
   }
 }
@@ -387,6 +395,8 @@ export async function syncPayoutTimerWithEligibility(eligibleCount: number): Pro
 async function syncPayoutTimerWithPoolMinimum(): Promise<void> {
   await ensureTimerStateSync()
   if (getTimerCache().timerStatus !== 'active') return
+  /** Never pause or restart while a cycle is due — payout path decides wait vs fail. */
+  if (isPayoutDue()) return
 
   const livePool = await getLivePoolBalance()
   if (!isPoolFundedForPayout(livePool)) {
@@ -421,9 +431,16 @@ export interface SyncPayoutTimerResult {
 export async function syncPayoutTimerWithPayableWinners(
   knownEligibleCount?: number
 ): Promise<SyncPayoutTimerResult> {
-  await syncPayoutTimerWithPoolMinimum()
+  await ensureTimerStateSync()
   const verifiedPayableCount = await countVerifiedPayableWinners()
   const timerEligibleCount = Math.max(knownEligibleCount ?? 0, verifiedPayableCount)
+
+  /** Payout is due — do not pause, restart, or mutate timer; only executePayout may advance cycle. */
+  if (isPayoutDue()) {
+    return { verifiedPayableCount, timerEligibleCount }
+  }
+
+  await syncPayoutTimerWithPoolMinimum()
   await maybeStartPayoutTimer(timerEligibleCount)
   await syncPayoutTimerWithEligibility(timerEligibleCount)
   await syncPayoutTimerWithPoolMinimum()
@@ -568,12 +585,17 @@ export interface PayoutResult {
   data?: any
 }
 
-/** Pause timer when a due cycle has nobody to pay — avoids empty/failed payout history. */
-async function pausePayoutForNoWinners(reason: string): Promise<PayoutResult> {
-  console.log(`[Payout] ${reason} — pausing timer until someone qualifies`)
+/** No winners to pay — hold at 00:00 if due, otherwise pause until someone qualifies. */
+async function pausePayoutForNoWinners(reason: string, cycle?: number): Promise<PayoutResult> {
   await releasePayoutLock()
+  if (isPayoutDue()) {
+    const targetCycle = cycle ?? getTimerCache().currentCycle + 1
+    console.log(`[Payout] ${reason} — timer stays at 00:00 until winners qualify`)
+    return handlePayoutExecutionFailure(targetCycle, reason)
+  }
+  console.log(`[Payout] ${reason} — pausing timer until someone qualifies`)
   await pausePayoutTimerToWaiting()
-  return { success: true, data: { skipped: true, reason: 'No eligible winners' } }
+  return { success: false, data: { skipped: true, reason: 'No eligible winners' } }
 }
 
 /** Drop aborted cycle records when nobody was eligible — not for execution failures. */
@@ -614,14 +636,14 @@ async function handlePayoutExecutionFailure(
   const cache = getTimerCache()
   const nextFailedAttempts = cache.failedAttempts + 1
   const now = Date.now()
-  const retryMinutes = getPayoutFailureRetryMinutes()
   const trimmedReason = reason.slice(0, 500)
 
-  console.log(
-    `[Payout] Cycle ${cycle} failed — ${trimmedReason}. Retrying in ${retryMinutes} min (attempt ${nextFailedAttempts}).`
+  console.error(
+    `[Payout] Cycle ${cycle} failed — ${trimmedReason}. Timer held at 00:00 (attempt ${nextFailedAttempts}).`
   )
 
-  await saveTimerState(now, cache.currentCycle, 'active', {
+  /** Preserve lastPayoutTime so UI stays at 00:00 until swap + airdrop succeed. */
+  await saveTimerState(cache.lastPayoutTime, cache.currentCycle, 'active', {
     failedAttempts: nextFailedAttempts,
     lastPayoutError: trimmedReason,
     lastPayoutErrorAt: now,
@@ -635,10 +657,58 @@ async function handlePayoutExecutionFailure(
     data: {
       failed: true,
       reason: trimmedReason,
-      retry_minutes: retryMinutes,
       failed_attempts: nextFailedAttempts,
       payouts: [],
     },
+  }
+}
+
+/** Only path that advances currentCycle and resets the countdown after a verified payout. */
+async function completeVerifiedPayoutCycle(
+  nextCycle: number,
+  options: {
+    payWinnersInNativeToken: boolean
+    swapTxHash: string | null
+    successfulWinnerWallets: string[]
+  }
+): Promise<PayoutResult | null> {
+  if (options.successfulWinnerWallets.length === 0) {
+    return null
+  }
+
+  if (options.payWinnersInNativeToken) {
+    let swapHash = options.swapTxHash
+    if (!swapHash) {
+      const priorSwap = await PayoutVolumeSwap.findOne({ ...tenantFields(), cycle: nextCycle })
+        .sort({ createdAt: -1 })
+        .lean()
+      swapHash = priorSwap?.txHash ?? null
+    }
+    if (!swapHash) {
+      return handlePayoutExecutionFailure(
+        nextCycle,
+        'Cannot complete cycle — Jupiter on-chart buy did not succeed'
+      )
+    }
+  }
+
+  const now = Date.now()
+  await saveTimerState(now, nextCycle, 'active', { clearPayoutError: true })
+  markWinnersCooldown(options.successfulWinnerWallets, nextCycle)
+
+  if (getServiceStatus().holderCount > 0) {
+    await saveRankingsToDb()
+  }
+
+  console.log('')
+  console.log('[Payout] ╔════════════════════════════════════════════════════════╗')
+  console.log(`[Payout] ║  ✅ CYCLE ${nextCycle} COMPLETE — timer restarted                  ║`)
+  console.log('[Payout] ╚════════════════════════════════════════════════════════╝')
+
+  return {
+    success: true,
+    cycle: nextCycle,
+    data: { cycle: nextCycle },
   }
 }
 
@@ -690,17 +760,26 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
     console.log(`[Payout] Pool: ${poolSol.toFixed(6)} SOL ($${poolUsd.toFixed(2)})`)
 
     if (!livePool.available || livePool.walletSol <= 0) {
-      console.log('[Payout] No balance — pausing timer until pool is funded')
+      console.log('[Payout] No balance — cannot pay winners')
       await releasePayoutLock()
+      if (isPayoutDue()) {
+        return handlePayoutExecutionFailure(nextCycle, 'No wallet balance')
+      }
       await pausePayoutTimerToWaiting()
       return { success: false, error: 'No wallet balance' }
     }
 
     if (!isPoolFundedForPayout(livePool)) {
       console.log(
-        `[Payout] Pool ~${livePool.poolUsdFormatted} below minimum ${minPoolForPayoutLabel()} — pausing timer until pool grows`
+        `[Payout] Pool ~${livePool.poolUsdFormatted} below minimum ${minPoolForPayoutLabel()} — cannot pay winners`
       )
       await releasePayoutLock()
+      if (isPayoutDue()) {
+        return handlePayoutExecutionFailure(
+          nextCycle,
+          `Pool below minimum (${minPoolForPayoutLabel()})`
+        )
+      }
       await pausePayoutTimerToWaiting()
       return { success: false, error: 'Pool below minimum' }
     }
@@ -708,9 +787,15 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
     const distributableCap = maxDistributableSol(livePool.walletSol)
     if (distributableCap < MIN_TRANSFER_SOL) {
       console.log(
-        `[Payout] Distributable ${distributableCap.toFixed(6)} SOL below minimum after wallet reserve — pausing timer`
+        `[Payout] Distributable ${distributableCap.toFixed(6)} SOL below minimum after wallet reserve`
       )
       await releasePayoutLock()
+      if (isPayoutDue()) {
+        return handlePayoutExecutionFailure(
+          nextCycle,
+          'Insufficient balance after reserve'
+        )
+      }
       await pausePayoutTimerToWaiting()
       return { success: false, error: 'Insufficient balance after reserve' }
     }
@@ -724,7 +809,7 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
     console.log(`[Payout] Live eligible winners (on-chain verified): ${eligibleWinners.length}`)
 
     if (eligibleWinners.length === 0) {
-      return pausePayoutForNoWinners('No eligible winners')
+      return pausePayoutForNoWinners('No eligible winners', nextCycle)
     }
 
     console.log('[Payout] Winners to pay:')
@@ -755,6 +840,9 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
 
     const results: any[] = []
     let totalPaidSol = 0
+
+    const payWinnersInNativeToken =
+      isNativeTokenPayoutEnabled() && Boolean(config.tokenMint) && config.executePayouts
 
     console.log('[Payout] Creating pending winner payout records...')
 
@@ -811,28 +899,36 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
         })
           .select('wallet')
           .lean()
-        markWinnersCooldown(
-          paid.map(p => p.wallet).filter(Boolean),
-          nextCycle
-        )
-        await saveTimerState(now, nextCycle, 'active', { clearPayoutError: true })
+        const wallets = paid.map(p => p.wallet).filter(Boolean)
+        const priorSwap = payWinnersInNativeToken
+          ? (
+              await PayoutVolumeSwap.findOne({ ...tenantFields(), cycle: nextCycle })
+                .sort({ createdAt: -1 })
+                .lean()
+            )?.txHash ?? null
+          : null
+        const completed = await completeVerifiedPayoutCycle(nextCycle, {
+          payWinnersInNativeToken,
+          swapTxHash: priorSwap,
+          successfulWinnerWallets: wallets,
+        })
         await releasePayoutLock()
-        console.log(
-          `[Payout] Cycle ${nextCycle} already paid — synced timer without re-sending`
-        )
-        return {
-          success: true,
-          cycle: nextCycle,
-          data: { resumed: true, cycle: nextCycle },
+        if (completed?.success) {
+          console.log(`[Payout] Cycle ${nextCycle} already paid — synced timer without re-sending`)
+          return {
+            success: true,
+            cycle: nextCycle,
+            data: { resumed: true, cycle: nextCycle },
+          }
         }
+        return (
+          completed ?? handlePayoutExecutionFailure(nextCycle, 'Prior payout records could not be verified')
+        )
       }
-      return pausePayoutForNoWinners('No winner payouts meet minimum transfer size')
+      return pausePayoutForNoWinners('No winner payouts meet minimum transfer size', nextCycle)
     }
 
     console.log(`[Payout] Created ${winnerPending.length} pending winner records`)
-
-    const payWinnersInNativeToken =
-      isNativeTokenPayoutEnabled() && Boolean(config.tokenMint) && config.executePayouts
 
     if (payWinnersInNativeToken) {
       console.log('[Payout] Winner payouts: SOL → session token swap, then SPL transfer to winners')
@@ -904,12 +1000,15 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
           )
 
           if (!swapResult.success) {
+            const swapError = swapResult.error || 'Token swap failed'
             for (const pending of swapCandidates) {
               await Payout.findByIdAndUpdate(pending.id, {
                 status: 'failed',
-                errorMessage: swapResult.error || 'Token swap failed',
+                errorMessage: swapError,
               })
             }
+            await releasePayoutLock()
+            return handlePayoutExecutionFailure(nextCycle, swapError)
           } else {
             swapTxHash = swapResult.txHash
             const postSwapBalance = await getPayoutWalletTokenBalance(
@@ -1174,7 +1273,7 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
       }
 
       await cleanupAbortedCycleRecords(nextCycle)
-      return pausePayoutForNoWinners('No successful winner payouts this cycle')
+      return pausePayoutForNoWinners('No successful winner payouts this cycle', nextCycle)
     }
 
     // Dev fee only runs after at least one winner is paid — avoids dev-only partial cycles.
@@ -1253,19 +1352,20 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
       console.warn('[Payout] DEV_WALLET_ADDRESS missing or invalid — dev fee stays in pool wallet')
     }
 
-    await saveTimerState(now, nextCycle, 'active', { clearPayoutError: true })
-
-    markWinnersCooldown(successfulWinnerWallets, nextCycle)
-    console.log(`[Payout] Updated ${successfulWinnerWallets.length} winners with cooldown in memory`)
-
-    if (getServiceStatus().holderCount > 0) {
-      await saveRankingsToDb()
+    const completed = await completeVerifiedPayoutCycle(nextCycle, {
+      payWinnersInNativeToken,
+      swapTxHash,
+      successfulWinnerWallets,
+    })
+    if (!completed?.success) {
+      await releasePayoutLock()
+      return (
+        completed ??
+        handlePayoutExecutionFailure(nextCycle, 'Payout could not be verified on-chain')
+      )
     }
 
-    console.log('')
-    console.log('[Payout] ╔════════════════════════════════════════════════════════╗')
-    console.log(`[Payout] ║  ✅ CYCLE ${nextCycle} COMPLETE - ${totalPaidSol.toFixed(6)} SOL PAID              ║`)
-    console.log('[Payout] ╚════════════════════════════════════════════════════════╝')
+    console.log(`[Payout] Updated ${successfulWinnerWallets.length} winners with cooldown in memory`)
 
     await releasePayoutLock()
 
@@ -1282,6 +1382,12 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
   } catch (error: any) {
     console.error('[Payout] ERROR:', error)
     await releasePayoutLock()
+    if (isPayoutDue()) {
+      return handlePayoutExecutionFailure(
+        getTimerCache().currentCycle + 1,
+        error.message || 'Payout failed'
+      )
+    }
     return { success: false, error: error.message }
   }
 }
@@ -1309,23 +1415,35 @@ export async function maybeExecuteDuePayout(
   }
 
   if (eligibleCount <= 0) {
+    const liveWinners = await resolveLivePayableWinners(3)
+    if (liveWinners.length > 0) {
+      console.warn(
+        `[Payout] Due with caller eligibleCount=0 but ${liveWinners.length} live winner(s) — executing`
+      )
+      return runAuthorizedPayout(() => executePayout(liveWinners))
+    }
+    if (isPayoutDue()) {
+      return handlePayoutExecutionFailure(
+        getTimerCache().currentCycle + 1,
+        'No eligible winners at payout time'
+      )
+    }
     await pausePayoutTimerToWaiting()
-    return { success: true, data: { skipped: true, reason: 'No eligible winners' } }
+    return { success: false, data: { skipped: true, reason: 'No eligible winners' } }
   }
 
   const livePool = await getLivePoolBalance()
   if (!isPoolFundedForPayout(livePool)) {
-    console.log(
-      `[Payout] Timer due but pool ~${livePool.poolUsdFormatted} below minimum ${minPoolForPayoutLabel()} — pausing until topped up`
-    )
-    await pausePayoutTimerToWaiting()
-    return { success: false, error: `Pool below minimum (${minPoolForPayoutLabel()})` }
+    const msg = `Pool below minimum (${minPoolForPayoutLabel()})`
+    console.log(`[Payout] Timer due but ${msg}`)
+    return handlePayoutExecutionFailure(getTimerCache().currentCycle + 1, msg)
   }
 
   if (!config.executePayouts) {
-    console.log('[Payout] Timer due but EXECUTE_PAYOUTS is false — pausing timer to avoid stuck countdown')
-    await pausePayoutTimerToWaiting()
-    return { success: false, error: 'EXECUTE_PAYOUTS disabled' }
+    return handlePayoutExecutionFailure(
+      getTimerCache().currentCycle + 1,
+      'EXECUTE_PAYOUTS disabled'
+    )
   }
 
   const configError = assertProductionPayoutConfig()

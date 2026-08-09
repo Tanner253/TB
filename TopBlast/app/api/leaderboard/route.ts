@@ -437,15 +437,10 @@ export async function GET(request: NextRequest) {
       timerAfterPayout.timer_status === 'active' && isPayoutDue()
     const payableCount = Math.max(verifiedPayableCount, eligibleCount)
 
-    if (payoutDueNow && payableCount > 0) {
-      if (verifiedPayableCount === 0 && eligibleCount > 0) {
-        console.warn(
-          `[Leaderboard] Payout due with ${eligibleCount} UI-eligible winner(s) but 0 verified — using leaderboard winners`
-        )
-      }
+    if (payoutDueNow) {
       try {
         const payoutResult = await maybeExecuteDuePayout(
-          payableCount,
+          Math.max(payableCount, 1),
           knownPayableWinners.length > 0 ? knownPayableWinners : undefined
         )
         if (payoutResult == null) {
@@ -458,10 +453,6 @@ export async function GET(request: NextRequest) {
       } catch (err) {
         console.error('[Leaderboard] Payout error:', err)
       }
-    } else if (payoutDueNow) {
-      console.warn(
-        `[Leaderboard] Payout timer at 00:00 but skipped — verified=${verifiedPayableCount} eligible=${eligibleCount}`
-      )
     }
 
     const upcomingCount = allRanked.filter(e => !e.live.isEligible && e.live.drawdownPct < 0).length

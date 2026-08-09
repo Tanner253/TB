@@ -19,6 +19,7 @@ import {
   maybeExecuteDuePayout,
   getPayoutTimerInfo,
   getCurrentPayoutCycle,
+  resolveLivePayableWinners,
 } from '@/lib/payout/executor'
 import { config } from '@/lib/config'
 
@@ -75,13 +76,14 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
 
   const timer = getPayoutTimerInfo()
 
-  if (
-    isPayoutDue() &&
-    timer.timer_status === 'active' &&
-    dbRankings &&
-    Math.max(verifiedPayableCount, eligibleCount) > 0
-  ) {
-    const result = await maybeExecuteDuePayout(Math.max(verifiedPayableCount, eligibleCount))
+  if (isPayoutDue() && timer.timer_status === 'active' && dbRankings) {
+    const payableCount = Math.max(verifiedPayableCount, eligibleCount)
+    const liveWinners =
+      payableCount > 0 ? null : await resolveLivePayableWinners(3)
+    const result = await maybeExecuteDuePayout(
+      Math.max(payableCount, liveWinners?.length ?? 0, 1),
+      liveWinners && liveWinners.length > 0 ? liveWinners : undefined
+    )
     await ensureTimerStateSync()
     return {
       indexed,
