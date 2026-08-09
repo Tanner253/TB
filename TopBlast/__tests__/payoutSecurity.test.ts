@@ -19,6 +19,12 @@ jest.mock('@/lib/config', () => ({
   },
 }))
 
+jest.mock('@/lib/tenant/context', () => ({
+  getPayoutPrivateKey: jest.fn(() => process.env.PAYOUT_WALLET_PRIVATE_KEY || ''),
+  getTenantSlug: jest.fn(() => '_legacy'),
+  getTenantRuntime: jest.fn(() => undefined),
+}))
+
 jest.mock('@/lib/solana/indexer', () => ({
   getTokenHolders: jest.fn(async () => [
     {
@@ -47,7 +53,7 @@ describe('payoutSecurity', () => {
 
   it('requires payout wallet key when execute payouts in production', () => {
     delete process.env.PAYOUT_WALLET_PRIVATE_KEY
-    expect(assertProductionPayoutConfig()).toMatch(/PAYOUT_WALLET_PRIVATE_KEY/)
+    expect(assertProductionPayoutConfig()).toMatch(/private key is missing/i)
   })
 
   it('caps distributable SOL by wallet reserve', () => {

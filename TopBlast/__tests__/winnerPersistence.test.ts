@@ -2,6 +2,7 @@ import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
 import { Keypair } from '@solana/web3.js'
 import { Holder, CurrentRankings } from '@/lib/db/models'
+import { runWithTenant } from '@/lib/tenant/context'
 import {
   persistWinnerAfterPayout,
   loadLastWinCycleByWallet,
@@ -63,6 +64,35 @@ describe('winnerPersistence', () => {
     expect(rankings!.rankings[0].lastWinCycle).toBe(17)
     expect(rankings!.rankings[0].isEligible).toBe(false)
     expect(rankings!.eligibleCount).toBe(0)
+  })
+
+  it('updates legacy holder row instead of inserting duplicate wallet', async () => {
+    const wallet = Keypair.generate().publicKey.toBase58()
+
+    await Holder.create({
+      wallet,
+      tenantSlug: '_legacy',
+      balance: 500_000,
+      vwap: 0.000003,
+    })
+
+    await runWithTenant(
+      {
+        tenantSlug: 'uponly',
+        tokenMint: 'mint',
+        tokenSymbol: 'UP',
+        tokenDecimals: 6,
+        payoutWalletAddress: 'addr',
+        payoutWalletPrivateKey: 'key',
+      },
+      () => persistWinnerAfterPayout(wallet, 1, 0.000002625)
+    )
+
+    const holders = await Holder.find({ wallet })
+    expect(holders).toHaveLength(1)
+    expect(holders[0].tenantSlug).toBe('uponly')
+    expect(holders[0].lastWinCycle).toBe(1)
+    expect(holders[0].ineligibleReason).toBe('Winner cooldown')
   })
 
   it('loads lastWinCycle from Holder collection', async () => {

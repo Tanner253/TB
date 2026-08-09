@@ -2,6 +2,7 @@ import 'server-only'
 
 import { PublicKey } from '@solana/web3.js'
 import { config } from '@/lib/config'
+import { getPayoutPrivateKey } from '@/lib/tenant/context'
 import { getTokenHolders } from '@/lib/solana/indexer'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
 import type { PayableWinner } from '@/lib/payout/types'
@@ -29,8 +30,8 @@ export function isValidSolanaAddress(address: string): boolean {
 export function assertProductionPayoutConfig(): string | null {
   if (!config.isProd || !config.executePayouts) return null
 
-  if (!process.env.PAYOUT_WALLET_PRIVATE_KEY?.trim()) {
-    return 'PAYOUT_WALLET_PRIVATE_KEY is missing'
+  if (!getPayoutPrivateKey()?.trim()) {
+    return 'Payout wallet private key is missing'
   }
 
   const dev = config.devWalletAddress?.trim()

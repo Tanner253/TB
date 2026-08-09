@@ -5,7 +5,8 @@
 import connectDB from '@/lib/db'
 import { Holder, CurrentRankings, Payout } from '@/lib/db/models'
 import { getRankingsKey } from '@/lib/tenant/keys'
-import { tenantFilter, tenantFields } from '@/lib/tenant/scope'
+import { upsertTenantHolder } from '@/lib/tenant/holderWrite'
+import { tenantFilter } from '@/lib/tenant/scope'
 
 export async function persistWinnerAfterPayout(
   wallet: string,
@@ -16,20 +17,12 @@ export async function persistWinnerAfterPayout(
 
   await connectDB()
 
-  await Holder.findOneAndUpdate(
-    tenantFilter({ wallet }),
-    {
-      $set: {
-        lastWinCycle: cycle,
-        vwap: tokenPrice,
-        isEligible: false,
-        ineligibleReason: 'Winner cooldown',
-        updatedAt: new Date(),
-        ...tenantFields(),
-      },
-    },
-    { upsert: true }
-  )
+  await upsertTenantHolder(wallet, {
+    lastWinCycle: cycle,
+    vwap: tokenPrice,
+    isEligible: false,
+    ineligibleReason: 'Winner cooldown',
+  })
 
   const doc = await CurrentRankings.findOne({ key: getRankingsKey() })
   if (!doc?.rankings?.length) return

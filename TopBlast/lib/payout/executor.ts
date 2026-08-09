@@ -573,6 +573,40 @@ async function cleanupAbortedCycleRecords(cycle: number): Promise<void> {
   }
 }
 
+/** If winners were paid on-chain but the timer never advanced (e.g. post-payout DB error), recover. */
+async function advanceTimerIfCycleAlreadyPaid(nextCycle: number): Promise<PayoutResult | null> {
+  const paid = await Payout.find({
+    ...tenantFields(),
+    cycle: nextCycle,
+    status: 'success',
+    rank: { $gte: 1 },
+  })
+    .select('wallet')
+    .lean()
+
+  if (paid.length === 0 || getTimerCache().currentCycle >= nextCycle) {
+    return null
+  }
+
+  const wallets = paid.map(p => p.wallet).filter(Boolean)
+  console.log(
+    `[Payout] Cycle ${nextCycle} already has ${paid.length} successful winner payout(s) — advancing timer without re-sending`
+  )
+
+  markWinnersCooldown(wallets, nextCycle)
+  await saveTimerState(Date.now(), nextCycle, 'active', { clearPayoutError: true })
+  await releasePayoutLock()
+
+  return {
+    success: true,
+    cycle: nextCycle,
+    data: {
+      recovered: true,
+      successful_winner_payouts: paid.length,
+    },
+  }
+}
+
 /** Remove prior failed-only cycle rows before retrying the same cycle number. */
 async function clearStaleFailedCycleRecords(cycle: number): Promise<void> {
   try {
@@ -652,6 +686,11 @@ export async function executePayout(): Promise<PayoutResult> {
     }
 
     await clearStaleFailedCycleRecords(nextCycle)
+
+    const recovered = await advanceTimerIfCycleAlreadyPaid(nextCycle)
+    if (recovered) {
+      return recovered
+    }
 
     console.log('')
     console.log('[Payout] ╔════════════════════════════════════════════════════════╗')
@@ -965,14 +1004,6 @@ export async function executePayout(): Promise<PayoutResult> {
 
         if (txResult.success) {
           totalPaidSol += pending.amountSol
-
-          await Disqualification.create({
-            wallet: pending.wallet,
-            reason: 'winner_cooldown',
-            expiresAt: new Date(Date.now() + config.payoutIntervalMinutes * 60 * 1000 * 2),
-          }).catch(() => {})
-
-          await persistWinnerAfterPayout(pending.wallet, nextCycle, sessionTokenPrice)
         }
 
         results.push({
@@ -985,6 +1016,23 @@ export async function executePayout(): Promise<PayoutResult> {
           tx_hash: txResult.txHash,
           error: txResult.error,
         })
+
+        if (txResult.success) {
+          await Disqualification.create({
+            wallet: pending.wallet,
+            reason: 'winner_cooldown',
+            expiresAt: new Date(Date.now() + config.payoutIntervalMinutes * 60 * 1000 * 2),
+          }).catch(() => {})
+
+          try {
+            await persistWinnerAfterPayout(pending.wallet, nextCycle, sessionTokenPrice)
+          } catch (err) {
+            console.error(
+              `[Payout] Winner cooldown DB update failed for ${pending.wallet.slice(0, 10)}... (transfer already sent):`,
+              err
+            )
+          }
+        }
         continue
       }
 
@@ -1050,7 +1098,14 @@ export async function executePayout(): Promise<PayoutResult> {
         }).catch(() => {})
 
         const tokenPrice = (await getTokenPrice(config.tokenMint)) ?? solPrice
-        await persistWinnerAfterPayout(pending.wallet, nextCycle, tokenPrice)
+        try {
+          await persistWinnerAfterPayout(pending.wallet, nextCycle, tokenPrice)
+        } catch (err) {
+          console.error(
+            `[Payout] Winner cooldown DB update failed for ${pending.wallet.slice(0, 10)}... (transfer already sent):`,
+            err
+          )
+        }
       }
 
       results.push({

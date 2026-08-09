@@ -37,7 +37,23 @@ export async function connectDB() {
     throw e
   }
 
+  await ensureHolderIndexes()
+
   return cached.conn
+}
+
+/** Drop stale wallet-only unique index once per process; keep compound tenantSlug+wallet. */
+async function ensureHolderIndexes() {
+  const g = global as { holderIndexesSynced?: boolean }
+  if (g.holderIndexesSynced) return
+
+  try {
+    const { Holder } = await import('./models')
+    await Holder.syncIndexes()
+    g.holderIndexesSynced = true
+  } catch (e) {
+    console.warn('[DB] Holder syncIndexes failed:', e)
+  }
 }
 
 export default connectDB
