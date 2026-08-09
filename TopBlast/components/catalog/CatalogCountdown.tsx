@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
 import {
   catalogCountdownSubtitle,
-  catalogSessionDisplay,
   isCatalogPayoutPaused,
+  isCatalogTimerActive,
 } from '@/lib/platform/catalogClient'
 import { formatPayoutCountdown } from '@/lib/payout/timerMath'
 
@@ -21,9 +21,10 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
   const serverSeconds = tenant.payout_seconds_remaining
   const [seconds, setSeconds] = useState<number | null>(serverSeconds ?? null)
   const ref = useRef<number | null>(serverSeconds ?? null)
+  const timerActive = isCatalogTimerActive(tenant)
 
   useEffect(() => {
-    if (tenant.payout_timer_status === 'waiting') {
+    if (!timerActive) {
       ref.current = null
       setSeconds(null)
       return
@@ -37,10 +38,10 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
       ref.current = serverSeconds
       setSeconds(serverSeconds)
     }
-  }, [serverSeconds, tenant.payout_timer_status, tenant.slug])
+  }, [serverSeconds, timerActive, tenant.slug])
 
   useEffect(() => {
-    if (tenant.payout_timer_status !== 'active') return
+    if (!timerActive) return
     const tick = setInterval(() => {
       setSeconds(prev => {
         if (prev === null) return null
@@ -50,27 +51,15 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
       })
     }, 1000)
     return () => clearInterval(tick)
-  }, [tenant.payout_timer_status, tenant.slug])
+  }, [timerActive, tenant.slug])
 
   const subtitle = catalogCountdownSubtitle(tenant)
-  const display = catalogSessionDisplay(tenant)
   const paused = isCatalogPayoutPaused(tenant)
-  const starting = display.phase === 'timer_starting'
+  const starting = paused && (tenant.payout_eligible_count ?? 0) > 0
   const textSize = compact ? 'text-xs' : 'text-sm'
   const monoSize = compact ? 'text-sm' : 'text-base'
 
-  if (paused) {
-    return (
-      <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>
-        <p className={`font-medium text-amber-200/90 ${textSize} leading-snug`}>Listing limbo</p>
-        <p className={`text-gray-500 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
-          Waiting for eligible holders
-        </p>
-      </div>
-    )
-  }
-
-  if (starting) {
+  if (paused && starting) {
     return (
       <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>
         <p className={`font-medium text-rh-lime/90 ${textSize} leading-snug`}>
@@ -83,7 +72,18 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
     )
   }
 
-  if ((display.phase === 'countdown' || display.phase === 'payout_due') && seconds != null) {
+  if (paused) {
+    return (
+      <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>
+        <p className={`font-medium text-amber-200/90 ${textSize} leading-snug`}>Listing limbo</p>
+        <p className={`text-gray-500 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
+          Waiting for eligible holders
+        </p>
+      </div>
+    )
+  }
+
+  if (timerActive && seconds != null) {
     const due = seconds <= 0
     return (
       <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>

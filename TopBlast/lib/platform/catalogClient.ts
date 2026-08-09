@@ -1,6 +1,5 @@
 import type { PublicTenantSummary } from '@/lib/tenant/types'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
-import { deriveSessionDisplayState } from '@/lib/session/displayState'
 
 export type CatalogSortId = 'featured' | 'newest' | 'oldest' | 'name-asc' | 'name-desc'
 
@@ -21,45 +20,41 @@ export function formatCatalogStatus(tenant: PublicTenantSummary): string {
   return tenant.status === 'active' ? 'live' : tenant.status
 }
 
-export function catalogSessionDisplay(tenant: PublicTenantSummary) {
-  return deriveSessionDisplayState({
-    timerStatus: tenant.payout_timer_status ?? 'waiting',
-    secondsRemaining: tenant.payout_seconds_remaining ?? null,
-    eligibleCount: tenant.payout_eligible_count ?? 0,
-    rankedHolderCount: tenant.payout_ranked_count ?? 0,
-    trackedHolders: tenant.payout_ranked_count ?? 0,
-  })
+/** Same timer fields the leaderboard uses — no re-derivation. */
+export function isCatalogTimerActive(tenant: PublicTenantSummary): boolean {
+  return tenant.payout_timer_status === 'active'
 }
 
-/** Live session with payout timer paused — waiting for eligible underwater holders. */
+/** Limbo badge: timer not running yet (matches leaderboard "waiting for volume"). */
 export function isCatalogPayoutPaused(tenant: PublicTenantSummary): boolean {
   if (tenant.status !== 'active') return false
-  return catalogSessionDisplay(tenant).phase === 'limbo'
+  return !isCatalogTimerActive(tenant)
 }
 
 export function catalogPayoutTimerLabel(tenant: PublicTenantSummary): string {
   if (tenant.status !== 'active') return formatCatalogStatus(tenant)
-  if (tenant.payout_timer_status === 'active') {
+  if (isCatalogTimerActive(tenant)) {
     if (tenant.payout_seconds_remaining != null && tenant.payout_seconds_remaining <= 0) {
       return 'Payout due'
     }
     return 'Payouts active'
   }
+  const eligible = tenant.payout_eligible_count ?? 0
+  if (eligible > 0) return 'Timer starting'
   return 'Waiting for volume'
 }
 
 export function catalogCountdownSubtitle(tenant: PublicTenantSummary): string | null {
   if (tenant.status !== 'active') return null
-  const phase = catalogSessionDisplay(tenant).phase
-  if (phase === 'limbo') {
-    return 'Timer starts when the first holder qualifies'
-  }
-  if (phase === 'timer_starting') {
-    const n = tenant.payout_eligible_count ?? 0
-    return `${n} eligible — timer starting`
-  }
-  if (tenant.payout_seconds_remaining != null) {
+  if (isCatalogTimerActive(tenant)) {
     return 'Next payout countdown'
+  }
+  const eligible = tenant.payout_eligible_count ?? 0
+  if (eligible > 0) {
+    return `${eligible} eligible — timer starting`
+  }
+  if ((tenant.payout_ranked_count ?? 0) > 0) {
+    return 'Timer starts when the first holder qualifies'
   }
   if (tenant.payoutIntervalMinutes) {
     return `Payouts every ${formatPayoutInterval(tenant.payoutIntervalMinutes)}`

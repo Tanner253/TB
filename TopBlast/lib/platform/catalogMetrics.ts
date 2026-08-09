@@ -2,12 +2,10 @@ import 'server-only'
 
 import connectDB from '@/lib/db'
 import { CurrentRankings, Payout, TimerState } from '@/lib/db/models'
-import { deriveSessionDisplayState } from '@/lib/session/displayState'
 import { aggregateSuccessfulPayoutTotals } from '@/lib/payout/payoutTotals'
 import { getSolPrice, formatCompactUsd, formatCompactSol } from '@/lib/solana/price'
 import { getWalletSolBalance } from '@/lib/solana/transfer'
 import { buildLivePoolBalance } from '@/lib/payout/poolBalance'
-import { isPoolFundedForPayout } from '@/lib/payout/poolMinimum'
 import { computePayoutSecondsRemaining } from '@/lib/payout/timerMath'
 import { getEffectivePayoutIntervalMinutes } from '@/lib/payout/payoutRetry'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
@@ -171,17 +169,6 @@ export async function enrichCatalogTenants(
         ? buildLivePoolBalance(walletSol, walletAddress, solPrice)
         : null
 
-    const display = deriveSessionDisplayState({
-      timerStatus: rawTimerStatus,
-      secondsRemaining: rawSecondsRemaining,
-      eligibleCount: eligibility?.eligibleCount ?? 0,
-      rankedHolderCount: eligibility?.rankedCount ?? 0,
-      trackedHolders: eligibility?.rankedCount ?? 0,
-      poolFundedForPayout: pool ? isPoolFundedForPayout(pool) : false,
-    })
-    const payoutTimerStatus = display.effectiveTimerStatus
-    const payoutSecondsRemaining = display.effectiveSecondsRemaining
-
     return {
       ...tenant,
       pot_sol: pool?.poolSol ?? null,
@@ -190,13 +177,12 @@ export async function enrichCatalogTenants(
       total_distributed_sol: paidOut.total_sol,
       total_distributed_usd: paidOut.total_usd,
       total_distributed_usd_formatted: formatCompactUsd(paidOut.total_usd),
-      // Gen volume mirrors paid-out totals from payout history (not swap ledger).
       total_generated_volume_sol: paidOut.total_sol,
       total_generated_volume_usd: paidOut.total_usd,
       total_generated_volume_usd_formatted: formatCompactUsd(paidOut.total_usd),
       total_generated_volume_sol_formatted: formatCompactSol(paidOut.total_sol),
-      payout_timer_status: payoutTimerStatus,
-      payout_seconds_remaining: payoutSecondsRemaining,
+      payout_timer_status: rawTimerStatus,
+      payout_seconds_remaining: rawSecondsRemaining,
       payout_current_cycle: timer?.currentCycle ?? 0,
       payout_eligible_count: eligibility?.eligibleCount ?? 0,
       payout_ranked_count: eligibility?.rankedCount ?? 0,

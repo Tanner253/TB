@@ -78,6 +78,21 @@ describe('catalogClient payout timer', () => {
     expect(catalogPayoutTimerLabel(running)).toBe('Payouts active')
   })
 
+  it('shows timer starting when eligible but timer waiting', async () => {
+    const { catalogPayoutTimerLabel } = await import('@/lib/platform/catalogClient')
+    const starting: PublicTenantSummary = {
+      slug: 'topblast',
+      symbol: 'TBLAST',
+      mint: 'Mint1111111111111111111111111111111111',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      payoutWalletAddress: 'Pool1111111111111111111111111111111111',
+      payout_timer_status: 'waiting',
+      payout_eligible_count: 3,
+    }
+    expect(catalogPayoutTimerLabel(starting)).toBe('Timer starting')
+  })
+
   it('treats stale active timer as limbo when enrichment zeroes eligibility', async () => {
     const { isCatalogPayoutPaused } = await import('@/lib/platform/catalogClient')
     const staleActive: PublicTenantSummary = {
