@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createTenant, listPublicTenants } from '@/lib/tenant/service'
 import { assertNoPrivateKeyFields, redactSecrets } from '@/lib/security/redactSecrets'
 import { maybeRunTenantCyclesFromCatalog } from '@/lib/payout/catalogCycles'
+import { maybeCollectPumpCreatorFeesFromCatalog } from '@/lib/pump/catalogCollect'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
@@ -9,6 +10,7 @@ export const maxDuration = 120
 export async function GET() {
   try {
     await maybeRunTenantCyclesFromCatalog()
+    await maybeCollectPumpCreatorFeesFromCatalog()
     const tenants = await listPublicTenants()
     return NextResponse.json({ success: true, data: { tenants } }, {
       headers: { 'Cache-Control': 'no-store, max-age=0' },

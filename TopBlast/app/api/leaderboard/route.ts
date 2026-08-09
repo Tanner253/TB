@@ -51,6 +51,7 @@ import {
 } from '@/lib/solana/heliusCache'
 import { getRankingsKey } from '@/lib/tenant/keys'
 import { getPlatformTestBanner } from '@/lib/platform/testBanner'
+import { maybeCollectPumpCreatorFeesOnPoll } from '@/lib/pump/maybeCollectOnPoll'
 
 /** DB rankings younger than this skip Helius DAS on public leaderboard polls. */
 const RANKINGS_FRESH_MS = 2 * 60 * 1000
@@ -416,6 +417,12 @@ export async function GET(request: NextRequest) {
     )
 
     const eligibleCount = eligibleSorted.length
+
+    try {
+      await maybeCollectPumpCreatorFeesOnPoll()
+    } catch (err) {
+      console.warn('[Leaderboard] Pump creator fee collect:', err)
+    }
 
     const { verifiedPayableCount } = await syncPayoutTimerWithPayableWinners(eligibleCount)
     await ensureTimerStateSync()
