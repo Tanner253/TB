@@ -427,10 +427,9 @@ export async function GET(request: NextRequest) {
     const { verifiedPayableCount } = await syncPayoutTimerWithPayableWinners(eligibleCount)
     await ensureTimerStateSync()
     let timerAfterPayout = getPayoutTimerInfo()
-    const payableForExecution = Math.max(verifiedPayableCount, eligibleCount)
-    if (payableForExecution > 0 && timerAfterPayout.timer_status === 'active' && isPayoutDue()) {
+    if (verifiedPayableCount > 0 && timerAfterPayout.timer_status === 'active' && isPayoutDue()) {
       try {
-        const payoutResult = await maybeExecuteDuePayout(payableForExecution)
+        const payoutResult = await maybeExecuteDuePayout(verifiedPayableCount)
         if (payoutResult && !payoutResult.success) {
           console.warn('[Leaderboard] Payout attempt:', payoutResult.error)
         }

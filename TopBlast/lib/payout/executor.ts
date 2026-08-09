@@ -4,7 +4,7 @@
  */
 
 import connectDB from '@/lib/db'
-import { Payout, Disqualification, TimerState } from '@/lib/db/models'
+import { Payout, Disqualification, TimerState, PayoutVolumeSwap } from '@/lib/db/models'
 import { resetDeploymentState } from '@/lib/payout/resetDeployment'
 import { transferSol, MIN_TRANSFER_SOL } from '@/lib/solana/transfer'
 import { swapSolForToken, isNativeTokenPayoutEnabled } from '@/lib/solana/jupiterSwap'
@@ -573,36 +573,13 @@ async function cleanupAbortedCycleRecords(cycle: number): Promise<void> {
   }
 }
 
-/** If winners were paid on-chain but the timer never advanced (e.g. post-payout DB error), recover. */
-async function finalizeCycleIfAlreadyPaid(nextCycle: number): Promise<boolean> {
-  const paid = await Payout.find({
+async function countSuccessfulWinnerPayouts(cycle: number): Promise<number> {
+  return Payout.countDocuments({
     ...tenantFields(),
-    cycle: nextCycle,
+    cycle,
     status: 'success',
     rank: { $gte: 1 },
   })
-    .select('wallet')
-    .lean()
-
-  if (paid.length === 0 || getTimerCache().currentCycle >= nextCycle) {
-    return false
-  }
-
-  const wallets = paid.map(p => p.wallet).filter(Boolean)
-  console.log(
-    `[Payout] Cycle ${nextCycle} already has ${paid.length} successful winner payout(s) — advancing cycle without re-sending`
-  )
-
-  markWinnersCooldown(wallets, nextCycle)
-  const payoutWasDue = isPayoutDue()
-  await saveTimerState(
-    payoutWasDue ? getTimerCache().lastPayoutTime : Date.now(),
-    nextCycle,
-    'active',
-    { clearPayoutError: true }
-  )
-  await releasePayoutLock()
-  return true
 }
 
 /** Remove prior failed-only cycle rows before retrying the same cycle number. */
@@ -654,12 +631,6 @@ async function handlePayoutExecutionFailure(
 }
 
 export async function executePayout(): Promise<PayoutResult> {
-  return runPayoutCycle(0)
-}
-
-const MAX_PAYOUT_CYCLE_CHAIN = 3
-
-async function runPayoutCycle(chainDepth: number): Promise<PayoutResult> {
   if (!isPayoutExecutionAuthorized()) {
     console.error('[Payout] Blocked — not running inside authorized server context')
     return { success: false, error: 'Payout execution not authorized' }
@@ -690,18 +661,6 @@ async function runPayoutCycle(chainDepth: number): Promise<PayoutResult> {
     }
 
     await clearStaleFailedCycleRecords(nextCycle)
-
-    if (await finalizeCycleIfAlreadyPaid(nextCycle)) {
-      if (chainDepth < MAX_PAYOUT_CYCLE_CHAIN && isPayoutDue()) {
-        console.log(`[Payout] Chaining into cycle ${getTimerCache().currentCycle + 1} (timer still due)`)
-        return runPayoutCycle(chainDepth + 1)
-      }
-      return {
-        success: true,
-        cycle: getTimerCache().currentCycle,
-        data: { recovered: true },
-      }
-    }
 
     console.log('')
     console.log('[Payout] ╔════════════════════════════════════════════════════════╗')
@@ -785,18 +744,35 @@ async function runPayoutCycle(chainDepth: number): Promise<PayoutResult> {
     console.log('[Payout] Creating pending winner payout records...')
 
     const winnerPending: { id: any; rank: number; wallet: string; amountSol: number }[] = []
+    const existingForCycle = await Payout.find({
+      ...tenantFields(),
+      cycle: nextCycle,
+      rank: { $gte: 1 },
+    }).lean()
 
     for (let i = 0; i < eligibleWinners.length; i++) {
       const winner = eligibleWinners[i]
       const amountSol = payoutAmounts[i]
+      const rank = i + 1
 
       if (amountSol < MIN_TRANSFER_SOL) continue
+
+      const existing = existingForCycle.find(
+        p => p.rank === rank && p.wallet === winner.wallet
+      )
+      if (existing?.status === 'success') {
+        continue
+      }
+      if (existing?.status === 'pending') {
+        winnerPending.push({ id: existing._id, rank, wallet: winner.wallet, amountSol })
+        continue
+      }
 
       const winnerPayout = await Payout.create({
         ...tenantFields(),
         ...payoutTokenFields(),
         cycle: nextCycle,
-        rank: i + 1,
+        rank,
         wallet: winner.wallet,
         amount: amountSol * solPrice,
         amountTokens: amountSol,
@@ -806,10 +782,35 @@ async function runPayoutCycle(chainDepth: number): Promise<PayoutResult> {
         status: 'pending',
         errorMessage: null,
       })
-      winnerPending.push({ id: winnerPayout._id, rank: i + 1, wallet: winner.wallet, amountSol })
+      winnerPending.push({ id: winnerPayout._id, rank, wallet: winner.wallet, amountSol })
     }
 
     if (winnerPending.length === 0) {
+      const successCount = await countSuccessfulWinnerPayouts(nextCycle)
+      if (successCount > 0 && getTimerCache().currentCycle < nextCycle) {
+        const paid = await Payout.find({
+          ...tenantFields(),
+          cycle: nextCycle,
+          status: 'success',
+          rank: { $gte: 1 },
+        })
+          .select('wallet')
+          .lean()
+        markWinnersCooldown(
+          paid.map(p => p.wallet).filter(Boolean),
+          nextCycle
+        )
+        await saveTimerState(now, nextCycle, 'active', { clearPayoutError: true })
+        await releasePayoutLock()
+        console.log(
+          `[Payout] Cycle ${nextCycle} already paid — synced timer without re-sending`
+        )
+        return {
+          success: true,
+          cycle: nextCycle,
+          data: { resumed: true, cycle: nextCycle },
+        }
+      }
       return pausePayoutForNoWinners('No winner payouts meet minimum transfer size')
     }
 
@@ -857,53 +858,71 @@ async function runPayoutCycle(chainDepth: number): Promise<PayoutResult> {
 
       if (swapCandidates.length > 0) {
         const swapSol = swapCandidates.reduce((sum, p) => sum + p.amountSol, 0)
+        const priorSwap = await PayoutVolumeSwap.findOne({ ...tenantFields(), cycle: nextCycle })
+          .sort({ createdAt: -1 })
+          .lean()
 
-        // Always buy on-chart via Jupiter — never airdrop pre-existing wallet token balance
-        // (e.g. launch leftovers). Only tokens received from this swap fund winner payouts.
-        console.log(
-          `[Payout] Buying ~${swapSol.toFixed(6)} SOL of ${config.tokenSymbol} on-chart via Jupiter`
-        )
-
-        const swapResult = await swapSolForToken(
-          swapSol,
-          config.tokenMint!,
-          config.tokenDecimals
-        )
-
-        if (!swapResult.success) {
-          for (const pending of swapCandidates) {
-            await Payout.findByIdAndUpdate(pending.id, {
-              status: 'failed',
-              errorMessage: swapResult.error || 'Token swap failed',
-            })
-          }
-        } else {
-          swapTxHash = swapResult.txHash
-          const postSwapBalance = await getPayoutWalletTokenBalance(
+        if (priorSwap?.txHash) {
+          swapTxHash = priorSwap.txHash
+          const walletTokens = await getPayoutWalletTokenBalance(
             config.tokenMint!,
             config.tokenDecimals
           )
-          const balanceDelta = Math.max(0, postSwapBalance - preSwapBalance)
-          const totalTokens =
-            swapResult.outputAmountHuman != null && swapResult.outputAmountHuman > 0
-              ? swapResult.outputAmountHuman
-              : balanceDelta
-
-          console.log(
-            `[Payout] Swap delivered ~${totalTokens.toFixed(4)} ${config.tokenSymbol} for winner pool`
-          )
-
-          await recordPayoutVolumeSwap({
-            cycle: nextCycle,
-            swapSol,
-            swapUsd: swapSol * solPrice,
-            txHash: swapResult.txHash,
-          })
-
           tokenAmountByRank = allocateTokenAmountsBySolShare(
             swapCandidates.map(p => ({ rank: p.rank, amountSol: p.amountSol })),
-            totalTokens
+            walletTokens
           )
+          console.log(
+            `[Payout] Reusing prior Jupiter swap for cycle ${nextCycle} — completing pending winner transfers`
+          )
+        } else {
+          // Always buy on-chart via Jupiter — never airdrop pre-existing wallet token balance
+          // (e.g. launch leftovers). Only tokens received from this swap fund winner payouts.
+          console.log(
+            `[Payout] Buying ~${swapSol.toFixed(6)} SOL of ${config.tokenSymbol} on-chart via Jupiter`
+          )
+
+          const swapResult = await swapSolForToken(
+            swapSol,
+            config.tokenMint!,
+            config.tokenDecimals
+          )
+
+          if (!swapResult.success) {
+            for (const pending of swapCandidates) {
+              await Payout.findByIdAndUpdate(pending.id, {
+                status: 'failed',
+                errorMessage: swapResult.error || 'Token swap failed',
+              })
+            }
+          } else {
+            swapTxHash = swapResult.txHash
+            const postSwapBalance = await getPayoutWalletTokenBalance(
+              config.tokenMint!,
+              config.tokenDecimals
+            )
+            const balanceDelta = Math.max(0, postSwapBalance - preSwapBalance)
+            const totalTokens =
+              swapResult.outputAmountHuman != null && swapResult.outputAmountHuman > 0
+                ? swapResult.outputAmountHuman
+                : balanceDelta
+
+            console.log(
+              `[Payout] Swap delivered ~${totalTokens.toFixed(4)} ${config.tokenSymbol} for winner pool`
+            )
+
+            await recordPayoutVolumeSwap({
+              cycle: nextCycle,
+              swapSol,
+              swapUsd: swapSol * solPrice,
+              txHash: swapResult.txHash,
+            })
+
+            tokenAmountByRank = allocateTokenAmountsBySolShare(
+              swapCandidates.map(p => ({ rank: p.rank, amountSol: p.amountSol })),
+              totalTokens
+            )
+          }
         }
       }
     }
