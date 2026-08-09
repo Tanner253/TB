@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --port 3000",
     "build": "next build",
+    "vercel-build": "npm test && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
