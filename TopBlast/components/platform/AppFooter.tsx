@@ -40,7 +40,7 @@ export function AppFooter() {
           aria-label="Footer"
         >
           {FOOTER_LINKS.map(link =>
-            link.external ? (
+            'external' in link && link.external ? (
               <a
                 key={link.href}
                 href={link.href}

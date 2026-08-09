@@ -1,10 +1,6 @@
 /**
- * Solana devnet transfer tests
- *
- * Requires:
- *   SOLANA_NETWORK=devnet
- *   PAYOUT_WALLET_PRIVATE_KEY=base58 secret key
- *   Fund devnet wallet with SOL
+ * Solana devnet transfer tests — local only, never runs in CI/Vercel.
+ * Set RUN_DEVNET_TRANSFER_TESTS=1 and PAYOUT_WALLET_PRIVATE_KEY locally to opt in.
  */
 
 import { Keypair } from '@solana/web3.js'
@@ -20,11 +16,15 @@ function isValidSolanaSecretKey(key: string): boolean {
   }
 }
 
-const hasSolanaWallet =
+const runDevnetTests =
+  process.env.RUN_DEVNET_TRANSFER_TESTS === '1' &&
+  !process.env.CI &&
   !!process.env.PAYOUT_WALLET_PRIVATE_KEY &&
   isValidSolanaSecretKey(process.env.PAYOUT_WALLET_PRIVATE_KEY)
 
-describe('Solana Transfer', () => {
+const describeDevnet = runDevnetTests ? describe : describe.skip
+
+describeDevnet('Solana Transfer (devnet, local opt-in)', () => {
   beforeAll(() => {
     process.env.SOLANA_NETWORK = process.env.SOLANA_NETWORK || 'devnet'
   })
@@ -39,26 +39,16 @@ describe('Solana Transfer', () => {
 
   describe('Wallet Balance', () => {
     it('should read payout wallet balance', async () => {
-      if (!hasSolanaWallet) {
-        console.log('⏭️ Skipping — set PAYOUT_WALLET_PRIVATE_KEY to base58 Solana key')
-        return
-      }
-
       const result = await getPayoutWalletBalance()
       expect(result).not.toBeNull()
       expect(result?.sol).toBeGreaterThanOrEqual(0)
-      console.log(`✅ Payout wallet: ${result?.address}`)
-      console.log(`✅ Balance: ${result?.sol} SOL`)
     }, 30000)
   })
 
   describe('Transfer', () => {
     it('should transfer SOL when wallet is funded', async () => {
-      if (!hasSolanaWallet) return
-
       const balance = await getPayoutWalletBalance()
       if (!balance || balance.sol < 0.01) {
-        console.log('⏭️ Skipping transfer — insufficient devnet SOL')
         return
       }
 
@@ -68,9 +58,6 @@ describe('Solana Transfer', () => {
       const result = await transferSol(testRecipient, amount)
       if (result.success) {
         expect(result.txHash).toBeTruthy()
-        console.log(`✅ Transfer: ${result.txHash}`)
-      } else {
-        console.log(`⚠️ Transfer skipped/failed: ${result.error}`)
       }
     }, 60000)
   })

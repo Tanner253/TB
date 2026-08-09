@@ -1,9 +1,9 @@
-import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
 import { Payout } from '@/lib/db/models'
 import { fetchTenantPayoutStats } from '@/lib/payout/payoutStats'
 import { runWithTenant } from '@/lib/tenant/context'
 import type { TenantRuntimeConfig } from '@/lib/tenant/types'
+import { startMemoryMongo, stopMemoryMongo } from './helpers/memoryMongo'
 
 const TENANT: TenantRuntimeConfig = {
   tenantSlug: 'pepe',
@@ -20,21 +20,23 @@ const TENANT: TenantRuntimeConfig = {
   executePayouts: false,
 }
 
+const TEST_PAYOUT_TENANTS = ['pepe', 'other'] as const
+
 describe('fetchTenantPayoutStats', () => {
   let mongo: MongoMemoryServer
 
   beforeAll(async () => {
-    mongo = await MongoMemoryServer.create()
-    await mongoose.connect(mongo.getUri())
+    mongo = await startMemoryMongo()
+    process.env.MONGODB_URI = mongo.getUri()
   })
 
   afterAll(async () => {
-    await mongoose.disconnect()
-    await mongo.stop()
+    delete process.env.MONGODB_URI
+    await stopMemoryMongo(mongo)
   })
 
   beforeEach(async () => {
-    await Payout.deleteMany({})
+    await Payout.deleteMany({ tenantSlug: { $in: [...TEST_PAYOUT_TENANTS] } })
   })
 
   it('aggregates cycles, distributed totals, and most wins for tenant', async () => {

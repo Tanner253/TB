@@ -1,4 +1,5 @@
 import { decorateCatalogTenants } from '@/lib/platform/catalog'
+import { testSolanaSecretKey } from './helpers/testKeypair'
 import {
   DEV_FEE_BUYBACK_SHARE_PCT,
   DEV_FEE_PCT,
@@ -83,7 +84,7 @@ describe('platform catalog', () => {
     delete process.env.PLATFORM_TOKEN_SYMBOL
     process.env.TOKEN_MINT_ADDRESS = 'So11111111111111111111111111111111111111112'
     process.env.TOKEN_SYMBOL = 'TBLAST'
-    process.env.PAYOUT_WALLET_PRIVATE_KEY = 'CHhp3YcNXkAzLcEy33P3X2CgnhDEGcRCyyQDwtk8rjhKtmAypiD3Qd28Ub5gXkNjmxG1F3jUWXyXCqj5XbbKv3B'
+    process.env.PAYOUT_WALLET_PRIVATE_KEY = testSolanaSecretKey()
     process.env.PAYOUT_INTERVAL_MINUTES = '30'
 
     const sorted = decorateCatalogTenants([])

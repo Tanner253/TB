@@ -1,7 +1,7 @@
-import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
 import { Payout, Tenant } from '@/lib/db/models'
 import { fetchAppPayoutHistory } from '@/lib/payout/historyService'
+import { startMemoryMongo, stopMemoryMongo } from './helpers/memoryMongo'
 
 jest.mock('@/lib/config', () => ({
   config: {
@@ -16,22 +16,25 @@ jest.mock('@/lib/platform/config', () => ({
   isPlatformTenantSlug: (slug: string) => slug === 'topblast' || slug === '_legacy',
 }))
 
+const TEST_TENANT_SLUGS = ['pepe', 'bonk'] as const
+const TEST_PAYOUT_TENANTS = ['pepe', 'bonk', '_legacy'] as const
+
 describe('fetchAppPayoutHistory', () => {
   let mongo: MongoMemoryServer
 
   beforeAll(async () => {
-    mongo = await MongoMemoryServer.create()
-    await mongoose.connect(mongo.getUri())
+    mongo = await startMemoryMongo()
+    process.env.MONGODB_URI = mongo.getUri()
   })
 
   afterAll(async () => {
-    await mongoose.disconnect()
-    await mongo.stop()
+    delete process.env.MONGODB_URI
+    await stopMemoryMongo(mongo)
   })
 
   beforeEach(async () => {
-    await Payout.deleteMany({})
-    await Tenant.deleteMany({})
+    await Payout.deleteMany({ tenantSlug: { $in: [...TEST_PAYOUT_TENANTS] } })
+    await Tenant.deleteMany({ slug: { $in: [...TEST_TENANT_SLUGS] } })
   })
 
   it('includes token mint and explorer url on each cycle', async () => {
@@ -105,7 +108,7 @@ describe('fetchAppPayoutHistory', () => {
       },
       {
         tenantSlug: '_legacy',
-        tokenMint: 'MintLegacy1111111111111111111111111111111111111',
+        tokenMint: 'MintLegacy1111111111111111111111111111111111',
         tokenSymbol: 'TBLAST',
         cycle: 9,
         rank: 0,
