@@ -10,6 +10,9 @@ import {
   DEFAULT_MIN_TOKEN_HOLDING_LABEL,
   FLYWHEEL,
   LINKS,
+  MISSION_BODY,
+  MISSION_HERO,
+  MISSION_LEAD,
   PAYOUT,
   PAYOUT_INTERVAL_OPTIONS,
   PAYOUT_INTERVAL_OPTIONS_TEXT,
@@ -473,9 +476,12 @@ Platform token: configured by operators via server env — session at /leaderboa
 
       <footer className="doc-footer">
         <div className="doc-footer-inner">
+          <p className="doc-footer-mission-hero">{MISSION_HERO}</p>
+          <p className="doc-footer-mission-lead">{MISSION_LEAD}</p>
+          <p className="doc-footer-mission-body">{MISSION_BODY}</p>
           <div className="doc-footer-brand">
             <Image src="/logo.png" alt="TopBlast" width={28} height={28} className="rounded-md" />
-            <span>TopBlast · Loss-mining + chart volume</span>
+            <span>TopBlast</span>
           </div>
           <div className="doc-footer-links">
             <a href={APP_URL} target="_blank" rel="noopener noreferrer">App</a>

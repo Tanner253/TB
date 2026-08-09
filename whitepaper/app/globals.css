@@ -969,6 +969,31 @@ body {
   text-align: center;
 }
 
+.doc-footer-mission-hero {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #14f195;
+  margin-bottom: 1.25rem;
+}
+
+.doc-footer-mission-lead {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #f9fafb;
+  line-height: 1.45;
+  margin-bottom: 0.75rem;
+}
+
+.doc-footer-mission-body {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  line-height: 1.65;
+  max-width: 36rem;
+  margin: 0 auto 2rem;
+}
+
 .doc-footer-brand {
   display: flex;
   align-items: center;

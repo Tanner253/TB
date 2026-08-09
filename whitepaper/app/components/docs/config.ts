@@ -120,3 +120,12 @@ export const NAV_MENU_GROUPS = [
     ],
   },
 ] as const
+
+/** Heroic footer rally line — keep in sync with TopBlast lib/marketing/brand.ts */
+export const MISSION_HERO = 'Clean the Solana trenches.'
+
+export const MISSION_LEAD =
+  'TopBlast turns creator fees into on-chart buybacks and airdrops for holders with conviction.'
+
+export const MISSION_BODY =
+  'PvE reward mechanics in a PvP market — incentivize holding, reduce sell pressure, and give every listed token pro-trader chart utility and room to run higher.'
