@@ -7,7 +7,6 @@ const FOOTER_LINKS = [
   { href: '/catalog', label: 'Catalog' },
   { href: '/launch', label: 'List token' },
   { href: WHITEPAPER_URL, label: 'Docs', external: true },
-  { href: EXTERNAL_LINKS.github, label: 'GitHub', external: true },
   { href: EXTERNAL_LINKS.twitter, label: 'X', external: true },
 ] as const
 
