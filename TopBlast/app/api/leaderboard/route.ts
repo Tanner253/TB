@@ -416,6 +416,12 @@ export async function GET(request: NextRequest) {
       mapRankingRow(entry, idx + 1, idx + 1)
     )
 
+    const knownPayableWinners = eligibleSorted.slice(0, 3).map(entry => ({
+      wallet: entry.holder.wallet,
+      drawdownPct: entry.live.drawdownPct,
+      lossUsd: entry.live.lossUsd,
+    }))
+
     const eligibleCount = eligibleSorted.length
 
     try {
@@ -427,10 +433,24 @@ export async function GET(request: NextRequest) {
     const { verifiedPayableCount } = await syncPayoutTimerWithPayableWinners(eligibleCount)
     await ensureTimerStateSync()
     let timerAfterPayout = getPayoutTimerInfo()
-    if (verifiedPayableCount > 0 && timerAfterPayout.timer_status === 'active' && isPayoutDue()) {
+    const payoutDueNow =
+      timerAfterPayout.timer_status === 'active' && isPayoutDue()
+    const payableCount = Math.max(verifiedPayableCount, eligibleCount)
+
+    if (payoutDueNow && payableCount > 0) {
+      if (verifiedPayableCount === 0 && eligibleCount > 0) {
+        console.warn(
+          `[Leaderboard] Payout due with ${eligibleCount} UI-eligible winner(s) but 0 verified — using leaderboard winners`
+        )
+      }
       try {
-        const payoutResult = await maybeExecuteDuePayout(verifiedPayableCount)
-        if (payoutResult && !payoutResult.success) {
+        const payoutResult = await maybeExecuteDuePayout(
+          payableCount,
+          knownPayableWinners.length > 0 ? knownPayableWinners : undefined
+        )
+        if (payoutResult == null) {
+          console.warn('[Leaderboard] Payout due but executor returned null (timer state changed mid-request)')
+        } else if (!payoutResult.success) {
           console.warn('[Leaderboard] Payout attempt:', payoutResult.error)
         }
         await ensureTimerStateSync()
@@ -438,6 +458,10 @@ export async function GET(request: NextRequest) {
       } catch (err) {
         console.error('[Leaderboard] Payout error:', err)
       }
+    } else if (payoutDueNow) {
+      console.warn(
+        `[Leaderboard] Payout timer at 00:00 but skipped — verified=${verifiedPayableCount} eligible=${eligibleCount}`
+      )
     }
 
     const upcomingCount = allRanked.filter(e => !e.live.isEligible && e.live.drawdownPct < 0).length

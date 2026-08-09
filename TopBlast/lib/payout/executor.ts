@@ -15,6 +15,8 @@ import {
 } from '@/lib/solana/tokenTransfer'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
+import { isLiquidityPoolWallet, ensureLiquidityPoolAddresses } from '@/lib/eligibility/liquidityPools'
+import { mergeLiveHolderBalances } from '@/lib/leaderboard/mergeLiveHolderBalances'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 import { getTokenPrice } from '@/lib/solana/price'
 import { isPoolFundedForPayout, minPoolForPayoutLabel } from '@/lib/payout/poolMinimum'
@@ -457,24 +459,34 @@ export async function resolveLivePayableWinners(limit = 3): Promise<PayableWinne
     return []
   }
 
+  await ensureLiquidityPoolAddresses(config.tokenMint)
+
+  const rankingByWallet = new Map(
+    dbRankings.rankings.map(h => [h.wallet, { ...h }] as const)
+  )
+  const liveHolders = await getTokenHolders(
+    config.tokenMint,
+    Math.min(config.maxHoldersToProcess, 1000)
+  )
+  mergeLiveHolderBalances(rankingByWallet, liveHolders, config.tokenMint)
+
   const contractWallets = new Set(
-    (await getTokenHolders(config.tokenMint, 100))
-      .filter(h => h.isContract)
-      .map(h => h.wallet)
+    liveHolders.filter(h => h.isContract).map(h => h.wallet)
   )
 
   const currentCycle = getCurrentPayoutCycle()
 
   const lastWinByWallet = await loadLastWinCycleByWallet(
-    dbRankings.rankings.map(h => h.wallet)
+    Array.from(rankingByWallet.keys())
   )
 
-  return dbRankings.rankings
+  return Array.from(rankingByWallet.values())
     .filter(
       h =>
         !h.isContract &&
         !contractWallets.has(h.wallet) &&
-        !isExcludedParticipantWallet(h.wallet)
+        !isExcludedParticipantWallet(h.wallet) &&
+        !isLiquidityPoolWallet(h.wallet, config.tokenMint)
     )
     .map(h => {
       const firstBuyMs = h.firstBuyAt ? new Date(h.firstBuyAt).getTime() : null
@@ -630,7 +642,7 @@ async function handlePayoutExecutionFailure(
   }
 }
 
-export async function executePayout(): Promise<PayoutResult> {
+export async function executePayout(knownWinners?: PayableWinner[]): Promise<PayoutResult> {
   if (!isPayoutExecutionAuthorized()) {
     console.error('[Payout] Blocked — not running inside authorized server context')
     return { success: false, error: 'Payout execution not authorized' }
@@ -703,7 +715,10 @@ export async function executePayout(): Promise<PayoutResult> {
       return { success: false, error: 'Insufficient balance after reserve' }
     }
 
-    let eligibleWinners: PayableWinner[] = await resolveLivePayableWinners(3)
+    let eligibleWinners: PayableWinner[] =
+      knownWinners && knownWinners.length > 0
+        ? knownWinners
+        : await resolveLivePayableWinners(3)
     eligibleWinners = await filterWinnersHoldingSessionToken(eligibleWinners)
 
     console.log(`[Payout] Live eligible winners (on-chain verified): ${eligibleWinners.length}`)
@@ -1279,11 +1294,17 @@ export function canExecutePayout(): boolean {
  * Run payout when the timer hits zero — called from leaderboard polls (no external cron).
  * Mongo payout lock prevents duplicate sends across concurrent requests.
  */
-export async function maybeExecuteDuePayout(eligibleCount: number): Promise<PayoutResult | null> {
+export async function maybeExecuteDuePayout(
+  eligibleCount: number,
+  knownWinners?: PayableWinner[]
+): Promise<PayoutResult | null> {
   await ensureTimerStateSync()
   const timer = getPayoutTimerInfo()
 
   if (timer.timer_status !== 'active' || !isPayoutDue()) {
+    console.log(
+      `[Payout] Not executing — status=${timer.timer_status} due=${isPayoutDue()} remaining=${timer.seconds_remaining ?? 'null'}`
+    )
     return null
   }
 
@@ -1313,5 +1334,5 @@ export async function maybeExecuteDuePayout(eligibleCount: number): Promise<Payo
     return { success: false, error: configError }
   }
 
-  return runAuthorizedPayout(() => executePayout())
+  return runAuthorizedPayout(() => executePayout(knownWinners))
 }

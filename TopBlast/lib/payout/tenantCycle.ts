@@ -79,9 +79,9 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
     isPayoutDue() &&
     timer.timer_status === 'active' &&
     dbRankings &&
-    verifiedPayableCount > 0
+    Math.max(verifiedPayableCount, eligibleCount) > 0
   ) {
-    const result = await maybeExecuteDuePayout(verifiedPayableCount)
+    const result = await maybeExecuteDuePayout(Math.max(verifiedPayableCount, eligibleCount))
     await ensureTimerStateSync()
     return {
       indexed,
