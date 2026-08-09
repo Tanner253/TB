@@ -3,12 +3,15 @@
  * Background worker — POST /api/cron/tenants on a schedule.
  * Render cron, GitHub Actions, or any scheduler can invoke this script.
  *
- * Env: TOPBLAST_APP_URL (e.g. https://topblasted.fun), CRON_SECRET
+ * Env: TOPBLAST_APP_URL (use https://www.topblasted.fun — apex 308 strips auth)
+ *      CRON_SECRET
  */
-const appUrl = (process.env.TOPBLAST_APP_URL || process.env.APP_URL || '').replace(/\/$/, '')
+import { resolveAppUrl } from './resolveAppUrl.mjs'
+
+const rawUrl = process.env.TOPBLAST_APP_URL || process.env.APP_URL || ''
 const secret = process.env.CRON_SECRET || ''
 
-if (!appUrl) {
+if (!rawUrl) {
   console.error('[Worker] TOPBLAST_APP_URL or APP_URL is required')
   process.exit(1)
 }
@@ -18,6 +21,7 @@ if (!secret) {
   process.exit(1)
 }
 
+const appUrl = await resolveAppUrl(rawUrl)
 const url = `${appUrl}/api/cron/tenants`
 
 try {

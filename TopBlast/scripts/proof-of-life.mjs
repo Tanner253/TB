@@ -2,18 +2,13 @@
 /**
  * Proof-of-life against a deployed TopBlast URL (prod or preview).
  * Safe by default — does not run tenant cycles unless you pass --execute.
- *
- * Usage:
- *   TOPBLAST_APP_URL=https://topblasted.fun CRON_SECRET=xxx node scripts/proof-of-life.mjs
- *   TOPBLAST_APP_URL=https://topblasted.fun CRON_SECRET=xxx node scripts/proof-of-life.mjs --execute
- *
- * Or from TopBlast/ with .env loaded:
- *   npm run worker:ping
  */
+import { resolveAppUrl } from './resolveAppUrl.mjs'
+
 const args = process.argv.slice(2)
 const execute = args.includes('--execute')
 
-const appUrl = (process.env.TOPBLAST_APP_URL || process.env.APP_URL || '').replace(/\/$/, '')
+const rawUrl = process.env.TOPBLAST_APP_URL || process.env.APP_URL || ''
 const secret = process.env.CRON_SECRET || ''
 
 function fail(message) {
@@ -25,9 +20,11 @@ function pass(message) {
   console.log(`[proof-of-life] OK: ${message}`)
 }
 
-if (!appUrl) {
-  fail('Set TOPBLAST_APP_URL (e.g. https://topblasted.fun)')
+if (!rawUrl) {
+  fail('Set TOPBLAST_APP_URL (use https://www.topblasted.fun if apex redirects)')
 }
+
+const appUrl = await resolveAppUrl(rawUrl)
 
 async function fetchJson(url, options = {}) {
   const res = await fetch(url, options)

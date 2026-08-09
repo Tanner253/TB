@@ -5,7 +5,7 @@
 # - Render runs this job every minute → POST /api/cron/tenants on Vercel
 #
 # After deploy, set in Render Dashboard → topblast-tenant-worker → Environment:
-#   TOPBLAST_APP_URL = https://topblasted.fun   (your Vercel production URL)
+#   TOPBLAST_APP_URL=https://www.topblasted.fun   (use www — apex 308 strips Authorization)
 #   CRON_SECRET      = same value as Vercel CRON_SECRET
 
 services:
