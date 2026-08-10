@@ -170,12 +170,17 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const resolvedPrice = await getResolvedTokenPrice(config.tokenMint)
+    const resolvedPrice = readOnlyPoll
+      ? null
+      : await getResolvedTokenPrice(config.tokenMint)
     const liveTokenPrice =
-      resolvedPrice?.price ?? dbRankings?.tokenPrice ?? 0
+      (readOnlyPoll ? dbRankings?.tokenPrice : resolvedPrice?.price) ??
+      resolvedPrice?.price ??
+      dbRankings?.tokenPrice ??
+      0
     const priceMeta = {
-      priceAvailable: !!resolvedPrice?.price,
-      priceSource: resolvedPrice?.source ?? null,
+      priceAvailable: liveTokenPrice > 0,
+      priceSource: readOnlyPoll ? 'mongodb' : resolvedPrice?.source ?? null,
       migrationStage: resolvedPrice?.pair?.migrationStage ?? null,
     }
 

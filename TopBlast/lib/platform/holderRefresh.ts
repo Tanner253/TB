@@ -26,10 +26,15 @@ export function holderRefreshKey(tenantKey: string): string {
   return tenantCacheKey(`holderRefresh:${tenantKey}`)
 }
 
-export function shouldSkipHolderRefresh(tenantKey: string, force = false): boolean {
+export function shouldSkipHolderRefresh(
+  tenantKey: string,
+  force = false,
+  intervalMs?: number
+): boolean {
   if (force) return false
+  const interval = intervalMs ?? holderRefreshIntervalMs()
   const last = lastRefreshMap().get(holderRefreshKey(tenantKey)) ?? 0
-  return Date.now() - last < holderRefreshIntervalMs()
+  return Date.now() - last < interval
 }
 
 export function markHolderRefresh(tenantKey: string): void {

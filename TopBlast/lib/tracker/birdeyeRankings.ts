@@ -17,6 +17,14 @@ import {
   shouldSkipHolderRefresh,
 } from '@/lib/platform/holderRefresh'
 import {
+  hasMaterialPriceChange,
+  holderActiveSnapshotMaxAgeMs,
+  holderIdleSnapshotMaxAgeMs,
+  isIdleTenantSession,
+  resolveHolderRefreshIntervalMs,
+  type HolderRefreshSession,
+} from '@/lib/platform/holderRefreshPolicy'
+import {
   fetchBirdeyeTokenHolders,
   isBirdeyeHolderSourceEnabled,
 } from '@/lib/solana/birdeyeHolders'
@@ -25,12 +33,20 @@ import { getTokenPrice } from '@/lib/solana/price'
 import { getRankingsKey } from '@/lib/tenant/keys'
 import { loadLastWinCycleByWallet } from '@/lib/payout/winnerPersistence'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
+import { loadRankingsFromDb } from '@/lib/tracker/holderService'
 
 export { isBirdeyeHolderSourceEnabled }
+
+export type HolderRefreshSkipReason =
+  | 'throttled'
+  | 'price_unchanged'
+  | 'no_snapshot'
 
 export interface RefreshLiveHolderRankingsResult {
   refreshed: boolean
   skipped?: boolean
+  skipReason?: HolderRefreshSkipReason
+  recomputed?: boolean
   holderCount: number
   holdersWithVwap: number
   eligibleCount: number
@@ -130,6 +146,32 @@ export function buildRankingRowsFromBirdeye(
   })
 }
 
+type StoredRankingRow = NonNullable<Awaited<ReturnType<typeof loadRankingsFromDb>>>['rankings'][number]
+
+/** Recompute drawdown/eligibility from Mongo snapshot — no Birdeye call. */
+export function recomputeRankingRowsFromSnapshot(
+  stored: StoredRankingRow[],
+  ctx: {
+    mint: string
+    tokenPrice: number
+    poolUsd: number
+    currentCycle: number
+    lastWinByWallet: Map<string, number | null>
+    minTokenHolding: number
+    tokenDecimals: number
+  }
+): RankingRow[] {
+  const snapshots = stored.map(row => ({
+    wallet: row.wallet,
+    balance: row.balance,
+    vwap: row.vwap > 0 ? row.vwap : null,
+    firstBuyTimestamp: row.firstBuyAt ? new Date(row.firstBuyAt).getTime() : null,
+    hasSold: row.hasSold ?? false,
+    hasTransferIn: (row.vwap ?? 0) <= 0 && row.balance > 0,
+  }))
+  return buildRankingRowsFromBirdeye(snapshots, ctx)
+}
+
 /** Persist rankings snapshot — no payout side effects. */
 export async function persistRankingsSnapshot(
   rows: RankingRow[],
@@ -167,20 +209,31 @@ export async function persistRankingsSnapshot(
 
 /**
  * Fetch Birdeye holder snapshot and write rankings to MongoDB.
- * Throttled to ~1/min per tenant unless `force` (e.g. before settlement).
+ * Idle tenants: 15 min cadence; skips Birdeye when price unchanged.
+ * Active tenants: ~1/min; recomputes from snapshot when only price moved.
  */
 export async function refreshLiveHolderRankings(options?: {
   force?: boolean
+  session?: HolderRefreshSession
 }): Promise<RefreshLiveHolderRankingsResult> {
   if (!isBirdeyeHolderSourceEnabled() || !config.tokenMint) {
     return { refreshed: false, holderCount: 0, holdersWithVwap: 0, eligibleCount: 0, apiCalls: 0 }
   }
 
   const tenantKey = getRankingsKey()
-  if (shouldSkipHolderRefresh(tenantKey, options?.force)) {
+  const session: HolderRefreshSession = options?.session ?? {
+    timerStatus: 'waiting',
+    eligibleCount: 0,
+    poolFunded: false,
+  }
+  const idle = isIdleTenantSession(session)
+  const refreshIntervalMs = resolveHolderRefreshIntervalMs(session)
+
+  if (shouldSkipHolderRefresh(tenantKey, options?.force, refreshIntervalMs)) {
     return {
       refreshed: false,
       skipped: true,
+      skipReason: 'throttled',
       holderCount: 0,
       holdersWithVwap: 0,
       eligibleCount: 0,
@@ -188,18 +241,71 @@ export async function refreshLiveHolderRankings(options?: {
     }
   }
 
-  await ensureLiquidityPoolAddresses(config.tokenMint)
-
+  const existing = await loadRankingsFromDb()
   const [tokenPrice, pool] = await Promise.all([
     getTokenPrice(config.tokenMint),
     getLivePoolBalance(),
   ])
   const price = tokenPrice ?? 0
 
+  if (!options?.force && existing?.rankings?.length) {
+    const snapshotAgeMs = Date.now() - new Date(existing.lastCalculated).getTime()
+    const snapshotMaxAge = idle ? holderIdleSnapshotMaxAgeMs() : holderActiveSnapshotMaxAgeMs()
+    const snapshotStale = snapshotAgeMs >= snapshotMaxAge
+    const priceMoved = hasMaterialPriceChange(existing.tokenPrice, price)
+
+    if (!priceMoved && !snapshotStale) {
+      markHolderRefresh(tenantKey)
+      console.log(
+        `[BirdeyeRankings] Skipped — price unchanged (${idle ? 'idle' : 'active'} tenant, ${Math.round(snapshotAgeMs / 1000)}s snapshot age)`
+      )
+      return {
+        refreshed: false,
+        skipped: true,
+        skipReason: 'price_unchanged',
+        holderCount: existing.totalHolders,
+        holdersWithVwap: existing.holdersWithVwap,
+        eligibleCount: existing.eligibleCount,
+        apiCalls: 0,
+      }
+    }
+
+    if (priceMoved && !snapshotStale) {
+      const lastWinByWallet = await loadLastWinCycleByWallet(
+        existing.rankings.map(h => h.wallet)
+      )
+      const { getCurrentPayoutCycle } = await import('@/lib/payout/executor')
+      const rows = recomputeRankingRowsFromSnapshot(existing.rankings, {
+        mint: config.tokenMint,
+        tokenPrice: price,
+        poolUsd: pool.poolUsd,
+        currentCycle: getCurrentPayoutCycle(),
+        lastWinByWallet,
+        minTokenHolding: config.minTokenHolding,
+        tokenDecimals: config.tokenDecimals,
+      })
+      const { eligibleCount, holdersWithVwap } = await persistRankingsSnapshot(rows, price)
+      markHolderRefresh(tenantKey)
+      console.log(
+        `[BirdeyeRankings] Recomputed ${rows.length} row(s) from snapshot — price moved, no Birdeye call`
+      )
+      return {
+        refreshed: true,
+        recomputed: true,
+        holderCount: rows.length,
+        holdersWithVwap,
+        eligibleCount,
+        apiCalls: 0,
+      }
+    }
+  }
+
+  await ensureLiquidityPoolAddresses(config.tokenMint)
+
   const { holders, apiCalls } = await fetchBirdeyeTokenHolders(config.tokenMint, {
     maxHolders: Math.min(config.maxHoldersToProcess, 1000),
     tokenPrice: price > 0 ? price : null,
-    pageDelayMs: 1100,
+    pageDelayMs: idle ? 0 : 1100,
   })
 
   if (holders.length === 0) {

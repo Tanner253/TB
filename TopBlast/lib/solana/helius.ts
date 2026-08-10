@@ -11,6 +11,7 @@ import {
   WALLET_TX_EMPTY_TTL_MS,
   WALLET_TX_TTL_MS,
 } from '@/lib/solana/heliusCache'
+import { heliusEnhancedVwapEnabled } from '@/lib/platform/holderDataSource'
 
 function getHeliusUrl(): string {
   return getHeliusRpcUrl()
@@ -169,6 +170,10 @@ export async function getWalletTransactions(
   const cached = getCachedWalletTransactions(wallet, mint)
   if (cached) {
     return cached
+  }
+
+  if (!heliusEnhancedVwapEnabled()) {
+    return []
   }
 
   const maxAttempts = 3

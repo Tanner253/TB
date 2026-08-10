@@ -1,4 +1,4 @@
-export type PriceSource = 'dexscreener' | 'jupiter' | 'helius'
+export type PriceSource = 'dexscreener' | 'jupiter' | 'helius' | 'cache'
 
 export type PumpMigrationStage = 'bonding_curve' | 'migrated' | 'standard'
 

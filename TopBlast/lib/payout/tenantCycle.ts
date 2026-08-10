@@ -2,7 +2,7 @@
  * Hands-off background cycle for a tenant: index rankings, advance timer, execute payout when due.
  * Used by multi-tenant cron — no leaderboard traffic required.
  *
- * Holder data: Birdeye batch snapshot (~1/min + forced refresh before settlement).
+ * Holder data: Birdeye batch snapshot (active ~1/min; idle ~15/min with price gate).
  * Does not change payout signing — only refreshes CurrentRankings in MongoDB.
  */
 
@@ -32,6 +32,7 @@ import {
 import { config } from '@/lib/config'
 import { collectPumpCreatorFeesForActiveTenant } from '@/lib/pump/maybeCollectOnPoll'
 import { isPumpAutoCollectEnabled } from '@/lib/pump/config'
+import { isPoolFundedForPayout } from '@/lib/payout/poolMinimum'
 
 export interface TenantCycleResult {
   indexed: boolean
@@ -55,19 +56,29 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
 
   const useBirdeye = isBirdeyeHolderSourceEnabled()
 
-  let indexed = false
-  if (useBirdeye) {
-    const snap = await refreshLiveHolderRankings({ force: false })
-    indexed = snap.refreshed || snap.skipped === true
-  } else {
-    indexed = await ensureRankingsIndexed()
-  }
-
+  const timerEarly = getPayoutTimerInfo()
+  const livePoolEarly = await getLivePoolBalance()
   let dbRankings = await loadRankingsFromDb()
 
+  const holderSession = {
+    timerStatus: timerEarly.timer_status,
+    eligibleCount: dbRankings?.eligibleCount ?? 0,
+    poolFunded: isPoolFundedForPayout(livePoolEarly),
+  }
+
+  let indexed = false
+  if (useBirdeye) {
+    const snap = await refreshLiveHolderRankings({ force: false, session: holderSession })
+    indexed = snap.refreshed || snap.skipped === true
+    dbRankings = (await loadRankingsFromDb()) ?? dbRankings
+  } else {
+    indexed = await ensureRankingsIndexed()
+    dbRankings = (await loadRankingsFromDb()) ?? dbRankings
+  }
+
   const liveTokenPrice =
-    (config.tokenMint ? await getTokenPrice(config.tokenMint) : null) ??
     dbRankings?.tokenPrice ??
+    (config.tokenMint ? await getTokenPrice(config.tokenMint) : null) ??
     0
 
   if (!useBirdeye && dbRankings?.rankings?.length) {
@@ -89,7 +100,7 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
     }
   }
 
-  const livePool = await getLivePoolBalance()
+  const livePool = livePoolEarly
 
   let eligibleCount = 0
   if (dbRankings?.rankings?.length) {
@@ -124,7 +135,14 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
 
   if (isPayoutDue() && timer.timer_status === 'active' && dbRankings) {
     if (useBirdeye) {
-      await refreshLiveHolderRankings({ force: true })
+      await refreshLiveHolderRankings({
+        force: true,
+        session: {
+          timerStatus: timer.timer_status,
+          eligibleCount,
+          poolFunded: isPoolFundedForPayout(livePool),
+        },
+      })
       dbRankings = (await loadRankingsFromDb()) ?? dbRankings
     }
 

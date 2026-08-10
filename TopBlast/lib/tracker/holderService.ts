@@ -385,6 +385,9 @@ async function fetchRemainingVwapsInBackground(
 ): Promise<void> {
   if (remainingHolders.length === 0) return
 
+  const { heliusEnhancedVwapEnabled } = await import('@/lib/platform/holderDataSource')
+  if (!heliusEnhancedVwapEnabled()) return
+
   if (!getState().currentTokenPrice) {
     getState().currentTokenPrice = await getTokenPrice(config.tokenMint)
   }
@@ -1279,6 +1282,13 @@ async function countQualifyingOnChain(): Promise<number> {
 
 /** Re-index from chain when DB rankings are missing, empty, stale, or have no VWAP data. */
 export async function ensureRankingsIndexed(): Promise<boolean> {
+  const { holderIndexingUsesBirdeye } = await import('@/lib/platform/holderDataSource')
+  if (holderIndexingUsesBirdeye()) {
+    const { refreshLiveHolderRankings } = await import('@/lib/tracker/birdeyeRankings')
+    const result = await refreshLiveHolderRankings({ force: false })
+    return result.refreshed || result.skipped === true
+  }
+
   const existing = await loadRankingsFromDb()
   const tenantKey = getRankingsKey()
 
@@ -1343,6 +1353,11 @@ export async function ensureRankingsIndexed(): Promise<boolean> {
  * Calculate VWAP for tracked holders when rankings exist but buy history was never resolved.
  */
 export async function ensureVwapCalculated(): Promise<boolean> {
+  const { heliusEnhancedVwapEnabled } = await import('@/lib/platform/holderDataSource')
+  if (!heliusEnhancedVwapEnabled()) {
+    return true
+  }
+
   try {
     await connectDB()
     getState().currentPoolUsd = await resolvePoolUsd()
@@ -1411,6 +1426,12 @@ export async function hydrateRankingsWithVwap<
 }> {
   if (!config.tokenMint || rankings.length === 0) {
     return { rankings, holdersWithVwap: 0 }
+  }
+
+  const { heliusEnhancedVwapEnabled } = await import('@/lib/platform/holderDataSource')
+  if (!heliusEnhancedVwapEnabled()) {
+    const holdersWithVwap = rankings.filter(r => (r.vwap ?? 0) > 0).length
+    return { rankings, holdersWithVwap }
   }
 
   await ensureLiquidityPoolAddresses(config.tokenMint)

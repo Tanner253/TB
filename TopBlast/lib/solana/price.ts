@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { config } from '@/lib/config'
+import { tenantCacheKey } from '@/lib/tenant/tenantCacheKey'
 import { resolveTokenPrice } from './priceProviders/resolve'
 import { fetchDexScreenerSolPrice } from './priceProviders/dexscreener'
 import type { ResolvedTokenPrice } from './priceProviders/types'
@@ -20,6 +21,32 @@ export interface TokenPriceData {
 let solPriceCache: { price: number | null; timestamp: number } = { price: null, timestamp: 0 }
 const SOL_PRICE_CACHE_TTL = 60 * 1000
 
+/** Token price cache — avoids DexScreener on every worker tick / leaderboard poll. */
+const TOKEN_PRICE_CACHE_TTL = 30 * 1000
+
+declare global {
+  // eslint-disable-next-line no-var
+  var _tokenPriceCache: Map<string, { price: number; expiresAt: number }> | undefined
+}
+
+function tokenPriceCache() {
+  if (!global._tokenPriceCache) global._tokenPriceCache = new Map()
+  return global._tokenPriceCache
+}
+
+function readCachedTokenPrice(mint: string): number | null {
+  const hit = tokenPriceCache().get(tenantCacheKey('tokenPrice', mint))
+  if (!hit || Date.now() > hit.expiresAt) return null
+  return hit.price
+}
+
+function writeCachedTokenPrice(mint: string, price: number) {
+  tokenPriceCache().set(tenantCacheKey('tokenPrice', mint), {
+    price,
+    expiresAt: Date.now() + TOKEN_PRICE_CACHE_TTL,
+  })
+}
+
 export async function getTokenPrice(mint?: string): Promise<number | null> {
   const resolved = await getResolvedTokenPrice(mint)
   return resolved?.price ?? null
@@ -28,7 +55,26 @@ export async function getTokenPrice(mint?: string): Promise<number | null> {
 export async function getResolvedTokenPrice(mint?: string): Promise<ResolvedTokenPrice | null> {
   const tokenMint = (mint || config.tokenMint)?.trim()
   if (!tokenMint) return null
-  return resolveTokenPrice(tokenMint)
+
+  const cached = readCachedTokenPrice(tokenMint)
+  if (cached != null) {
+    return {
+      mint: tokenMint,
+      price: cached,
+      marketCap: null,
+      volume24h: null,
+      priceChange24h: null,
+      source: 'cache',
+      pair: null,
+      fetchedAt: Date.now(),
+    }
+  }
+
+  const resolved = await resolveTokenPrice(tokenMint)
+  if (resolved?.price) {
+    writeCachedTokenPrice(tokenMint, resolved.price)
+  }
+  return resolved
 }
 
 export async function getTokenData(mint?: string): Promise<TokenPriceData | null> {

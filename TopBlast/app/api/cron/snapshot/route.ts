@@ -8,6 +8,7 @@ import { calculateBatchVwaps, VwapData } from '@/lib/tracker/vwap'
 import { calculateDrawdown, calculateLossUsd, rankHolders, RankedHolder } from '@/lib/engine/calculations'
 import { config, validateConfig } from '@/lib/config'
 import { syncPayoutTimerWithPayableWinners } from '@/lib/payout/executor'
+import { holderIndexingUsesBirdeye } from '@/lib/platform/holderDataSource'
 
 // Verify cron secret
 function verifyCronSecret(request: NextRequest): boolean {
@@ -47,6 +48,16 @@ async function runSnapshot(_request: NextRequest) {
 
   try {
     await connectDB()
+
+    if (holderIndexingUsesBirdeye()) {
+      const { refreshLiveHolderRankings } = await import('@/lib/tracker/birdeyeRankings')
+      const result = await refreshLiveHolderRankings({ force: true })
+      return NextResponse.json({
+        success: true,
+        message: 'Birdeye holder refresh (Helius Enhanced snapshot disabled)',
+        data: result,
+      })
+    }
     
     console.log(`[Snapshot] Starting hourly snapshot for ${config.tokenSymbol}`)
     console.log(`[Snapshot] Token: ${config.tokenMint}`)

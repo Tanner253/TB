@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { shouldRunHeliusHolderIndexing } from '@/lib/platform/holderDataSource'
+
 /**
  * When true, Helius indexing / VWAP / payouts / Pump collect run only on the background
  * worker (POST /api/cron/tenants). Public API polls read MongoDB only.
@@ -22,6 +24,5 @@ export function allowManualHeliusRefreshOnPoll(): boolean {
 }
 
 export function shouldRunHeliusOnLeaderboardPoll(forceRefresh: boolean): boolean {
-  if (!apiPollsAreReadOnly()) return true
-  return forceRefresh && allowManualHeliusRefreshOnPoll()
+  return shouldRunHeliusHolderIndexing(forceRefresh)
 }

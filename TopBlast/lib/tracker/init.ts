@@ -13,6 +13,7 @@ import {
 import { getTokenPrice, getSolPrice } from '@/lib/solana/price'
 import { config } from '@/lib/config'
 import { getTenantSlug } from '@/lib/tenant/context'
+import { holderIndexingUsesBirdeye } from '@/lib/platform/holderDataSource'
 
 type TrackerInitState = {
   initialized: boolean
@@ -49,6 +50,11 @@ const PRICE_UPDATE_INTERVAL = 30000
  * This is designed to work in serverless environments
  */
 export async function initializeTracker(): Promise<void> {
+  if (holderIndexingUsesBirdeye()) {
+    getTrackerState().initialized = true
+    return
+  }
+
   // If already initializing, wait for it
   if (getTrackerState().initializationPromise) {
     return getTrackerState().initializationPromise
