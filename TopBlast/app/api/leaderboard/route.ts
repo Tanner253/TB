@@ -50,7 +50,6 @@ import {
   HOLDER_FORCE_REFRESH_COOLDOWN_MS,
 } from '@/lib/solana/heliusCache'
 import { getRankingsKey } from '@/lib/tenant/keys'
-import { getPlatformTestBanner } from '@/lib/platform/testBanner'
 import { maybeCollectPumpCreatorFeesOnPoll } from '@/lib/pump/maybeCollectOnPoll'
 import {
   apiPollsAreReadOnly,
@@ -198,7 +197,6 @@ export async function GET(request: NextRequest) {
     }
 
     const noStoreHeaders = { 'Cache-Control': 'no-store, max-age=0' }
-    const platformTestBanner = getPlatformTestBanner()
 
     if (!dbRankings) {
       if (!readOnlyPoll) {
@@ -255,7 +253,6 @@ export async function GET(request: NextRequest) {
           tracker_initialized: serviceStatus.initialized,
           rankings: [],
           last_updated: new Date().toISOString(),
-          platform_test_banner: platformTestBanner,
           read_only_poll: readOnlyPoll,
           worker_indexing: readOnlyPoll,
         },
@@ -584,7 +581,6 @@ export async function GET(request: NextRequest) {
         holders_force_refresh_cooldown_sec: Math.ceil(
           HOLDER_FORCE_REFRESH_COOLDOWN_MS / 1000
         ),
-        platform_test_banner: platformTestBanner,
         read_only_poll: readOnlyPoll,
         worker_indexing: readOnlyPoll,
       },

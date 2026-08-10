@@ -19,7 +19,6 @@ import type { SessionChecklist } from '@/lib/tenant/sessionChecklist'
 import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 import { CopyContractAddress, solscanTokenUrl } from '@/components/ui/CopyContractAddress'
 import { getAddressExplorerUrl } from '@/lib/solana/explorer'
-import { PlatformTestBanner } from '@/components/platform/PlatformTestBanner'
 import { deriveSessionDisplayState } from '@/lib/session/displayState'
 
 const PEDESTAL_SLOTS = 3
@@ -249,7 +248,6 @@ export default function LeaderboardPage() {
   )
   
   const wsConnected = data?.ws_connected
-  const platformTestBanner = data?.platform_test_banner ?? null
   const lastPayoutError = data?.last_payout_error ?? null
   const payoutRetryMode = data?.payout_retry_mode === true
   const payoutRetryMinutes = data?.payout_retry_minutes ?? null
@@ -293,8 +291,6 @@ export default function LeaderboardPage() {
           </>
         }
       />
-
-      {platformTestBanner ? <PlatformTestBanner banner={platformTestBanner} /> : null}
 
       {lastPayoutError ? (
         <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 pt-4">
