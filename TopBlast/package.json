@@ -7,12 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "worker:ping": "node scripts/proof-of-life.mjs",
     "worker:run": "node scripts/render-cron-worker.mjs",
-    "worker:execute": "node scripts/proof-of-life.mjs --execute"
+    "worker:execute": "node scripts/proof-of-life.mjs --execute",
+    "birdeye:probe": "node scripts/birdeye-holder-probe.mjs",
+    "holder:benchmark": "node scripts/holder-data-benchmark.mjs"
   },
   "dependencies": {
     "@pump-fun/pump-sdk": "^1.36.0",

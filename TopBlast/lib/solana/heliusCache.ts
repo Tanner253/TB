@@ -45,8 +45,17 @@ export const HOLDER_FORCE_REFRESH_COOLDOWN_MS = parsePositiveMs(
   60 * 1000
 )
 
-/** Enhanced wallet history — cache 10 minutes per tenant+wallet+mint. */
-export const WALLET_TX_TTL_MS = 10 * 60 * 1000
+/** Enhanced wallet history — long TTL; wallet buy history rarely changes. */
+export const WALLET_TX_TTL_MS = parsePositiveMs(
+  process.env.HELIUS_WALLET_TX_TTL_MS,
+  24 * 60 * 60 * 1000
+)
+
+/** Empty / no-buy history — cache even longer to avoid re-scanning airdrop wallets. */
+export const WALLET_TX_EMPTY_TTL_MS = parsePositiveMs(
+  process.env.HELIUS_WALLET_TX_EMPTY_TTL_MS,
+  7 * 24 * 60 * 60 * 1000
+)
 
 /** Minimum gap between full re-index attempts per tenant mint. */
 export const INDEX_THROTTLE_MS = 3 * 60 * 1000

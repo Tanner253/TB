@@ -8,6 +8,8 @@ import {
   setCachedWalletTransactions,
   getHolderFetchCooldownRemaining,
   getStaleTokenHolders,
+  WALLET_TX_EMPTY_TTL_MS,
+  WALLET_TX_TTL_MS,
 } from '@/lib/solana/heliusCache'
 
 function getHeliusUrl(): string {
@@ -29,8 +31,8 @@ const MIN_BUY_SOL_OUTFLOW = 0.001
 const ENHANCED_TX_PAGE_SIZE = 100
 
 function parseHeliusMaxPages(): number {
-  const n = parseInt(process.env.HELIUS_WALLET_TX_MAX_PAGES || '12', 10)
-  return Number.isFinite(n) && n > 0 ? Math.min(n, 30) : 12
+  const n = parseInt(process.env.HELIUS_WALLET_TX_MAX_PAGES || '4', 10)
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 12) : 4
 }
 
 /**
@@ -179,7 +181,8 @@ export async function getWalletTransactions(
       })
       const mintTxs = rawTxs.filter(tx => rawTxInvolvesMint(tx, mint))
       const parsed = parseWalletMintTransactions(wallet, mint, mintTxs.length > 0 ? mintTxs : rawTxs)
-      setCachedWalletTransactions(wallet, mint, parsed)
+      const ttl = parsed.length === 0 ? WALLET_TX_EMPTY_TTL_MS : WALLET_TX_TTL_MS
+      setCachedWalletTransactions(wallet, mint, parsed, ttl)
       return parsed
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)

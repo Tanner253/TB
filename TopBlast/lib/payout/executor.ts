@@ -17,6 +17,8 @@ import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
 import { isLiquidityPoolWallet, ensureLiquidityPoolAddresses } from '@/lib/eligibility/liquidityPools'
 import { mergeLiveHolderBalances } from '@/lib/leaderboard/mergeLiveHolderBalances'
+import { workerOwnsIndexing } from '@/lib/platform/workerMode'
+import { getStaleTokenHolders } from '@/lib/solana/heliusCache'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 import { getTokenPrice } from '@/lib/solana/price'
 import { isPoolFundedForPayout, minPoolForPayoutLabel } from '@/lib/payout/poolMinimum'
@@ -484,11 +486,17 @@ export async function resolveLivePayableWinners(limit?: number): Promise<Payable
   const rankingByWallet = new Map(
     dbRankings.rankings.map(h => [h.wallet, { ...h }] as const)
   )
-  const liveHolders = await getTokenHolders(
-    config.tokenMint,
-    Math.min(config.maxHoldersToProcess, 1000)
-  )
-  mergeLiveHolderBalances(rankingByWallet, liveHolders, config.tokenMint)
+  const liveHolders: Array<{ wallet: string; balance: number; isContract: boolean }> =
+    workerOwnsIndexing()
+      ? (getStaleTokenHolders(config.tokenMint) ?? []).map(h => ({
+          wallet: h.wallet,
+          balance: h.balance,
+          isContract: isLiquidityPoolWallet(h.wallet, config.tokenMint),
+        }))
+      : await getTokenHolders(config.tokenMint, Math.min(config.maxHoldersToProcess, 1000))
+  if (liveHolders.length > 0) {
+    mergeLiveHolderBalances(rankingByWallet, liveHolders, config.tokenMint)
+  }
 
   const contractWallets = new Set(
     liveHolders.filter(h => h.isContract).map(h => h.wallet)

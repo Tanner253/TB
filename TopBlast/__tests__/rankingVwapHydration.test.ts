@@ -35,7 +35,7 @@ describe('payoutBlockedByPendingVwap', () => {
 })
 
 describe('rankingNeedsVwapHydration', () => {
-  it('retries wallets stuck on No buy history after cooldown', () => {
+  it('does not retry No buy history after Helius scan', () => {
     const stale = new Date(Date.now() - VWAP_HYDRATION_RETRY_MS - 1000)
     expect(
       rankingNeedsVwapHydration({
@@ -43,17 +43,16 @@ describe('rankingNeedsVwapHydration', () => {
         ineligibleReason: 'No buy history',
         vwapFetchedAt: stale,
       })
-    ).toBe(true)
+    ).toBe(false)
   })
 
-  it('does not retry No buy history inside cooldown window', () => {
+  it('fetches No buy history only when never scanned', () => {
     expect(
       rankingNeedsVwapHydration({
         vwap: 0,
         ineligibleReason: 'No buy history',
-        vwapFetchedAt: new Date(),
       })
-    ).toBe(false)
+    ).toBe(true)
   })
 
   it('always retries Buy history pending', () => {

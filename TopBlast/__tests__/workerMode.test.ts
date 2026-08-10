@@ -64,15 +64,15 @@ describe('heliusLimits', () => {
     process.env = env
   })
 
-  it('defaults wallet tx pages to 12 and hydrate cap to 3', () => {
-    expect(heliusWalletTxMaxPages()).toBe(12)
+  it('defaults wallet tx pages to 4 and hydrate cap to 3', () => {
+    expect(heliusWalletTxMaxPages()).toBe(4)
     expect(leaderboardVwapHydrateMaxPerRequest()).toBe(3)
   })
 
   it('respects env overrides within caps', () => {
-    process.env.HELIUS_WALLET_TX_MAX_PAGES = '20'
+    process.env.HELIUS_WALLET_TX_MAX_PAGES = '8'
     process.env.LEADERBOARD_VWAP_HYDRATE_MAX = '8'
-    expect(heliusWalletTxMaxPages()).toBe(20)
+    expect(heliusWalletTxMaxPages()).toBe(8)
     expect(leaderboardVwapHydrateMaxPerRequest()).toBe(8)
   })
 })

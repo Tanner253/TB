@@ -1,20 +1,21 @@
 /**
  * Hands-off background cycle for a tenant: index rankings, advance timer, execute payout when due.
  * Used by multi-tenant cron — no leaderboard traffic required.
+ *
+ * Holder data: Birdeye batch snapshot (~1/min + forced refresh before settlement).
+ * Does not change payout signing — only refreshes CurrentRankings in MongoDB.
  */
 
+import { loadRankingsFromDb } from '@/lib/tracker/holderService'
+import {
+  isBirdeyeHolderSourceEnabled,
+  refreshLiveHolderRankings,
+} from '@/lib/tracker/birdeyeRankings'
 import {
   ensureRankingsIndexed,
-  loadRankingsFromDb,
-  ensureRankingsVwapProgress,
   payoutBlockedByPendingVwap,
 } from '@/lib/tracker/holderService'
 import { getTokenPrice } from '@/lib/solana/price'
-import {
-  workerVwapHydrateMaxPerCycle,
-  workerVwapHydrateConcurrency,
-  workerVwapHydrateBatchesPerCycle,
-} from '@/lib/platform/heliusLimits'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
@@ -52,7 +53,16 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
     }
   }
 
-  const indexed = await ensureRankingsIndexed()
+  const useBirdeye = isBirdeyeHolderSourceEnabled()
+
+  let indexed = false
+  if (useBirdeye) {
+    const snap = await refreshLiveHolderRankings({ force: false })
+    indexed = snap.refreshed || snap.skipped === true
+  } else {
+    indexed = await ensureRankingsIndexed()
+  }
+
   let dbRankings = await loadRankingsFromDb()
 
   const liveTokenPrice =
@@ -60,7 +70,13 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
     dbRankings?.tokenPrice ??
     0
 
-  if (dbRankings?.rankings?.length) {
+  if (!useBirdeye && dbRankings?.rankings?.length) {
+    const { ensureRankingsVwapProgress } = await import('@/lib/tracker/holderService')
+    const {
+      workerVwapHydrateMaxPerCycle,
+      workerVwapHydrateConcurrency,
+      workerVwapHydrateBatchesPerCycle,
+    } = await import('@/lib/platform/heliusLimits')
     const hydrateOpts = {
       maxWallets: workerVwapHydrateMaxPerCycle(),
       tokenPrice: liveTokenPrice,
@@ -107,7 +123,15 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
   const timer = getPayoutTimerInfo()
 
   if (isPayoutDue() && timer.timer_status === 'active' && dbRankings) {
-    if (payoutBlockedByPendingVwap(dbRankings.rankings, config.winnerCount)) {
+    if (useBirdeye) {
+      await refreshLiveHolderRankings({ force: true })
+      dbRankings = (await loadRankingsFromDb()) ?? dbRankings
+    }
+
+    const blockPayout =
+      !useBirdeye &&
+      payoutBlockedByPendingVwap(dbRankings.rankings, config.winnerCount)
+    if (blockPayout) {
       console.warn(
         '[TenantCycle] Payout deferred — buy history still loading for top-ranked holders'
       )
@@ -132,8 +156,8 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
       eligibleCount,
       timerStatus: getPayoutTimerInfo().timer_status,
       payoutAttempted: true,
-      payoutSuccess: result.success,
-      payoutError: result.error,
+      payoutSuccess: result?.success ?? false,
+      payoutError: result?.error ?? null,
     }
   }
 

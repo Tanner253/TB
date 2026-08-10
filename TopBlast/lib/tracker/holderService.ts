@@ -28,10 +28,23 @@ const RESOLVED_VWAP_REASONS = new Set([
   'Received via transfer',
   'Cost basis unavailable',
   'Liquidity pool excluded',
+  'No buy history',
 ])
 
-/** Retry pending / inconclusive lookups after this interval. */
-export const VWAP_HYDRATION_RETRY_MS = 5 * 60 * 1000
+/** Retry inconclusive lookups (pending buys) — not used for permanent "No buy history". */
+export const VWAP_HYDRATION_RETRY_MS = 30 * 60 * 1000
+
+/** Worker cron: only wallets never scanned by Helius (avoids re-hitting resolved rows). */
+export function rankingNeedsInitialVwapFetch(row: {
+  vwap?: number | null
+  ineligibleReason?: string | null
+  vwapFetchedAt?: Date | string | number | null
+  firstBuyAt?: Date | string | number | null
+}): boolean {
+  if (row.vwapFetchedAt) return false
+  if ((row.vwap ?? 0) > 0 && row.firstBuyAt) return false
+  return rankingNeedsVwapHydration(row)
+}
 
 export function rankingNeedsVwapHydration(row: {
   vwap?: number | null
@@ -62,10 +75,8 @@ export function rankingNeedsVwapHydration(row: {
     return true
   }
   if (reason === 'No buy history') {
-    const fetchedAt = row.vwapFetchedAt ? new Date(row.vwapFetchedAt).getTime() : 0
-    if (fetchedAt > 0 && Date.now() - fetchedAt < VWAP_HYDRATION_RETRY_MS) {
-      return false
-    }
+    // Permanent once Helius returned empty — do not re-fetch transfer-only wallets.
+    if (row.vwapFetchedAt) return false
     return true
   }
   if (RESOLVED_VWAP_REASONS.has(reason)) {
@@ -1274,13 +1285,13 @@ export async function ensureRankingsIndexed(): Promise<boolean> {
   if (
     existing &&
     existing.totalHolders > 0 &&
+    existing.rankings.length > 0 &&
     existing.holdersWithVwap > 0 &&
     shouldThrottleFullReindex(tenantKey)
   ) {
     return true
   }
 
-  const qualifyingOnChain = await countQualifyingOnChain()
   const trackableInDb = existing ? countTrackableRankings(existing.rankings) : 0
 
   const looksComplete =
@@ -1289,6 +1300,12 @@ export async function ensureRankingsIndexed(): Promise<boolean> {
     existing.rankings.length > 0 &&
     existing.holdersWithVwap > 0 &&
     trackableInDb > 0
+
+  if (looksComplete && shouldThrottleFullReindex(tenantKey)) {
+    return true
+  }
+
+  const qualifyingOnChain = await countQualifyingOnChain()
 
   const isStale =
     qualifyingOnChain > 0 &&
@@ -1546,7 +1563,7 @@ export async function ensureRankingsVwapProgress(options?: {
     return { hydrated: 0, holdersWithVwap: 0, stillPending: 0 }
   }
 
-  const needing = dbRankings.rankings.filter(rankingNeedsVwapHydration)
+  const needing = dbRankings.rankings.filter(rankingNeedsInitialVwapFetch)
   if (needing.length === 0) {
     return { hydrated: 0, holdersWithVwap: dbRankings.holdersWithVwap, stillPending: 0 }
   }
@@ -1557,7 +1574,7 @@ export async function ensureRankingsVwapProgress(options?: {
     tokenPrice: options?.tokenPrice,
     concurrency: options?.concurrency,
   })
-  const stillPending = result.rankings.filter(rankingNeedsVwapHydration).length
+  const stillPending = result.rankings.filter(rankingNeedsInitialVwapFetch).length
   return {
     hydrated: Math.max(0, result.holdersWithVwap - before),
     holdersWithVwap: result.holdersWithVwap,
