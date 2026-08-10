@@ -78,7 +78,7 @@ export async function buildSessionHolderStats(
   }
 
   return {
-    total: dbRankings?.totalHolders ?? sourceRankings.length,
+    total: dbRankings?.reportedHolderCount ?? dbRankings?.totalHolders ?? sourceRankings.length,
     tracked: sourceRankings.length,
     with_vwap: withVwap,
     eligible,

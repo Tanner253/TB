@@ -103,7 +103,9 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
   const livePool = livePoolEarly
 
   let eligibleCount = 0
-  if (dbRankings?.rankings?.length) {
+  if (useBirdeye && dbRankings) {
+    eligibleCount = dbRankings.eligibleCount ?? 0
+  } else if (dbRankings?.rankings?.length) {
     const lastWinByWallet = await loadLastWinCycleByWallet(
       dbRankings.rankings.map(h => h.wallet)
     )

@@ -1171,6 +1171,8 @@ export async function loadRankingsFromDb(): Promise<{
     isContract?: boolean
   }>
   totalHolders: number
+  indexedHolderCount?: number
+  reportedHolderCount?: number
   eligibleCount: number
   holdersWithVwap: number
   tokenPrice: number
@@ -1196,6 +1198,8 @@ export async function loadRankingsFromDb(): Promise<{
         ),
       })),
       totalHolders: data.totalHolders || 0,
+      indexedHolderCount: data.indexedHolderCount || 0,
+      reportedHolderCount: data.reportedHolderCount || data.totalHolders || 0,
       eligibleCount: data.eligibleCount || 0,
       holdersWithVwap: data.holdersWithVwap || 0,
       tokenPrice: data.tokenPrice || 0,

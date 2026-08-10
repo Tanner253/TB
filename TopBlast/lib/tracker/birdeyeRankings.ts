@@ -25,6 +25,10 @@ import {
   type HolderRefreshSession,
 } from '@/lib/platform/holderRefreshPolicy'
 import {
+  birdeyeHolderFetchMax,
+  leaderboardPersistMax,
+} from '@/lib/platform/holderLimits'
+import {
   fetchBirdeyeTokenHolders,
   isBirdeyeHolderSourceEnabled,
 } from '@/lib/solana/birdeyeHolders'
@@ -175,14 +179,25 @@ export function recomputeRankingRowsFromSnapshot(
 /** Persist rankings snapshot — no payout side effects. */
 export async function persistRankingsSnapshot(
   rows: RankingRow[],
-  tokenPrice: number
+  tokenPrice: number,
+  meta?: {
+    reportedHolderCount?: number | null
+    preserveReportedCount?: number | null
+    preserveIndexedCount?: number | null
+  }
 ): Promise<{ eligibleCount: number; holdersWithVwap: number }> {
   const { CurrentRankings } = await import('@/lib/db/models')
   await connectDB()
 
   const eligibleCount = rows.filter(r => r.isEligible).length
   const holdersWithVwap = rows.filter(r => r.vwap > 0).length
-  const top = rows.slice(0, 50)
+  const persistMax = leaderboardPersistMax()
+  const top = rows.slice(0, persistMax)
+  const indexedHolderCount = meta?.preserveIndexedCount ?? rows.length
+  const reportedHolderCount =
+    meta?.reportedHolderCount ??
+    meta?.preserveReportedCount ??
+    indexedHolderCount
 
   await CurrentRankings.findOneAndUpdate(
     { key: getRankingsKey() },
@@ -190,7 +205,9 @@ export async function persistRankingsSnapshot(
       $set: {
         tokenMint: config.tokenMint,
         rankings: top,
-        totalHolders: rows.length,
+        totalHolders: reportedHolderCount,
+        indexedHolderCount,
+        reportedHolderCount,
         eligibleCount,
         holdersWithVwap,
         tokenPrice,
@@ -201,7 +218,7 @@ export async function persistRankingsSnapshot(
   )
 
   console.log(
-    `[BirdeyeRankings] Saved ${rows.length} holder(s), ${holdersWithVwap} with entry price, ${eligibleCount} eligible (${top.length} in leaderboard)`
+    `[BirdeyeRankings] Saved ${reportedHolderCount} holder(s) on CA, analyzed ${indexedHolderCount}, ${holdersWithVwap} with entry price, ${eligibleCount} eligible (${top.length} on leaderboard)`
   )
 
   return { eligibleCount, holdersWithVwap }
@@ -284,7 +301,10 @@ export async function refreshLiveHolderRankings(options?: {
         minTokenHolding: config.minTokenHolding,
         tokenDecimals: config.tokenDecimals,
       })
-      const { eligibleCount, holdersWithVwap } = await persistRankingsSnapshot(rows, price)
+      const { eligibleCount, holdersWithVwap } = await persistRankingsSnapshot(rows, price, {
+        preserveReportedCount: existing.reportedHolderCount ?? existing.totalHolders,
+        preserveIndexedCount: existing.indexedHolderCount ?? existing.rankings.length,
+      })
       markHolderRefresh(tenantKey)
       console.log(
         `[BirdeyeRankings] Recomputed ${rows.length} row(s) from snapshot — price moved, no Birdeye call`
@@ -302,8 +322,9 @@ export async function refreshLiveHolderRankings(options?: {
 
   await ensureLiquidityPoolAddresses(config.tokenMint)
 
-  const { holders, apiCalls } = await fetchBirdeyeTokenHolders(config.tokenMint, {
-    maxHolders: Math.min(config.maxHoldersToProcess, 1000),
+  const fetchMax = birdeyeHolderFetchMax()
+  const { holders, apiCalls, totalReported } = await fetchBirdeyeTokenHolders(config.tokenMint, {
+    maxHolders: Math.min(config.maxHoldersToProcess, fetchMax),
     tokenPrice: price > 0 ? price : null,
     pageDelayMs: idle ? 0 : 1100,
   })
@@ -326,7 +347,9 @@ export async function refreshLiveHolderRankings(options?: {
     tokenDecimals: config.tokenDecimals,
   })
 
-  const { eligibleCount, holdersWithVwap } = await persistRankingsSnapshot(rows, price)
+  const { eligibleCount, holdersWithVwap } = await persistRankingsSnapshot(rows, price, {
+    reportedHolderCount: totalReported,
+  })
   markHolderRefresh(tenantKey)
 
   return {

@@ -216,6 +216,9 @@ export default function LeaderboardPage() {
   ).slice(0, winnerCount) as Winner[]
 
   const eligibleCount = data?.eligible_count ?? topEligible.length
+  const trueHolderCount =
+    data?.reported_holder_count ?? data?.on_chain_holders ?? data?.total_holders ?? null
+  const leaderboardTrackedCount = data?.tracked_holders ?? rankings.length
   const isInitializing = data?.status === 'initializing'
   const effectiveTimerStatus = timerStatus ?? data?.timer_status ?? 'waiting'
   const sessionDisplay = deriveSessionDisplayState({
@@ -369,13 +372,13 @@ export default function LeaderboardPage() {
             <span
               className="font-bold font-mono text-white"
               title={
-                data?.on_chain_holders != null
-                  ? `${data.on_chain_holders} wallets on-chain (excludes LP pool) · min ${data?.min_token_holding?.toLocaleString() ?? '1,000'} tokens to rank`
+                trueHolderCount != null
+                  ? `${trueHolderCount.toLocaleString()} total holders on this token · top ${leaderboardTrackedCount} ranked for rewards`
                   : undefined
               }
             >
-              {data?.on_chain_holders ?? data?.total_holders ? (
-                formatNumber(data.on_chain_holders ?? data.total_holders)
+              {trueHolderCount != null ? (
+                formatNumber(trueHolderCount)
               ) : (
                 <InlineSpinner />
               )}
@@ -748,9 +751,9 @@ export default function LeaderboardPage() {
               <ExternalToolsEligibilityNote variant="inline" className="mt-2 max-w-2xl" />
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-gray-400">
-              <span>{data?.on_chain_holders ?? data?.total_holders ?? 0} on-chain</span>
+              <span>{trueHolderCount != null ? `${formatNumber(trueHolderCount)} holders` : '— holders'}</span>
               <span className="hidden sm:inline w-px h-4 bg-white/20" />
-              <span>{data?.tracked_holders || 0} on leaderboard</span>
+              <span>{leaderboardTrackedCount} ranked for rewards</span>
               {(data?.holders_with_buy_history ?? 0) > 0 ? (
                 <>
                   <span className="hidden sm:inline w-px h-4 bg-white/20" />
@@ -913,7 +916,8 @@ export default function LeaderboardPage() {
             Real-time tracking via Helius
           </div>
           <p className="text-xs text-gray-500">
-            {data?.tracked_holders || 0} holders tracked • Top {winnerCount} losers paid every{' '}
+            {trueHolderCount != null ? `${formatNumber(trueHolderCount)} holders on token · ` : null}
+            {leaderboardTrackedCount} ranked for rewards • Top {winnerCount} losers paid every{' '}
             {data?.payout_interval_display || PAYOUT_INTERVAL_RANGE_COMPACT}
           </p>
         </motion.div>

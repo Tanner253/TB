@@ -261,6 +261,10 @@ export interface ICurrentRankings extends Document {
     isContract?: boolean
   }>
   totalHolders: number
+  /** Wallets analyzed in the last Birdeye batch (≤ fetch max). */
+  indexedHolderCount?: number
+  /** Total holders on the CA per Birdeye (true on-chain holder count). */
+  reportedHolderCount?: number
   eligibleCount: number
   holdersWithVwap: number
   tokenPrice: number
@@ -273,6 +277,8 @@ const CurrentRankingsSchema = new Schema<ICurrentRankings>({
   tokenMint: { type: String, default: '' },
   rankings: { type: [Schema.Types.Mixed], default: [] },
   totalHolders: { type: Number, default: 0 },
+  indexedHolderCount: { type: Number, default: 0 },
+  reportedHolderCount: { type: Number, default: 0 },
   eligibleCount: { type: Number, default: 0 },
   holdersWithVwap: { type: Number, default: 0 },
   tokenPrice: { type: Number, default: 0 },

@@ -60,6 +60,13 @@ import { leaderboardVwapHydrateMaxPerRequest } from '@/lib/platform/heliusLimits
 /** DB rankings younger than this skip Helius DAS on public leaderboard polls. */
 const RANKINGS_FRESH_MS = 2 * 60 * 1000
 
+function reportedHolderCountFromRankings(
+  dbRankings: Awaited<ReturnType<typeof loadRankingsFromDb>>
+): number {
+  if (!dbRankings) return 0
+  return dbRankings.reportedHolderCount ?? dbRankings.totalHolders ?? 0
+}
+
 function leaderboardVwapHydrateBudget(holderCount: number): number {
   const cap = leaderboardVwapHydrateMaxPerRequest()
   if (cap === 0) return 0
@@ -121,9 +128,9 @@ export async function GET(request: NextRequest) {
     const rankingsFresh = rankingsAgeMs < RANKINGS_FRESH_MS
 
     let onChainStats = {
-      raw: dbRankings?.totalHolders ?? 0,
-      trackable: dbRankings?.totalHolders ?? 0,
-      qualifying: dbRankings?.totalHolders ?? 0,
+      raw: reportedHolderCountFromRankings(dbRankings),
+      trackable: reportedHolderCountFromRankings(dbRankings),
+      qualifying: dbRankings?.indexedHolderCount ?? dbRankings?.rankings.length ?? 0,
     }
 
     if (!dbRankings) {
@@ -291,10 +298,11 @@ export async function GET(request: NextRequest) {
         }
       }
     } else {
+      const reported = reportedHolderCountFromRankings(dbRankings)
       onChainStats = {
-        raw: dbRankings.totalHolders,
-        trackable: dbRankings.totalHolders,
-        qualifying: dbRankings.totalHolders,
+        raw: reported,
+        trackable: reported,
+        qualifying: dbRankings.indexedHolderCount ?? dbRankings.rankings.length,
       }
     }
 
@@ -543,9 +551,11 @@ export async function GET(request: NextRequest) {
         token_symbol: config.tokenSymbol,
         token_mint: config.tokenMint,
         token_mint_explorer_url: getTokenMintExplorerUrl(config.tokenMint),
-        total_holders: Math.max(dbRankings.totalHolders, onChainStats.qualifying),
-        on_chain_holders: onChainStats.trackable,
-        on_chain_raw_holders: onChainStats.raw,
+        total_holders: reportedHolderCountFromRankings(dbRankings),
+        reported_holder_count: reportedHolderCountFromRankings(dbRankings),
+        indexed_holders: dbRankings.indexedHolderCount ?? dbRankings.rankings.length,
+        on_chain_holders: reportedHolderCountFromRankings(dbRankings),
+        on_chain_raw_holders: reportedHolderCountFromRankings(dbRankings),
         min_token_holding: config.minTokenHolding,
         tracked_holders: sourceRankings.length,
         holders_with_buy_history: liveEvaluated.filter(
