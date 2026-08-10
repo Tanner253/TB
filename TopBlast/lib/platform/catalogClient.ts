@@ -1,5 +1,9 @@
 import type { PublicTenantSummary } from '@/lib/tenant/types'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
+import {
+  deriveSessionDisplayState,
+  type SessionDisplayState,
+} from '@/lib/session/displayState'
 
 export type CatalogSortId = 'featured' | 'newest' | 'oldest' | 'name-asc' | 'name-desc'
 
@@ -20,37 +24,69 @@ export function formatCatalogStatus(tenant: PublicTenantSummary): string {
   return tenant.status === 'active' ? 'live' : tenant.status
 }
 
-/** Same timer fields the leaderboard uses — no re-derivation. */
-export function isCatalogTimerActive(tenant: PublicTenantSummary): boolean {
-  return tenant.payout_timer_status === 'active'
+/** Shared session phase for catalog cards — matches leaderboard displayState. */
+export function deriveCatalogSessionDisplay(tenant: PublicTenantSummary): SessionDisplayState {
+  return deriveSessionDisplayState({
+    timerStatus: tenant.payout_timer_status ?? 'waiting',
+    secondsRemaining: tenant.payout_seconds_remaining ?? null,
+    eligibleCount: tenant.payout_eligible_count ?? 0,
+    rankedHolderCount: tenant.payout_ranked_count ?? 0,
+    poolFundedForPayout: tenant.payout_pool_funded !== false,
+  })
 }
 
-/** Limbo badge: timer not running yet (matches leaderboard "waiting for volume"). */
+export function isCatalogPoolBelowMinimum(tenant: PublicTenantSummary): boolean {
+  return deriveCatalogSessionDisplay(tenant).poolBelowMinimum
+}
+
+/** Same timer fields the leaderboard uses — no re-derivation. */
+export function isCatalogTimerActive(tenant: PublicTenantSummary): boolean {
+  return deriveCatalogSessionDisplay(tenant).effectiveTimerStatus === 'active'
+}
+
+/** Limbo badge: timer not running yet (matches leaderboard waiting states). */
 export function isCatalogPayoutPaused(tenant: PublicTenantSummary): boolean {
   if (tenant.status !== 'active') return false
-  return !isCatalogTimerActive(tenant)
+  const phase = deriveCatalogSessionDisplay(tenant).phase
+  return phase !== 'countdown' && phase !== 'payout_due'
 }
 
 export function catalogPayoutTimerLabel(tenant: PublicTenantSummary): string {
   if (tenant.status !== 'active') return formatCatalogStatus(tenant)
-  if (isCatalogTimerActive(tenant)) {
-    if (tenant.payout_seconds_remaining != null && tenant.payout_seconds_remaining <= 0) {
+  const display = deriveCatalogSessionDisplay(tenant)
+  switch (display.phase) {
+    case 'countdown':
+      return display.effectiveSecondsRemaining != null && display.effectiveSecondsRemaining <= 0
+        ? 'Payout due'
+        : 'Payouts active'
+    case 'payout_due':
       return 'Payout due'
-    }
-    return 'Payouts active'
+    case 'timer_starting':
+      return 'Timer starting'
+    case 'waiting_for_topup':
+      return 'Waiting for topup'
+    case 'syncing':
+      return 'Syncing'
+    case 'limbo':
+    default:
+      return 'Waiting for volume'
   }
-  const eligible = tenant.payout_eligible_count ?? 0
-  if (eligible > 0) return 'Timer starting'
-  return 'Waiting for volume'
 }
 
 export function catalogCountdownSubtitle(tenant: PublicTenantSummary): string | null {
   if (tenant.status !== 'active') return null
-  if (isCatalogTimerActive(tenant)) {
+  const display = deriveCatalogSessionDisplay(tenant)
+  const eligible = tenant.payout_eligible_count ?? 0
+
+  if (display.phase === 'countdown' || display.phase === 'payout_due') {
     return 'Next payout countdown'
   }
-  const eligible = tenant.payout_eligible_count ?? 0
-  if (eligible > 0) {
+  if (display.phase === 'waiting_for_topup') {
+    return eligible > 0
+      ? `${eligible} eligible — send SOL to fund the pool`
+      : 'Pool below minimum — top up to start cycles'
+  }
+  if (display.phase === 'timer_starting') {
     return `${eligible} eligible — timer starting`
   }
   if ((tenant.payout_ranked_count ?? 0) > 0) {

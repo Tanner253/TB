@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
 import {
   catalogCountdownSubtitle,
+  deriveCatalogSessionDisplay,
   isCatalogPayoutPaused,
   isCatalogTimerActive,
 } from '@/lib/platform/catalogClient'
@@ -54,10 +55,25 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
   }, [timerActive, tenant.slug])
 
   const subtitle = catalogCountdownSubtitle(tenant)
+  const display = deriveCatalogSessionDisplay(tenant)
   const paused = isCatalogPayoutPaused(tenant)
-  const starting = paused && (tenant.payout_eligible_count ?? 0) > 0
+  const waitingForTopup = display.phase === 'waiting_for_topup'
+  const starting = display.phase === 'timer_starting'
   const textSize = compact ? 'text-xs' : 'text-sm'
   const monoSize = compact ? 'text-sm' : 'text-base'
+
+  if (paused && waitingForTopup) {
+    return (
+      <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>
+        <p className={`font-medium text-amber-200/90 ${textSize} leading-snug`}>
+          {tenant.pot_usd_formatted ? `${tenant.pot_usd_formatted} in pool` : 'Pool below minimum'}
+        </p>
+        <p className={`text-gray-500 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
+          Waiting for topup
+        </p>
+      </div>
+    )
+  }
 
   if (paused && starting) {
     return (

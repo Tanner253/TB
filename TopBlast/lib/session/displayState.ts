@@ -6,6 +6,7 @@
 
 export type SessionDisplayPhase =
   | 'syncing'
+  | 'waiting_for_topup'
   | 'limbo'
   | 'timer_starting'
   | 'countdown'
@@ -46,7 +47,8 @@ export function deriveSessionDisplayState(input: SessionDisplayInput): SessionDi
   const hasEligible = eligibleCount > 0
   const hasRankedHolders = rankedHolderCount > 0
   const isSyncing =
-    isInitializing || (!hasRankedHolders && trackedHolders === 0 && !isInitializing)
+    isInitializing ||
+    (!hasEligible && !hasRankedHolders && trackedHolders === 0)
 
   const poolBelowMinimum = poolFundedForPayout === false
 
@@ -56,6 +58,16 @@ export function deriveSessionDisplayState(input: SessionDisplayInput): SessionDi
   const effectiveSecondsRemaining =
     effectiveTimerStatus === 'active' ? secondsRemaining : null
 
+  if (poolBelowMinimum) {
+    return {
+      phase: 'waiting_for_topup',
+      effectiveTimerStatus: 'waiting',
+      showCountdown: false,
+      effectiveSecondsRemaining: null,
+      poolBelowMinimum: true,
+    }
+  }
+
   if (isSyncing) {
     return {
       phase: 'syncing',
@@ -63,16 +75,6 @@ export function deriveSessionDisplayState(input: SessionDisplayInput): SessionDi
       showCountdown: false,
       effectiveSecondsRemaining: null,
       poolBelowMinimum,
-    }
-  }
-
-  if (poolBelowMinimum) {
-    return {
-      phase: 'limbo',
-      effectiveTimerStatus: 'waiting',
-      showCountdown: false,
-      effectiveSecondsRemaining: null,
-      poolBelowMinimum: true,
     }
   }
 

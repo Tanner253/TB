@@ -83,4 +83,6 @@ export interface PublicTenantSummary {
   /** Cached eligibility from CurrentRankings (catalog display sync). */
   payout_eligible_count?: number
   payout_ranked_count?: number
+  /** Payout wallet SOL meets MIN_POOL_FOR_PAYOUT USD threshold. */
+  payout_pool_funded?: boolean
 }

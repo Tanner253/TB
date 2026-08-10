@@ -62,7 +62,7 @@ describe('deriveSessionDisplayState', () => {
     expect(state.phase).toBe('payout_due')
   })
 
-  it('forces limbo when payout wallet SOL is below USD minimum', () => {
+  it('forces waiting for topup when payout wallet SOL is below USD minimum', () => {
     const state = deriveSessionDisplayState({
       timerStatus: 'active',
       secondsRemaining: 0,
@@ -71,7 +71,7 @@ describe('deriveSessionDisplayState', () => {
       trackedHolders: 8,
       poolFundedForPayout: false,
     })
-    expect(state.phase).toBe('limbo')
+    expect(state.phase).toBe('waiting_for_topup')
     expect(state.poolBelowMinimum).toBe(true)
     expect(state.effectiveTimerStatus).toBe('waiting')
     expect(state.showCountdown).toBe(false)

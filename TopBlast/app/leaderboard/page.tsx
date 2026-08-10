@@ -229,8 +229,9 @@ export default function LeaderboardPage() {
     poolFundedForPayout: data?.payout_enabled !== false,
   })
   const isSyncingHolders = sessionDisplay.phase === 'syncing'
-  const isPoolLimbo = sessionDisplay.poolBelowMinimum
-  const isListingLimbo = sessionDisplay.phase === 'limbo' && !isPoolLimbo
+  const isWaitingForTopup = sessionDisplay.phase === 'waiting_for_topup'
+  const isPoolLimbo = isWaitingForTopup
+  const isListingLimbo = sessionDisplay.phase === 'limbo'
   const isTimerStarting = sessionDisplay.phase === 'timer_starting'
   const isTimerActive = sessionDisplay.phase === 'countdown'
   const isPayoutDueNow = sessionDisplay.phase === 'payout_due'
@@ -410,7 +411,7 @@ export default function LeaderboardPage() {
                 {isSyncingHolders
                   ? 'SYNCING HOLDERS'
                   : isPoolLimbo
-                    ? 'POOL BELOW MINIMUM'
+                    ? 'WAITING FOR TOPUP'
                     : isListingLimbo
                       ? 'WAITING FOR FIRST ELIGIBLE HOLDER'
                       : isTimerStarting

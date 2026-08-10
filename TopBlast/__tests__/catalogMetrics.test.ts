@@ -78,7 +78,7 @@ describe('catalogClient payout timer', () => {
     expect(catalogPayoutTimerLabel(running)).toBe('Payouts active')
   })
 
-  it('shows timer starting when eligible but timer waiting', async () => {
+  it('shows timer starting when eligible but timer waiting and pool funded', async () => {
     const { catalogPayoutTimerLabel } = await import('@/lib/platform/catalogClient')
     const starting: PublicTenantSummary = {
       slug: 'topblast',
@@ -89,8 +89,29 @@ describe('catalogClient payout timer', () => {
       payoutWalletAddress: 'Pool1111111111111111111111111111111111',
       payout_timer_status: 'waiting',
       payout_eligible_count: 3,
+      payout_pool_funded: true,
     }
     expect(catalogPayoutTimerLabel(starting)).toBe('Timer starting')
+  })
+
+  it('shows waiting for topup when eligible but pool below minimum', async () => {
+    const { catalogPayoutTimerLabel, catalogCountdownSubtitle } = await import(
+      '@/lib/platform/catalogClient'
+    )
+    const underfunded: PublicTenantSummary = {
+      slug: 'uponly',
+      symbol: 'UP',
+      mint: 'Mint3333333333333333333333333333333333',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      payoutWalletAddress: 'Pool3333333333333333333333333333333333',
+      payout_timer_status: 'waiting',
+      payout_eligible_count: 1,
+      payout_pool_funded: false,
+      pot_usd_formatted: '$3.76',
+    }
+    expect(catalogPayoutTimerLabel(underfunded)).toBe('Waiting for topup')
+    expect(catalogCountdownSubtitle(underfunded)).toContain('fund the pool')
   })
 
   it('treats stale active timer as limbo when enrichment zeroes eligibility', async () => {

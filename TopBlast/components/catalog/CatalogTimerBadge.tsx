@@ -1,5 +1,9 @@
 import type { PublicTenantSummary } from '@/lib/tenant/types'
-import { isCatalogPayoutPaused, catalogPayoutTimerLabel } from '@/lib/platform/catalogClient'
+import {
+  isCatalogPayoutPaused,
+  catalogPayoutTimerLabel,
+  deriveCatalogSessionDisplay,
+} from '@/lib/platform/catalogClient'
 
 function PauseIcon({ className }: { className?: string }) {
   return (
@@ -25,6 +29,14 @@ interface CatalogTimerBadgeProps {
 export function CatalogTimerBadge({ tenant, compact = false }: CatalogTimerBadgeProps) {
   if (!isCatalogPayoutPaused(tenant)) return null
 
+  const phase = deriveCatalogSessionDisplay(tenant).phase
+  const title =
+    phase === 'waiting_for_topup'
+      ? 'Pool below minimum — send SOL to the payout wallet to start cycles'
+      : phase === 'timer_starting'
+        ? 'Eligible holders found — payout timer will start shortly'
+        : 'Payout timer paused until an eligible underwater holder qualifies'
+
   return (
     <span
       className={`inline-flex max-w-full items-center gap-1 truncate rounded-full border border-amber-500/25 bg-amber-500/10 text-amber-200/90 ${
@@ -32,7 +44,7 @@ export function CatalogTimerBadge({ tenant, compact = false }: CatalogTimerBadge
           ? 'text-[0.6rem] uppercase tracking-wider px-1.5 py-0.5'
           : 'text-[0.65rem] uppercase tracking-wider px-2 py-1'
       }`}
-      title="Payout timer paused until an eligible underwater holder qualifies"
+      title={title}
     >
       <PauseIcon className="shrink-0" />
       <span className="truncate">{catalogPayoutTimerLabel(tenant)}</span>

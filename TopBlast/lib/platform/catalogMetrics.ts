@@ -6,6 +6,7 @@ import { aggregateSuccessfulPayoutTotals } from '@/lib/payout/payoutTotals'
 import { getSolPrice, formatCompactUsd, formatCompactSol } from '@/lib/solana/price'
 import { getWalletSolBalance } from '@/lib/solana/transfer'
 import { buildLivePoolBalance } from '@/lib/payout/poolBalance'
+import { isPoolFundedForPayout } from '@/lib/payout/poolMinimum'
 import { computePayoutSecondsRemaining } from '@/lib/payout/timerMath'
 import { getEffectivePayoutIntervalMinutes } from '@/lib/payout/payoutRetry'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
@@ -186,6 +187,7 @@ export async function enrichCatalogTenants(
       payout_current_cycle: timer?.currentCycle ?? 0,
       payout_eligible_count: eligibility?.eligibleCount ?? 0,
       payout_ranked_count: eligibility?.rankedCount ?? 0,
+      payout_pool_funded: pool ? isPoolFundedForPayout(pool) : false,
     }
   })
 }

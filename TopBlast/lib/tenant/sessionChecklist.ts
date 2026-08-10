@@ -247,6 +247,9 @@ export function buildSessionChecklist(
   } else if (hasEligible && timerActive) {
     headline = `${eligibleCount} eligible · payout timer running`
     summary = `Top ${config.winnerCount} eligible losers win on cycle end`
+  } else if (hasEligible && !poolFunded) {
+    headline = `${eligibleCount} eligible · waiting for topup`
+    summary = `Send at least ${minPoolLabel} USD in SOL to the payout wallet`
   } else if (hasEligible) {
     headline = `${eligibleCount} eligible · timer starting`
     summary = 'First qualifying holders detected'
