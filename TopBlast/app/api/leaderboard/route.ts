@@ -31,6 +31,7 @@ import { isLiquidityPoolWallet } from '@/lib/eligibility/liquidityPools'
 import { ensureLiquidityPoolAddresses } from '@/lib/eligibility/liquidityPools'
 import { loadLastWinCycleByWallet } from '@/lib/payout/winnerPersistence'
 import { getTokenHolders } from '@/lib/solana/indexer'
+import { resolveReportedHolderCount } from '@/lib/solana/birdeyeHolders'
 import { normalizeTokenBalance, formatTokenBalance } from '@/lib/solana/tokenAmount'
 import { buildTenantDiagnostics } from '@/lib/tenant/diagnostics'
 import { deriveSessionStatus } from '@/lib/tenant/sessionStatus'
@@ -59,13 +60,6 @@ import { leaderboardVwapHydrateMaxPerRequest } from '@/lib/platform/heliusLimits
 
 /** DB rankings younger than this skip Helius DAS on public leaderboard polls. */
 const RANKINGS_FRESH_MS = 2 * 60 * 1000
-
-function reportedHolderCountFromRankings(
-  dbRankings: Awaited<ReturnType<typeof loadRankingsFromDb>>
-): number {
-  if (!dbRankings) return 0
-  return dbRankings.reportedHolderCount ?? dbRankings.totalHolders ?? 0
-}
 
 function leaderboardVwapHydrateBudget(holderCount: number): number {
   const cap = leaderboardVwapHydrateMaxPerRequest()
@@ -121,6 +115,10 @@ export async function GET(request: NextRequest) {
     const serviceStatus = getServiceStatus()
 
     let dbRankings = await loadRankingsFromDb()
+    const reportedHolderCount = await resolveReportedHolderCount(
+      config.tokenMint,
+      dbRankings
+    )
 
     const rankingsAgeMs = dbRankings
       ? Date.now() - new Date(dbRankings.lastCalculated).getTime()
@@ -128,8 +126,8 @@ export async function GET(request: NextRequest) {
     const rankingsFresh = rankingsAgeMs < RANKINGS_FRESH_MS
 
     let onChainStats = {
-      raw: reportedHolderCountFromRankings(dbRankings),
-      trackable: reportedHolderCountFromRankings(dbRankings),
+      raw: reportedHolderCount,
+      trackable: reportedHolderCount,
       qualifying: dbRankings?.indexedHolderCount ?? dbRankings?.rankings.length ?? 0,
     }
 
@@ -252,7 +250,9 @@ export async function GET(request: NextRequest) {
           token_symbol: config.tokenSymbol,
           token_mint: config.tokenMint,
           token_mint_explorer_url: getTokenMintExplorerUrl(config.tokenMint),
-          total_holders: 0,
+          total_holders: reportedHolderCount,
+          reported_holder_count: reportedHolderCount,
+          on_chain_holders: reportedHolderCount,
           tracked_holders: 0,
           holders_with_real_vwap: 0,
           eligible_count: 0,
@@ -298,10 +298,9 @@ export async function GET(request: NextRequest) {
         }
       }
     } else {
-      const reported = reportedHolderCountFromRankings(dbRankings)
       onChainStats = {
-        raw: reported,
-        trackable: reported,
+        raw: reportedHolderCount,
+        trackable: reportedHolderCount,
         qualifying: dbRankings.indexedHolderCount ?? dbRankings.rankings.length,
       }
     }
@@ -551,11 +550,11 @@ export async function GET(request: NextRequest) {
         token_symbol: config.tokenSymbol,
         token_mint: config.tokenMint,
         token_mint_explorer_url: getTokenMintExplorerUrl(config.tokenMint),
-        total_holders: reportedHolderCountFromRankings(dbRankings),
-        reported_holder_count: reportedHolderCountFromRankings(dbRankings),
+        total_holders: reportedHolderCount,
+        reported_holder_count: reportedHolderCount,
         indexed_holders: dbRankings.indexedHolderCount ?? dbRankings.rankings.length,
-        on_chain_holders: reportedHolderCountFromRankings(dbRankings),
-        on_chain_raw_holders: reportedHolderCountFromRankings(dbRankings),
+        on_chain_holders: reportedHolderCount,
+        on_chain_raw_holders: reportedHolderCount,
         min_token_holding: config.minTokenHolding,
         tracked_holders: sourceRankings.length,
         holders_with_buy_history: liveEvaluated.filter(

@@ -35,6 +35,97 @@ export interface FetchBirdeyeHoldersResult {
   totalReported: number | null
 }
 
+const REPORTED_HOLDER_COUNT_CACHE_TTL_MS = 5 * 60 * 1000
+
+declare global {
+  // eslint-disable-next-line no-var
+  var _birdeyeReportedHolderCountCache: Map<string, { count: number; expiresAt: number }> | undefined
+}
+
+function reportedHolderCountCache() {
+  if (!global._birdeyeReportedHolderCountCache) {
+    global._birdeyeReportedHolderCountCache = new Map()
+  }
+  return global._birdeyeReportedHolderCountCache
+}
+
+/** True CA holder count from Birdeye — one lightweight call (limit=1), cached 5 min. */
+export async function fetchBirdeyeReportedHolderCount(mint: string): Promise<number | null> {
+  if (!isBirdeyeHolderSourceEnabled()) return null
+  const normalized = mint.trim()
+  if (!normalized) return null
+
+  const cached = reportedHolderCountCache().get(normalized)
+  if (cached && Date.now() < cached.expiresAt) return cached.count
+
+  try {
+    const response = await axios.get(`${BASE_URL}/defi/v3/token/holder`, {
+      params: {
+        address: normalized,
+        mode: 'wallet',
+        offset: 0,
+        limit: 1,
+        ui_amount_mode: 'scaled',
+      },
+      headers: {
+        'X-API-KEY': getApiKey(),
+        'x-chain': 'solana',
+      },
+      timeout: 15000,
+      validateStatus: s => s === 200 || s === 429,
+    })
+
+    if (response.status !== 200) return cached?.count ?? null
+
+    const count = response.data?.data?.holder
+    if (typeof count === 'number' && count > 0) {
+      reportedHolderCountCache().set(normalized, {
+        count,
+        expiresAt: Date.now() + REPORTED_HOLDER_COUNT_CACHE_TTL_MS,
+      })
+      return count
+    }
+  } catch (err) {
+    console.warn('[Birdeye] Failed to fetch reported holder count:', (err as Error).message)
+  }
+
+  return cached?.count ?? null
+}
+
+/** Legacy Mongo rows stored indexed batch size (50) in totalHolders — not the CA total. */
+export function isStaleReportedHolderCount(dbRankings: {
+  reportedHolderCount?: number
+  totalHolders?: number
+  rankings?: unknown[]
+} | null): boolean {
+  if (!dbRankings) return true
+  const ranked = dbRankings.rankings?.length ?? 0
+  const reported = dbRankings.reportedHolderCount ?? 0
+  if (reported > ranked) return false
+  return true
+}
+
+export async function resolveReportedHolderCount(
+  mint: string,
+  dbRankings: {
+    reportedHolderCount?: number
+    totalHolders?: number
+    rankings?: unknown[]
+  } | null
+): Promise<number> {
+  const ranked = dbRankings?.rankings?.length ?? 0
+  const fromDb = dbRankings?.reportedHolderCount ?? 0
+  if (fromDb > ranked) return fromDb
+
+  if (isBirdeyeHolderSourceEnabled() && mint.trim()) {
+    const live = await fetchBirdeyeReportedHolderCount(mint)
+    if (live != null) return live
+  }
+
+  if (fromDb > 0) return fromDb
+  return dbRankings?.totalHolders ?? ranked
+}
+
 export async function fetchBirdeyeTokenHolders(
   mint: string,
   options?: {
