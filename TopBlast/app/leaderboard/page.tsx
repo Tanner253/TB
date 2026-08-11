@@ -326,12 +326,12 @@ export default function LeaderboardPage() {
       ) : null}
 
       <main className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
-        {/* Price ticker — 600×200 (3:1) Dex banner frame */}
+        {/* Price ticker — 3:1 on desktop; taller on mobile so chips stay readable */}
         <motion.div
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: 'easeOut' }}
-          className={`relative overflow-hidden mb-6 sm:mb-8 w-full max-w-[600px] sm:max-w-[720px] lg:max-w-[900px] mx-auto aspect-[3/1] rounded-2xl border border-white/10 ${
+          className={`relative overflow-hidden mb-6 sm:mb-8 w-full max-w-[600px] sm:max-w-[720px] lg:max-w-[900px] mx-auto aspect-[5/4] min-h-[14rem] sm:aspect-[3/1] sm:min-h-0 rounded-2xl border border-white/10 ${
             tokenBannerUrl ? 'bg-black' : 'bg-white/5 backdrop-blur-sm'
           }`}
         >
@@ -340,7 +340,7 @@ export default function LeaderboardPage() {
           <button
             type="button"
             onClick={() => setShowBannerOverlay(v => !v)}
-            className="absolute top-2.5 right-2.5 z-20 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-black/70 text-white/90 backdrop-blur-sm hover:bg-black/85 hover:text-white transition-colors"
+            className="absolute top-2 right-2 z-20 inline-flex h-9 w-9 sm:h-8 sm:w-8 items-center justify-center rounded-lg border border-white/25 bg-black/85 text-white shadow-[0_2px_10px_rgba(0,0,0,0.65)] backdrop-blur-sm hover:bg-black hover:text-white transition-colors"
             title={showBannerOverlay ? 'Hide info overlay' : 'Show info overlay'}
             aria-label={showBannerOverlay ? 'Hide info overlay' : 'Show info overlay'}
             aria-pressed={showBannerOverlay}
@@ -360,7 +360,7 @@ export default function LeaderboardPage() {
             </button>
 
           <div
-            className={`ticker-on-banner relative z-10 flex h-full w-full flex-col items-center justify-between gap-2 p-3 sm:p-4 md:p-5 transition-opacity duration-300 ${
+            className={`ticker-on-banner relative z-10 flex h-full w-full flex-col items-center justify-between gap-2.5 sm:gap-3 p-2.5 pt-3 pb-2.5 sm:p-4 md:p-5 transition-opacity duration-300 ${
               showBannerOverlay ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
             aria-hidden={!showBannerOverlay}
@@ -369,11 +369,12 @@ export default function LeaderboardPage() {
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: showBannerOverlay ? 1 : 0, y: showBannerOverlay ? 0 : -8 }}
               transition={{ delay: 0.08, duration: 0.35 }}
-              className="ticker-stat-chip flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5 w-fit max-w-full"
+              className="ticker-stat-chip flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 sm:gap-x-3 sm:gap-y-2 rounded-xl px-2.5 py-1.5 sm:px-3.5 sm:py-2.5 w-[calc(100%-2.75rem)] sm:w-fit max-w-full mr-auto sm:mr-0"
             >
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                <TokenAvatar symbol={tokenSymbol} iconUrl={tokenIconUrl} size="lg" highlighted />
-                <span className="text-white/80 text-xs sm:text-sm shrink-0">Token</span>
+                <TokenAvatar symbol={tokenSymbol} iconUrl={tokenIconUrl} size="md" highlighted className="sm:hidden" />
+                <TokenAvatar symbol={tokenSymbol} iconUrl={tokenIconUrl} size="lg" highlighted className="hidden sm:inline-flex" />
+                <span className="hidden sm:inline text-white/80 text-sm shrink-0">Token</span>
                 <span className="text-rh-lime font-bold text-sm sm:text-base truncate">${tokenSymbol}</span>
               </div>
               {tokenMint ? (
@@ -382,27 +383,28 @@ export default function LeaderboardPage() {
                   address={tokenMint}
                   symbol={tokenSymbol}
                   explorerUrl={tokenExplorerUrl}
+                  className="ticker-ca-inline"
                 />
               ) : (
                 <span className="text-xs text-white/50 font-mono">Loading CA…</span>
               )}
             </motion.div>
 
-            <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full max-w-xl mx-auto">
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-3 w-full max-w-xl mx-auto">
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: showBannerOverlay ? 1 : 0, y: showBannerOverlay ? 0 : 12 }}
                 transition={{ delay: 0.14, duration: 0.35 }}
-                className="ticker-stat-chip rounded-xl px-2.5 py-2 sm:px-3.5 sm:py-2.5 min-w-0 text-center"
+                className="ticker-stat-chip rounded-xl px-1.5 py-2 sm:px-3.5 sm:py-2.5 min-w-0 text-center"
               >
-                <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                  <span className="text-white/70 text-[10px] sm:text-xs uppercase tracking-wide">Price</span>
+                <div className="flex items-center justify-center gap-1 sm:gap-1.5 mb-0.5">
+                  <span className="text-white/85 text-[10px] sm:text-xs uppercase tracking-wide">Price</span>
                   {isLive ? (
                     <span
                       className={`ticker-live-badge text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded ${
                         connection === 'websocket'
                           ? 'bg-rh-green/25 text-rh-lime'
-                          : 'bg-amber-500/25 text-amber-200'
+                          : 'bg-amber-500/35 text-amber-100'
                       }`}
                       title={connection === 'websocket' ? 'DexScreener WebSocket' : 'DexScreener live poll (1s)'}
                     >
@@ -412,10 +414,15 @@ export default function LeaderboardPage() {
                 </div>
                 {price || data?.token_price_raw ? (
                   <div className="flex justify-center">
-                    <PriceTicker price={price || data?.token_price_raw} size="md" />
+                    <span className="sm:hidden">
+                      <PriceTicker price={price || data?.token_price_raw} size="sm" />
+                    </span>
+                    <span className="hidden sm:inline">
+                      <PriceTicker price={price || data?.token_price_raw} size="md" />
+                    </span>
                   </div>
                 ) : (
-                  <span className="text-white/50 font-mono text-sm">Loading...</span>
+                  <span className="text-white/50 font-mono text-xs sm:text-sm">Loading...</span>
                 )}
               </motion.div>
 
@@ -423,12 +430,12 @@ export default function LeaderboardPage() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: showBannerOverlay ? 1 : 0, y: showBannerOverlay ? 0 : 12 }}
                 transition={{ delay: 0.2, duration: 0.35 }}
-                className="ticker-stat-chip rounded-xl px-2.5 py-2 sm:px-3.5 sm:py-2.5 min-w-0 text-center"
+                className="ticker-stat-chip rounded-xl px-1.5 py-2 sm:px-3.5 sm:py-2.5 min-w-0 text-center"
               >
-                <span className="block text-white/70 text-[10px] sm:text-xs uppercase tracking-wide mb-0.5">
+                <span className="block text-white/85 text-[10px] sm:text-xs uppercase tracking-wide mb-0.5">
                   MCap
                 </span>
-                <span className="font-bold font-mono text-white text-sm sm:text-lg">
+                <span className="font-bold font-mono text-white text-xs sm:text-lg tabular-nums">
                   {marketCap ? (
                     <AnimatedNumber value={marketCap} format="currency" />
                   ) : (
@@ -441,13 +448,13 @@ export default function LeaderboardPage() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: showBannerOverlay ? 1 : 0, y: showBannerOverlay ? 0 : 12 }}
                 transition={{ delay: 0.26, duration: 0.35 }}
-                className="ticker-stat-chip rounded-xl px-2.5 py-2 sm:px-3.5 sm:py-2.5 min-w-0 text-center"
+                className="ticker-stat-chip rounded-xl px-1.5 py-2 sm:px-3.5 sm:py-2.5 min-w-0 text-center"
               >
-                <span className="block text-white/70 text-[10px] sm:text-xs uppercase tracking-wide mb-0.5">
+                <span className="block text-white/85 text-[10px] sm:text-xs uppercase tracking-wide mb-0.5">
                   Holders
                 </span>
                 <span
-                  className="font-bold font-mono text-white text-sm sm:text-lg"
+                  className="font-bold font-mono text-white text-xs sm:text-lg tabular-nums"
                   title={
                     trueHolderCount != null
                       ? `${trueHolderCount.toLocaleString()} total holders on this token · top ${leaderboardTrackedCount} ranked for rewards`
