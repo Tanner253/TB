@@ -163,12 +163,11 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
       }
     }
 
-    const payableCount = Math.max(verifiedPayableCount, eligibleCount)
-    const liveWinners =
-      payableCount > 0 ? null : await resolveLivePayableWinners(config.winnerCount)
+    const liveWinners = await resolveLivePayableWinners(config.winnerCount)
+    const payableCount = Math.max(verifiedPayableCount, eligibleCount, liveWinners.length)
     const result = await maybeExecuteDuePayout(
-      Math.max(payableCount, liveWinners?.length ?? 0, 1),
-      liveWinners && liveWinners.length > 0 ? liveWinners : undefined
+      payableCount,
+      liveWinners.length > 0 ? liveWinners : undefined
     )
     await ensureTimerStateSync()
     return {

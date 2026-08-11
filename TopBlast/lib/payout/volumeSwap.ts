@@ -9,6 +9,7 @@ export interface RecordPayoutVolumeSwapInput {
   cycle: number
   swapSol: number
   swapUsd: number
+  outputTokensHuman?: number | null
   txHash: string | null
 }
 
@@ -42,6 +43,7 @@ export async function recordPayoutVolumeSwap(input: RecordPayoutVolumeSwapInput)
         cycle: input.cycle,
         swapSol: input.swapSol,
         swapUsd: input.swapUsd,
+        outputTokensHuman: input.outputTokensHuman ?? null,
         txHash: input.txHash,
       },
     },

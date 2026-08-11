@@ -22,6 +22,26 @@ describe('Native token payouts', () => {
     expect((map.get(1) ?? 0) + (map.get(2) ?? 0) + (map.get(3) ?? 0)).toBeCloseTo(1000, 0)
   })
 
+  it('gives a single pending winner the full swap total on retry', () => {
+    const map = allocateTokenAmountsBySolShare([{ rank: 2, amountSol: 0.013 }], 424_479.91)
+    expect(map.get(2)).toBeCloseTo(424_479.91, 2)
+  })
+
+  it('does not zero out top ranks when total is small but transferable', () => {
+    const map = allocateTokenAmountsBySolShare(
+      [
+        { rank: 1, amountSol: 0.032 },
+        { rank: 2, amountSol: 0.013 },
+        { rank: 3, amountSol: 0.008 },
+      ],
+      3
+    )
+    expect((map.get(1) ?? 0)).toBeGreaterThan(0)
+    expect((map.get(2) ?? 0)).toBeGreaterThan(0)
+    expect((map.get(3) ?? 0)).toBeGreaterThan(0)
+    expect((map.get(1) ?? 0) + (map.get(2) ?? 0) + (map.get(3) ?? 0)).toBeCloseTo(3, 6)
+  })
+
   it('defaults native token payouts to enabled', () => {
     delete process.env.PAYOUT_AS_NATIVE_TOKEN
     expect(isNativeTokenPayoutEnabled()).toBe(true)

@@ -12,6 +12,8 @@ import {
   transferSessionToken,
   getPayoutWalletTokenBalance,
   allocateTokenAmountsBySolShare,
+  resolveSwapDeliveredTokens,
+  minHumanTokenTransfer,
 } from '@/lib/solana/tokenTransfer'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
@@ -473,10 +475,14 @@ export async function resolveLivePayableWinners(limit?: number): Promise<Payable
     return []
   }
 
-  const [tokenPrice, livePool] = await Promise.all([
+  const [liveTokenPrice, livePool] = await Promise.all([
     getTokenPrice(config.tokenMint),
     getLivePoolBalance(),
   ])
+  const tokenPrice =
+    (liveTokenPrice && liveTokenPrice > 0 ? liveTokenPrice : null) ??
+    dbRankings.tokenPrice ??
+    0
   if (!tokenPrice || tokenPrice <= 0) {
     return []
   }
@@ -879,6 +885,15 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
         winnerPending.push({ id: existing._id, rank, wallet: winner.wallet, amountSol })
         continue
       }
+      if (existing?.status === 'failed') {
+        await Payout.findByIdAndUpdate(existing._id, {
+          status: 'pending',
+          errorMessage: null,
+          txHash: null,
+        })
+        winnerPending.push({ id: existing._id, rank, wallet: winner.wallet, amountSol })
+        continue
+      }
 
       const winnerPayout = await Payout.create({
         ...tenantFields(),
@@ -978,26 +993,37 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
 
       if (swapCandidates.length > 0) {
         const swapSol = swapCandidates.reduce((sum, p) => sum + p.amountSol, 0)
+        const minTokenUnit = minHumanTokenTransfer(config.tokenDecimals)
+        const minTokensNeeded = minTokenUnit * swapCandidates.length
+        const walletTokens = await getPayoutWalletTokenBalance(
+          config.tokenMint!,
+          config.tokenDecimals
+        )
         const priorSwap = await PayoutVolumeSwap.findOne({ ...tenantFields(), cycle: nextCycle })
           .sort({ createdAt: -1 })
           .lean()
 
-        if (priorSwap?.txHash) {
-          swapTxHash = priorSwap.txHash
-          const walletTokens = await getPayoutWalletTokenBalance(
-            config.tokenMint!,
-            config.tokenDecimals
-          )
+        const canReuseWalletTokens =
+          walletTokens >= minTokensNeeded && Boolean(priorSwap?.txHash)
+
+        if (canReuseWalletTokens) {
+          swapTxHash = priorSwap?.txHash ?? null
           tokenAmountByRank = allocateTokenAmountsBySolShare(
             swapCandidates.map(p => ({ rank: p.rank, amountSol: p.amountSol })),
             walletTokens
           )
           console.log(
-            `[Payout] Reusing prior Jupiter swap for cycle ${nextCycle} — completing pending winner transfers`
+            `[Payout] Using ${walletTokens.toFixed(4)} ${config.tokenSymbol} already in payout wallet` +
+              (priorSwap?.txHash ? ' (prior swap recorded)' : '')
           )
         } else {
-          // Always buy on-chart via Jupiter — never airdrop pre-existing wallet token balance
-          // (e.g. launch leftovers). Only tokens received from this swap fund winner payouts.
+          if (priorSwap?.txHash) {
+            console.log(
+              `[Payout] Prior swap ${priorSwap.txHash.slice(0, 8)}... recorded but wallet has ` +
+                `${walletTokens.toFixed(6)} tokens — running fresh Jupiter buy for pending winners`
+            )
+          }
+
           console.log(
             `[Payout] Buying ~${swapSol.toFixed(6)} SOL of ${config.tokenSymbol} on-chart via Jupiter`
           )
@@ -1018,34 +1044,46 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
             }
             await releasePayoutLock()
             return handlePayoutExecutionFailure(nextCycle, swapError)
-          } else {
-            swapTxHash = swapResult.txHash
-            const postSwapBalance = await getPayoutWalletTokenBalance(
-              config.tokenMint!,
-              config.tokenDecimals
-            )
-            const balanceDelta = Math.max(0, postSwapBalance - preSwapBalance)
-            const totalTokens =
-              swapResult.outputAmountHuman != null && swapResult.outputAmountHuman > 0
-                ? swapResult.outputAmountHuman
-                : balanceDelta
-
-            console.log(
-              `[Payout] Swap delivered ~${totalTokens.toFixed(4)} ${config.tokenSymbol} for winner pool`
-            )
-
-            await recordPayoutVolumeSwap({
-              cycle: nextCycle,
-              swapSol,
-              swapUsd: swapSol * solPrice,
-              txHash: swapResult.txHash,
-            })
-
-            tokenAmountByRank = allocateTokenAmountsBySolShare(
-              swapCandidates.map(p => ({ rank: p.rank, amountSol: p.amountSol })),
-              totalTokens
-            )
           }
+
+          swapTxHash = swapResult.txHash
+          const totalTokens = await resolveSwapDeliveredTokens({
+            mint: config.tokenMint!,
+            decimals: config.tokenDecimals,
+            preSwapBalance,
+            quotedOutputHuman: swapResult.outputAmountHuman,
+          })
+
+          console.log(
+            `[Payout] Swap delivered ~${totalTokens.toFixed(4)} ${config.tokenSymbol} for winner pool`
+          )
+
+          if (totalTokens < minTokensNeeded) {
+            const swapError =
+              `Swap produced insufficient tokens (${totalTokens.toFixed(6)} ` +
+              `${config.tokenSymbol}; need ≥${minTokensNeeded.toFixed(6)} for ${swapCandidates.length} winner(s))`
+            for (const pending of swapCandidates) {
+              await Payout.findByIdAndUpdate(pending.id, {
+                status: 'failed',
+                errorMessage: swapError,
+              })
+            }
+            await releasePayoutLock()
+            return handlePayoutExecutionFailure(nextCycle, swapError)
+          }
+
+          await recordPayoutVolumeSwap({
+            cycle: nextCycle,
+            swapSol,
+            swapUsd: swapSol * solPrice,
+            outputTokensHuman: totalTokens,
+            txHash: swapResult.txHash,
+          })
+
+          tokenAmountByRank = allocateTokenAmountsBySolShare(
+            swapCandidates.map(p => ({ rank: p.rank, amountSol: p.amountSol })),
+            totalTokens
+          )
         }
       }
     }
@@ -1078,11 +1116,14 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
 
       if (payWinnersInNativeToken) {
         const tokenAmount = tokenAmountByRank.get(pending.rank)
-        if (tokenAmount == null || tokenAmount <= 0) {
+        const minTokenUnit = minHumanTokenTransfer(config.tokenDecimals)
+        if (tokenAmount == null || tokenAmount < minTokenUnit) {
           const reason =
             swapTxHash == null
               ? 'Token swap did not produce a distributable balance'
-              : 'Winner token share is zero after swap'
+              : tokenAmount == null
+                ? 'Winner was not included in the swap batch — retry will re-run buyback'
+                : `Winner token share (${tokenAmount.toFixed(8)}) is below minimum transfer size`
           await Payout.findByIdAndUpdate(pending.id, {
             status: 'failed',
             errorMessage: reason,

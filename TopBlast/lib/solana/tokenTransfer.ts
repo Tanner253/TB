@@ -208,26 +208,110 @@ export async function transferSessionToken(
   }
 }
 
-/** Split a token total across winners proportional to their SOL share. */
+/** Smallest human-readable amount that converts to 1 raw token unit. */
+export function minHumanTokenTransfer(decimals: number): number {
+  return 1 / Math.pow(10, decimals)
+}
+
+/** Poll RPC briefly — ATA balance can lag right after a Jupiter swap confirms. */
+export async function getPayoutWalletTokenBalanceWithRetry(
+  mint: string,
+  decimals: number,
+  options?: { attempts?: number; delayMs?: number }
+): Promise<number> {
+  const attempts = options?.attempts ?? 5
+  const delayMs = options?.delayMs ?? 750
+  let last = 0
+  for (let i = 0; i < attempts; i++) {
+    last = await getPayoutWalletTokenBalance(mint, decimals)
+    if (last > 0) return last
+    if (i < attempts - 1) {
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+    }
+  }
+  return last
+}
+
+/**
+ * Prefer on-chain balance delta after swap; fall back to Jupiter quote output.
+ */
+export async function resolveSwapDeliveredTokens(input: {
+  mint: string
+  decimals: number
+  preSwapBalance: number
+  quotedOutputHuman: number | null
+}): Promise<number> {
+  const { mint, decimals, preSwapBalance, quotedOutputHuman } = input
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const postBalance = await getPayoutWalletTokenBalance(mint, decimals)
+    const delta = Math.max(0, postBalance - preSwapBalance)
+    if (delta > 0) {
+      if (
+        quotedOutputHuman != null &&
+        quotedOutputHuman > 0 &&
+        Math.abs(delta - quotedOutputHuman) / quotedOutputHuman > 0.25
+      ) {
+        console.warn(
+          `[Payout] Swap on-chain delta ${delta.toFixed(4)} differs from quote ${quotedOutputHuman.toFixed(4)} — using on-chain delta`
+        )
+      }
+      return delta
+    }
+    if (attempt < 4) {
+      await new Promise(resolve => setTimeout(resolve, 750))
+    }
+  }
+
+  if (quotedOutputHuman != null && quotedOutputHuman > 0) {
+    console.warn(
+      `[Payout] Swap balance delta still 0 after polling — falling back to Jupiter quote (${quotedOutputHuman.toFixed(4)} tokens)`
+    )
+    return quotedOutputHuman
+  }
+
+  return 0
+}
+
+/** Split a token total across winners proportional to their SOL share (largest-remainder). */
 export function allocateTokenAmountsBySolShare(
   entries: { rank: number; amountSol: number }[],
   totalTokensHuman: number
 ): Map<number, number> {
   const totalSol = entries.reduce((sum, e) => sum + e.amountSol, 0)
   const map = new Map<number, number>()
-  if (totalSol <= 0 || totalTokensHuman <= 0) return map
+  if (totalSol <= 0 || totalTokensHuman <= 0 || entries.length === 0) return map
 
-  let assigned = 0
-  for (let i = 0; i < entries.length; i++) {
-    const entry = entries[i]
-    if (i === entries.length - 1) {
-      map.set(entry.rank, Math.max(0, totalTokensHuman - assigned))
-    } else {
-      const share = (entry.amountSol / totalSol) * totalTokensHuman
-      const rounded = Math.floor(share * 1e6) / 1e6
-      map.set(entry.rank, rounded)
-      assigned += rounded
-    }
+  if (entries.length === 1) {
+    map.set(entries[0].rank, totalTokensHuman)
+    return map
   }
+
+  const scale = 1e6
+  const scaledTotal = Math.floor(totalTokensHuman * scale)
+  if (scaledTotal <= 0) return map
+
+  const shares = entries.map(entry => {
+    const exact = (entry.amountSol / totalSol) * scaledTotal
+    const floored = Math.floor(exact)
+    return {
+      rank: entry.rank,
+      floored,
+      remainder: exact - floored,
+    }
+  })
+
+  let assigned = shares.reduce((sum, share) => sum + share.floored, 0)
+  let leftover = scaledTotal - assigned
+
+  shares.sort((a, b) => b.remainder - a.remainder)
+  for (let i = 0; i < leftover && i < shares.length; i++) {
+    shares[i].floored += 1
+  }
+
+  for (const share of shares) {
+    map.set(share.rank, share.floored / scale)
+  }
+
   return map
 }

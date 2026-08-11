@@ -140,6 +140,8 @@ export interface IPayoutVolumeSwap extends Document {
   cycle: number
   swapSol: number
   swapUsd: number
+  /** Human-readable tokens received from this Jupiter swap (for partial-cycle retries). */
+  outputTokensHuman: number | null
   txHash: string
   createdAt: Date
 }
@@ -151,6 +153,7 @@ const PayoutVolumeSwapSchema = new Schema<IPayoutVolumeSwap>({
   cycle: { type: Number, required: true },
   swapSol: { type: Number, required: true },
   swapUsd: { type: Number, required: true },
+  outputTokensHuman: { type: Number, default: null },
   txHash: { type: String, required: true },
 }, { timestamps: true })
 

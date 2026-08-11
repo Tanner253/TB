@@ -168,7 +168,8 @@ async function swapSolForTokenOnce(
   }
 
   const outputAmountRaw = quote.outAmount
-  const outputAmountHuman = Number(outputAmountRaw) / Math.pow(10, tokenDecimals)
+  const outputAmountHuman =
+    Number(BigInt(outputAmountRaw)) / Math.pow(10, tokenDecimals)
 
   console.log(
     `[Jupiter] ✅ Swap confirmed ${txHash} — ~${outputAmountHuman.toFixed(4)} tokens received (quoted)`
