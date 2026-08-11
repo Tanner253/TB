@@ -10,6 +10,7 @@ import { isPoolFundedForPayout } from '@/lib/payout/poolMinimum'
 import { computePayoutSecondsRemaining } from '@/lib/payout/timerMath'
 import { getEffectivePayoutIntervalMinutes } from '@/lib/payout/payoutRetry'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
+import { fetchDexScreenerMediaBatch } from '@/lib/solana/dexscreenerMedia'
 
 export interface CatalogPayoutVolume {
   total_sol: number
@@ -120,11 +121,14 @@ export async function enrichCatalogTenants(
 ): Promise<PublicTenantSummary[]> {
   if (tenants.length === 0) return tenants
 
-  const [solPrice, paidOutByKey, timerByKey, eligibilityByKey] = await Promise.all([
+  const uniqueMints = [...new Set(tenants.map(t => t.mint?.trim()).filter(Boolean) as string[])]
+
+  const [solPrice, paidOutByKey, timerByKey, eligibilityByKey, mediaByMint] = await Promise.all([
     getSolPrice(),
     fetchPayoutTotalsByTenantKey(),
     fetchPayoutTimerByTenantKey(),
     fetchRankingsEligibilityByTenantKey(),
+    fetchDexScreenerMediaBatch(uniqueMints),
   ])
 
   const uniqueAddresses = Array.from(
@@ -170,8 +174,13 @@ export async function enrichCatalogTenants(
         ? buildLivePoolBalance(walletSol, walletAddress, solPrice)
         : null
 
+    const media = tenant.mint ? mediaByMint.get(tenant.mint.trim()) : undefined
+
     return {
       ...tenant,
+      token_icon_url: media?.iconUrl ?? null,
+      token_banner_url: media?.bannerUrl ?? null,
+      dex_profile_paid: media?.dexProfilePaid ?? false,
       pot_sol: pool?.poolSol ?? null,
       pot_usd: pool?.poolUsd ?? null,
       pot_usd_formatted: pool?.poolUsdFormatted ?? null,

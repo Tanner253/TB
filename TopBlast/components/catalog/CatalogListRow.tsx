@@ -5,6 +5,7 @@ import type { PublicTenantSummary } from '@/lib/tenant/types'
 import { formatCatalogStatus, tenantCatalogHref } from '@/lib/platform/catalogClient'
 import { CatalogTimerBadge } from '@/components/catalog/CatalogTimerBadge'
 import { CatalogCountdown } from '@/components/catalog/CatalogCountdown'
+import { TokenAvatar } from '@/components/ui/TokenAvatar'
 
 function MetricValue({
   primary,
@@ -73,15 +74,20 @@ export function CatalogListRow({ tenant }: { tenant: PublicTenantSummary }) {
     >
       <div className="flex items-center justify-between gap-3 min-w-0 sm:contents">
         <div className="min-w-0 flex items-center gap-3">
-          <div
-            className={`hidden sm:flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-              isPlatform
-                ? 'bg-sol-mint/15 text-sol-mint border border-sol-mint/25'
-                : 'bg-white/5 text-gray-300 border border-white/10'
-            }`}
-          >
-            {tenant.symbol.slice(0, 2)}
-          </div>
+          <TokenAvatar
+            symbol={tenant.symbol}
+            iconUrl={tenant.token_icon_url}
+            size="sm"
+            highlighted={isPlatform}
+            className="sm:hidden"
+          />
+          <TokenAvatar
+            symbol={tenant.symbol}
+            iconUrl={tenant.token_icon_url}
+            size="md"
+            highlighted={isPlatform}
+            className="hidden sm:flex"
+          />
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className={`font-semibold truncate ${isPlatform ? 'text-sol-mint' : 'text-white'}`}>

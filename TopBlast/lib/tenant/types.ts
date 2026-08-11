@@ -85,4 +85,10 @@ export interface PublicTenantSummary {
   payout_ranked_count?: number
   /** Payout wallet SOL meets MIN_POOL_FOR_PAYOUT USD threshold. */
   payout_pool_funded?: boolean
+  /** DexScreener pair icon (info.imageUrl). */
+  token_icon_url?: string | null
+  /** DexScreener custom header (info.header) — typically on paid profiles. */
+  token_banner_url?: string | null
+  /** True when DexScreener shows a custom header or active boost. */
+  dex_profile_paid?: boolean
 }

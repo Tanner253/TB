@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useRealtimeLeaderboard, useRealtimePrice, useTimeSince, useRealtime } from '@/hooks/useRealtime'
+import { useTokenMedia } from '@/hooks/useTokenMedia'
 import { DEFAULT_LEADERBOARD_POLL_MS } from '@/lib/platform/clientPollIntervals'
 import { useTenantRouting } from '@/hooks/useTenantRouting'
 import { AnimatedNumber, Countdown, PriceTicker } from '@/components/ui/AnimatedNumber'
@@ -20,6 +22,13 @@ import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 import { CopyContractAddress, solscanTokenUrl } from '@/components/ui/CopyContractAddress'
 import { getAddressExplorerUrl } from '@/lib/solana/explorer'
 import { deriveSessionDisplayState } from '@/lib/session/displayState'
+import { TokenAvatar } from '@/components/ui/TokenAvatar'
+import { SessionBannerLayer } from '@/components/leaderboard/SessionBannerLayer'
+
+const CandlestickBackground = dynamic(
+  () => import('@/components/platform/CandlestickBackground').then(m => m.CandlestickBackground),
+  { ssr: false }
+)
 
 const PEDESTAL_SLOTS = 3
 
@@ -195,6 +204,9 @@ export default function LeaderboardPage() {
 
   const tokenMint = data?.token_mint || priceMint || null
   const tokenSymbol = data?.token_symbol || 'TopBlast'
+  const { media: tokenMedia } = useTokenMedia(tokenMint)
+  const tokenIconUrl = tokenMedia?.iconUrl ?? null
+  const tokenBannerUrl = tokenMedia?.bannerUrl ?? null
   const tokenExplorerUrl =
     data?.token_mint_explorer_url ||
     (tokenMint ? solscanTokenUrl(tokenMint) : null)
@@ -257,8 +269,11 @@ export default function LeaderboardPage() {
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
-      {/* Animated background */}
-      <div className="fixed inset-0 pointer-events-none">
+      {/* Background: candlesticks → Dex banner → scrim → UI */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden>
+        <CandlestickBackground />
+        <SessionBannerLayer bannerUrl={tokenBannerUrl} />
+        <div className="absolute inset-0 bg-[#030303]/30" />
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-rh-green/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-rh-green-dark/5 rounded-full blur-3xl" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-rh-lime/5 to-transparent rounded-full" />
@@ -310,7 +325,7 @@ export default function LeaderboardPage() {
         </div>
       ) : null}
 
-      <main className="relative max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
+      <main className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
         {/* Price Ticker Bar */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -319,6 +334,7 @@ export default function LeaderboardPage() {
         >
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <TokenAvatar symbol={tokenSymbol} iconUrl={tokenIconUrl} size="lg" highlighted />
               <span className="text-gray-400 text-xs sm:text-sm shrink-0">Token</span>
               <span className="text-rh-lime font-bold text-sm sm:text-base truncate">${tokenSymbol}</span>
             </div>

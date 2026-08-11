@@ -7,6 +7,7 @@ import { formatCatalogStatus, tenantCatalogHref } from '@/lib/platform/catalogCl
 import { CatalogMetrics } from '@/components/catalog/CatalogMetrics'
 import { CatalogTimerBadge } from '@/components/catalog/CatalogTimerBadge'
 import { CatalogCountdown } from '@/components/catalog/CatalogCountdown'
+import { TokenAvatar } from '@/components/ui/TokenAvatar'
 
 interface CatalogCardProps {
   tenant: PublicTenantSummary
@@ -29,14 +30,22 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
         }`}
       >
         <div className="flex items-start justify-between gap-2 shrink-0">
-          <h2
-            className={`min-w-0 flex-1 font-bold tracking-tight truncate ${titleSize} ${
-              isPlatform ? 'text-sol-mint' : 'text-white'
-            }`}
-            title={`$${tenant.symbol}`}
-          >
-            ${tenant.symbol}
-          </h2>
+          <div className="min-w-0 flex-1 flex items-center gap-2.5">
+            <TokenAvatar
+              symbol={tenant.symbol}
+              iconUrl={tenant.token_icon_url}
+              size={compact ? 'sm' : 'md'}
+              highlighted={isPlatform}
+            />
+            <h2
+              className={`min-w-0 font-bold tracking-tight truncate ${titleSize} ${
+                isPlatform ? 'text-sol-mint' : 'text-white'
+              }`}
+              title={`$${tenant.symbol}`}
+            >
+              ${tenant.symbol}
+            </h2>
+          </div>
           <span
             className={`shrink-0 text-[0.65rem] uppercase tracking-wider px-2 py-1 rounded-full border ${
               tenant.status === 'active'
