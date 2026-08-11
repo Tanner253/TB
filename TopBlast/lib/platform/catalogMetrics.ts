@@ -3,6 +3,7 @@ import 'server-only'
 import connectDB from '@/lib/db'
 import { CurrentRankings, Payout, TimerState } from '@/lib/db/models'
 import { aggregateSuccessfulPayoutTotals } from '@/lib/payout/payoutTotals'
+import { resolveGeneratedVolume } from '@/lib/payout/volumeTotals'
 import { getSolPrice, formatCompactUsd, formatCompactSol } from '@/lib/solana/price'
 import { getWalletSolBalance } from '@/lib/solana/transfer'
 import { buildLivePoolBalance } from '@/lib/payout/poolBalance'
@@ -121,7 +122,9 @@ export async function enrichCatalogTenants(
 ): Promise<PublicTenantSummary[]> {
   if (tenants.length === 0) return tenants
 
-  const uniqueMints = [...new Set(tenants.map(t => t.mint?.trim()).filter(Boolean) as string[])]
+  const uniqueMints = Array.from(
+    new Set(tenants.map(t => t.mint?.trim()).filter(Boolean) as string[])
+  )
 
   const [solPrice, paidOutByKey, timerByKey, eligibilityByKey, mediaByMint] = await Promise.all([
     getSolPrice(),
@@ -152,6 +155,7 @@ export async function enrichCatalogTenants(
   return tenants.map(tenant => {
     const payoutKey = catalogPayoutTenantKey(tenant)
     const paidOut = paidOutByKey.get(payoutKey) ?? { total_sol: 0, total_usd: 0 }
+    const genVolume = resolveGeneratedVolume({ paidOut, solPrice })
     const timer = timerByKey.get(payoutKey)
     const eligibility = eligibilityByKey.get(payoutKey)
     const rawTimerStatus = timer?.timerStatus ?? 'waiting'
@@ -187,10 +191,10 @@ export async function enrichCatalogTenants(
       total_distributed_sol: paidOut.total_sol,
       total_distributed_usd: paidOut.total_usd,
       total_distributed_usd_formatted: formatCompactUsd(paidOut.total_usd),
-      total_generated_volume_sol: paidOut.total_sol,
-      total_generated_volume_usd: paidOut.total_usd,
-      total_generated_volume_usd_formatted: formatCompactUsd(paidOut.total_usd),
-      total_generated_volume_sol_formatted: formatCompactSol(paidOut.total_sol),
+      total_generated_volume_sol: genVolume.total_sol,
+      total_generated_volume_usd: genVolume.total_usd,
+      total_generated_volume_usd_formatted: formatCompactUsd(genVolume.total_usd),
+      total_generated_volume_sol_formatted: formatCompactSol(genVolume.total_sol),
       payout_timer_status: rawTimerStatus,
       payout_seconds_remaining: rawSecondsRemaining,
       payout_current_cycle: timer?.currentCycle ?? 0,

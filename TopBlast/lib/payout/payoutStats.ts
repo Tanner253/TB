@@ -1,6 +1,8 @@
 import connectDB from '@/lib/db'
 import { Payout } from '@/lib/db/models'
 import { aggregateSuccessfulPayoutTotals } from '@/lib/payout/payoutTotals'
+import { resolveGeneratedVolume } from '@/lib/payout/volumeTotals'
+import { getSolPrice } from '@/lib/solana/price'
 import { tenantFilter } from '@/lib/tenant/scope'
 
 export interface TenantPayoutStats {
@@ -19,7 +21,10 @@ export interface TenantPayoutStats {
 export async function fetchTenantPayoutStats(): Promise<TenantPayoutStats> {
   await connectDB()
 
-  const payouts = await Payout.find(tenantFilter()).sort({ createdAt: -1 }).lean()
+  const [payouts, solPrice] = await Promise.all([
+    Payout.find(tenantFilter()).sort({ createdAt: -1 }).lean(),
+    getSolPrice(),
+  ])
   const successful = payouts.filter(p => p.status === 'success')
   const winnerPayouts = successful.filter(p => p.rank > 0)
 
@@ -30,6 +35,7 @@ export async function fetchTenantPayoutStats(): Promise<TenantPayoutStats> {
 
   const paidOut = aggregateSuccessfulPayoutTotals(successful)
   const winnerPaidOut = aggregateSuccessfulPayoutTotals(successful, { winnersOnly: true })
+  const genVolume = resolveGeneratedVolume({ paidOut, solPrice })
   const winnerCount = winnerPayouts.length
 
   const winCountByWallet = new Map<string, number>()
@@ -56,8 +62,8 @@ export async function fetchTenantPayoutStats(): Promise<TenantPayoutStats> {
     total_cycles: cycleSet.size,
     total_distributed_usd: paidOut.total_usd,
     total_distributed_sol: paidOut.total_sol,
-    total_generated_volume_usd: paidOut.total_usd,
-    total_generated_volume_sol: paidOut.total_sol,
+    total_generated_volume_usd: genVolume.total_usd,
+    total_generated_volume_sol: genVolume.total_sol,
     successful_winner_payouts: winnerCount,
     average_payout_usd: winnerCount > 0 ? winnerPaidOut.total_usd / winnerCount : 0,
     last_payout_at: lastPayoutAt,

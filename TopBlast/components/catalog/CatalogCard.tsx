@@ -8,6 +8,7 @@ import { CatalogMetrics } from '@/components/catalog/CatalogMetrics'
 import { CatalogTimerBadge } from '@/components/catalog/CatalogTimerBadge'
 import { CatalogCountdown } from '@/components/catalog/CatalogCountdown'
 import { TokenAvatar } from '@/components/ui/TokenAvatar'
+import { useTokenMedia } from '@/hooks/useTokenMedia'
 
 interface CatalogCardProps {
   tenant: PublicTenantSummary
@@ -18,24 +19,27 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
   const isPlatform = tenant.isPlatformToken
   const padding = compact ? 'p-4' : 'p-5'
   const titleSize = compact ? 'text-xl' : 'text-2xl'
+  const { media } = useTokenMedia(tenant.token_icon_url ? null : tenant.mint)
+  const iconUrl = tenant.token_icon_url || media?.iconUrl || null
 
   return (
     <Link href={tenantCatalogHref(tenant)} className="block h-full">
       <motion.article
         whileHover={{ y: compact ? -2 : -3 }}
-        className={`group flex h-full min-h-[15.5rem] flex-col rounded-xl border transition-colors ${padding} ${
+        className={`group relative z-0 flex h-full min-h-[15.5rem] flex-col overflow-visible rounded-xl border transition-colors ${padding} ${
           isPlatform
             ? 'border-sol-mint/25 bg-gradient-to-br from-sol-purple/10 to-transparent hover:border-sol-mint/40'
             : 'border-white/[0.08] bg-white/[0.02] hover:border-sol-mint/25 hover:bg-white/[0.04]'
         }`}
       >
-        <div className="flex items-start justify-between gap-2 shrink-0">
+        <div className="relative z-20 flex items-start justify-between gap-2 shrink-0">
           <div className="min-w-0 flex-1 flex items-center gap-2.5">
             <TokenAvatar
               symbol={tenant.symbol}
-              iconUrl={tenant.token_icon_url}
+              iconUrl={iconUrl}
               size={compact ? 'sm' : 'md'}
               highlighted={isPlatform}
+              previewOnHover
             />
             <h2
               className={`min-w-0 font-bold tracking-tight truncate ${titleSize} ${

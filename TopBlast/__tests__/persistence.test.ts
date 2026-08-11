@@ -8,8 +8,6 @@
  * - Full payout flow works correctly
  */
 
-import mongoose from 'mongoose'
-import { MongoMemoryServer } from 'mongodb-memory-server'
 import {
   Holder,
   Snapshot,
@@ -18,6 +16,12 @@ import {
   PoolBalance,
   IHolder,
 } from '@/lib/db/models'
+import {
+  clearMemoryCollections,
+  startMemoryMongo,
+  stopMemoryMongo,
+} from './helpers/memoryMongo'
+import type { MongoMemoryServer } from 'mongodb-memory-server'
 import {
   calculateDrawdown,
   calculateLossUsd,
@@ -47,24 +51,15 @@ describe('Persistence Layer', () => {
   let mongoServer: MongoMemoryServer
 
   beforeAll(async () => {
-    // Create in-memory MongoDB
-    mongoServer = await MongoMemoryServer.create()
-    const uri = mongoServer.getUri()
-    await mongoose.connect(uri)
+    mongoServer = await startMemoryMongo()
   })
 
   afterAll(async () => {
-    await mongoose.disconnect()
-    await mongoServer.stop()
+    await stopMemoryMongo(mongoServer)
   })
 
   beforeEach(async () => {
-    // Clear all collections before each test
-    await Holder.deleteMany({})
-    await Snapshot.deleteMany({})
-    await Payout.deleteMany({})
-    await Disqualification.deleteMany({})
-    await PoolBalance.deleteMany({})
+    await clearMemoryCollections()
   })
 
   // ===========================================

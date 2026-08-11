@@ -1,5 +1,3 @@
-import mongoose from 'mongoose'
-import { MongoMemoryServer } from 'mongodb-memory-server'
 import { Keypair } from '@solana/web3.js'
 import { Holder, CurrentRankings } from '@/lib/db/models'
 import { runWithTenant } from '@/lib/tenant/context'
@@ -7,25 +5,27 @@ import {
   persistWinnerAfterPayout,
   loadLastWinCycleByWallet,
 } from '@/lib/payout/winnerPersistence'
+import {
+  clearMemoryCollections,
+  startMemoryMongo,
+  stopMemoryMongo,
+} from './helpers/memoryMongo'
+import type { MongoMemoryServer } from 'mongodb-memory-server'
 
 describe('winnerPersistence', () => {
   let mongoServer: MongoMemoryServer
 
   beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create()
-    process.env.MONGODB_URI = mongoServer.getUri()
-    await mongoose.connect(process.env.MONGODB_URI)
+    mongoServer = await startMemoryMongo()
   })
 
   afterAll(async () => {
-    await mongoose.disconnect()
-    await mongoServer.stop()
+    await stopMemoryMongo(mongoServer)
   })
 
   beforeEach(async () => {
     ;(global as any).mongoose = { conn: null, promise: null }
-    await Holder.deleteMany({})
-    await CurrentRankings.deleteMany({})
+    await clearMemoryCollections()
   })
 
   it('persists winner cooldown and VWAP reset to Holder and rankings', async () => {

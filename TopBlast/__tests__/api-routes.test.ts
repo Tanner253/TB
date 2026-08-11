@@ -8,8 +8,6 @@
  * - Winner cooldown is applied correctly
  */
 
-import mongoose from 'mongoose'
-import { MongoMemoryServer } from 'mongodb-memory-server'
 import {
   Holder,
   Snapshot,
@@ -17,6 +15,12 @@ import {
   Disqualification,
   PoolBalance,
 } from '@/lib/db/models'
+import {
+  clearMemoryCollections,
+  startMemoryMongo,
+  stopMemoryMongo,
+} from './helpers/memoryMongo'
+import type { MongoMemoryServer } from 'mongodb-memory-server'
 import {
   calculateDrawdown,
   calculateLossUsd,
@@ -56,21 +60,15 @@ describe('API Routes Workflow', () => {
   let mongoServer: MongoMemoryServer
 
   beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create()
-    await mongoose.connect(mongoServer.getUri())
+    mongoServer = await startMemoryMongo()
   })
 
   afterAll(async () => {
-    await mongoose.disconnect()
-    await mongoServer.stop()
+    await stopMemoryMongo(mongoServer)
   })
 
   beforeEach(async () => {
-    await Holder.deleteMany({})
-    await Snapshot.deleteMany({})
-    await Payout.deleteMany({})
-    await Disqualification.deleteMany({})
-    await PoolBalance.deleteMany({})
+    await clearMemoryCollections()
   })
 
   // ===========================================

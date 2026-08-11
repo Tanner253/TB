@@ -2,9 +2,13 @@
  * Payout timer — waiting/active states and eligibility-gated start
  */
 
-import mongoose from 'mongoose'
-import { MongoMemoryServer } from 'mongodb-memory-server'
 import { TimerState, Holder, CurrentRankings } from '@/lib/db/models'
+import {
+  clearMemoryCollections,
+  startMemoryMongo,
+  stopMemoryMongo,
+} from './helpers/memoryMongo'
+import type { MongoMemoryServer } from 'mongodb-memory-server'
 
 jest.mock('@/lib/config', () => ({
   config: {
@@ -46,22 +50,17 @@ describe('Payout timer', () => {
   let mongoServer: MongoMemoryServer
 
   beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create()
-    process.env.MONGODB_URI = mongoServer.getUri()
-    await mongoose.connect(process.env.MONGODB_URI)
+    mongoServer = await startMemoryMongo()
   })
 
   afterAll(async () => {
-    await mongoose.disconnect()
-    await mongoServer.stop()
+    await stopMemoryMongo(mongoServer)
   })
 
   beforeEach(async () => {
     ;(global as any).mongoose = { conn: null, promise: null }
     global._payoutTimerCaches = undefined
-    await TimerState.deleteMany({})
-    await Holder.deleteMany({})
-    await CurrentRankings.deleteMany({})
+    await clearMemoryCollections()
     jest.resetModules()
   })
 
@@ -91,7 +90,7 @@ describe('Payout timer', () => {
     expect(timer.seconds_remaining).toBeLessThanOrEqual(120 * 60)
   })
 
-  it('resets holder state when token mint changes', async () => {
+  it('retargets timer when token mint changes without wiping holders', async () => {
     await TimerState.create({
       key: 'payout_timer',
       tokenMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
@@ -109,8 +108,8 @@ describe('Payout timer', () => {
     const { ensureTimerStateSync, getPayoutTimerInfo } = await import('@/lib/payout/executor')
     await ensureTimerStateSync()
 
-    const holdersLeft = await Holder.countDocuments()
-    expect(holdersLeft).toBe(0)
+    // History/holders must survive mint retarget — wipe-on-mint-change was removed.
+    expect(await Holder.countDocuments()).toBe(1)
 
     const timer = getPayoutTimerInfo()
     expect(timer.timer_status).toBe('waiting')

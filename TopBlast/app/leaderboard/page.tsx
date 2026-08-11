@@ -207,6 +207,7 @@ export default function LeaderboardPage() {
   const { media: tokenMedia } = useTokenMedia(tokenMint)
   const tokenIconUrl = tokenMedia?.iconUrl ?? null
   const tokenBannerUrl = tokenMedia?.bannerUrl ?? null
+  const [showBannerOverlay, setShowBannerOverlay] = useState(true)
   const tokenExplorerUrl =
     data?.token_mint_explorer_url ||
     (tokenMint ? solscanTokenUrl(tokenMint) : null)
@@ -269,10 +270,9 @@ export default function LeaderboardPage() {
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
-      {/* Background: candlesticks → Dex banner → scrim → UI */}
+      {/* Background: candlesticks → scrim → UI (Dex banner lives on the ticker bar) */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden>
         <CandlestickBackground />
-        <SessionBannerLayer bannerUrl={tokenBannerUrl} />
         <div className="absolute inset-0 bg-[#030303]/30" />
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-rh-green/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-rh-green-dark/5 rounded-full blur-3xl" />
@@ -326,80 +326,138 @@ export default function LeaderboardPage() {
       ) : null}
 
       <main className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
-        {/* Price Ticker Bar */}
+        {/* Price ticker — 600×200 (3:1) Dex banner frame */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-center gap-3 sm:gap-6 lg:gap-8 mb-6 sm:mb-8 py-3 px-4 sm:px-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 w-full sm:w-fit sm:mx-auto max-w-full"
+          transition={{ duration: 0.45, ease: 'easeOut' }}
+          className={`relative overflow-hidden mb-6 sm:mb-8 w-full max-w-[600px] sm:max-w-[720px] lg:max-w-[900px] mx-auto aspect-[3/1] rounded-2xl border border-white/10 ${
+            tokenBannerUrl ? 'bg-black' : 'bg-white/5 backdrop-blur-sm'
+          }`}
         >
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <TokenAvatar symbol={tokenSymbol} iconUrl={tokenIconUrl} size="lg" highlighted />
-              <span className="text-gray-400 text-xs sm:text-sm shrink-0">Token</span>
-              <span className="text-rh-lime font-bold text-sm sm:text-base truncate">${tokenSymbol}</span>
-            </div>
-            {tokenMint ? (
-              <CopyContractAddress
-                variant="inline"
-                address={tokenMint}
-                symbol={tokenSymbol}
-                explorerUrl={tokenExplorerUrl}
-              />
-            ) : (
-              <span className="text-xs text-gray-500 font-mono">Loading CA…</span>
-            )}
-          </div>
-          <div className="hidden sm:block w-px h-5 bg-white/20" />
-          <div className="grid grid-cols-2 sm:contents gap-3 sm:gap-0">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <span className="text-gray-400 text-xs sm:text-sm shrink-0">Price</span>
-            {price || data?.token_price_raw ? (
-              <PriceTicker price={price || data?.token_price_raw} size="md" />
-            ) : (
-              <span className="text-gray-500 font-mono">Loading...</span>
-            )}
-            {isLive ? (
-              <span
-                className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                  connection === 'websocket'
-                    ? 'bg-rh-green/20 text-rh-lime'
-                    : 'bg-amber-500/20 text-amber-300'
-                }`}
-                title={connection === 'websocket' ? 'DexScreener WebSocket' : 'DexScreener live poll (1s)'}
-              >
-                {connection === 'websocket' ? 'Live' : '1s'}
-              </span>
-            ) : null}
-          </div>
-          <div className="hidden sm:block w-px h-5 bg-white/20" />
-          <div className="flex items-center gap-2 sm:gap-3">
-            <span className="text-gray-400 text-xs sm:text-sm">MCap</span>
-            <span className="font-bold font-mono">
-              {marketCap ? (
-                <AnimatedNumber value={marketCap} format="currency" />
+          <SessionBannerLayer bannerUrl={tokenBannerUrl} dimmed={showBannerOverlay} />
+
+          <button
+            type="button"
+            onClick={() => setShowBannerOverlay(v => !v)}
+            className="absolute top-2.5 right-2.5 z-20 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-black/70 text-white/90 backdrop-blur-sm hover:bg-black/85 hover:text-white transition-colors"
+            title={showBannerOverlay ? 'Hide info overlay' : 'Show info overlay'}
+            aria-label={showBannerOverlay ? 'Hide info overlay' : 'Show info overlay'}
+            aria-pressed={showBannerOverlay}
+          >
+              {showBannerOverlay ? (
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
               ) : (
-                <span className="text-gray-500">--</span>
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M4 4l16 16" />
+                </svg>
               )}
-            </span>
-          </div>
-          <div className="hidden sm:block w-px h-5 bg-white/20" />
-          <div className="flex items-center gap-2 sm:gap-3">
-            <span className="text-gray-400 text-xs sm:text-sm">Holders</span>
-            <span
-              className="font-bold font-mono text-white"
-              title={
-                trueHolderCount != null
-                  ? `${trueHolderCount.toLocaleString()} total holders on this token · top ${leaderboardTrackedCount} ranked for rewards`
-                  : undefined
-              }
+            </button>
+
+          <div
+            className={`ticker-on-banner relative z-10 flex h-full w-full flex-col items-center justify-between gap-2 p-3 sm:p-4 md:p-5 transition-opacity duration-300 ${
+              showBannerOverlay ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+            aria-hidden={!showBannerOverlay}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: showBannerOverlay ? 1 : 0, y: showBannerOverlay ? 0 : -8 }}
+              transition={{ delay: 0.08, duration: 0.35 }}
+              className="ticker-stat-chip flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5 w-fit max-w-full"
             >
-              {trueHolderCount != null ? (
-                formatNumber(trueHolderCount)
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <TokenAvatar symbol={tokenSymbol} iconUrl={tokenIconUrl} size="lg" highlighted />
+                <span className="text-white/80 text-xs sm:text-sm shrink-0">Token</span>
+                <span className="text-rh-lime font-bold text-sm sm:text-base truncate">${tokenSymbol}</span>
+              </div>
+              {tokenMint ? (
+                <CopyContractAddress
+                  variant="inline"
+                  address={tokenMint}
+                  symbol={tokenSymbol}
+                  explorerUrl={tokenExplorerUrl}
+                />
               ) : (
-                <InlineSpinner />
+                <span className="text-xs text-white/50 font-mono">Loading CA…</span>
               )}
-            </span>
-          </div>
+            </motion.div>
+
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full max-w-xl mx-auto">
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: showBannerOverlay ? 1 : 0, y: showBannerOverlay ? 0 : 12 }}
+                transition={{ delay: 0.14, duration: 0.35 }}
+                className="ticker-stat-chip rounded-xl px-2.5 py-2 sm:px-3.5 sm:py-2.5 min-w-0 text-center"
+              >
+                <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                  <span className="text-white/70 text-[10px] sm:text-xs uppercase tracking-wide">Price</span>
+                  {isLive ? (
+                    <span
+                      className={`text-[9px] uppercase tracking-wider px-1 py-0.5 rounded ${
+                        connection === 'websocket'
+                          ? 'bg-rh-green/25 text-rh-lime'
+                          : 'bg-amber-500/25 text-amber-200'
+                      }`}
+                      title={connection === 'websocket' ? 'DexScreener WebSocket' : 'DexScreener live poll (1s)'}
+                    >
+                      {connection === 'websocket' ? 'Live' : '1s'}
+                    </span>
+                  ) : null}
+                </div>
+                {price || data?.token_price_raw ? (
+                  <div className="flex justify-center">
+                    <PriceTicker price={price || data?.token_price_raw} size="md" />
+                  </div>
+                ) : (
+                  <span className="text-white/50 font-mono text-sm">Loading...</span>
+                )}
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: showBannerOverlay ? 1 : 0, y: showBannerOverlay ? 0 : 12 }}
+                transition={{ delay: 0.2, duration: 0.35 }}
+                className="ticker-stat-chip rounded-xl px-2.5 py-2 sm:px-3.5 sm:py-2.5 min-w-0 text-center"
+              >
+                <span className="block text-white/70 text-[10px] sm:text-xs uppercase tracking-wide mb-0.5">
+                  MCap
+                </span>
+                <span className="font-bold font-mono text-white text-sm sm:text-lg">
+                  {marketCap ? (
+                    <AnimatedNumber value={marketCap} format="currency" />
+                  ) : (
+                    <span className="text-white/50">--</span>
+                  )}
+                </span>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: showBannerOverlay ? 1 : 0, y: showBannerOverlay ? 0 : 12 }}
+                transition={{ delay: 0.26, duration: 0.35 }}
+                className="ticker-stat-chip rounded-xl px-2.5 py-2 sm:px-3.5 sm:py-2.5 min-w-0 text-center"
+              >
+                <span className="block text-white/70 text-[10px] sm:text-xs uppercase tracking-wide mb-0.5">
+                  Holders
+                </span>
+                <span
+                  className="font-bold font-mono text-white text-sm sm:text-lg"
+                  title={
+                    trueHolderCount != null
+                      ? `${trueHolderCount.toLocaleString()} total holders on this token · top ${leaderboardTrackedCount} ranked for rewards`
+                      : undefined
+                  }
+                >
+                  {trueHolderCount != null ? formatNumber(trueHolderCount) : <InlineSpinner />}
+                </span>
+              </motion.div>
+            </div>
           </div>
         </motion.div>
 

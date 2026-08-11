@@ -193,8 +193,14 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
       amount_unit: amountUnit,
       amount_asset: amountAsset,
       amount_usd: formatHistoryUsd(amountUsd),
-      drawdown_pct: p.rank > 0 ? p.drawdownPct?.toFixed(2) ?? null : null,
-      loss_usd: p.rank > 0 ? p.lossUsd?.toFixed(2) ?? null : null,
+      drawdown_pct:
+        p.rank > 0 && typeof p.drawdownPct === 'number' && p.drawdownPct < 0
+          ? Math.abs(p.drawdownPct).toFixed(2)
+          : null,
+      loss_usd:
+        p.rank > 0 && typeof p.lossUsd === 'number' && p.lossUsd > 0
+          ? p.lossUsd.toFixed(2)
+          : null,
       tx_hash: p.txHash,
       explorer_url: p.txHash ? getTxExplorerUrl(p.txHash) : null,
       status: p.status === 'success' ? 'success' : 'failed',

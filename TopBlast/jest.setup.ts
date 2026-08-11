@@ -1,7 +1,15 @@
 jest.mock('server-only', () => ({}))
 
-/** Production/staging URIs must never reach Jest — tests use MongoMemoryServer only. */
+/**
+ * Jest must never see Atlas / Vercel production credentials.
+ * Tests use MongoMemoryServer only (see __tests__/helpers/memoryMongo.ts).
+ * There is no deployment-reset / DB-wipe feature in the app.
+ */
 function assertSafeTestDatabaseEnv() {
+  if (process.env.VERCEL || process.env.VERCEL_ENV) {
+    throw new Error('Refusing to run Jest on Vercel — tests must never execute in deploy builds')
+  }
+
   const mongoUri = process.env.MONGODB_URI?.trim() ?? ''
   if (!mongoUri) return
 
@@ -25,6 +33,7 @@ const SECRET_ENV_KEYS = [
   'CRON_SECRET',
   'HELIUS_API_KEY',
   'MONGODB_URI',
+  'BIRDEYE_API_KEY',
 ] as const
 
 assertSafeTestDatabaseEnv()
@@ -35,3 +44,5 @@ for (const key of SECRET_ENV_KEYS) {
 
 process.env.SOLANA_NETWORK = 'devnet'
 process.env.TENANT_ENCRYPTION_KEY = 'test-encryption-key-for-jest-only'
+process.env.VERCEL = ''
+process.env.VERCEL_ENV = ''

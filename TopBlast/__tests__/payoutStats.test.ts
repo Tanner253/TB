@@ -1,9 +1,13 @@
 import { MongoMemoryServer } from 'mongodb-memory-server'
-import { Payout } from '@/lib/db/models'
+import { Payout, PayoutVolumeSwap } from '@/lib/db/models'
 import { fetchTenantPayoutStats } from '@/lib/payout/payoutStats'
 import { runWithTenant } from '@/lib/tenant/context'
 import type { TenantRuntimeConfig } from '@/lib/tenant/types'
-import { startMemoryMongo, stopMemoryMongo } from './helpers/memoryMongo'
+import { clearMemoryCollections, startMemoryMongo, stopMemoryMongo } from './helpers/memoryMongo'
+
+jest.mock('@/lib/solana/price', () => ({
+  getSolPrice: jest.fn(async () => 50),
+}))
 
 const TENANT: TenantRuntimeConfig = {
   tenantSlug: 'pepe',
@@ -20,8 +24,6 @@ const TENANT: TenantRuntimeConfig = {
   executePayouts: false,
 }
 
-const TEST_PAYOUT_TENANTS = ['pepe', 'other'] as const
-
 describe('fetchTenantPayoutStats', () => {
   let mongo: MongoMemoryServer
 
@@ -36,7 +38,7 @@ describe('fetchTenantPayoutStats', () => {
   })
 
   beforeEach(async () => {
-    await Payout.deleteMany({ tenantSlug: { $in: [...TEST_PAYOUT_TENANTS] } })
+    await clearMemoryCollections()
   })
 
   it('aggregates cycles, distributed totals, and most wins for tenant', async () => {
@@ -91,9 +93,10 @@ describe('fetchTenantPayoutStats', () => {
 
     expect(stats.total_cycles).toBe(2)
     expect(stats.total_distributed_usd).toBe(23)
+    // Gen volume mirrors paid-out USD; SOL = USD / solPrice
     expect(stats.total_generated_volume_usd).toBe(23)
+    expect(stats.total_generated_volume_sol).toBeCloseTo(23 / 50)
     expect(stats.total_distributed_sol).toBeCloseTo(0.09)
-    expect(stats.total_generated_volume_sol).toBeCloseTo(0.09)
     expect(stats.successful_winner_payouts).toBe(3)
     expect(stats.average_payout_usd).toBeCloseTo(23 / 3)
     expect(stats.most_wins).toEqual({
@@ -102,7 +105,7 @@ describe('fetchTenantPayoutStats', () => {
     })
   })
 
-  it('uses payout history for distributed totals even when swap ledger is lower', async () => {
+  it('keeps gen volume equal to paid out even when swap ledger differs', async () => {
     await Payout.insertMany([
       {
         tenantSlug: 'pepe',
@@ -115,13 +118,34 @@ describe('fetchTenantPayoutStats', () => {
         lossUsd: 20,
         status: 'success',
       },
+      {
+        tenantSlug: 'pepe',
+        cycle: 1,
+        rank: 0,
+        wallet: 'Dev111111111111111111111111111111111111111',
+        amount: 1.5,
+        amountTokens: 0.03,
+        drawdownPct: 0,
+        lossUsd: 0,
+        status: 'success',
+      },
     ])
+    await PayoutVolumeSwap.create({
+      tenantSlug: 'pepe',
+      tokenMint: 'PepeMint1111111111111111111111111111111111',
+      tokenSymbol: 'PEPE',
+      cycle: 1,
+      swapSol: 0.4,
+      swapUsd: 20,
+      outputTokensHuman: 2_729_024.664,
+      txHash: 'SwapTx111111111111111111111111111111111111111111111111111111111',
+    })
 
     const stats = await runWithTenant(TENANT, () => fetchTenantPayoutStats())
 
-    expect(stats.total_distributed_usd).toBeCloseTo(18.89)
-    expect(stats.total_generated_volume_usd).toBeCloseTo(18.89)
-    expect(stats.total_distributed_sol).toBe(0)
-    expect(stats.total_generated_volume_sol).toBe(0)
+    expect(stats.total_distributed_usd).toBeCloseTo(20.39)
+    expect(stats.total_distributed_sol).toBeCloseTo(0.03)
+    expect(stats.total_generated_volume_usd).toBeCloseTo(20.39)
+    expect(stats.total_generated_volume_sol).toBeCloseTo(20.39 / 50)
   })
 })

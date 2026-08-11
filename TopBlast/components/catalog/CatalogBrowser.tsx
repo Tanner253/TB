@@ -180,7 +180,7 @@ export function CatalogBrowser() {
       ) : null}
 
       {!loading && !error && filtered.length > 0 && viewMode === 'list' ? (
-        <div className="rounded-xl border border-white/[0.08] overflow-hidden bg-black/20">
+        <div className="rounded-xl border border-white/[0.08] overflow-visible bg-black/20">
           <div className="hidden sm:grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(7.5rem,9rem)_auto] gap-3 md:gap-4 px-4 py-2 text-[0.65rem] uppercase tracking-wider text-gray-500 border-b border-white/[0.06] bg-white/[0.02]">
             <span>Token</span>
             <span className="hidden md:block">Mint</span>

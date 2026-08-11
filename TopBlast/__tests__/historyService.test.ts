@@ -1,7 +1,7 @@
 import { MongoMemoryServer } from 'mongodb-memory-server'
 import { Payout, Tenant } from '@/lib/db/models'
 import { fetchAppPayoutHistory } from '@/lib/payout/historyService'
-import { startMemoryMongo, stopMemoryMongo } from './helpers/memoryMongo'
+import { clearMemoryCollections, startMemoryMongo, stopMemoryMongo } from './helpers/memoryMongo'
 
 jest.mock('@/lib/config', () => ({
   config: {
@@ -15,9 +15,6 @@ jest.mock('@/lib/platform/config', () => ({
   getPlatformTokenSymbol: () => 'TopBlast',
   isPlatformTenantSlug: (slug: string) => slug === 'topblast' || slug === '_legacy',
 }))
-
-const TEST_TENANT_SLUGS = ['pepe', 'bonk'] as const
-const TEST_PAYOUT_TENANTS = ['pepe', 'bonk', '_legacy'] as const
 
 describe('fetchAppPayoutHistory', () => {
   let mongo: MongoMemoryServer
@@ -33,8 +30,7 @@ describe('fetchAppPayoutHistory', () => {
   })
 
   beforeEach(async () => {
-    await Payout.deleteMany({ tenantSlug: { $in: [...TEST_PAYOUT_TENANTS] } })
-    await Tenant.deleteMany({ slug: { $in: [...TEST_TENANT_SLUGS] } })
+    await clearMemoryCollections()
   })
 
   it('includes token mint and explorer url on each cycle', async () => {

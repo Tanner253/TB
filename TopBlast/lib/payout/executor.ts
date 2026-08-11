@@ -1,11 +1,11 @@
 /**
- * Payout Executor - timer, deployment reset, and payout execution.
+ * Payout Executor - timer and payout execution.
  * Timer stays in "waiting" until the first eligible holder exists, then counts down uniformly via MongoDB.
+ * Never wipes payout history or tenant collections when the env mint changes.
  */
 
 import connectDB from '@/lib/db'
 import { Payout, Disqualification, TimerState, PayoutVolumeSwap } from '@/lib/db/models'
-import { resetDeploymentState } from '@/lib/payout/resetDeployment'
 import { transferSol, MIN_TRANSFER_SOL } from '@/lib/solana/transfer'
 import { swapSolForToken, isNativeTokenPayoutEnabled } from '@/lib/solana/jupiterSwap'
 import {
@@ -127,9 +127,29 @@ function payoutTokenFields() {
   }
 }
 
-async function resetForNewToken(tokenMint: string): Promise<void> {
-  console.log(`[Payout] New token detected (${tokenMint.slice(0, 10)}...) — resetting deployment state`)
-  await resetDeploymentState()
+/** Env mint changed — retarget the timer only. Never delete payouts/holders/history. */
+async function retargetTimerForMint(tokenMint: string): Promise<void> {
+  console.log(
+    `[Payout] Token mint changed (${tokenMint.slice(0, 10)}...) — retargeting timer only (history preserved)`
+  )
+  await TimerState.findOneAndUpdate(
+    { key: getTimerKey() },
+    {
+      $set: {
+        tokenMint,
+        timerStatus: 'waiting',
+        lastPayoutTime: null,
+        currentCycle: 0,
+        failedAttempts: 0,
+        lastPayoutError: null,
+        lastPayoutErrorAt: null,
+        isPayoutInProgress: false,
+        lockAcquiredAt: null,
+        lockCycle: null,
+      },
+    },
+    { upsert: true }
+  )
   const cache = getTimerCache()
   cache.lastPayoutTime = null
   cache.currentCycle = 0
@@ -193,7 +213,7 @@ async function loadTimerState(): Promise<void> {
     const storedMint = normalizeMint(state?.tokenMint || '')
 
     if (state && storedMint !== expectedMint) {
-      await resetForNewToken(config.tokenMint)
+      await retargetTimerForMint(config.tokenMint)
       return
     }
 

@@ -6,6 +6,7 @@ import { formatCatalogStatus, tenantCatalogHref } from '@/lib/platform/catalogCl
 import { CatalogTimerBadge } from '@/components/catalog/CatalogTimerBadge'
 import { CatalogCountdown } from '@/components/catalog/CatalogCountdown'
 import { TokenAvatar } from '@/components/ui/TokenAvatar'
+import { useTokenMedia } from '@/hooks/useTokenMedia'
 
 function MetricValue({
   primary,
@@ -64,28 +65,32 @@ function PayoutCell({ tenant }: { tenant: PublicTenantSummary }) {
 
 export function CatalogListRow({ tenant }: { tenant: PublicTenantSummary }) {
   const isPlatform = tenant.isPlatformToken
+  const { media } = useTokenMedia(tenant.token_icon_url ? null : tenant.mint)
+  const iconUrl = tenant.token_icon_url || media?.iconUrl || null
 
   return (
     <Link
       href={tenantCatalogHref(tenant)}
-      className={`group flex flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(7.5rem,9rem)_auto] sm:gap-3 md:gap-4 sm:items-center px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors ${
+      className={`group relative z-0 flex flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(7.5rem,9rem)_auto] sm:gap-3 md:gap-4 sm:items-center px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors overflow-visible ${
         isPlatform ? 'bg-sol-purple/[0.04]' : ''
       }`}
     >
       <div className="flex items-center justify-between gap-3 min-w-0 sm:contents">
-        <div className="min-w-0 flex items-center gap-3">
+        <div className="relative z-20 min-w-0 flex items-center gap-3">
           <TokenAvatar
             symbol={tenant.symbol}
-            iconUrl={tenant.token_icon_url}
+            iconUrl={iconUrl}
             size="sm"
             highlighted={isPlatform}
+            previewOnHover
             className="sm:hidden"
           />
           <TokenAvatar
             symbol={tenant.symbol}
-            iconUrl={tenant.token_icon_url}
+            iconUrl={iconUrl}
             size="md"
             highlighted={isPlatform}
+            previewOnHover
             className="hidden sm:flex"
           />
           <div className="min-w-0">
