@@ -399,7 +399,7 @@ export default function LeaderboardPage() {
                   <span className="text-white/70 text-[10px] sm:text-xs uppercase tracking-wide">Price</span>
                   {isLive ? (
                     <span
-                      className={`text-[9px] uppercase tracking-wider px-1 py-0.5 rounded ${
+                      className={`ticker-live-badge text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded ${
                         connection === 'websocket'
                           ? 'bg-rh-green/25 text-rh-lime'
                           : 'bg-amber-500/25 text-amber-200'

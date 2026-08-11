@@ -85,7 +85,7 @@ export function CopyContractAddress({
         <button
           type="button"
           onClick={onCopy}
-          className="group inline-flex items-center gap-1.5 max-w-full rounded-lg border border-rh-green/30 bg-rh-green/10 px-2 py-1 font-mono text-xs text-rh-lime hover:border-rh-green/60 hover:bg-rh-green/15 transition-colors"
+          className="group inline-flex items-center gap-1.5 max-w-full rounded-lg border border-white/25 bg-black/85 px-2 py-1 font-mono text-xs text-rh-lime shadow-[0_2px_8px_rgba(0,0,0,0.65)] hover:border-rh-green/60 hover:bg-black/95 transition-colors"
           title={address}
           aria-label="Copy contract address"
         >

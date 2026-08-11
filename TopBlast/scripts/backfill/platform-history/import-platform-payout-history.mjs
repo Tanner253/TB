@@ -371,6 +371,40 @@ async function main() {
     uponlyPayouts: await payoutsCol.countDocuments({ tenantSlug: 'uponly' }),
   })
 
+  const maxCycle = (
+    await payoutsCol
+      .aggregate([
+        { $match: { tenantSlug: TENANT, status: 'success' } },
+        { $group: { _id: null, max: { $max: '$cycle' } } },
+      ])
+      .toArray()
+  )[0]?.max ?? prepared.summary.cycles
+
+  const timerRes = await mongoose.connection.collection('timerstates').updateOne(
+    { key: 'payout_timer' },
+    {
+      $set: {
+        currentCycle: maxCycle,
+        tokenMint: report.params.mint,
+        updatedAt: new Date(),
+      },
+      $setOnInsert: {
+        key: 'payout_timer',
+        timerStatus: 'waiting',
+        lastPayoutTime: null,
+        failedAttempts: 0,
+        isPayoutInProgress: false,
+      },
+    },
+    { upsert: true }
+  )
+  console.log(`[import] timer payout_timer.currentCycle → ${maxCycle}`, {
+    matched: timerRes.matchedCount,
+    modified: timerRes.modifiedCount,
+    upserted: timerRes.upsertedCount,
+  })
+  console.log(`[import] next live payout will be cycle ${maxCycle + 1}`)
+
   await mongoose.disconnect()
   console.log('[import] done')
 }
