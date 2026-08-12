@@ -26,16 +26,14 @@ export function SessionBannerLayer({ bannerUrl, dimmed = true }: SessionBannerLa
         onError={() => setFailed(true)}
         className="absolute inset-0 h-full w-full object-cover object-center"
       />
-      {/* Stronger edge vignette on small screens so chips stay readable */}
       <div
         className={`absolute inset-0 transition-opacity duration-300 ${
           dimmed ? 'opacity-100' : 'opacity-0'
         }`}
       >
-        <div className="absolute inset-0 bg-black/45 sm:bg-black/40" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.05)_0%,rgba(0,0,0,0.55)_100%)] sm:bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.1)_0%,rgba(0,0,0,0.45)_100%)]" />
-        <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/70 to-transparent sm:hidden" />
-        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/80 to-transparent sm:hidden" />
+        {/* Light dim on mobile (chips sit below art); stronger on desktop overlay */}
+        <div className="absolute inset-0 bg-black/25 sm:bg-black/40" />
+        <div className="absolute inset-0 hidden sm:block bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.1)_0%,rgba(0,0,0,0.45)_100%)]" />
       </div>
     </div>
   )

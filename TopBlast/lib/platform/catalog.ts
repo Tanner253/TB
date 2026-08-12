@@ -8,6 +8,13 @@ import {
   buildPlatformEnvCatalogEntry,
   isPlatformMintConfigured,
 } from './envPlatform'
+import {
+  buildManualEnvCatalogEntry,
+  getManualTenantSlug,
+  getManualTokenMint,
+  isManualMintConfigured,
+  isManualTenantSlug,
+} from './manualEnvTenant'
 
 function isPlatformListing(t: PublicTenantSummary, platformMint: string): boolean {
   return (
@@ -17,21 +24,38 @@ function isPlatformListing(t: PublicTenantSummary, platformMint: string): boolea
   )
 }
 
+function isManualListing(t: PublicTenantSummary, manualMint: string, manualSlug: string): boolean {
+  return (
+    (!!manualSlug && t.slug === manualSlug) ||
+    (!!manualMint && t.mint === manualMint) ||
+    isManualTenantSlug(t.slug)
+  )
+}
+
 /**
- * Catalog listings: Mongo SaaS tenants + env-driven platform token.
+ * Catalog listings: Mongo SaaS tenants + env-driven platform token + optional manual env listing.
  * Platform token never shows "setup" — mint in env = live leaderboard card.
+ * Manual env listing looks like a normal community card (not featured / not PLATFORM).
  */
 export function decorateCatalogTenants(tenants: PublicTenantSummary[]): PublicTenantSummary[] {
   const platformSlug = getPlatformTenantSlug()
   const platformMint = getPlatformTokenMint()
+  const manualSlug = getManualTenantSlug()
+  const manualMint = getManualTokenMint()
 
-  const community = tenants.filter(t => !isPlatformListing(t, platformMint))
+  const community = tenants.filter(
+    t => !isPlatformListing(t, platformMint) && !isManualListing(t, manualMint, manualSlug)
+  )
 
   const decorated = community.map(t => ({
     ...t,
     featured: false,
     isPlatformToken: false,
   }))
+
+  if (isManualMintConfigured()) {
+    decorated.push(buildManualEnvCatalogEntry())
+  }
 
   if (isPlatformMintConfigured()) {
     decorated.unshift(buildPlatformEnvCatalogEntry())

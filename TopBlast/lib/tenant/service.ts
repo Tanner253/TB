@@ -14,6 +14,11 @@ import { getTimerKey } from './keys'
 import { decorateCatalogTenants } from '@/lib/platform/catalog'
 import { enrichCatalogTenants } from '@/lib/platform/catalogMetrics'
 import { resolvePlatformEnvRuntime, isPlatformEnvConfigured } from '@/lib/platform/envPlatform'
+import {
+  getManualTenantSlug,
+  isManualEnvConfigured,
+  resolveManualEnvRuntime,
+} from '@/lib/platform/manualEnvTenant'
 import { getPlatformTenantSlug } from '@/lib/platform/config'
 import { requirePlatformDevWalletAddress } from '@/lib/platform/devWallet'
 import { validatePayoutIntervalMinutes } from '@/lib/platform/payoutIntervals'
@@ -115,13 +120,17 @@ export async function resolveTenantRuntime(slug: string): Promise<TenantRuntimeC
     }
   }
 
-  return resolvePlatformEnvRuntime(slug)
+  return resolvePlatformEnvRuntime(slug) ?? resolveManualEnvRuntime(slug)
 }
 
 export async function createTenant(input: CreateTenantInput) {
   const slug = validateSlug(input.slug)
   validateMint(input.mint)
   validatePrivateKey(input.payoutWalletPrivateKey)
+
+  if (isManualEnvConfigured() && (slug === getManualTenantSlug() || input.mint.trim() === process.env.MANUAL_TOKEN_MINT?.trim())) {
+    throw new Error('This slug or mint is reserved for the operator manual listing')
+  }
 
   const mint = input.mint.trim()
   const symbol = (input.symbol || 'TOKEN').trim().slice(0, 12)
@@ -207,6 +216,10 @@ export async function listActiveTenantSlugs(): Promise<string[]> {
   // Env-driven platform token (e.g. /topblast) may have no Mongo row — include for multi-tenant ops.
   if (isPlatformEnvConfigured()) {
     slugs.add(getPlatformTenantSlug())
+  }
+  // Operator manual env listing (not platform) — own slug / timer / payouts.
+  if (isManualEnvConfigured()) {
+    slugs.add(getManualTenantSlug())
   }
 
   return Array.from(slugs)
