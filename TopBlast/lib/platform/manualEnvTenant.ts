@@ -12,12 +12,12 @@ import { isPlatformTenantSlug } from '@/lib/platform/config'
  *
  * Fixed session rules (requested):
  *   - 10 winners
- *   - 100,000 min token holding
+ *   - 1,000,000 min token holding
  *   - 60 minute cycles
  */
 
 export const MANUAL_WINNER_COUNT = 10
-export const MANUAL_MIN_TOKEN_HOLDING = 100_000
+export const MANUAL_MIN_TOKEN_HOLDING = 1_000_000
 export const MANUAL_PAYOUT_INTERVAL_MINUTES = 60
 
 export function getManualTenantSlug(): string {

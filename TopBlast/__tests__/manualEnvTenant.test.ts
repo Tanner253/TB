@@ -48,7 +48,7 @@ describe('manualEnvTenant', () => {
     expect(isManualEnvConfigured()).toBe(false)
   })
 
-  it('resolves runtime with fixed 10 winners / 100k hold / 1h cycle and real slug scope', () => {
+  it('resolves runtime with fixed 10 winners / 1M hold / 1h cycle and real slug scope', () => {
     process.env.MANUAL_TENANT_SLUG = 'mylist'
     process.env.MANUAL_TOKEN_MINT = 'So11111111111111111111111111111111111111112'
     process.env.MANUAL_TOKEN_SYMBOL = 'MYTOK'
@@ -63,7 +63,7 @@ describe('manualEnvTenant', () => {
     expect(runtime!.winnerCount).toBe(MANUAL_WINNER_COUNT)
     expect(runtime!.winnerCount).toBe(10)
     expect(runtime!.minTokenHolding).toBe(MANUAL_MIN_TOKEN_HOLDING)
-    expect(runtime!.minTokenHolding).toBe(100_000)
+    expect(runtime!.minTokenHolding).toBe(1_000_000)
     expect(runtime!.payoutIntervalMinutes).toBe(MANUAL_PAYOUT_INTERVAL_MINUTES)
     expect(runtime!.payoutIntervalMinutes).toBe(60)
     expect(runtime!.executePayouts).toBe(true)
