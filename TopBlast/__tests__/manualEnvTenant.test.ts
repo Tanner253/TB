@@ -17,6 +17,7 @@ describe('manualEnvTenant', () => {
     'MANUAL_TOKEN_SYMBOL',
     'MANUAL_PAYOUT_WALLET_PRIVATE_KEY',
     'MANUAL_EXECUTE_PAYOUTS',
+    'MANUAL_LISTING_ENABLED',
     'PLATFORM_TENANT_SLUG',
     'TOKEN_MINT_ADDRESS',
   ] as const
@@ -38,6 +39,15 @@ describe('manualEnvTenant', () => {
     process.env.MANUAL_TOKEN_MINT = 'So11111111111111111111111111111111111111112'
     process.env.MANUAL_PAYOUT_WALLET_PRIVATE_KEY = testSolanaSecretKey()
     expect(isManualEnvConfigured()).toBe(true)
+  })
+
+  it('turns off when MANUAL_LISTING_ENABLED is false', () => {
+    process.env.MANUAL_TENANT_SLUG = 'mylist'
+    process.env.MANUAL_TOKEN_MINT = 'So11111111111111111111111111111111111111112'
+    process.env.MANUAL_PAYOUT_WALLET_PRIVATE_KEY = testSolanaSecretKey()
+    process.env.MANUAL_LISTING_ENABLED = 'false'
+    expect(isManualEnvConfigured()).toBe(false)
+    expect(resolveManualEnvRuntime('mylist')).toBeNull()
   })
 
   it('rejects platform slug collision', () => {

@@ -37,7 +37,15 @@ export function isManualTenantSlug(slug: string): boolean {
   return !!manual && slug.trim().toLowerCase() === manual
 }
 
+/** Explicit off switch. Unset/empty = on when the other MANUAL_* vars are set. */
+export function isManualListingEnabled(): boolean {
+  const raw = process.env.MANUAL_LISTING_ENABLED?.trim().toLowerCase()
+  if (raw === '0' || raw === 'false' || raw === 'no' || raw === 'off') return false
+  return true
+}
+
 export function isManualEnvConfigured(): boolean {
+  if (!isManualListingEnabled()) return false
   const slug = getManualTenantSlug()
   const mint = getManualTokenMint()
   const key = process.env.MANUAL_PAYOUT_WALLET_PRIVATE_KEY?.trim()
@@ -48,6 +56,7 @@ export function isManualEnvConfigured(): boolean {
 
 /** Catalog can show the card once mint+slug exist; payouts need the key. */
 export function isManualMintConfigured(): boolean {
+  if (!isManualListingEnabled()) return false
   const slug = getManualTenantSlug()
   const mint = getManualTokenMint()
   if (!slug || !mint) return false
