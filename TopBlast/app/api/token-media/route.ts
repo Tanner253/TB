@@ -14,13 +14,9 @@ export async function GET(request: NextRequest) {
 
   try {
     const media = (await fetchDexScreenerTokenMedia(mint)) ?? emptyDexScreenerTokenMedia()
-    // Avoid CDN sticking a Pump-only miss when Dex later returns a paid header.
-    const cacheControl = media.bannerUrl
-      ? 'public, max-age=300'
-      : 'public, max-age=30, must-revalidate'
     return NextResponse.json(
       { success: true, data: media },
-      { headers: { 'Cache-Control': cacheControl } }
+      { headers: { 'Cache-Control': 'public, max-age=300' } }
     )
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to fetch token media'

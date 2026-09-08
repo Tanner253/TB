@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 interface SessionBannerLayerProps {
   bannerUrl: string | null | undefined
@@ -13,11 +13,6 @@ interface SessionBannerLayerProps {
  */
 export function SessionBannerLayer({ bannerUrl, dimmed = true }: SessionBannerLayerProps) {
   const [failed, setFailed] = useState(false)
-
-  useEffect(() => {
-    setFailed(false)
-  }, [bannerUrl])
-
   if (!bannerUrl || failed) return null
 
   return (
@@ -25,7 +20,7 @@ export function SessionBannerLayer({ bannerUrl, dimmed = true }: SessionBannerLa
       <img
         src={bannerUrl}
         alt=""
-        loading="eager"
+        loading="lazy"
         decoding="async"
         referrerPolicy="no-referrer"
         onError={() => setFailed(true)}
