@@ -14,9 +14,12 @@ export async function GET(request: NextRequest) {
 
   try {
     const media = (await fetchDexScreenerTokenMedia(mint)) ?? emptyDexScreenerTokenMedia()
+    const cacheControl = media.bannerUrl
+      ? 'public, max-age=300'
+      : 'public, max-age=30, must-revalidate'
     return NextResponse.json(
       { success: true, data: media },
-      { headers: { 'Cache-Control': 'public, max-age=300' } }
+      { headers: { 'Cache-Control': cacheControl } }
     )
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to fetch token media'

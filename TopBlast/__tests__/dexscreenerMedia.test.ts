@@ -1,5 +1,6 @@
 import {
   mediaFromDexScreenerPair,
+  mediaFromDexScreenerTokenResponse,
   selectBestSolanaPairForMedia,
 } from '@/lib/solana/dexscreenerMedia'
 
@@ -95,6 +96,65 @@ describe('dexscreenerMedia', () => {
     expect(best?.pairAddress).toBe('has-art')
   })
 
+  it('prefers a pair with paid header over higher-liq icon-only art', () => {
+    const best = selectBestSolanaPairForMedia(
+      [
+        {
+          chainId: 'solana',
+          dexId: 'raydium',
+          pairAddress: 'icon-only',
+          priceUsd: '1',
+          liquidity: { usd: 100_000 },
+          baseToken: { address: 'mint' },
+          quoteToken: { address: 'sol' },
+          info: { imageUrl: 'https://cdn.dexscreener.com/icon.png' },
+        },
+        {
+          chainId: 'solana',
+          dexId: 'pumpswap',
+          pairAddress: 'has-header',
+          priceUsd: '1',
+          liquidity: { usd: 1_000 },
+          baseToken: { address: 'mint' },
+          quoteToken: { address: 'sol' },
+          info: {
+            imageUrl: 'https://cdn.dexscreener.com/icon2.png',
+            header: 'https://cdn.dexscreener.com/banner.png',
+          },
+        },
+      ],
+      'mint'
+    )
+
+    expect(best?.pairAddress).toBe('has-header')
+  })
+
+  it('parses banner from Dex token API response', () => {
+    const media = mediaFromDexScreenerTokenResponse(
+      {
+        pairs: [
+          {
+            chainId: 'solana',
+            dexId: 'pumpswap',
+            pairAddress: 'pair',
+            priceUsd: '0.01',
+            baseToken: { address: 'mint' },
+            quoteToken: { address: 'sol' },
+            url: 'https://dexscreener.com/solana/pair',
+            info: {
+              imageUrl: 'https://cdn.dexscreener.com/icon.png',
+              header: 'https://cdn.dexscreener.com/banner.png',
+            },
+          },
+        ],
+      },
+      'mint'
+    )
+
+    expect(media?.bannerUrl).toBe('https://cdn.dexscreener.com/banner.png')
+    expect(media?.dexProfilePaid).toBe(true)
+  })
+
   it('falls back to Pump.fun image_uri when DexScreener has no icon', async () => {
     const mint = 'EvEPfQmH2BEe9XbiV8fghaafRWbG7n5oBEiLy5KNpump'
     const pumpIcon =
@@ -131,7 +191,6 @@ describe('dexscreenerMedia', () => {
     const prevFetch = global.fetch
     global.fetch = fetchMock as typeof fetch
     try {
-      // Clear module cache so in-process media cache starts empty for this mint
       jest.resetModules()
       const { fetchDexScreenerTokenMedia } = await import('@/lib/solana/dexscreenerMedia')
       const media = await fetchDexScreenerTokenMedia(mint)

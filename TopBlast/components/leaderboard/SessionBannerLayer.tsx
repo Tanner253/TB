@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 interface SessionBannerLayerProps {
   bannerUrl: string | null | undefined
@@ -13,6 +13,11 @@ interface SessionBannerLayerProps {
  */
 export function SessionBannerLayer({ bannerUrl, dimmed = true }: SessionBannerLayerProps) {
   const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    setFailed(false)
+  }, [bannerUrl])
+
   if (!bannerUrl || failed) return null
 
   return (
@@ -20,7 +25,7 @@ export function SessionBannerLayer({ bannerUrl, dimmed = true }: SessionBannerLa
       <img
         src={bannerUrl}
         alt=""
-        loading="lazy"
+        loading="eager"
         decoding="async"
         referrerPolicy="no-referrer"
         onError={() => setFailed(true)}
@@ -31,7 +36,6 @@ export function SessionBannerLayer({ bannerUrl, dimmed = true }: SessionBannerLa
           dimmed ? 'opacity-100' : 'opacity-0'
         }`}
       >
-        {/* Light dim on mobile (chips sit below art); stronger on desktop overlay */}
         <div className="absolute inset-0 bg-black/25 sm:bg-black/40" />
         <div className="absolute inset-0 hidden sm:block bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.1)_0%,rgba(0,0,0,0.45)_100%)]" />
       </div>
