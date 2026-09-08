@@ -20,7 +20,7 @@ export interface CatalogPayoutVolume {
 
 /** Mongo tenant key for payout/timer metrics (env platform token only → _legacy). */
 export function catalogPayoutTenantKey(tenant: PublicTenantSummary): string {
-  if (tenant.isPlatformToken) return '_legacy'
+  if (tenant.isPlatformToken || tenant.runsFromEnv) return '_legacy'
   return tenant.slug
 }
 
