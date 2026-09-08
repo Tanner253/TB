@@ -272,6 +272,8 @@ export interface ICurrentRankings extends Document {
   holdersWithVwap: number
   tokenPrice: number
   lastCalculated: Date
+  /** Last full Birdeye holder pull (not price-only recompute). */
+  lastHolderFetchAt?: Date | null
   updatedAt: Date
 }
 
@@ -286,6 +288,7 @@ const CurrentRankingsSchema = new Schema<ICurrentRankings>({
   holdersWithVwap: { type: Number, default: 0 },
   tokenPrice: { type: Number, default: 0 },
   lastCalculated: { type: Date, default: Date.now },
+  lastHolderFetchAt: { type: Date, default: null },
 }, { timestamps: true })
 
 // Export models (check if already registered to avoid OverwriteModelError)

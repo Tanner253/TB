@@ -1,5 +1,7 @@
 import {
   buildRankingRowsFromBirdeye,
+  isBirdeyeHolderSnapshotStale,
+  shouldRecomputeRankingsFromSnapshotOnly,
 } from '@/lib/tracker/birdeyeRankings'
 
 jest.mock('@/lib/eligibility/excludedWallets', () => ({
@@ -79,5 +81,46 @@ describe('buildRankingRowsFromBirdeye', () => {
     expect(rows[0].vwap).toBe(0)
     expect(rows[0].isEligible).toBe(false)
     expect(rows[0].ineligibleReason).toBe('Received via transfer')
+  })
+})
+
+describe('Birdeye snapshot freshness', () => {
+  it('treats missing lastHolderFetchAt as stale', () => {
+    expect(
+      isBirdeyeHolderSnapshotStale({
+        lastHolderFetchAt: null,
+        lastCalculated: new Date(),
+        maxAgeMs: 5 * 60 * 1000,
+      })
+    ).toBe(true)
+  })
+
+  it('does not treat a fresh holder fetch as stale', () => {
+    expect(
+      isBirdeyeHolderSnapshotStale({
+        lastHolderFetchAt: new Date(Date.now() - 60_000),
+        maxAgeMs: 5 * 60 * 1000,
+      })
+    ).toBe(false)
+  })
+
+  it('forces full Birdeye pull when eligible is zero and price moved', () => {
+    expect(
+      shouldRecomputeRankingsFromSnapshotOnly({
+        priceMoved: true,
+        snapshotStale: false,
+        eligibleCount: 0,
+      })
+    ).toBe(false)
+  })
+
+  it('allows price-only recompute when eligible holders exist', () => {
+    expect(
+      shouldRecomputeRankingsFromSnapshotOnly({
+        priceMoved: true,
+        snapshotStale: false,
+        eligibleCount: 3,
+      })
+    ).toBe(true)
   })
 })

@@ -184,6 +184,8 @@ export async function persistRankingsSnapshot(
     reportedHolderCount?: number | null
     preserveReportedCount?: number | null
     preserveIndexedCount?: number | null
+    /** True only after a full Birdeye holder pull (not price-only recompute). */
+    markHolderFetch?: boolean
   }
 ): Promise<{ eligibleCount: number; holdersWithVwap: number }> {
   const { CurrentRankings } = await import('@/lib/db/models')
@@ -199,21 +201,25 @@ export async function persistRankingsSnapshot(
     meta?.preserveReportedCount ??
     indexedHolderCount
 
+  const now = new Date()
+  const $set: Record<string, unknown> = {
+    tokenMint: config.tokenMint,
+    rankings: top,
+    totalHolders: reportedHolderCount,
+    indexedHolderCount,
+    reportedHolderCount,
+    eligibleCount,
+    holdersWithVwap,
+    tokenPrice,
+    lastCalculated: now,
+  }
+  if (meta?.markHolderFetch) {
+    $set.lastHolderFetchAt = now
+  }
+
   await CurrentRankings.findOneAndUpdate(
     { key: getRankingsKey() },
-    {
-      $set: {
-        tokenMint: config.tokenMint,
-        rankings: top,
-        totalHolders: reportedHolderCount,
-        indexedHolderCount,
-        reportedHolderCount,
-        eligibleCount,
-        holdersWithVwap,
-        tokenPrice,
-        lastCalculated: new Date(),
-      },
-    },
+    { $set },
     { upsert: true }
   )
 
@@ -222,6 +228,44 @@ export async function persistRankingsSnapshot(
   )
 
   return { eligibleCount, holdersWithVwap }
+}
+
+/**
+ * Price-only recompute must not reset Birdeye freshness — otherwise volatile
+ * dumps keep lastCalculated young and a full holder pull never runs.
+ */
+export function isBirdeyeHolderSnapshotStale(input: {
+  lastHolderFetchAt?: Date | string | null
+  lastCalculated?: Date | string | null
+  maxAgeMs: number
+  nowMs?: number
+}): boolean {
+  const nowMs = input.nowMs ?? Date.now()
+  const fetchAt = input.lastHolderFetchAt
+    ? new Date(input.lastHolderFetchAt).getTime()
+    : 0
+  // Legacy rows without lastHolderFetchAt are treated as stale once.
+  if (!fetchAt) return true
+  return nowMs - fetchAt >= input.maxAgeMs
+}
+
+/**
+ * When nobody is eligible, prefer a full Birdeye pull over recomputing the
+ * cached top-N — price moves alone cannot discover newly underwater wallets
+ * that were never in the snapshot.
+ */
+export function shouldRecomputeRankingsFromSnapshotOnly(input: {
+  force?: boolean
+  priceMoved: boolean
+  snapshotStale: boolean
+  eligibleCount: number
+}): boolean {
+  if (input.force) return false
+  if (input.snapshotStale) return false
+  if (!input.priceMoved) return false
+  // Limbo / zero eligible: always refresh holders when price moves.
+  if (input.eligibleCount <= 0) return false
+  return true
 }
 
 /**
@@ -266,15 +310,19 @@ export async function refreshLiveHolderRankings(options?: {
   const price = tokenPrice ?? 0
 
   if (!options?.force && existing?.rankings?.length) {
-    const snapshotAgeMs = Date.now() - new Date(existing.lastCalculated).getTime()
     const snapshotMaxAge = idle ? holderIdleSnapshotMaxAgeMs() : holderActiveSnapshotMaxAgeMs()
-    const snapshotStale = snapshotAgeMs >= snapshotMaxAge
+    const snapshotStale = isBirdeyeHolderSnapshotStale({
+      lastHolderFetchAt: existing.lastHolderFetchAt,
+      lastCalculated: existing.lastCalculated,
+      maxAgeMs: snapshotMaxAge,
+    })
     const priceMoved = hasMaterialPriceChange(existing.tokenPrice, price)
+    const existingEligible = existing.eligibleCount ?? 0
 
     if (!priceMoved && !snapshotStale) {
       markHolderRefresh(tenantKey)
       console.log(
-        `[BirdeyeRankings] Skipped — price unchanged (${idle ? 'idle' : 'active'} tenant, ${Math.round(snapshotAgeMs / 1000)}s snapshot age)`
+        `[BirdeyeRankings] Skipped — price unchanged (${idle ? 'idle' : 'active'} tenant)`
       )
       return {
         refreshed: false,
@@ -287,7 +335,14 @@ export async function refreshLiveHolderRankings(options?: {
       }
     }
 
-    if (priceMoved && !snapshotStale) {
+    if (
+      shouldRecomputeRankingsFromSnapshotOnly({
+        force: options?.force,
+        priceMoved,
+        snapshotStale,
+        eligibleCount: existingEligible,
+      })
+    ) {
       const lastWinByWallet = await loadLastWinCycleByWallet(
         existing.rankings.map(h => h.wallet)
       )
@@ -304,6 +359,7 @@ export async function refreshLiveHolderRankings(options?: {
       const { eligibleCount, holdersWithVwap } = await persistRankingsSnapshot(rows, price, {
         preserveReportedCount: existing.reportedHolderCount ?? existing.totalHolders,
         preserveIndexedCount: existing.indexedHolderCount ?? existing.rankings.length,
+        markHolderFetch: false,
       })
       markHolderRefresh(tenantKey)
       console.log(
@@ -349,6 +405,7 @@ export async function refreshLiveHolderRankings(options?: {
 
   const { eligibleCount, holdersWithVwap } = await persistRankingsSnapshot(rows, price, {
     reportedHolderCount: totalReported,
+    markHolderFetch: true,
   })
   markHolderRefresh(tenantKey)
 

@@ -1177,6 +1177,7 @@ export async function loadRankingsFromDb(): Promise<{
   holdersWithVwap: number
   tokenPrice: number
   lastCalculated: Date
+  lastHolderFetchAt?: Date | null
 } | null> {
   try {
     const { CurrentRankings } = await import('@/lib/db/models')
@@ -1202,6 +1203,7 @@ export async function loadRankingsFromDb(): Promise<{
       reportedHolderCount: data.reportedHolderCount || data.totalHolders || 0,
       eligibleCount: data.eligibleCount || 0,
       holdersWithVwap: data.holdersWithVwap || 0,
+      lastHolderFetchAt: data.lastHolderFetchAt ?? null,
       tokenPrice: data.tokenPrice || 0,
       lastCalculated: data.lastCalculated || new Date(),
     }
