@@ -20,7 +20,7 @@ import {
   WHALE_ROCKET_SVG,
   loadSprite,
 } from '@/lib/game/whaleSprites'
-import { playPop, playPayoutFanfare, playWhaleCall } from '@/hooks/useSoundEffects'
+import { playPop, playPayoutFanfare, playWhaleCall, playTick } from '@/hooks/useSoundEffects'
 
 const STORE_KEY = 'tb-game-v1'
 
@@ -81,12 +81,53 @@ function saveStore(s: GameStore) {
 
 type Phase = 'loading' | 'ready' | 'charging' | 'flying' | 'done'
 
-interface Coin {
+/**
+ * Mid-air pickups (mechanics ported from bball.fun's layered spawner):
+ *  coin    — +1 ◎, tiny lift
+ *  ring    — violet boost ring (low sky): forward + up
+ *  jet     — golden jetstream ring (mid sky): bigger kick
+ *  balloon — party balloon (mid sky): big vertical pop
+ *  sat     — satellite (space band): mega boost + bonus coins
+ *  bear    — bear-market cloud (mid sky hazard): kills momentum
+ *  pump    — green candle buoy on the water: vertical relaunch
+ *  red     — red candle buoy on the water: momentum killer
+ *  wick    — rare white god candle: vertical moonshot
+ */
+type PickupType = 'coin' | 'ring' | 'jet' | 'balloon' | 'sat' | 'bear' | 'pump' | 'red' | 'wick'
+
+interface Pickup {
+  type: PickupType
   x: number
   y: number
   taken: boolean
   wobble: number
 }
+
+const PICKUP_REACH: Record<PickupType, number> = {
+  coin: 46,
+  ring: 58,
+  jet: 64,
+  balloon: 58,
+  sat: 70,
+  bear: 80,
+  pump: 60,
+  red: 60,
+  wick: 66,
+}
+
+/** Water-surface buoys bob on the waves instead of holding a fixed y. */
+const BUOYS = new Set<PickupType>(['pump', 'red', 'wick'])
+const HAZARDS = new Set<PickupType>(['bear', 'red'])
+
+/** Distance milestones ($ = meters) with announcer lines. */
+const MILESTONES: { at: number; text: string }[] = [
+  { at: 150, text: '$150 — WARMING UP' },
+  { at: 300, text: '$300 — CRUISING' },
+  { at: 600, text: '$600 — SENDING IT' },
+  { at: 1000, text: '$1K RECOVERED!!' },
+  { at: 2000, text: '$2K — GENERATIONAL RECOVERY' },
+  { at: 4000, text: '$4K — WHALE HISTORY' },
+]
 
 interface RunResult {
   distance: number
@@ -170,10 +211,22 @@ export default function BlastOffPage() {
     let bounces = 0
     let spoutCharges = 0
     let runCoins = 0
-    let coinsArr: Coin[] = []
+    let pickups: Pickup[] = []
     let genFrontier = 0
     let splashes: { x: number; y: number; vx: number; vy: number; life: number }[] = []
     let settleFrames = 0
+    // announcer flash + screen shake (frames)
+    let flashText = ''
+    let flashT = 0
+    let shakeT = 0
+    let milestoneIdx = 0
+    let nearMissed: Set<Pickup> = new Set()
+
+    function announce(text: string, shake = 0) {
+      flashText = text
+      flashT = 110
+      shakeT = Math.max(shakeT, shake)
+    }
 
     function resize() {
       if (!canvas) return
@@ -199,10 +252,15 @@ export default function BlastOffPage() {
       bounces = 0
       runCoins = 0
       spoutCharges = storeRef.current.up.spout
-      coinsArr = []
-      genFrontier = 600
+      pickups = []
+      genFrontier = 500
       splashes = []
       settleFrames = 0
+      flashText = ''
+      flashT = 0
+      shakeT = 0
+      milestoneIdx = 0
+      nearMissed = new Set()
       setHud({ distance: 0, coins: 0, spout: storeRef.current.up.spout })
     }
 
@@ -215,24 +273,82 @@ export default function BlastOffPage() {
       return x - Math.floor(x)
     }
 
-    function generateCoins() {
+    function addPickup(type: PickupType, x: number, y: number) {
+      pickups.push({ type, x, y, taken: false, wobble: Math.random() * Math.PI * 2 })
+    }
+
+    /** Coin pattern at a base altitude: arc, line, or rising stair. */
+    function spawnCoinPattern(x: number, baseY: number) {
+      const kind = Math.floor(Math.random() * 3)
+      const n = 4 + Math.floor(Math.random() * 5)
+      for (let j = 0; j < n; j++) {
+        const y =
+          kind === 0
+            ? baseY - Math.sin((j / (n - 1)) * Math.PI) * 55 // arc
+            : kind === 1
+              ? baseY // line
+              : baseY - j * 26 // rising stair
+        addPickup('coin', x + j * 42, y)
+      }
+    }
+
+    /**
+     * Layered spawner (bball.fun style) — every slot rolls each altitude band
+     * independently so the surface, low sky, mid sky and space stay populated.
+     */
+    function spawnAhead() {
       while (genFrontier < whale.x + W * 2) {
-        const i = Math.floor(genFrontier / 340)
-        if (rngFor(i, 7) > 0.3) {
-          const clusterY = waterY - 140 - rngFor(i, 13) * (H * 1.15)
-          const count = 3 + Math.floor(rngFor(i, 29) * 4)
-          for (let c = 0; c < count; c++) {
-            coinsArr.push({
-              x: genFrontier + c * 46,
-              y: clusterY + Math.sin(c * 0.9) * 34,
-              taken: false,
-              wobble: rngFor(i, c + 1) * Math.PI * 2,
-            })
+        const x = genFrontier
+
+        // --- Surface lane (buoys riding the water) — kept sparse on purpose
+        const sr = Math.random()
+        let th = 0
+        if (x > 2500 && sr < (th += 0.012)) {
+          addPickup('wick', x, waterY) // rare god candle — moonshot
+        } else if (x > 1200 && sr < (th += 0.09)) {
+          addPickup('red', x, waterY) // momentum killer
+        } else if (x > 800 && sr < (th += 0.07)) {
+          addPickup('pump', x, waterY) // green candle — number go up
+        }
+
+        // --- Low sky: bread-and-butter coins and boost rings
+        if (Math.random() < 0.3) {
+          spawnCoinPattern(x, waterY - 100 - Math.random() * 160)
+        }
+        if (Math.random() < 0.15) {
+          addPickup('ring', x + 60, waterY - 110 - Math.random() * 170)
+        }
+
+        // --- Mid sky: jets, balloons, bear clouds, more coins
+        if (x > 900) {
+          if (Math.random() < 0.17) {
+            spawnCoinPattern(x + 50, waterY - 280 - Math.random() * 220)
+          }
+          const mr = Math.random()
+          if (mr < 0.1) {
+            addPickup('jet', x + 30, waterY - 280 - Math.random() * 230)
+          } else if (mr < 0.19) {
+            addPickup('balloon', x + 90, waterY - 260 - Math.random() * 240)
+          } else if (mr < 0.27 && x > 1600) {
+            addPickup('bear', x + 50, waterY - 260 - Math.random() * 260)
           }
         }
-        genFrontier += 340
+
+        // --- Space band: satellites and star coins
+        if (x > 2200) {
+          if (Math.random() < 0.16) {
+            spawnCoinPattern(x + 60, waterY - 580 - Math.random() * 320)
+          }
+          if (Math.random() < 0.12) {
+            addPickup('sat', x + 40, waterY - 600 - Math.random() * 320)
+          }
+        }
+
+        genFrontier += 150 + Math.random() * 140
       }
-      coinsArr = coinsArr.filter(c => c.x > camX - 200 && !(c.taken && c.wobble > 999))
+      if (pickups.length > 400) {
+        pickups = pickups.filter(p => !p.taken && p.x > camX - 200)
+      }
     }
 
     function launch(powerNow: number) {
@@ -263,6 +379,114 @@ export default function BlastOffPage() {
         })
       }
       setHud(h => ({ ...h, spout: spoutCharges }))
+    }
+
+    /** Wave-riding y for surface buoys. */
+    function buoyY(p: Pickup) {
+      return waterY - 20 + Math.sin((p.x + t * 2.5) * 0.02 + p.wobble) * 4
+    }
+
+    function splashBurst(x: number, y: number, n: number) {
+      for (let i = 0; i < n; i++) {
+        splashes.push({
+          x: x + (Math.random() - 0.5) * 40,
+          y,
+          vx: (Math.random() - 0.5) * 5,
+          vy: -(2 + Math.random() * 5),
+          life: 30,
+        })
+      }
+    }
+
+    function collectPickups() {
+      for (const p of pickups) {
+        if (p.taken) continue
+        const py = BUOYS.has(p.type) ? buoyY(p) : p.y
+        const dx = p.x - whale.x
+        const dy = py - whale.y
+        const reach = PICKUP_REACH[p.type]
+        if (dx * dx + dy * dy > reach * reach) continue
+        p.taken = true
+        switch (p.type) {
+          case 'coin':
+            runCoins += 1
+            whale.vy -= 0.5
+            playPop()
+            setHud(h => ({ ...h, coins: runCoins }))
+            break
+          case 'ring':
+            whale.vx += 3
+            whale.vy = Math.min(whale.vy, 0) - 7
+            playPop()
+            splashBurst(p.x, py, 6)
+            break
+          case 'jet':
+            whale.vx += 5
+            whale.vy = Math.min(whale.vy, 0) - 9
+            announce('JETSTREAM! 🚀', 10)
+            playWhaleCall()
+            splashBurst(p.x, py, 8)
+            break
+          case 'balloon':
+            whale.vy = Math.min(whale.vy, 0) - 12
+            whale.vx += 1.5
+            announce('POP! 🎈', 8)
+            playPop()
+            break
+          case 'sat':
+            runCoins += 5
+            whale.vx += 8
+            whale.vy -= 4
+            announce('SATELLITE SLING! 🛰️ +5◎', 26)
+            playPayoutFanfare()
+            setHud(h => ({ ...h, coins: runCoins }))
+            break
+          case 'pump':
+            whale.vy = Math.min(whale.vy, 0) - 13
+            whale.vx += 1
+            announce('GREEN CANDLE! 📈', 14)
+            playWhaleCall()
+            splashBurst(p.x, waterY, 12)
+            break
+          case 'wick':
+            whale.vy = Math.min(whale.vy, 0) - 18
+            whale.vx += 1
+            announce('GOD CANDLE! 🕯️', 34)
+            playPayoutFanfare()
+            splashBurst(p.x, waterY, 16)
+            break
+          case 'bear':
+            whale.vx *= 0.62
+            whale.vy *= 0.7
+            announce('BEAR MARKET 🐻', 18)
+            playTick()
+            break
+          case 'red':
+            whale.vx *= 0.68
+            announce('RUGGED 📉', 14)
+            playTick()
+            splashBurst(p.x, waterY, 8)
+            break
+        }
+      }
+    }
+
+    /** Shaving past a hazard at speed grants a small boost + CLOSE CALL. */
+    function checkNearMisses() {
+      if (Math.hypot(whale.vx, whale.vy) < 9) return
+      for (const p of pickups) {
+        if (p.taken || !HAZARDS.has(p.type) || nearMissed.has(p)) continue
+        if (whale.x < p.x + 10 || whale.x > p.x + 140) continue
+        const py = BUOYS.has(p.type) ? buoyY(p) : p.y
+        const d = Math.hypot(whale.x - p.x, whale.y - py)
+        const reach = PICKUP_REACH[p.type]
+        if (d > reach && d <= reach + 38) {
+          nearMissed.add(p)
+          whale.vx *= 1.05
+          announce('CLOSE CALL!', 6)
+          playPop()
+        }
+      }
     }
 
     function endRun() {
@@ -299,19 +523,17 @@ export default function BlastOffPage() {
         whale.y += whale.vy
         whale.angle = Math.atan2(whale.vy, Math.max(6, whale.vx)) * 0.6
 
-        generateCoins()
-        for (const c of coinsArr) {
-          if (c.taken) continue
-          const dx = c.x - whale.x
-          const dy = c.y - whale.y
-          if (dx * dx + dy * dy < 52 * 52) {
-            c.taken = true
-            c.wobble = 1000
-            runCoins += 1
-            whale.vy -= 0.7
-            playPop()
-            setHud(h => ({ ...h, coins: runCoins }))
-          }
+        spawnAhead()
+        collectPickups()
+        checkNearMisses()
+
+        // Distance milestones — announcer flash + screen shake
+        const meters = Math.round((whale.x - START_X) / PX_PER_M)
+        const nextMs = MILESTONES[milestoneIdx]
+        if (nextMs && meters >= nextMs.at) {
+          milestoneIdx += 1
+          announce(nextMs.text, 30)
+          playWhaleCall()
         }
 
         if (whale.y >= waterY - 12) {
@@ -356,12 +578,20 @@ export default function BlastOffPage() {
         s.life -= 1
       }
       splashes = splashes.filter(s => s.life > 0)
+      flashT = Math.max(0, flashT - 1)
+      shakeT = Math.max(0, shakeT - 1)
     }
 
     function draw() {
       if (!ctx) return
       const dark = isDark()
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      // screen shake for big moments (rendered only — physics untouched)
+      const shakeAmt = Math.min(1, shakeT / 20) * 7
+      const camX0 = camX
+      const camY0 = camY
+      camX = camX0 + (Math.random() - 0.5) * shakeAmt
+      camY = camY0 + (Math.random() - 0.5) * shakeAmt
 
       // sky
       const sky = ctx.createLinearGradient(0, 0, 0, H)
@@ -404,24 +634,89 @@ export default function BlastOffPage() {
         ctx.fillRect(bx + 11, by - 22, 4, hgt + 44)
       }
 
-      // coins
-      for (const c of coinsArr) {
-        if (c.taken) continue
-        const cx = c.x - camX
-        const cy = c.y - camY + Math.sin(t * 0.06 + c.wobble) * 5
-        if (cx < -30 || cx > W + 30) continue
-        ctx.beginPath()
-        ctx.arc(cx, cy, 13, 0, Math.PI * 2)
-        ctx.fillStyle = '#fbbf24'
-        ctx.fill()
-        ctx.lineWidth = 3
-        ctx.strokeStyle = '#b45309'
-        ctx.stroke()
-        ctx.fillStyle = '#b45309'
-        ctx.font = 'bold 13px monospace'
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillText('◎', cx, cy + 1)
+      // pickups
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      for (const p of pickups) {
+        if (p.taken) continue
+        const px = p.x - camX
+        if (px < -60 || px > W + 60) continue
+        const py = (BUOYS.has(p.type) ? buoyY(p) : p.y + Math.sin(t * 0.06 + p.wobble) * 5) - camY
+        switch (p.type) {
+          case 'coin': {
+            ctx.beginPath()
+            ctx.arc(px, py, 13, 0, Math.PI * 2)
+            ctx.fillStyle = '#fbbf24'
+            ctx.fill()
+            ctx.lineWidth = 3
+            ctx.strokeStyle = '#b45309'
+            ctx.stroke()
+            ctx.fillStyle = '#b45309'
+            ctx.font = 'bold 13px monospace'
+            ctx.fillText('◎', px, py + 1)
+            break
+          }
+          case 'ring':
+          case 'jet': {
+            const gold = p.type === 'jet'
+            const r = gold ? 30 : 24
+            const spin = t * 0.05 + p.wobble
+            ctx.save()
+            ctx.translate(px, py)
+            ctx.rotate(spin)
+            ctx.lineWidth = 6
+            ctx.strokeStyle = gold ? '#fbbf24' : '#a78bfa'
+            ctx.shadowColor = gold ? '#fbbf24' : '#a78bfa'
+            ctx.shadowBlur = 14
+            ctx.beginPath()
+            ctx.ellipse(0, 0, r, r * 0.55, 0, 0, Math.PI * 2)
+            ctx.stroke()
+            ctx.restore()
+            break
+          }
+          case 'balloon': {
+            ctx.font = '30px serif'
+            ctx.fillText('🎈', px, py)
+            break
+          }
+          case 'sat': {
+            ctx.font = '30px serif'
+            ctx.fillText('🛰️', px, py)
+            break
+          }
+          case 'bear': {
+            ctx.fillStyle = dark ? 'rgba(120,120,140,0.5)' : 'rgba(120,120,140,0.4)'
+            ctx.beginPath()
+            ctx.ellipse(px, py + 6, 42, 20, 0, 0, Math.PI * 2)
+            ctx.ellipse(px - 20, py, 26, 16, 0, 0, Math.PI * 2)
+            ctx.ellipse(px + 20, py, 26, 16, 0, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.font = '24px serif'
+            ctx.fillText('🐻', px, py - 2)
+            break
+          }
+          case 'pump':
+          case 'red':
+          case 'wick': {
+            // candle buoy riding the water
+            const color = p.type === 'pump' ? '#089981' : p.type === 'red' ? '#f23645' : '#f8fafc'
+            const h = p.type === 'wick' ? 46 : 34
+            ctx.strokeStyle = color
+            ctx.lineWidth = 3
+            ctx.beginPath()
+            ctx.moveTo(px, py - h / 2 - 12)
+            ctx.lineTo(px, py + h / 2 + 12)
+            ctx.stroke()
+            ctx.fillStyle = color
+            if (p.type === 'wick') {
+              ctx.shadowColor = '#f8fafc'
+              ctx.shadowBlur = 16
+            }
+            ctx.fillRect(px - 8, py - h / 2, 16, h)
+            ctx.shadowBlur = 0
+            break
+          }
+        }
       }
 
       // water
@@ -481,6 +776,30 @@ export default function BlastOffPage() {
           waterY - 96 - camY
         )
       }
+
+      // announcer flash (milestones, god candles, close calls)
+      if (flashT > 0 && flashText) {
+        const a = Math.min(1, flashT / 30)
+        const punch = 1 + Math.max(0, flashT - 95) * 0.02
+        ctx.save()
+        ctx.globalAlpha = a
+        ctx.translate(W / 2, H * 0.22)
+        ctx.scale(punch, punch)
+        ctx.font = '800 26px Inter, sans-serif'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.lineWidth = 6
+        ctx.strokeStyle = dark ? 'rgba(11,5,24,0.85)' : 'rgba(255,253,248,0.9)'
+        ctx.strokeText(flashText, 0, 0)
+        ctx.fillStyle = dark ? '#fde047' : '#7c3aed'
+        ctx.fillText(flashText, 0, 0)
+        ctx.restore()
+        ctx.globalAlpha = 1
+      }
+
+      // undo the render-only shake offset
+      camX = camX0
+      camY = camY0
     }
 
     // Fixed 60Hz timestep — physics stay identical on 60/120/144Hz displays
@@ -671,6 +990,11 @@ export default function BlastOffPage() {
 
         <p className="mt-3 text-center text-xs text-ink-3">
           Hold (or spacebar) to charge · release to launch · tap mid-air to fire the Spout Cannon
+        </p>
+        <p className="mt-1 text-center text-xs text-ink-3">
+          Fly through <span className="text-sol-purple font-semibold">rings</span>, 🎈 balloons and 🛰️
+          satellites for boosts · bounce off <span className="text-emerald-600 dark:text-emerald-400 font-semibold">green candles</span> ·
+          dodge 🐻 bear clouds and <span className="text-red-600 dark:text-red-400 font-semibold">red candles</span>
         </p>
 
         {/* shop */}
