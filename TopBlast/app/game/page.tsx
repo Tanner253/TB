@@ -221,6 +221,8 @@ export default function BlastOffPage() {
     let shakeT = 0
     let milestoneIdx = 0
     let nearMissed: Set<Pickup> = new Set()
+    // dynamic camera zoom — pulls out when fast or high so you can see ahead
+    let zoom = 1
 
     function announce(text: string, shake = 0) {
       flashText = text
@@ -261,6 +263,7 @@ export default function BlastOffPage() {
       shakeT = 0
       milestoneIdx = 0
       nearMissed = new Set()
+      zoom = 1
       setHud({ distance: 0, coins: 0, spout: storeRef.current.up.spout })
     }
 
@@ -294,59 +297,79 @@ export default function BlastOffPage() {
 
     /**
      * Layered spawner (bball.fun style) — every slot rolls each altitude band
-     * independently so the surface, low sky, mid sky and space stay populated.
+     * independently. Bands are tall and separated with clear vertical gaps so
+     * layers don't overlap; each band also gets its own x-jitter so different
+     * pickup types never stack on the same column. Coins populate every band
+     * up to orbit height, while boosts stay sparse near the water and get
+     * richer the higher you fly.
      */
     function spawnAhead() {
       while (genFrontier < whale.x + W * 2) {
         const x = genFrontier
+        const jit = () => Math.random() * 90
 
-        // --- Surface lane (buoys riding the water) — kept sparse on purpose
+        // --- Surface lane (buoys riding the water) — sparse
         const sr = Math.random()
         let th = 0
         if (x > 2500 && sr < (th += 0.012)) {
           addPickup('wick', x, waterY) // rare god candle — moonshot
-        } else if (x > 1200 && sr < (th += 0.09)) {
+        } else if (x > 1200 && sr < (th += 0.065)) {
           addPickup('red', x, waterY) // momentum killer
-        } else if (x > 800 && sr < (th += 0.07)) {
+        } else if (x > 800 && sr < (th += 0.06)) {
           addPickup('pump', x, waterY) // green candle — number go up
         }
 
-        // --- Low sky: bread-and-butter coins and boost rings
-        if (Math.random() < 0.3) {
-          spawnCoinPattern(x, waterY - 100 - Math.random() * 160)
+        // --- Low sky (120–340): mostly coins, the occasional ring
+        if (Math.random() < 0.22) {
+          spawnCoinPattern(x + jit(), waterY - 120 - Math.random() * 200)
         }
-        if (Math.random() < 0.15) {
-          addPickup('ring', x + 60, waterY - 110 - Math.random() * 170)
+        if (Math.random() < 0.07) {
+          addPickup('ring', x + 100 + jit(), waterY - 150 - Math.random() * 170)
         }
 
-        // --- Mid sky: jets, balloons, bear clouds, more coins
+        // --- Mid sky (430–780): jets, balloons, bear clouds, coins
         if (x > 900) {
-          if (Math.random() < 0.17) {
-            spawnCoinPattern(x + 50, waterY - 280 - Math.random() * 220)
+          if (Math.random() < 0.24) {
+            spawnCoinPattern(x + jit(), waterY - 430 - Math.random() * 280)
           }
           const mr = Math.random()
-          if (mr < 0.1) {
-            addPickup('jet', x + 30, waterY - 280 - Math.random() * 230)
-          } else if (mr < 0.19) {
-            addPickup('balloon', x + 90, waterY - 260 - Math.random() * 240)
-          } else if (mr < 0.27 && x > 1600) {
-            addPickup('bear', x + 50, waterY - 260 - Math.random() * 260)
+          if (mr < 0.06) {
+            addPickup('jet', x + 40 + jit(), waterY - 450 - Math.random() * 300)
+          } else if (mr < 0.12) {
+            addPickup('balloon', x + 130 + jit(), waterY - 440 - Math.random() * 300)
+          } else if (mr < 0.17 && x > 1600) {
+            addPickup('bear', x + 80 + jit(), waterY - 430 - Math.random() * 320)
           }
         }
 
-        // --- Space band: satellites and star coins
-        if (x > 2200) {
-          if (Math.random() < 0.16) {
-            spawnCoinPattern(x + 60, waterY - 580 - Math.random() * 320)
+        // --- High sky (880–1350): the reward zone for big launches
+        if (x > 1600) {
+          if (Math.random() < 0.26) {
+            spawnCoinPattern(x + jit(), waterY - 880 - Math.random() * 400)
           }
-          if (Math.random() < 0.12) {
-            addPickup('sat', x + 40, waterY - 600 - Math.random() * 320)
+          const hr = Math.random()
+          if (hr < 0.07) {
+            addPickup('jet', x + 60 + jit(), waterY - 900 - Math.random() * 380)
+          } else if (hr < 0.12) {
+            addPickup('sat', x + 140 + jit(), waterY - 950 - Math.random() * 350)
+          } else if (hr < 0.16) {
+            addPickup('bear', x + 90 + jit(), waterY - 900 - Math.random() * 380)
           }
         }
 
-        genFrontier += 150 + Math.random() * 140
+        // --- Orbit (1450–2200): star coins and satellites for god runs
+        if (x > 2400) {
+          if (Math.random() < 0.26) {
+            spawnCoinPattern(x + jit(), waterY - 1450 - Math.random() * 600)
+          }
+          if (Math.random() < 0.1) {
+            addPickup('sat', x + 80 + jit(), waterY - 1500 - Math.random() * 600)
+          }
+        }
+
+        genFrontier += 190 + Math.random() * 160
       }
-      if (pickups.length > 400) {
+      if (pickups.length > 500) {
         pickups = pickups.filter(p => !p.taken && p.x > camX - 200)
       }
     }
@@ -565,6 +588,15 @@ export default function BlastOffPage() {
 
         camX = Math.max(0, whale.x - W * 0.34)
         camY = Math.min(0, whale.y - H * 0.42)
+
+        // zoom out when super boosted or flying high; ease back in as it calms
+        const speed = Math.hypot(whale.vx, whale.vy)
+        const alt = Math.max(0, waterY - 12 - whale.y)
+        const targetZoom = Math.max(
+          0.55,
+          Math.min(1, 1 - Math.max(0, speed - 17) * 0.014 - alt * 0.0001)
+        )
+        zoom += (targetZoom - zoom) * 0.045
         setHud(h => ({
           ...h,
           distance: Math.max(h.distance, Math.round((whale.x - START_X) / PX_PER_M)),
@@ -580,6 +612,7 @@ export default function BlastOffPage() {
       splashes = splashes.filter(s => s.life > 0)
       flashT = Math.max(0, flashT - 1)
       shakeT = Math.max(0, shakeT - 1)
+      if (phaseRef.current !== 'flying') zoom += (1 - zoom) * 0.05
     }
 
     function draw() {
@@ -617,8 +650,23 @@ export default function BlastOffPage() {
         ctx.fillRect(sx, sy, tw, tw)
       }
 
+      // camera zoom about Blasty's screen position (sky + stars stay fixed)
+      const fx = whale.x - camX
+      const fy = whale.y - camY
+      ctx.save()
+      ctx.translate(fx, fy)
+      ctx.scale(zoom, zoom)
+      ctx.translate(-fx, -fy)
+      // extra world visible on each side when zoomed out
+      const exX = W / zoom - W
+      const exY = H / zoom - H
+
       // distant candlestick skyline (parallax 0.5)
-      for (let i = Math.floor(camX * 0.5 / 90) - 1; i < (camX * 0.5 + W) / 90 + 1; i++) {
+      for (
+        let i = Math.floor((camX * 0.5 - exX) / 90) - 1;
+        i < (camX * 0.5 + W + exX) / 90 + 1;
+        i++
+      ) {
         const bx = i * 90 - camX * 0.5
         const hgt = 50 + rngFor(i, 3) * 150
         const green = rngFor(i, 5) > 0.42
@@ -640,7 +688,7 @@ export default function BlastOffPage() {
       for (const p of pickups) {
         if (p.taken) continue
         const px = p.x - camX
-        if (px < -60 || px > W + 60) continue
+        if (px < -60 - exX || px > W + 60 + exX) continue
         const py = (BUOYS.has(p.type) ? buoyY(p) : p.y + Math.sin(t * 0.06 + p.wobble) * 5) - camY
         switch (p.type) {
           case 'coin': {
@@ -725,13 +773,14 @@ export default function BlastOffPage() {
       water.addColorStop(0, dark ? 'rgba(76,29,149,0.75)' : 'rgba(124,58,237,0.35)')
       water.addColorStop(1, dark ? 'rgba(30,10,70,0.95)' : 'rgba(124,58,237,0.55)')
       ctx.fillStyle = water
+      const waterBottom = H + exY + 80
       ctx.beginPath()
-      ctx.moveTo(0, H)
-      ctx.lineTo(0, wy + 6)
-      for (let x = 0; x <= W; x += 14) {
+      ctx.moveTo(-exX, waterBottom)
+      ctx.lineTo(-exX, wy + 6)
+      for (let x = -exX; x <= W + exX; x += 14) {
         ctx.lineTo(x, wy + Math.sin((x + camX) * 0.02 + t * 0.05) * 4)
       }
-      ctx.lineTo(W, H)
+      ctx.lineTo(W + exX, waterBottom)
       ctx.closePath()
       ctx.fill()
 
@@ -776,6 +825,9 @@ export default function BlastOffPage() {
           waterY - 96 - camY
         )
       }
+
+      // back to screen space for UI overlays
+      ctx.restore()
 
       // announcer flash (milestones, god candles, close calls)
       if (flashT > 0 && flashText) {
