@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       payoutIntervalMinutes: body.payoutIntervalMinutes,
       winnerCount: body.winnerCount,
       minTokenHolding: body.minTokenHolding,
+      payoutMode: body.payoutMode,
     })
 
     assertNoPrivateKeyFields(result as Record<string, unknown>)

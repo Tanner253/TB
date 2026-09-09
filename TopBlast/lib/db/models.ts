@@ -18,6 +18,8 @@ export interface ITenant extends Document {
   minLossThresholdPct: number
   minPoolSol: number
   executePayouts: boolean
+  /** 'token' = Jupiter buyback + airdrop (default); 'sol' = pay winners SOL directly. */
+  payoutMode: 'token' | 'sol'
   createdAt: Date
   updatedAt: Date
 }
@@ -37,6 +39,7 @@ const TenantSchema = new Schema<ITenant>({
   minLossThresholdPct: { type: Number, default: 10 },
   minPoolSol: { type: Number, default: 0.001 },
   executePayouts: { type: Boolean, default: true },
+  payoutMode: { type: String, enum: ['token', 'sol'], default: 'token' },
 }, { timestamps: true })
 
 // Holder Interface

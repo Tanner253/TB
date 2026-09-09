@@ -36,6 +36,7 @@ export default function LaunchPage() {
     payoutIntervalMinutes: DEFAULT_PAYOUT_INTERVAL_MINUTES,
     minTokenHolding: DEFAULT_MIN_TOKEN_HOLDING,
     winnerCount: DEFAULT_WINNER_COUNT,
+    payoutMode: 'token' as 'token' | 'sol',
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -167,6 +168,52 @@ export default function LaunchPage() {
                 </select>
                 <p className="text-xs text-ink-3 mt-2">{LAUNCH_KEY_HELP.winnerCount.body}</p>
               </label>
+
+              <fieldset>
+                <legend className="text-sm text-ink-2">{LAUNCH_KEY_HELP.payoutMode.title}</legend>
+                <div className="mt-1 grid gap-3 sm:grid-cols-2">
+                  {(['token', 'sol'] as const).map(mode => {
+                    const opt = LAUNCH_KEY_HELP.payoutMode.options[mode]
+                    const selected = form.payoutMode === mode
+                    return (
+                      <label
+                        key={mode}
+                        className={`cursor-pointer rounded-xl border p-4 transition-colors ${
+                          selected
+                            ? 'border-sol-purple/60 bg-sol-purple/[0.07] ring-1 ring-sol-purple/40'
+                            : 'border-line bg-card/70 hover:border-sol-purple/30'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="payoutMode"
+                          value={mode}
+                          checked={selected}
+                          onChange={() => setForm(f => ({ ...f, payoutMode: mode }))}
+                          className="sr-only"
+                        />
+                        <span className="flex items-center justify-between gap-2">
+                          <span className={`text-sm font-bold ${selected ? 'text-sol-purple' : 'text-ink'}`}>
+                            {mode === 'token' ? '📈 ' : '◎ '}
+                            {opt.label}
+                          </span>
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide ${
+                              mode === 'token'
+                                ? 'bg-sol-mint/10 text-sol-mint'
+                                : 'bg-ink/[0.06] text-ink-2'
+                            }`}
+                          >
+                            {opt.tag}
+                          </span>
+                        </span>
+                        <span className="mt-2 block text-xs leading-relaxed text-ink-2">{opt.body}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+                <p className="text-xs text-ink-3 mt-2">{LAUNCH_KEY_HELP.payoutMode.body}</p>
+              </fieldset>
 
               <label className="block">
                 <span className="text-sm text-ink-2">{LAUNCH_KEY_HELP.minTokenHolding.title}</span>

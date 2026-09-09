@@ -101,6 +101,14 @@ export function CatalogListRow({ tenant }: { tenant: PublicTenantSummary }) {
               {isPlatform ? (
                 <span className="text-[0.6rem] uppercase tracking-wider text-sol-purple/80 shrink-0">Platform</span>
               ) : null}
+              {tenant.payout_mode === 'sol' ? (
+                <span
+                  className="text-[0.6rem] uppercase tracking-wider text-sky-700 dark:text-sky-300 shrink-0"
+                  title="Winners are paid SOL directly from the pool — no buyback, no airdrop"
+                >
+                  ◎ SOL payouts
+                </span>
+              ) : null}
               <CatalogTimerBadge tenant={tenant} compact />
             </div>
             <p className="text-xs text-ink-3 font-mono truncate">/{tenant.slug}</p>

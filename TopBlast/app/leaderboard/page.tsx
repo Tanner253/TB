@@ -289,6 +289,9 @@ export default function LeaderboardPage() {
 
   const blastyPose = isPoolLimbo || isListingLimbo ? 'sleep' : isPayoutDueNow ? 'happy' : 'idle'
 
+  // 'sol' listings pay winners SOL directly — no buyback/airdrop copy
+  const paysInSol = data?.payout_mode === 'sol'
+
   const wsConnected = data?.ws_connected
   const lastPayoutError = data?.last_payout_error ?? null
   const payoutRetryMode = data?.payout_retry_mode === true
@@ -621,7 +624,11 @@ export default function LeaderboardPage() {
               ) : isPayoutDueNow ? (
                 <div className="py-4">
                   <p className="text-4xl md:text-5xl font-bold text-sol-purple font-mono mb-3 animate-pulse">00:00</p>
-                  <p className="text-ink-2 text-sm">Buying your token on-chart and airdropping winners…</p>
+                  <p className="text-ink-2 text-sm">
+                    {paysInSol
+                      ? 'Sending SOL from the pool to winners…'
+                      : 'Buying your token on-chart and airdropping winners…'}
+                  </p>
                 </div>
               ) : (
                 <Countdown seconds={countdown ?? 0} size="xl" className="text-rh-green" />
@@ -634,10 +641,14 @@ export default function LeaderboardPage() {
                     : isTimerStarting
                     ? `Top ${winnerCount} eligible losers will receive pool SOL each cycle once the timer is live`
                     : isPayoutDueNow
-                      ? 'On-chart buy + token airdrops — timer resets after completion'
+                      ? paysInSol
+                        ? 'Direct SOL payouts — timer resets after completion'
+                        : 'On-chart buy + token airdrops — timer resets after completion'
                       : payoutRetryMode
                         ? `Retry scheduled — faster ${payoutRetryMinutes ?? 3} min interval after swap failure`
-                        : `Top ${winnerCount} losers receive session tokens via on-chart buyback each cycle`}
+                        : paysInSol
+                          ? `Top ${winnerCount} losers are paid SOL from the pool each cycle`
+                          : `Top ${winnerCount} losers receive session tokens via on-chart buyback each cycle`}
               </p>
             </div>
           </motion.div>

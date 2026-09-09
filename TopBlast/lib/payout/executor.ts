@@ -7,7 +7,7 @@
 import connectDB from '@/lib/db'
 import { Payout, Disqualification, TimerState, PayoutVolumeSwap } from '@/lib/db/models'
 import { transferSol, MIN_TRANSFER_SOL } from '@/lib/solana/transfer'
-import { swapSolForToken, isNativeTokenPayoutEnabled } from '@/lib/solana/jupiterSwap'
+import { swapSolForToken } from '@/lib/solana/jupiterSwap'
 import {
   transferSessionToken,
   getPayoutWalletTokenBalance,
@@ -876,8 +876,10 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
     const results: any[] = []
     let totalPaidSol = 0
 
+    // Per-listing payout currency: 'token' listings run the Jupiter buyback +
+    // airdrop; 'sol' listings pay winners SOL straight from the pool.
     const payWinnersInNativeToken =
-      isNativeTokenPayoutEnabled() && Boolean(config.tokenMint) && config.executePayouts
+      config.payoutAsNativeToken && Boolean(config.tokenMint) && config.executePayouts
 
     console.log('[Payout] Creating pending winner payout records...')
 

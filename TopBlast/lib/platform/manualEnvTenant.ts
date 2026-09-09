@@ -4,6 +4,7 @@ import 'server-only'
 import type { PublicTenantSummary, TenantRuntimeConfig } from '@/lib/tenant/types'
 import { getPlatformDevWalletAddress } from '@/lib/platform/devWallet'
 import { isPlatformTenantSlug } from '@/lib/platform/config'
+import { envDefaultPayoutMode } from '@/lib/payout/payoutMode'
 
 /**
  * Operator-only manual listing via env (not the platform token).
@@ -100,6 +101,7 @@ export function resolveManualEnvRuntime(slug: string): TenantRuntimeConfig | nul
     minPoolSol: parseFloat(process.env.MANUAL_MIN_POOL_SOL || '0.001'),
     minPoolEth: parseFloat(process.env.MANUAL_MIN_POOL_SOL || '0.001'),
     executePayouts: process.env.MANUAL_EXECUTE_PAYOUTS === 'true',
+    payoutMode: envDefaultPayoutMode(),
     payoutWalletPrivateKey,
   }
 }

@@ -575,6 +575,7 @@ export async function GET(request: NextRequest) {
         payout_interval_display: formatPayoutInterval(config.payoutIntervalMinutes),
         winner_count: winnerCount,
         winner_share_percents: getWinnerShareDisplayPercents(winnerCount),
+        payout_mode: config.payoutAsNativeToken ? 'token' : 'sol',
         rankings,
         eligible_winners: eligibleWinners,
         last_updated: dbRankings.lastCalculated.toISOString(),

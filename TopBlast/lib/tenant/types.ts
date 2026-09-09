@@ -1,3 +1,5 @@
+import type { PayoutMode } from '@/lib/payout/payoutMode'
+
 export type TenantStatus = 'pending' | 'active' | 'paused'
 
 export interface TenantRecord {
@@ -31,6 +33,8 @@ export interface TenantRuntimeConfig {
   minPoolSol: number
   minPoolEth: number
   executePayouts: boolean
+  /** 'token' = buyback + airdrop; 'sol' = direct SOL transfers to winners. */
+  payoutMode: PayoutMode
   payoutWalletPrivateKey: string
 }
 
@@ -43,6 +47,8 @@ export interface CreateTenantInput {
   payoutIntervalMinutes?: number
   winnerCount?: number
   minTokenHolding?: number
+  /** 'token' (default, buyback + airdrop) or 'sol' (direct SOL payouts). */
+  payoutMode?: PayoutMode | string
 }
 
 export interface PublicTenantSummary {
@@ -61,6 +67,8 @@ export interface PublicTenantSummary {
   runsFromEnv?: boolean
   payoutIntervalMinutes?: number
   winnerCount?: number
+  /** Winner payout currency: 'token' (buyback + airdrop) or 'sol' (direct). */
+  payout_mode?: PayoutMode
   /** Live distributable SOL in the payout wallet (catalog). */
   pot_sol?: number | null
   pot_usd?: number | null

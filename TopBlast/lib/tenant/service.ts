@@ -24,6 +24,7 @@ import { requirePlatformDevWalletAddress } from '@/lib/platform/devWallet'
 import { validatePayoutIntervalMinutes } from '@/lib/platform/payoutIntervals'
 import { validateMinTokenHolding } from '@/lib/platform/minTokenHolding'
 import { validateWinnerCount } from '@/lib/payout/winnerCount'
+import { validatePayoutMode } from '@/lib/payout/payoutMode'
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/
 
@@ -89,6 +90,7 @@ export async function listPublicTenants(): Promise<PublicTenantSummary[]> {
     payoutWalletAddress: row.payoutWalletAddress,
     payoutIntervalMinutes: row.payoutIntervalMinutes,
     winnerCount: row.winnerCount ?? 3,
+    payout_mode: row.payoutMode ?? ('token' as const),
   }))
 
   const decorated = decorateCatalogTenants(tenants)
@@ -116,6 +118,7 @@ export async function resolveTenantRuntime(slug: string): Promise<TenantRuntimeC
       minPoolSol: doc.minPoolSol,
       minPoolEth: doc.minPoolSol,
       executePayouts: doc.executePayouts,
+      payoutMode: doc.payoutMode ?? 'token',
       payoutWalletPrivateKey: decryptSecret(doc.encryptedPayoutKey),
     }
   }
@@ -140,6 +143,7 @@ export async function createTenant(input: CreateTenantInput) {
   const payoutIntervalMinutes = validatePayoutIntervalMinutes(input.payoutIntervalMinutes)
   const winnerCount = validateWinnerCount(input.winnerCount)
   const minTokenHolding = validateMinTokenHolding(input.minTokenHolding)
+  const payoutMode = validatePayoutMode(input.payoutMode)
 
   await connectDB()
 
@@ -168,6 +172,7 @@ export async function createTenant(input: CreateTenantInput) {
     minLossThresholdPct: 10,
     minPoolSol: 0.001,
     executePayouts: true,
+    payoutMode,
   })
 
   await TimerState.findOneAndUpdate(
@@ -196,6 +201,7 @@ export async function createTenant(input: CreateTenantInput) {
     payoutWalletAddress: tenant.payoutWalletAddress,
     payoutIntervalMinutes: tenant.payoutIntervalMinutes,
     winnerCount: tenant.winnerCount,
+    payoutMode: tenant.payoutMode,
     appUrl: `/${tenant.slug}/leaderboard`,
   }
 }

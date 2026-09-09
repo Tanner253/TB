@@ -3,6 +3,7 @@
 
 import { MIN_HOLD_DURATION_MINUTES } from '@/lib/eligibility/holdDuration'
 import { DEFAULT_WINNER_COUNT, minPoolForWinnerCount, validateWinnerCount } from '@/lib/payout/winnerCount'
+import { envDefaultPayoutMode } from '@/lib/payout/payoutMode'
 import { getWinnerShareFractions } from '@/lib/payout/winnerShares'
 import type { TenantRuntimeConfig } from '@/lib/tenant/types'
 
@@ -32,6 +33,8 @@ type ConfigShape = {
   isDev: boolean
   isProd: boolean
   executePayouts: boolean
+  /** true = buy session token + airdrop winners; false = pay winners SOL directly. */
+  payoutAsNativeToken: boolean
   tenantSlug: string
 }
 
@@ -73,6 +76,7 @@ function envConfig(): ConfigShape {
     isProd: process.env.NODE_ENV === 'production',
     executePayouts:
       process.env.EXECUTE_PAYOUTS === 'true' && !!process.env.PAYOUT_WALLET_PRIVATE_KEY,
+    payoutAsNativeToken: envDefaultPayoutMode() === 'token',
     tenantSlug: '_legacy',
   }
 }
@@ -108,6 +112,8 @@ function resolveConfig(): ConfigShape {
     minPoolSol: tenant.minPoolSol,
     minPoolEth: tenant.minPoolEth,
     executePayouts: tenant.executePayouts,
+    // Per-listing payout currency; existing rows without the field stay 'token'.
+    payoutAsNativeToken: (tenant.payoutMode ?? 'token') === 'token',
     winnerCount,
     minPoolForPayout: minPoolForWinnerCount(winnerCount),
     payoutSplit: legacyPayoutSplit(winnerCount),

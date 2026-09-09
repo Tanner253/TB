@@ -1,5 +1,6 @@
 import { Keypair } from '@solana/web3.js'
 import { DEFAULT_WINNER_COUNT, validateWinnerCount } from '@/lib/payout/winnerCount'
+import { envDefaultPayoutMode } from '@/lib/payout/payoutMode'
 import bs58 from 'bs58'
 import 'server-only'
 import type { PublicTenantSummary, TenantRuntimeConfig } from '@/lib/tenant/types'
@@ -75,6 +76,7 @@ export function resolvePlatformEnvRuntime(slug: string): TenantRuntimeConfig | n
     minPoolSol: parseFloat(process.env.MIN_POOL_SOL || process.env.MIN_POOL_ETH || '0.001'),
     minPoolEth: parseFloat(process.env.MIN_POOL_SOL || process.env.MIN_POOL_ETH || '0.001'),
     executePayouts: process.env.EXECUTE_PAYOUTS === 'true',
+    payoutMode: envDefaultPayoutMode(),
     payoutWalletPrivateKey,
   }
 }

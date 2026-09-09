@@ -22,6 +22,8 @@ const TENANT: TenantRuntimeConfig = {
   minPoolSol: 0.001,
   minPoolEth: 0.001,
   executePayouts: false,
+  winnerCount: 3,
+  payoutMode: 'token',
 }
 
 describe('fetchTenantPayoutStats', () => {

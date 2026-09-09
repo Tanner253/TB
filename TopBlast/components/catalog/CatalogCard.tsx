@@ -67,6 +67,14 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
               Platform
             </span>
           ) : null}
+          {tenant.payout_mode === 'sol' ? (
+            <span
+              className="text-[0.65rem] uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/25 shrink-0"
+              title="Winners are paid SOL directly from the pool — no buyback, no airdrop"
+            >
+              ◎ SOL payouts
+            </span>
+          ) : null}
           <CatalogTimerBadge tenant={tenant} compact={compact} />
         </div>
 

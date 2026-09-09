@@ -37,6 +37,25 @@ export const LAUNCH_KEY_HELP = {
     title: 'Winners per cycle',
     body: `How many eligible losers get paid each cycle (3–10). Default is ${DEFAULT_WINNER_COUNT}. More winners means smaller shares for everyone — biggest loser always gets the most. Locked when you list.`,
   },
+  payoutMode: {
+    title: 'Payout currency',
+    body:
+      'What winners receive each cycle. Locked when you list.',
+    options: {
+      token: {
+        label: 'Your token (default)',
+        tag: 'On-chart buy volume',
+        body:
+          'Each cycle the pool market-buys your token via Jupiter, then airdrops it to winners. Green candles on your chart, and lifetime buys tracked as Gen volume in the catalog.',
+      },
+      sol: {
+        label: 'SOL',
+        tag: 'No chart impact',
+        body:
+          'Winners are paid SOL straight from the pool. Nothing is bought or sold on your chart — no buyback volume, no airdropped supply for winners to sell.',
+      },
+    },
+  },
   tenantEncryptionKey: {
     title: 'Key encryption (TopBlast operators only)',
     body:

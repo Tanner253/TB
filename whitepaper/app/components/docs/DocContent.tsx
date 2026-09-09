@@ -160,6 +160,15 @@ export function DocContent() {
         <DocCard title="Gen volume" accent="mint">
           <p className="doc-prose">{CHART_VOLUME.genVolume}</p>
         </DocCard>
+        <DocCard title="Payout currency — token or SOL (chosen at launch)">
+          <p className="doc-prose">
+            By default winners receive your token via the buyback + airdrop flow above. Launchers who
+            prefer zero chart impact can instead select <strong>SOL payouts</strong> when listing:
+            winners are paid SOL directly from the pool — no Jupiter buy, no airdropped supply, and no
+            Gen volume accrues for that listing. The choice is locked at listing creation, and
+            SOL-payout listings are badged &ldquo;◎ SOL payouts&rdquo; in the catalog.
+          </p>
+        </DocCard>
         <div className="doc-cta-row">
           <DocCta href={LINKS.catalog} label="See Gen volume live" variant="ghost" />
         </div>
