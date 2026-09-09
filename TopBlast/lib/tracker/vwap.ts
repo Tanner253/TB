@@ -30,9 +30,10 @@ export async function calculateWalletVwap(
   wallet: string,
   mint: string,
   currentTokenPrice: number,
-  currentSolPrice?: number // Pass in current SOL price, or we'll fetch it
+  currentSolPrice?: number, // Pass in current SOL price, or we'll fetch it
+  opts?: { bypassSourcePolicy?: boolean } // on-demand callers (Rekt) only
 ): Promise<VwapData> {
-  const transactions = await getWalletTransactions(wallet, mint, VWAP_TX_MAX_PAGES)
+  const transactions = await getWalletTransactions(wallet, mint, VWAP_TX_MAX_PAGES, opts)
   
   let totalTokensBought = 0
   let totalEthSpent = 0         // Raw SOL amount from swap transactions

@@ -26,6 +26,7 @@ import {
   isPayoutDue,
   maybeExecuteDuePayout,
   getPayoutTimerInfo,
+  pausePayoutTimerToWaiting,
   getCurrentPayoutCycle,
   resolveLivePayableWinners,
 } from '@/lib/payout/executor'
@@ -41,10 +42,67 @@ export interface TenantCycleResult {
   payoutAttempted: boolean
   payoutSuccess?: boolean
   payoutError?: string | null
+  /** Set when the cycle was skipped without doing any paid API work. */
+  skipped?: 'market_cap_floor'
+  marketCapUsd?: number | null
+}
+
+/**
+ * Listings whose market cap sits under the floor are dormant: no holder
+ * indexing, no price pulls, no swap attempts — the token usually can't even
+ * be routed, so every cycle would just burn credits to fail. One cached
+ * DexScreener lookup decides it. The session resumes automatically the moment
+ * the token trades back above the floor.
+ */
+async function resolveDormancy(): Promise<{ dormant: boolean; marketCapUsd: number | null; minUsd: number }> {
+  try {
+    const { isTenantDormantByMarketCap } = await import('@/lib/platform/catalogVisibility')
+    const { isPlatformTenantSlug } = await import('@/lib/platform/config')
+    const slug = config.tenantSlug
+    let createdAtMs: number | null = null
+    try {
+      const { Tenant } = await import('@/lib/db/models')
+      const row = await Tenant.findOne({ slug }).select('createdAt').lean()
+      createdAtMs = row?.createdAt ? new Date(row.createdAt).getTime() : null
+    } catch {
+      /* no row (env-driven listing) → no grace window, mcap rule still applies */
+    }
+    return await isTenantDormantByMarketCap({
+      tenantSlug: slug,
+      mint: config.tokenMint,
+      isPlatformToken: isPlatformTenantSlug(slug) || slug === '_legacy',
+      createdAtMs,
+    })
+  } catch (err) {
+    console.warn('[TenantCycle] Dormancy check failed (processing anyway):', err)
+    return { dormant: false, marketCapUsd: null, minUsd: 0 }
+  }
 }
 
 export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
   await ensureTimerStateSync()
+
+  const dormancy = await resolveDormancy()
+  if (dormancy.dormant) {
+    const timer = getPayoutTimerInfo()
+    // Park the timer so the UI shows "waiting" rather than a phantom countdown.
+    if (timer.timer_status === 'active') {
+      await pausePayoutTimerToWaiting().catch(() => {})
+    }
+    console.log(
+      `[TenantCycle] ${config.tenantSlug} dormant — market cap ` +
+        `$${(dormancy.marketCapUsd ?? 0).toLocaleString()} below $${dormancy.minUsd.toLocaleString()} floor. ` +
+        'Skipping indexing + payouts (no API credits spent).'
+    )
+    return {
+      indexed: false,
+      eligibleCount: 0,
+      timerStatus: 'waiting',
+      payoutAttempted: false,
+      skipped: 'market_cap_floor',
+      marketCapUsd: dormancy.marketCapUsd,
+    }
+  }
 
   if (isPumpAutoCollectEnabled()) {
     try {

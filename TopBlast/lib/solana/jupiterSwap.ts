@@ -235,8 +235,22 @@ export async function swapSolForToken(
       lastError = result.error || lastError
       lastTxHash = result.txHash
     } catch (error: unknown) {
-      lastError = error instanceof Error ? error.message : String(error)
+      // Jupiter rejects with an HTTP error carrying the real reason in the
+      // body (e.g. TOKEN_NOT_TRADABLE for un-routable pump.fun tokens) —
+      // surface it instead of a bare status code.
+      const body = axios.isAxiosError(error)
+        ? (error.response?.data as { error?: string; errorCode?: string } | undefined)
+        : undefined
+      lastError = body?.error
+        ? `${body.error}${body.errorCode ? ` (${body.errorCode})` : ''}`
+        : error instanceof Error
+          ? error.message
+          : String(error)
       console.error(`[Jupiter] Swap attempt ${attempt + 1} failed:`, lastError)
+      // No point retrying with higher slippage when there is no route at all.
+      if (body?.errorCode === 'TOKEN_NOT_TRADABLE' || body?.errorCode === 'COULD_NOT_FIND_ANY_ROUTE') {
+        break
+      }
     }
   }
 

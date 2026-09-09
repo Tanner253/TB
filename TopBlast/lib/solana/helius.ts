@@ -165,14 +165,23 @@ export async function getTokenHolders(mint: string, limit: number = 1000): Promi
 export async function getWalletTransactions(
   wallet: string,
   mint: string,
-  maxPages?: number
+  maxPages?: number,
+  opts?: {
+    /**
+     * The heliusEnhancedVwapEnabled() gate exists so the HOLDER-INDEXING
+     * pipeline never double-spends credits while Birdeye owns indexing.
+     * Explicit on-demand lookups (e.g. the Rekt wallet scanner) may bypass
+     * it — they are budgeted separately by their own caller.
+     */
+    bypassSourcePolicy?: boolean
+  }
 ): Promise<ParsedTransaction[]> {
   const cached = getCachedWalletTransactions(wallet, mint)
   if (cached) {
     return cached
   }
 
-  if (!heliusEnhancedVwapEnabled()) {
+  if (!heliusEnhancedVwapEnabled() && !opts?.bypassSourcePolicy) {
     return []
   }
 

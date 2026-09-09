@@ -35,6 +35,8 @@ import {
 import { normalizeTokenBalance } from '@/lib/solana/tokenAmount'
 import { getTokenPrice } from '@/lib/solana/price'
 import { getRankingsKey } from '@/lib/tenant/keys'
+import { getTenantSlug } from '@/lib/tenant/context'
+import { recordHolderEventsSafe, type EventRankingRow } from '@/lib/analytics/holderEvents'
 import { loadLastWinCycleByWallet } from '@/lib/payout/winnerPersistence'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
 import { loadRankingsFromDb } from '@/lib/tracker/holderService'
@@ -195,6 +197,14 @@ export async function persistRankingsSnapshot(
   const holdersWithVwap = rows.filter(r => r.vwap > 0).length
   const persistMax = leaderboardPersistMax()
   const top = rows.slice(0, persistMax)
+
+  // Analytics only: previous board snapshot for holder-event diffing.
+  // Any failure here is swallowed — the refresh itself must be unaffected.
+  const prevRankingsForEvents = await CurrentRankings.findOne({ key: getRankingsKey() })
+    .select('rankings')
+    .lean()
+    .then(doc => (doc?.rankings ?? null) as EventRankingRow[] | null)
+    .catch(() => null)
   const indexedHolderCount = meta?.preserveIndexedCount ?? rows.length
   const reportedHolderCount =
     meta?.reportedHolderCount ??
@@ -222,6 +232,14 @@ export async function persistRankingsSnapshot(
     { $set },
     { upsert: true }
   )
+
+  // Append-only holder history (retention analytics) — never throws.
+  await recordHolderEventsSafe(prevRankingsForEvents, top, {
+    tenantSlug: getTenantSlug(),
+    tokenPrice,
+    source: meta?.markHolderFetch ? 'chain_refresh' : 'price_recompute',
+    persistMax,
+  })
 
   console.log(
     `[BirdeyeRankings] Saved ${reportedHolderCount} holder(s) on CA, analyzed ${indexedHolderCount}, ${holdersWithVwap} with entry price, ${eligibleCount} eligible (${top.length} on leaderboard)`

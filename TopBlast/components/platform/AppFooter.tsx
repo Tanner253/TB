@@ -6,6 +6,7 @@ import { Blasty } from '@/components/mascot/Blasty'
 
 const FOOTER_LINKS = [
   { href: '/catalog', label: 'Catalog' },
+  { href: '/winners', label: 'Hall of Fame 🏆' },
   { href: '/launch', label: 'List token' },
   { href: '/game', label: 'Blast Off 🎮' },
   { href: WHITEPAPER_URL, label: 'Whitepaper', external: true },

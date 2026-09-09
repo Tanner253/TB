@@ -178,11 +178,19 @@ export function sortCatalogTenants(
   return copy
 }
 
+/** Browsing surfaces skip market-cap-hidden listings; aggregates never do. */
+export function visibleCatalogTenants(
+  tenants: PublicTenantSummary[]
+): PublicTenantSummary[] {
+  return tenants.filter(t => !t.catalog_hidden)
+}
+
 /** Top N listings for homepage: platform token first, then highest pot sizes. */
 export function pickTopCatalogTenants(
-  tenants: PublicTenantSummary[],
+  allTenants: PublicTenantSummary[],
   limit = 3
 ): PublicTenantSummary[] {
+  const tenants = visibleCatalogTenants(allTenants)
   if (limit <= 0 || tenants.length === 0) return []
 
   const platform =

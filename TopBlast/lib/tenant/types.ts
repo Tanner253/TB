@@ -69,6 +69,13 @@ export interface PublicTenantSummary {
   winnerCount?: number
   /** Winner payout currency: 'token' (buyback + airdrop) or 'sol' (direct). */
   payout_mode?: PayoutMode
+  /**
+   * Presentation-only flag: market cap fell below the catalog floor, so
+   * browsing surfaces (catalog grid, featured cards) skip this listing.
+   * The session keeps running and it still counts toward every aggregate
+   * (homepage totals, history, stats).
+   */
+  catalog_hidden?: boolean
   /** Live distributable SOL in the payout wallet (catalog). */
   pot_sol?: number | null
   pot_usd?: number | null

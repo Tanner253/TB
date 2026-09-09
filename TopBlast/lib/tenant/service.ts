@@ -94,7 +94,12 @@ export async function listPublicTenants(): Promise<PublicTenantSummary[]> {
   }))
 
   const decorated = decorateCatalogTenants(tenants)
-  return enrichCatalogTenants(decorated)
+  const enriched = await enrichCatalogTenants(decorated)
+  // Flag (not remove) listings whose market cap fell below the catalog floor:
+  // browsing surfaces skip them, while sessions and aggregate stats
+  // (homepage totals, history) keep counting every listing.
+  const { annotateCatalogTenantsByMarketCap } = await import('@/lib/platform/catalogVisibility')
+  return annotateCatalogTenantsByMarketCap(enriched)
 }
 
 export async function getTenantBySlug(slug: string) {

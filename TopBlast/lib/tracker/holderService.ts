@@ -1125,6 +1125,13 @@ export async function saveRankingsToDb(): Promise<void> {
     
     const eligibleCount = eoaHolders.filter(h => h.isEligible).length
 
+    // Analytics only: previous board snapshot for holder-event diffing.
+    const prevRankingsForEvents = await CurrentRankings.findOne({ key: getRankingsKey() })
+      .select('rankings')
+      .lean()
+      .then(doc => doc?.rankings ?? null)
+      .catch(() => null)
+
     await CurrentRankings.findOneAndUpdate(
       { key: getRankingsKey() },
       {
@@ -1140,6 +1147,15 @@ export async function saveRankingsToDb(): Promise<void> {
       },
       { upsert: true }
     )
+
+    // Append-only holder history (retention analytics) — never throws.
+    const { recordHolderEventsSafe } = await import('@/lib/analytics/holderEvents')
+    await recordHolderEventsSafe(prevRankingsForEvents, rankings, {
+      tenantSlug: getTenantSlug(),
+      tokenPrice: getState().currentTokenPrice || 0,
+      source: 'chain_refresh',
+      persistMax: 50,
+    })
 
     const { syncPayoutTimerWithPayableWinners } = await import('@/lib/payout/executor')
     await syncPayoutTimerWithPayableWinners(eligibleCount)

@@ -9,6 +9,7 @@ import {
   CATALOG_SORT_OPTIONS,
   filterCatalogTenants,
   sortCatalogTenants,
+  visibleCatalogTenants,
   type CatalogSortId,
 } from '@/lib/platform/catalogClient'
 
@@ -45,7 +46,7 @@ export function CatalogBrowser() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
 
   const filtered = useMemo(
-    () => sortCatalogTenants(filterCatalogTenants(tenants, query), sortId),
+    () => sortCatalogTenants(filterCatalogTenants(visibleCatalogTenants(tenants), query), sortId),
     [tenants, query, sortId]
   )
 

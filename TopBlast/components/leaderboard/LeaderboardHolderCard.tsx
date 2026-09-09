@@ -2,6 +2,7 @@
 
 import { getPayoutForEligibleRank } from '@/lib/payout/shares'
 import { HolderIneligibleCallout, HolderStatus } from '@/components/HoldTimeBadge'
+import { RektShareButton } from '@/components/rekt/RektShareButton'
 
 export interface LeaderboardRow {
   rank?: number
@@ -86,9 +87,10 @@ export function LeaderboardHolderCard({
             </p>
           </div>
         </div>
-        {isEligible ? (
-          <HolderStatus isEligible />
-        ) : null}
+        <div className="flex items-center gap-2 shrink-0">
+          {isEligible ? <HolderStatus isEligible /> : null}
+          <RektShareButton wallet={holder.wallet} />
+        </div>
       </div>
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mb-3">

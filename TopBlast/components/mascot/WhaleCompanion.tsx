@@ -110,10 +110,13 @@ export function WhaleCompanion() {
     const paid = tenants.reduce((s, t) => s + (t.total_distributed_usd ?? 0), 0)
     const live = tenants.filter(t => t.status === 'active').length
     const eligible = tenants.reduce((s, t) => s + (t.payout_eligible_count ?? 0), 0)
-    const biggest = tenants.reduce(
-      (best, t) => ((t.pot_usd ?? 0) > (best?.pot_usd ?? 0) ? t : best),
-      null as (typeof tenants)[number] | null
-    )
+    // Don't advertise catalog-hidden listings; totals above still count them.
+    const biggest = tenants
+      .filter(t => !t.catalog_hidden)
+      .reduce(
+        (best, t) => ((t.pot_usd ?? 0) > (best?.pot_usd ?? 0) ? t : best),
+        null as (typeof tenants)[number] | null
+      )
     if (paid > 0) lines.push(`${formatUsd(paid)} paid to underwater holders so far. Real ones.`)
     if (live > 0) lines.push(`${live} session${live === 1 ? '' : 's'} live right now. The pots don’t sleep.`)
     if (eligible > 0) lines.push(`${eligible} wallet${eligible === 1 ? ' is' : 's are'} eligible for a payout right now. Could’ve been you.`)

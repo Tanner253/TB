@@ -26,6 +26,7 @@ import { TokenAvatar } from '@/components/ui/TokenAvatar'
 import { SessionBannerLayer } from '@/components/leaderboard/SessionBannerLayer'
 import { Blasty } from '@/components/mascot/Blasty'
 import { triggerCelebration } from '@/components/mascot/celebrate'
+import { RektShareButton } from '@/components/rekt/RektShareButton'
 
 const CandlestickBackground = dynamic(
   () => import('@/components/platform/CandlestickBackground').then(m => m.CandlestickBackground),
@@ -1008,7 +1009,10 @@ export default function LeaderboardPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 align-top">
-                        <span className="font-mono text-ink-2">{holder.wallet_display}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-ink-2">{holder.wallet_display}</span>
+                          <RektShareButton wallet={holder.wallet} className="h-7 w-7 text-xs" />
+                        </div>
                       </td>
                       <td className={`px-6 py-4 text-right font-mono align-top ${drawdownClass(holder.drawdown_pct, hasVwap)}`}>
                         {drawdownLabel(holder.drawdown_pct, hasVwap)}

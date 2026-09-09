@@ -6,6 +6,7 @@ import { AppFooter } from '@/components/platform/AppFooter'
 import { PayoutCelebration } from '@/components/mascot/PayoutCelebration'
 import { MusicProvider } from '@/components/ui/MusicProvider'
 import { WhaleCompanion } from '@/components/mascot/WhaleCompanion'
+import { RektModal } from '@/components/rekt/RektModal'
 
 const PAYOUT_META = `Payout cycles every ${PAYOUT_INTERVAL_RANGE_COMPACT}`
 
@@ -67,6 +68,7 @@ export default function RootLayout({
         <AppFooter />
         <PayoutCelebration />
         <WhaleCompanion />
+        <RektModal />
         <MusicProvider />
       </body>
     </html>
