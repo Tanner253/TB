@@ -110,7 +110,7 @@ describe('catalogClient payout timer', () => {
       payout_pool_funded: false,
       pot_usd_formatted: '$3.76',
     }
-    expect(catalogPayoutTimerLabel(underfunded)).toBe('Waiting for topup')
+    expect(catalogPayoutTimerLabel(underfunded)).toBe('Waiting for volume')
     expect(catalogCountdownSubtitle(underfunded)).toContain('fund the pool')
   })
 

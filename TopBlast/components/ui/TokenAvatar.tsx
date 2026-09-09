@@ -40,8 +40,8 @@ export function TokenAvatar({
   const sizeClass = SIZE_CLASS[size]
   const fallbackLabel = symbol.slice(0, 2).toUpperCase() || '?'
   const frameClass = highlighted
-    ? 'border-sol-mint/30 bg-sol-mint/10'
-    : 'border-white/10 bg-white/5 text-gray-300'
+    ? 'border-sol-purple/30 bg-sol-purple/10'
+    : 'border-line bg-ink/5 text-ink-2'
 
   useEffect(() => {
     setMounted(true)
@@ -146,7 +146,7 @@ export function TokenAvatar({
                 transform: 'translateX(-50%)',
               }}
             >
-              <div className="rounded-2xl border border-white/25 bg-black/95 p-2 shadow-[0_16px_48px_rgba(0,0,0,0.75)]">
+              <div className="rounded-2xl border border-white/25 bg-card/95 p-2 shadow-[0_16px_48px_rgba(0,0,0,0.75)]">
                 <img
                   src={iconUrl}
                   alt=""
@@ -157,7 +157,7 @@ export function TokenAvatar({
                   className="block rounded-xl object-cover"
                   style={{ width: PREVIEW_PX, height: PREVIEW_PX, aspectRatio: '1 / 1' }}
                 />
-                <div className="mt-1.5 text-center text-[0.7rem] font-semibold text-white">
+                <div className="mt-1.5 text-center text-[0.7rem] font-semibold text-ink">
                   ${symbol}
                 </div>
               </div>

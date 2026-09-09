@@ -146,7 +146,7 @@ export default function StatsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-paper flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -157,7 +157,7 @@ export default function StatsPage() {
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
             className="w-12 h-12 border-2 border-rh-green/30 border-t-rh-green rounded-full mx-auto mb-4"
           />
-          <p className="text-gray-400">Loading statistics...</p>
+          <p className="text-ink-2">Loading statistics...</p>
         </motion.div>
       </div>
     )
@@ -165,18 +165,18 @@ export default function StatsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-xl text-red-400">{error}</div>
+      <div className="min-h-screen bg-paper flex items-center justify-center">
+        <div className="text-xl text-red-600 dark:text-red-400">{error}</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-paper text-ink">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-rh-green-dark/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-rh-lime/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-sol-purple/5 rounded-full blur-3xl" />
       </div>
 
       <AppHeader active="stats" />
@@ -189,7 +189,7 @@ export default function StatsPage() {
           className="mb-8"
         >
           <h1 className="text-3xl font-bold mb-2">Protocol Statistics</h1>
-          <div className="flex items-center gap-4 text-sm text-gray-400">
+          <div className="flex items-center gap-4 text-sm text-ink-2">
             <span>Real-time data from Solana</span>
             {lastUpdate && (
               <>
@@ -220,41 +220,41 @@ export default function StatsPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6"
+          className="bg-ink/5 border border-line rounded-2xl p-6 mb-6"
         >
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
             <span>💎</span> Token
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Symbol</div>
-              <div className="text-2xl font-bold text-rh-lime">${stats?.token.symbol}</div>
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-2">Symbol</div>
+              <div className="text-2xl font-bold text-sol-purple">${stats?.token.symbol}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Price</div>
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-2">Price</div>
               <PriceTicker price={price || stats?.token.price_raw} size="lg" />
             </div>
             <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">24h Change</div>
-              <div className="text-2xl font-bold text-gray-500">
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-2">24h Change</div>
+              <div className="text-2xl font-bold text-ink-3">
                 {stats?.token.price_change_24h !== null
                   ? `${(stats?.token.price_change_24h ?? 0) >= 0 ? '+' : ''}${stats?.token.price_change_24h?.toFixed(2)}%`
                   : 'N/A'}
               </div>
             </div>
             <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Market Cap</div>
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-2">Market Cap</div>
               <div className="text-2xl font-bold">
                 {marketCap ? (
                   <AnimatedNumber value={marketCap} format="currency" />
                 ) : (
-                  <span className="text-gray-500">{stats?.token.market_cap || 'N/A'}</span>
+                  <span className="text-ink-3">{stats?.token.market_cap || 'N/A'}</span>
                 )}
               </div>
             </div>
           </div>
           {stats?.token.mint && (
-            <div className="mt-5 pt-5 border-t border-white/10 flex justify-center">
+            <div className="mt-5 pt-5 border-t border-line flex justify-center">
               <CopyContractAddress
                 address={stats.token.mint}
                 symbol={stats.token.symbol}
@@ -270,35 +270,35 @@ export default function StatsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6"
+          className="bg-ink/5 border border-line rounded-2xl p-6 mb-6"
         >
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
             <span>💰</span> Reward Pool
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Current Balance</div>
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-2">Current Balance</div>
               <div className="text-3xl font-bold text-rh-green">{pool?.balance_usd || stats?.protocol.current_pool_usd || '$0'}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Total Generated Volume</div>
-              <div className="text-2xl font-bold text-purple-300">
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-2">Total Generated Volume</div>
+              <div className="text-2xl font-bold text-sol-purple">
                 {stats?.protocol.total_generated_volume_usd || '$0'}
               </div>
               {stats?.protocol.total_generated_volume_sol ? (
-                <div className="text-xs text-gray-500 mt-1 font-mono">
+                <div className="text-xs text-ink-3 mt-1 font-mono">
                   {stats.protocol.total_generated_volume_sol} SOL bought on-chart
                 </div>
               ) : null}
             </div>
             <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Total Distributed</div>
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-2">Total Distributed</div>
               <div className="text-2xl font-bold">
                 {pool?.total_distributed_usd || stats?.protocol.total_distributed_usd || '$0'}
               </div>
             </div>
             <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Avg Payout</div>
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-2">Avg Payout</div>
               <div className="text-2xl font-bold">
                 {pool?.average_payout_usd || stats?.protocol.average_payout_usd || '$0'}
               </div>
@@ -310,7 +310,7 @@ export default function StatsPage() {
               animate={pool?.payout_enabled ? { scale: [1, 1.2, 1] } : {}}
               transition={{ duration: 1.5, repeat: Infinity }}
             />
-            <span className="text-sm text-gray-400">
+            <span className="text-sm text-ink-2">
               {pool?.payout_enabled ? 'Payouts Active' : `Below minimum (${pool?.minimum_pool_usd})`}
             </span>
           </div>
@@ -321,35 +321,35 @@ export default function StatsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6"
+          className="bg-ink/5 border border-line rounded-2xl p-6 mb-6"
         >
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
             <span>👥</span> Holders
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
             <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Total</div>
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-2">Total</div>
               <div className="text-3xl font-bold font-mono">{stats?.holders.total?.toLocaleString() || 0}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Tracked</div>
-              <div className="text-3xl font-bold font-mono text-rh-lime">{stats?.holders.tracked?.toLocaleString() || 0}</div>
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-2">Tracked</div>
+              <div className="text-3xl font-bold font-mono text-sol-purple">{stats?.holders.tracked?.toLocaleString() || 0}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">With VWAP</div>
-              <div className="text-3xl font-bold font-mono text-rh-lime">{stats?.holders.with_vwap?.toLocaleString() || 0}</div>
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-2">With VWAP</div>
+              <div className="text-3xl font-bold font-mono text-sol-purple">{stats?.holders.with_vwap?.toLocaleString() || 0}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Eligible</div>
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-2">Eligible</div>
               <div className="text-3xl font-bold text-rh-green font-mono">{stats?.holders.eligible || 0}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">In Profit</div>
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-2">In Profit</div>
               <div className="text-3xl font-bold text-rh-green font-mono">{stats?.holders.in_profit || 0}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">In Loss</div>
-              <div className="text-3xl font-bold text-red-400 font-mono">{stats?.holders.in_loss || 0}</div>
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-2">In Loss</div>
+              <div className="text-3xl font-bold text-red-600 dark:text-red-400 font-mono">{stats?.holders.in_loss || 0}</div>
             </div>
           </div>
         </motion.div>
@@ -359,48 +359,48 @@ export default function StatsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6"
+          className="bg-ink/5 border border-line rounded-2xl p-6 mb-6"
         >
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
             <span>🏆</span> Protocol Records
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-white/5 rounded-xl p-5">
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Most Wins</div>
+            <div className="bg-ink/5 rounded-xl p-5">
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-3">Most Wins</div>
               {stats?.leaderboard.most_wins ? (
                 <>
                   <div className="text-3xl font-bold text-rh-green mb-1">
                     {stats.leaderboard.most_wins.win_count} wins
                   </div>
-                  <div className="text-sm text-gray-500 font-mono">
+                  <div className="text-sm text-ink-3 font-mono">
                     {stats.leaderboard.most_wins.wallet_display}
                   </div>
                 </>
               ) : (
-                <div className="text-gray-500">No wins yet</div>
+                <div className="text-ink-3">No wins yet</div>
               )}
             </div>
-            <div className="bg-white/5 rounded-xl p-5">
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Deepest Drawdown</div>
+            <div className="bg-ink/5 rounded-xl p-5">
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-3">Deepest Drawdown</div>
               {stats?.leaderboard.deepest_drawdown ? (
                 <>
-                  <div className="text-3xl font-bold text-red-400 mb-1">
+                  <div className="text-3xl font-bold text-red-600 dark:text-red-400 mb-1">
                     {stats.leaderboard.deepest_drawdown.drawdown_pct.toFixed(2)}%
                   </div>
-                  <div className="text-sm text-gray-500 font-mono">
+                  <div className="text-sm text-ink-3 font-mono">
                     {stats.leaderboard.deepest_drawdown.wallet_display}
                   </div>
                 </>
               ) : (
-                <div className="text-gray-500">No tracked losers yet</div>
+                <div className="text-ink-3">No tracked losers yet</div>
               )}
             </div>
-            <div className="bg-white/5 rounded-xl p-5">
-              <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">Total Cycles</div>
-              <div className="text-3xl font-bold text-rh-lime mb-1">
+            <div className="bg-ink/5 rounded-xl p-5">
+              <div className="text-xs text-ink-2 uppercase tracking-wider mb-3">Total Cycles</div>
+              <div className="text-3xl font-bold text-sol-purple mb-1">
                 {stats?.protocol.total_cycles || pool?.total_cycles || 0}
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-ink-3">
                 Completed payout rounds
               </div>
             </div>
@@ -412,7 +412,7 @@ export default function StatsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-white/5 border border-white/10 rounded-2xl p-6"
+          className="bg-ink/5 border border-line rounded-2xl p-6"
         >
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
             <span>📋</span> Eligibility Thresholds
@@ -430,17 +430,17 @@ export default function StatsPage() {
                 sub: stats?.thresholds?.payout_interval_display ? 'this listing' : 'choose when listing',
               },
             ].map((item) => (
-              <div key={item.label} className="bg-white/5 rounded-xl p-4 text-center">
-                <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">{item.label}</div>
+              <div key={item.label} className="bg-ink/5 rounded-xl p-4 text-center">
+                <div className="text-xs text-ink-2 uppercase tracking-wider mb-2">{item.label}</div>
                 <div className="text-xl font-bold text-rh-green font-mono">{item.value}</div>
-                <div className="text-xs text-gray-500">{item.sub}</div>
+                <div className="text-xs text-ink-3">{item.sub}</div>
               </div>
             ))}
           </div>
 
-          <div className="border-t border-white/10 pt-4">
+          <div className="border-t border-line pt-4">
             <h3 className="text-sm font-bold mb-1">Payout distribution</h3>
-            <p className="text-xs text-gray-500 mb-3">
+            <p className="text-xs text-ink-3 mb-3">
               Top {winnerCount} eligible losers · {shareSplitLabel} of winner pool (after {DEV_FEE}% dev fee)
             </p>
             {winnerCount <= 3 ? (
@@ -474,8 +474,8 @@ export default function StatsPage() {
                     key={`share-${idx + 1}`}
                     className="rounded-lg border border-rh-green/20 bg-rh-green/5 px-3 py-2 text-center"
                   >
-                    <p className="text-[0.65rem] uppercase tracking-wider text-gray-500">#{idx + 1}</p>
-                    <p className="text-sm font-bold font-mono text-rh-lime">{pct}%</p>
+                    <p className="text-[0.65rem] uppercase tracking-wider text-ink-3">#{idx + 1}</p>
+                    <p className="text-sm font-bold font-mono text-sol-purple">{pct}%</p>
                   </div>
                 ))}
               </div>
@@ -488,7 +488,7 @@ export default function StatsPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="mt-8 text-center text-sm text-gray-500 space-y-2"
+          className="mt-8 text-center text-sm text-ink-3 space-y-2"
         >
           <p>Total Cycles Completed: {stats?.protocol.total_cycles || 0}</p>
           {stats?.service?.last_refresh && (

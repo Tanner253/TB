@@ -28,8 +28,8 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
         whileHover={{ y: compact ? -2 : -3 }}
         className={`group relative z-0 flex h-full min-h-[15.5rem] flex-col overflow-visible rounded-xl border transition-colors ${padding} ${
           isPlatform
-            ? 'border-sol-mint/25 bg-gradient-to-br from-sol-purple/10 to-transparent hover:border-sol-mint/40'
-            : 'border-white/[0.08] bg-white/[0.02] hover:border-sol-mint/25 hover:bg-white/[0.04]'
+            ? 'border-sol-purple/30 bg-gradient-to-br from-sol-purple/10 to-transparent hover:border-sol-purple/40'
+            : 'border-line bg-ink/[0.02] hover:border-sol-purple/25 hover:bg-ink/[0.04]'
         }`}
       >
         <div className="relative z-20 flex items-start justify-between gap-2 shrink-0">
@@ -43,7 +43,7 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
             />
             <h2
               className={`min-w-0 font-bold tracking-tight truncate ${titleSize} ${
-                isPlatform ? 'text-sol-mint' : 'text-white'
+                isPlatform ? 'text-sol-purple' : 'text-ink'
               }`}
               title={`$${tenant.symbol}`}
             >
@@ -53,8 +53,8 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
           <span
             className={`shrink-0 text-[0.65rem] uppercase tracking-wider px-2 py-1 rounded-full border ${
               tenant.status === 'active'
-                ? 'bg-sol-mint/10 text-sol-mint border-sol-mint/20'
-                : 'bg-white/5 text-gray-400 border-white/10'
+                ? 'bg-sol-purple/10 text-sol-purple border-sol-purple/20'
+                : 'bg-ink/5 text-ink-2 border-line'
             }`}
           >
             {formatCatalogStatus(tenant)}
@@ -63,7 +63,7 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
 
         <div className="mt-1.5 min-h-[1.375rem] flex flex-wrap items-center gap-1.5 shrink-0">
           {isPlatform ? (
-            <span className="text-[0.65rem] uppercase tracking-wider px-2 py-0.5 rounded-full bg-sol-mint/10 text-sol-mint border border-sol-mint/25 shrink-0">
+            <span className="text-[0.65rem] uppercase tracking-wider px-2 py-0.5 rounded-full bg-sol-purple/10 text-sol-purple border border-sol-purple/25 shrink-0">
               Platform
             </span>
           ) : null}
@@ -71,16 +71,16 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
         </div>
 
         <p
-          className="mt-1 text-sm text-gray-500 font-mono truncate shrink-0"
+          className="mt-1 text-sm text-ink-3 font-mono truncate shrink-0"
           title={`/${tenant.slug}`}
         >
           /{tenant.slug}
         </p>
 
         <p
-          className={`mt-1 font-mono text-gray-600 truncate shrink-0 ${
+          className={`mt-1 font-mono text-ink-3 truncate shrink-0 ${
             compact ? 'text-[0.65rem] min-h-[1rem]' : 'text-[0.7rem] min-h-[1.125rem]'
-          } ${tenant.mint ? 'group-hover:text-gray-500 transition-colors' : 'text-transparent select-none'}`}
+          } ${tenant.mint ? 'group-hover:text-ink-3 transition-colors' : 'text-transparent select-none'}`}
           title={tenant.mint ?? undefined}
           aria-hidden={!tenant.mint}
         >
@@ -93,7 +93,7 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
 
         <div className="mt-auto pt-3 shrink-0">
           <CatalogMetrics tenant={tenant} />
-          <p className="mt-3 min-h-[1rem] text-xs font-medium text-sol-mint opacity-0 group-hover:opacity-100 transition-opacity">
+          <p className="mt-3 min-h-[1rem] text-xs font-medium text-sol-purple opacity-0 group-hover:opacity-100 transition-opacity">
             View leaderboard →
           </p>
         </div>

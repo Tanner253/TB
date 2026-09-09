@@ -59,7 +59,7 @@ body {
 }
 .glitch::after {
   left: -2px;
-  text-shadow: -1px 0 #14F195;
+  text-shadow: -1px 0 #a78bfa;
   clip: rect(44px, 450px, 56px, 0);
   animation: glitch-anim2 5s infinite linear alternate-reverse;
 }
@@ -109,7 +109,7 @@ body {
 }
 
 .hero-text-gradient {
-  background: linear-gradient(135deg, #9945FF 0%, #14F195 100%);
+  background: linear-gradient(135deg, #9945FF 0%, #7A2FD4 55%, #a78bfa 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -117,7 +117,7 @@ body {
 
 .neon-green,
 .neon-sol {
-  text-shadow: 0 0 10px rgba(153, 69, 255, 0.6), 0 0 20px rgba(20, 241, 149, 0.35);
+  text-shadow: 0 0 10px rgba(153, 69, 255, 0.6), 0 0 20px rgba(167, 139, 250, 0.35);
 }
 
 .neon-red {

@@ -31,22 +31,22 @@ export function ForCreatorsSection({
     <section className={compact ? 'space-y-6' : 'mb-12 space-y-8'}>
       {!hideHero ? (
         <div className="text-left">
-          <p className="text-xs uppercase tracking-wider text-rh-lime mb-2">For Solana token creators</p>
+          <p className="text-xs uppercase tracking-wider text-sol-purple mb-2">For Solana token creators</p>
           <h2 className={`font-bold mb-3 ${compact ? 'text-xl' : 'text-2xl md:text-3xl'}`}>
             {DEV_HERO.headline}
           </h2>
-          <p className="text-gray-400 max-w-2xl">{DEV_HERO.subhead}</p>
+          <p className="text-ink-2 max-w-2xl">{DEV_HERO.subhead}</p>
         </div>
       ) : null}
 
       {showComparison ? (
-        <div className="overflow-x-auto rounded-xl border border-white/10">
+        <div className="overflow-x-auto rounded-xl border border-line">
           <table className="w-full text-sm text-left min-w-[640px]">
             <thead>
-              <tr className="border-b border-white/10 bg-white/5">
-                <th className="p-4 font-medium text-gray-400">Approach</th>
-                <th className="p-4 font-medium text-gray-400">Holder behavior</th>
-                <th className="p-4 font-medium text-gray-400">Chart / community</th>
+              <tr className="border-b border-line bg-ink/5">
+                <th className="p-4 font-medium text-ink-2">Approach</th>
+                <th className="p-4 font-medium text-ink-2">Holder behavior</th>
+                <th className="p-4 font-medium text-ink-2">Chart / community</th>
               </tr>
             </thead>
             <tbody>
@@ -59,14 +59,14 @@ export function ForCreatorsSection({
                       : 'border-t border-white/5'
                   }
                 >
-                  <td className="p-4 font-semibold text-white">{row.name}</td>
-                  <td className="p-4 text-gray-300">{row.holderBehavior}</td>
-                  <td className="p-4 text-gray-400">
-                    <span className={row.tone === 'positive' ? 'text-rh-lime' : 'text-gray-400'}>
+                  <td className="p-4 font-semibold text-ink">{row.name}</td>
+                  <td className="p-4 text-ink-2">{row.holderBehavior}</td>
+                  <td className="p-4 text-ink-2">
+                    <span className={row.tone === 'positive' ? 'text-sol-purple' : 'text-ink-2'}>
                       {row.chartEffect}
                     </span>
                     {row.devOptics ? (
-                      <span className="block text-xs text-gray-500 mt-1">{row.devOptics}</span>
+                      <span className="block text-xs text-ink-3 mt-1">{row.devOptics}</span>
                     ) : null}
                   </td>
                 </tr>
@@ -83,19 +83,19 @@ export function ForCreatorsSection({
               key={item.title}
               className="rounded-xl border border-rh-green/15 bg-rh-green/5 p-4 text-left"
             >
-              <p className="font-semibold text-white text-sm">{item.title}</p>
-              <p className="text-xs text-gray-400 mt-1">{item.body}</p>
+              <p className="font-semibold text-ink text-sm">{item.title}</p>
+              <p className="text-xs text-ink-2 mt-1">{item.body}</p>
             </div>
           ))}
         </div>
       ) : null}
 
-      {showTrustFooter ? <p className="text-xs text-gray-500 text-left">{TRUST_FOOTER}</p> : null}
+      {showTrustFooter ? <p className="text-xs text-ink-3 text-left">{TRUST_FOOTER}</p> : null}
 
       {showLaunchCta ? (
         <Link
           href="/launch"
-          className="inline-block px-6 py-3 bg-sol-gradient text-black rounded-xl font-bold text-sm hover:opacity-90"
+          className="inline-block px-6 py-3 bg-sol-gradient text-white dark:text-black rounded-xl font-bold text-sm hover:opacity-90"
         >
           {DEV_HERO.cta} →
         </Link>

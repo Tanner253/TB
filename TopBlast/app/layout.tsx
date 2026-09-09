@@ -3,8 +3,14 @@ import './globals.css'
 import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 import { SITE_DESCRIPTION, SITE_TITLE } from '@/lib/marketing/brand'
 import { AppFooter } from '@/components/platform/AppFooter'
+import { PayoutCelebration } from '@/components/mascot/PayoutCelebration'
+import { MusicProvider } from '@/components/ui/MusicProvider'
+import { WhaleCompanion } from '@/components/mascot/WhaleCompanion'
 
-const PAYOUT_META = `Configurable payout cycles (${PAYOUT_INTERVAL_RANGE_COMPACT})`
+const PAYOUT_META = `Payout cycles every ${PAYOUT_INTERVAL_RANGE_COMPACT}`
+
+/** Applies the saved theme before first paint (no flash). Dark is the default. */
+const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('tb-theme');if(t!=='light'){document.documentElement.classList.add('dark')}}catch(e){document.documentElement.classList.add('dark')}})()`
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://topblasted.fun'),
@@ -41,7 +47,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#9945FF',
+  themeColor: '#7c3aed',
 }
 
 export default function RootLayout({
@@ -50,14 +56,18 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body className="antialiased">
+      <body className="antialiased bg-paper text-ink">
         {children}
         <AppFooter />
+        <PayoutCelebration />
+        <WhaleCompanion />
+        <MusicProvider />
       </body>
     </html>
   )

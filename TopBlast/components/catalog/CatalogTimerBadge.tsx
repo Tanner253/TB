@@ -39,7 +39,7 @@ export function CatalogTimerBadge({ tenant, compact = false }: CatalogTimerBadge
 
   return (
     <span
-      className={`inline-flex max-w-full items-center gap-1 truncate rounded-full border border-amber-500/25 bg-amber-500/10 text-amber-200/90 ${
+      className={`inline-flex max-w-full items-center gap-1 truncate rounded-full border border-yellow-500/30 bg-yellow-500/10 text-yellow-600 dark:text-yellow-300 ${
         compact
           ? 'text-[0.6rem] uppercase tracking-wider px-1.5 py-0.5'
           : 'text-[0.65rem] uppercase tracking-wider px-2 py-1'

@@ -34,36 +34,36 @@ export function DynamicPotExplainer({
         compact ? 'p-5' : 'p-6 md:p-8'
       }`}
     >
-      <h2 className={`font-bold text-amber-300 mb-2 ${compact ? 'text-lg' : 'text-xl'}`}>
+      <h2 className={`font-bold text-amber-700 dark:text-amber-300 mb-2 ${compact ? 'text-lg' : 'text-xl'}`}>
         {DYNAMIC_POT.title}
       </h2>
-      <p className="text-sm text-gray-400 mb-6">{DYNAMIC_POT.intro}</p>
+      <p className="text-sm text-ink-2 mb-6">{DYNAMIC_POT.intro}</p>
 
       <ul className={`space-y-4 mb-6 ${compact ? 'text-sm' : ''}`}>
         {bullets.map(item => (
           <li key={item.title} className="flex gap-3">
-            <span className="text-rh-lime font-bold shrink-0">→</span>
+            <span className="text-sol-purple font-bold shrink-0">→</span>
             <div>
-              <p className="font-medium text-white">{item.title}</p>
-              <p className="text-gray-400 text-sm mt-0.5">{item.body}</p>
+              <p className="font-medium text-ink">{item.title}</p>
+              <p className="text-ink-2 text-sm mt-0.5">{item.body}</p>
             </div>
           </li>
         ))}
       </ul>
 
-      <div className="rounded-xl border border-white/10 bg-black/40 p-4 text-sm">
-        <p className="text-xs uppercase tracking-wider text-gray-500 mb-2">Worked example</p>
-        <p className="text-gray-300">
-          Pool ≈ <span className="text-white font-mono">${ex.poolUsd.toLocaleString()}</span> → min
+      <div className="rounded-xl border border-line bg-card/70 p-4 text-sm">
+        <p className="text-xs uppercase tracking-wider text-ink-3 mb-2">Worked example</p>
+        <p className="text-ink-2">
+          Pool ≈ <span className="text-ink font-mono">${ex.poolUsd.toLocaleString()}</span> → min
           eligible loss ≈{' '}
-          <span className="text-amber-300 font-mono">${ex.minLossUsd.toLocaleString()}</span>{' '}
-          (10% of pool). With <span className="text-white font-semibold">{winnerCount} winners</span>{' '}
+          <span className="text-amber-700 dark:text-amber-300 font-mono">${ex.minLossUsd.toLocaleString()}</span>{' '}
+          (10% of pool). With <span className="text-ink font-semibold">{winnerCount} winners</span>{' '}
           ({shareLabel} split), after {DEV_FEE_PCT}% platform fee, 1st place ≈{' '}
-          <span className="text-rh-lime font-mono">${Math.round(firstShare).toLocaleString()}</span>{' '}
+          <span className="text-sol-purple font-mono">${Math.round(firstShare).toLocaleString()}</span>{' '}
           ({sharePercents[0]}% of {COMMUNITY}% winner pool).
         </p>
         {!isDefaultWinners || WINNER_COUNT_OPTIONS.length > 1 ? (
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-ink-3 mt-2">
             Choose {WINNER_COUNT_OPTIONS[0]}–{WINNER_COUNT_OPTIONS[WINNER_COUNT_OPTIONS.length - 1]} winners
             at launch — more winners means smaller shares; biggest loser always gets the most.
           </p>

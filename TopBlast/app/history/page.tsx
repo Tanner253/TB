@@ -92,7 +92,7 @@ function getRankBadge(rank: number, type: string) {
     return (
       <div className="flex items-center gap-2">
         <span className="text-2xl">🔧</span>
-        <span className="bg-rh-green-dark/30 text-rh-lime px-2 py-0.5 rounded text-xs font-medium">
+        <span className="bg-rh-green-dark/30 text-sol-purple px-2 py-0.5 rounded text-xs font-medium">
           DEV
         </span>
       </div>
@@ -105,7 +105,7 @@ function getRankBadge(rank: number, type: string) {
     3: { emoji: '🥉', bg: 'bg-gradient-to-r from-orange-500 to-amber-500', text: 'text-black' },
   }
   
-  const style = styles[rank as keyof typeof styles] || { emoji: '🏅', bg: 'bg-white/10', text: 'text-white' }
+  const style = styles[rank as keyof typeof styles] || { emoji: '🏅', bg: 'bg-ink/10', text: 'text-ink' }
   
   return (
     <div className="flex items-center gap-2">
@@ -139,7 +139,7 @@ function getStatusBadge(status: string) {
       )
     case 'failed':
       return (
-        <span className="inline-flex items-center gap-1.5 bg-red-500/20 text-red-400 px-3 py-1 rounded-full text-xs font-medium">
+        <span className="inline-flex items-center gap-1.5 bg-red-500/20 text-red-600 dark:text-red-400 px-3 py-1 rounded-full text-xs font-medium">
           <span className="w-1.5 h-1.5 bg-red-400 rounded-full" />
           Failed
         </span>
@@ -194,7 +194,7 @@ export default function HistoryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-paper flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -205,7 +205,7 @@ export default function HistoryPage() {
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
             className="w-12 h-12 border-2 border-rh-green/30 border-t-rh-green rounded-full mx-auto mb-4"
           />
-          <p className="text-gray-400">Loading history...</p>
+          <p className="text-ink-2">Loading history...</p>
         </motion.div>
       </div>
     )
@@ -213,14 +213,14 @@ export default function HistoryPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-xl text-red-400">{error}</div>
+      <div className="min-h-screen bg-paper flex items-center justify-center">
+        <div className="text-xl text-red-600 dark:text-red-400">{error}</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-paper text-ink">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-20 right-20 w-80 h-80 bg-rh-green/5 rounded-full blur-3xl" />
@@ -237,7 +237,7 @@ export default function HistoryPage() {
           className="mb-8"
         >
           <h1 className="text-3xl font-bold mb-2">Payout History</h1>
-          <p className="text-gray-400">
+          <p className="text-ink-2">
             All sessions · {data?.stats.sessions ?? 0} token{data?.stats.sessions === 1 ? '' : 's'} ·{' '}
             {data?.stats.total_cycles || 0} cycles · {data?.stats.total_payouts || 0} successful ·{' '}
             {data?.stats.total_distributed_usd_formatted || '$0'} distributed
@@ -254,25 +254,25 @@ export default function HistoryPage() {
           transition={{ delay: 0.1 }}
           className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8"
         >
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <div className="text-sm text-gray-400">Sessions</div>
-            <div className="text-2xl font-bold text-white">{data?.stats.sessions || 0}</div>
+          <div className="bg-ink/5 border border-line rounded-xl p-4">
+            <div className="text-sm text-ink-2">Sessions</div>
+            <div className="text-2xl font-bold text-ink">{data?.stats.sessions || 0}</div>
           </div>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <div className="text-sm text-gray-400">Total Cycles</div>
-            <div className="text-2xl font-bold text-white">{data?.stats.total_cycles || 0}</div>
+          <div className="bg-ink/5 border border-line rounded-xl p-4">
+            <div className="text-sm text-ink-2">Total Cycles</div>
+            <div className="text-2xl font-bold text-ink">{data?.stats.total_cycles || 0}</div>
           </div>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <div className="text-sm text-gray-400">Successful</div>
+          <div className="bg-ink/5 border border-line rounded-xl p-4">
+            <div className="text-sm text-ink-2">Successful</div>
             <div className="text-2xl font-bold text-rh-green">{data?.stats.total_payouts || 0}</div>
           </div>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <div className="text-sm text-gray-400">Failed</div>
-            <div className="text-2xl font-bold text-red-400">{data?.stats.failed_payouts || 0}</div>
+          <div className="bg-ink/5 border border-line rounded-xl p-4">
+            <div className="text-sm text-ink-2">Failed</div>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{data?.stats.failed_payouts || 0}</div>
           </div>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <div className="text-sm text-gray-400">Distributed</div>
-            <div className="text-2xl font-bold text-rh-lime">{data?.stats.total_distributed_usd_formatted || '$0'}</div>
+          <div className="bg-ink/5 border border-line rounded-xl p-4">
+            <div className="text-sm text-ink-2">Distributed</div>
+            <div className="text-2xl font-bold text-sol-mint">{data?.stats.total_distributed_usd_formatted || '$0'}</div>
           </div>
         </motion.div>
 
@@ -285,22 +285,22 @@ export default function HistoryPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: cycleIdx * 0.1 }}
-                className="bg-rh-black border border-white/10 rounded-2xl mb-6 overflow-hidden"
+                className="bg-rh-black border border-line rounded-2xl mb-6 overflow-hidden"
               >
                 {/* Cycle Header */}
-                <div className="p-5 bg-white/5 border-b border-white/10 flex items-center justify-between gap-4 flex-wrap">
+                <div className="p-5 bg-ink/5 border-b border-line flex items-center justify-between gap-4 flex-wrap">
                   <div>
                     <h2 className="text-lg font-bold flex items-center gap-3 flex-wrap">
                       <span className="text-rh-green">Cycle #{cycle.cycle}</span>
                       <Link
                         href={`/${cycle.session_slug}/leaderboard`}
-                        className="text-sm font-medium text-rh-lime/90 hover:text-rh-lime transition-colors"
+                        className="text-sm font-medium text-sol-purple/90 hover:text-sol-purple-dark transition-colors"
                       >
                         ${cycle.token_symbol}
                       </Link>
                       {getStatusBadge(cycle.status)}
                     </h2>
-                    <p className="text-sm text-gray-400 mt-1">
+                    <p className="text-sm text-ink-2 mt-1">
                       {new Date(cycle.timestamp).toLocaleString()} • {formatTimeAgo(cycle.timestamp)}
                     </p>
                     {cycle.token_mint && (
@@ -315,9 +315,9 @@ export default function HistoryPage() {
                     )}
                   </div>
                   <div className="text-right">
-                    <div className="text-sm text-gray-400">Total Paid</div>
-                    <div className="text-lg font-bold text-white">{cycle.total_usd_formatted}</div>
-                    <div className="text-xs text-gray-500">{formatCycleTotal(cycle)}</div>
+                    <div className="text-sm text-ink-2">Total Paid</div>
+                    <div className="text-lg font-bold text-ink">{cycle.total_usd_formatted}</div>
+                    <div className="text-xs text-ink-3">{formatCycleTotal(cycle)}</div>
                   </div>
                 </div>
 
@@ -330,20 +330,20 @@ export default function HistoryPage() {
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: cycleIdx * 0.1 + idx * 0.05 }}
-                        className={`p-5 hover:bg-white/5 transition-colors ${payout.status === 'failed' ? 'bg-red-500/5' : ''}`}
+                        className={`p-5 hover:bg-ink/5 transition-colors ${payout.status === 'failed' ? 'bg-red-500/5' : ''}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
                             {getRankBadge(payout.rank, payout.type)}
                             <div>
-                              <div className="font-mono text-white font-medium flex items-center gap-2">
+                              <div className="font-mono text-ink font-medium flex items-center gap-2">
                                 {payout.wallet_display}
                                 {payout.explorer_url && (
                                   <a 
                                     href={payout.explorer_url} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="text-rh-green hover:text-rh-lime transition-colors"
+                                    className="text-rh-green hover:text-sol-purple-dark transition-colors"
                                     title="View on Solscan"
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -352,35 +352,35 @@ export default function HistoryPage() {
                                   </a>
                                 )}
                               </div>
-                              <div className="text-sm text-gray-400 mt-1 flex items-center gap-2">
+                              <div className="text-sm text-ink-2 mt-1 flex items-center gap-2">
                                 {payout.type === 'dev_fee' ? (
                                   <span>Developer Fee ({DEV_FEE}%)</span>
                                 ) : (
                                   <>
                                     <span>{payout.rank === 1 ? '🔥 Biggest Loser' : payout.rank === 2 ? '⚔️ Runner Up' : '🛡️ Third Place'}</span>
                                     {payout.drawdown_pct && (
-                                      <span className="text-red-400">-{payout.drawdown_pct}%</span>
+                                      <span className="text-red-600 dark:text-red-400">-{payout.drawdown_pct}%</span>
                                     )}
                                   </>
                                 )}
                                 {payout.status === 'failed' && (
-                                  <span className="text-red-400 text-xs">• Failed: {payout.error}</span>
+                                  <span className="text-red-600 dark:text-red-400 text-xs">• Failed: {payout.error}</span>
                                 )}
                               </div>
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className={`text-xl font-bold tabular-nums ${payout.status === 'success' ? 'text-rh-green' : 'text-red-400 line-through'}`}>
+                            <div className={`text-xl font-bold tabular-nums ${payout.status === 'success' ? 'text-rh-green' : 'text-red-600 dark:text-red-400 line-through'}`}>
                               {payout.amount_eth} {payout.amount_unit}
                             </div>
-                            <div className="text-sm text-gray-500 mt-1">${payout.amount_usd}</div>
+                            <div className="text-sm text-ink-3 mt-1">${payout.amount_usd}</div>
                           </div>
                         </div>
                         
                         {/* TX Hash */}
                         {payout.tx_hash && (
                           <div className="mt-3 pt-3 border-t border-white/5">
-                            <span className="text-xs text-gray-500">TX: </span>
+                            <span className="text-xs text-ink-3">TX: </span>
                             <a 
                               href={payout.explorer_url || '#'} 
                               target="_blank" 
@@ -397,7 +397,7 @@ export default function HistoryPage() {
                     {/* Summary */}
                     <div className="p-5 bg-rh-green/5 border-t border-rh-green/20">
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-400">
+                        <span className="text-ink-2">
                           {cycle.success_count} successful, {cycle.failed_count} failed
                         </span>
                         <span className="text-xl font-bold text-rh-green tabular-nums">
@@ -409,7 +409,7 @@ export default function HistoryPage() {
                 ) : (
                   <div className="p-8 text-center">
                     <div className="text-4xl mb-3">🔍</div>
-                    <p className="text-gray-400">No payouts this cycle</p>
+                    <p className="text-ink-2">No payouts this cycle</p>
                   </div>
                 )}
               </motion.div>
@@ -418,7 +418,7 @@ export default function HistoryPage() {
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-rh-black border border-white/10 rounded-2xl p-12 text-center"
+              className="bg-rh-black border border-line rounded-2xl p-12 text-center"
             >
               <motion.div
                 className="text-6xl mb-4"
@@ -428,7 +428,7 @@ export default function HistoryPage() {
                 📭
               </motion.div>
               <h2 className="text-2xl font-bold mb-3">No Payouts Yet</h2>
-              <p className="text-gray-400 mb-6 max-w-md mx-auto">
+              <p className="text-ink-2 mb-6 max-w-md mx-auto">
                 Winners from every session will appear here after payout cycles complete.
                 All transactions are recorded on-chain with Solscan links.
               </p>

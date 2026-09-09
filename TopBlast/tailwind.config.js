@@ -4,6 +4,7 @@ module.exports = {
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       fontFamily: {
@@ -11,31 +12,41 @@ module.exports = {
         mono: ['JetBrains Mono', 'monospace'],
       },
       colors: {
-        // Solana brand palette
+        // Semantic theme tokens (light default / .dark overrides in globals.css)
+        paper: 'rgb(var(--tb-paper) / <alpha-value>)',
+        card: 'rgb(var(--tb-card) / <alpha-value>)',
+        'card-2': 'rgb(var(--tb-card-2) / <alpha-value>)',
+        ink: 'rgb(var(--tb-ink) / <alpha-value>)',
+        'ink-2': 'rgb(var(--tb-ink-2) / <alpha-value>)',
+        'ink-3': 'rgb(var(--tb-ink-3) / <alpha-value>)',
+        line: 'rgb(var(--tb-line) / <alpha-value>)',
+        gold: 'rgb(var(--tb-gold) / <alpha-value>)',
+        // Solana brand palette — now theme-aware via CSS vars
         sol: {
-          purple: '#9945FF',
-          'purple-dark': '#7A2FD4',
+          purple: 'rgb(var(--tb-purple) / <alpha-value>)',
+          'purple-dark': 'rgb(var(--tb-purple-dark) / <alpha-value>)',
           'purple-deep': '#5B21B6',
-          mint: '#14F195',
-          'mint-bright': '#19FB9B',
-          black: '#0a0a0a',
+          mint: 'rgb(var(--tb-mint) / <alpha-value>)',
+          'mint-bright': 'rgb(var(--tb-mint-bright) / <alpha-value>)',
+          black: 'rgb(var(--tb-card) / <alpha-value>)',
         },
         // Legacy rh-* tokens → Solana (keeps existing class names working)
         rh: {
-          green: '#9945FF',
-          'green-dark': '#7A2FD4',
-          'green-bright': '#14F195',
-          lime: '#14F195',
-          black: '#0a0a0a',
+          green: 'rgb(var(--tb-purple) / <alpha-value>)',
+          'green-dark': 'rgb(var(--tb-purple-dark) / <alpha-value>)',
+          'green-bright': 'rgb(var(--tb-mint) / <alpha-value>)',
+          lime: 'rgb(var(--tb-mint) / <alpha-value>)',
+          black: 'rgb(var(--tb-card) / <alpha-value>)',
         },
       },
       boxShadow: {
-        'rh-glow': '0 0 20px rgba(153, 69, 255, 0.35), 0 0 60px rgba(20, 241, 149, 0.12)',
-        'rh-glow-sm': '0 0 12px rgba(153, 69, 255, 0.3)',
-        'sol-glow': '0 0 20px rgba(153, 69, 255, 0.35), 0 0 60px rgba(20, 241, 149, 0.12)',
+        'rh-glow': '0 0 20px rgb(var(--tb-purple) / 0.35), 0 0 60px rgb(var(--tb-mint) / 0.12)',
+        'rh-glow-sm': '0 0 12px rgb(var(--tb-purple) / 0.3)',
+        'sol-glow': '0 0 20px rgb(var(--tb-purple) / 0.35), 0 0 60px rgb(var(--tb-mint) / 0.12)',
+        card: '0 1px 2px rgb(var(--tb-ink) / 0.04), 0 8px 24px rgb(var(--tb-ink) / 0.05)',
       },
       backgroundImage: {
-        'sol-gradient': 'linear-gradient(135deg, #9945FF 0%, #14F195 100%)',
+        'sol-gradient': 'linear-gradient(135deg, rgb(var(--tb-purple)) 0%, rgb(var(--tb-mint)) 100%)',
       },
     },
   },

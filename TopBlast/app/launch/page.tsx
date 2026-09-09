@@ -68,15 +68,15 @@ export default function LaunchPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-paper text-ink">
       <AppHeader active="launch" />
 
       <main className="max-w-3xl mx-auto px-6 py-10 md:py-12">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           <header className="mb-8">
-            <p className="text-sol-mint text-xs font-semibold uppercase tracking-[0.14em] mb-2">Self-serve listing</p>
+            <p className="text-sol-purple text-xs font-semibold uppercase tracking-[0.14em] mb-2">Self-serve listing</p>
             <h1 className="text-3xl font-bold mb-2">{DEV_HERO.cta}</h1>
-            <p className="text-gray-400 text-sm md:text-base max-w-2xl">{DEV_HERO.subhead}</p>
+            <p className="text-ink-2 text-sm md:text-base max-w-2xl">{DEV_HERO.subhead}</p>
           </header>
 
           <div className="mb-8">
@@ -85,12 +85,12 @@ export default function LaunchPage() {
 
           <LaunchTabPanel tabId="create" activeTab={activeTab}>
             <form onSubmit={handleSubmit} className="glass-panel rounded-2xl p-6 md:p-8 border-rh-green/20 space-y-5">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-ink-3">
                 Fill in your token details below. Need help first?{' '}
                 <button
                   type="button"
                   onClick={() => setActiveTab('setup')}
-                  className="text-sol-mint hover:text-rh-lime underline underline-offset-2"
+                  className="text-sol-purple hover:text-sol-purple-dark underline underline-offset-2"
                 >
                   Open the setup guide
                 </button>
@@ -98,7 +98,7 @@ export default function LaunchPage() {
               </p>
 
               <label className="block">
-                <span className="text-sm text-gray-400">URL slug</span>
+                <span className="text-sm text-ink-2">URL slug</span>
                 <input
                   required
                   value={form.slug}
@@ -106,42 +106,42 @@ export default function LaunchPage() {
                     setForm(f => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))
                   }
                   placeholder="my-token"
-                  className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
+                  className="mt-1 w-full rounded-lg bg-card/70 border border-line px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
                 />
-                <p className="text-xs text-gray-600 mt-1">
+                <p className="text-xs text-ink-3 mt-1">
                   Session URL: {appHostname()}/{form.slug || 'your-slug'}
                 </p>
               </label>
 
               <label className="block">
-                <span className="text-sm text-gray-400">Ticker symbol</span>
+                <span className="text-sm text-ink-2">Ticker symbol</span>
                 <input
                   required
                   value={form.symbol}
                   onChange={e => setForm(f => ({ ...f, symbol: e.target.value.toUpperCase() }))}
                   placeholder="BLAST"
                   maxLength={12}
-                  className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 focus:border-rh-green/50 outline-none"
+                  className="mt-1 w-full rounded-lg bg-card/70 border border-line px-4 py-3 focus:border-rh-green/50 outline-none"
                 />
               </label>
 
               <label className="block">
-                <span className="text-sm text-gray-400">SPL mint (contract address)</span>
+                <span className="text-sm text-ink-2">SPL mint (contract address)</span>
                 <input
                   required
                   value={form.mint}
                   onChange={e => setForm(f => ({ ...f, mint: e.target.value.trim() }))}
                   placeholder="Token mint base58"
-                  className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
+                  className="mt-1 w-full rounded-lg bg-card/70 border border-line px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
                 />
               </label>
 
               <label className="block">
-                <span className="text-sm text-gray-400">{LAUNCH_KEY_HELP.payoutInterval.title}</span>
+                <span className="text-sm text-ink-2">{LAUNCH_KEY_HELP.payoutInterval.title}</span>
                 <select
                   value={form.payoutIntervalMinutes}
                   onChange={e => setForm(f => ({ ...f, payoutIntervalMinutes: Number(e.target.value) }))}
-                  className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 text-sm focus:border-rh-green/50 outline-none"
+                  className="mt-1 w-full rounded-lg bg-card/70 border border-line px-4 py-3 text-sm focus:border-rh-green/50 outline-none"
                 >
                   {PAYOUT_INTERVAL_OPTIONS.map(opt => (
                     <option key={opt.minutes} value={opt.minutes}>
@@ -149,15 +149,15 @@ export default function LaunchPage() {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-2">{LAUNCH_KEY_HELP.payoutInterval.body}</p>
+                <p className="text-xs text-ink-3 mt-2">{LAUNCH_KEY_HELP.payoutInterval.body}</p>
               </label>
 
               <label className="block">
-                <span className="text-sm text-gray-400">{LAUNCH_KEY_HELP.winnerCount.title}</span>
+                <span className="text-sm text-ink-2">{LAUNCH_KEY_HELP.winnerCount.title}</span>
                 <select
                   value={form.winnerCount}
                   onChange={e => setForm(f => ({ ...f, winnerCount: Number(e.target.value) }))}
-                  className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 text-sm focus:border-rh-green/50 outline-none"
+                  className="mt-1 w-full rounded-lg bg-card/70 border border-line px-4 py-3 text-sm focus:border-rh-green/50 outline-none"
                 >
                   {WINNER_COUNT_OPTIONS.map(n => (
                     <option key={n} value={n}>
@@ -165,11 +165,11 @@ export default function LaunchPage() {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-2">{LAUNCH_KEY_HELP.winnerCount.body}</p>
+                <p className="text-xs text-ink-3 mt-2">{LAUNCH_KEY_HELP.winnerCount.body}</p>
               </label>
 
               <label className="block">
-                <span className="text-sm text-gray-400">{LAUNCH_KEY_HELP.minTokenHolding.title}</span>
+                <span className="text-sm text-ink-2">{LAUNCH_KEY_HELP.minTokenHolding.title}</span>
                 <input
                   required
                   type="text"
@@ -184,13 +184,13 @@ export default function LaunchPage() {
                     }))
                   }}
                   placeholder={String(DEFAULT_MIN_TOKEN_HOLDING)}
-                  className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
+                  className="mt-1 w-full rounded-lg bg-card/70 border border-line px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
                 />
-                <p className="text-xs text-gray-500 mt-2">{LAUNCH_KEY_HELP.minTokenHolding.body}</p>
+                <p className="text-xs text-ink-3 mt-2">{LAUNCH_KEY_HELP.minTokenHolding.body}</p>
               </label>
 
               <label className="block">
-                <span className="text-sm text-gray-400">{LAUNCH_KEY_HELP.payoutWalletPrivateKey.title}</span>
+                <span className="text-sm text-ink-2">{LAUNCH_KEY_HELP.payoutWalletPrivateKey.title}</span>
                 <input
                   required
                   type="password"
@@ -198,27 +198,27 @@ export default function LaunchPage() {
                   value={form.payoutWalletPrivateKey}
                   onChange={e => setForm(f => ({ ...f, payoutWalletPrivateKey: e.target.value.trim() }))}
                   placeholder="Base58 private key — fund with SOL for winner payouts"
-                  className="mt-1 w-full rounded-lg bg-black/50 border border-white/10 px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
+                  className="mt-1 w-full rounded-lg bg-card/70 border border-line px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
                 />
-                <p className="text-xs text-gray-500 mt-2">{LAUNCH_KEY_HELP.payoutWalletPrivateKey.body}</p>
+                <p className="text-xs text-ink-3 mt-2">{LAUNCH_KEY_HELP.payoutWalletPrivateKey.body}</p>
               </label>
 
-              {error ? <p className="text-red-400 text-sm">{error}</p> : null}
+              {error ? <p className="text-red-600 dark:text-red-400 text-sm">{error}</p> : null}
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-3 bg-sol-gradient text-black rounded-xl font-bold disabled:opacity-50"
+                className="w-full py-3 bg-sol-gradient text-white dark:text-black rounded-xl font-bold disabled:opacity-50"
               >
                 {submitting ? 'Creating listing…' : 'Create listing & start TopBlast'}
               </button>
 
-              <p className="text-xs text-gray-600 text-center">
+              <p className="text-xs text-ink-3 text-center">
                 Keys are encrypted at rest.{' '}
                 <button
                   type="button"
                   onClick={() => setActiveTab('fees')}
-                  className="text-gray-400 hover:text-sol-mint underline underline-offset-2"
+                  className="text-ink-2 hover:text-sol-purple underline underline-offset-2"
                 >
                   Platform fee details
                 </button>
@@ -230,12 +230,12 @@ export default function LaunchPage() {
             <div className="space-y-6">
               <LaunchSetupChecklist />
               <LaunchAfterSubmitFlow />
-              <p className="text-sm text-gray-500 text-center">
+              <p className="text-sm text-ink-3 text-center">
                 Ready?{' '}
                 <button
                   type="button"
                   onClick={() => setActiveTab('create')}
-                  className="text-sol-mint hover:text-rh-lime underline underline-offset-2"
+                  className="text-sol-purple hover:text-sol-purple-dark underline underline-offset-2"
                 >
                   Go to Create listing
                 </button>
@@ -247,7 +247,7 @@ export default function LaunchPage() {
             <div className="space-y-6">
               <ChartVolumeExplainer compact showCatalogLink={false} />
               <DynamicPotExplainer compact hideTimer winnerCount={form.winnerCount} />
-              <section className="rounded-2xl border border-white/10 bg-black/40 p-6">
+              <section className="rounded-2xl border border-line bg-card/70 p-6">
                 <h2 className="text-lg font-bold mb-4">Eligibility requirements</h2>
                 <EligibilityRequirements variant="compact" />
               </section>
@@ -265,7 +265,7 @@ export default function LaunchPage() {
                 showTrustFooter={false}
               />
               <FlywheelTokenomics compact />
-              <p className="text-xs text-gray-500 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+              <p className="text-xs text-ink-3 rounded-xl border border-line bg-ink/[0.02] p-4">
                 {TRUST_FOOTER}
               </p>
             </div>

@@ -36,8 +36,9 @@ export function SessionBannerLayer({ bannerUrl, dimmed = true }: SessionBannerLa
           dimmed ? 'opacity-100' : 'opacity-0'
         }`}
       >
-        <div className="absolute inset-0 bg-black/25 sm:bg-black/40" />
-        <div className="absolute inset-0 hidden sm:block bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.1)_0%,rgba(0,0,0,0.45)_100%)]" />
+        {/* Scrim matches the chip style: light frosted paper in light mode, dark vignette in dark */}
+        <div className="absolute inset-0 bg-paper/55 sm:bg-paper/65 dark:bg-black/25 sm:dark:bg-black/50" />
+        <div className="absolute inset-0 hidden sm:dark:block bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.1)_0%,rgba(0,0,0,0.45)_100%)]" />
       </div>
     </div>
   )

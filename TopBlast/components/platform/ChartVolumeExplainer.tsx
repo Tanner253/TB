@@ -13,19 +13,19 @@ export function ChartVolumeExplainer({ compact = false, showCatalogLink = true }
 
   return (
     <section
-      className={`rounded-2xl border border-purple-500/25 bg-gradient-to-br from-purple-950/30 via-black/40 to-transparent ${
+      className={`rounded-2xl border border-purple-500/25 bg-gradient-to-br from-purple-950/30 via-card/40 to-transparent ${
         compact ? 'p-5' : 'p-6 md:p-8'
       }`}
     >
       <div className={`flex flex-col gap-2 ${compact ? 'mb-4' : 'mb-6'}`}>
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-purple-300/90">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-sol-purple">
           Volume engine
         </p>
-        <h2 className={`font-bold text-white ${compact ? 'text-xl' : 'text-2xl'}`}>{copy.title}</h2>
-        <p className={`text-purple-200/80 font-medium ${compact ? 'text-sm' : 'text-base'}`}>
+        <h2 className={`font-bold text-ink ${compact ? 'text-xl' : 'text-2xl'}`}>{copy.title}</h2>
+        <p className={`text-sol-purple/80 font-medium ${compact ? 'text-sm' : 'text-base'}`}>
           {copy.tagline}
         </p>
-        <p className={`text-gray-400 leading-relaxed ${compact ? 'text-sm' : 'text-sm md:text-base'}`}>
+        <p className={`text-ink-2 leading-relaxed ${compact ? 'text-sm' : 'text-sm md:text-base'}`}>
           {copy.intro}
         </p>
       </div>
@@ -34,11 +34,11 @@ export function ChartVolumeExplainer({ compact = false, showCatalogLink = true }
         {copy.steps.map((step, index) => (
           <li
             key={step.title}
-            className="rounded-xl border border-white/[0.08] bg-black/40 p-4"
+            className="rounded-xl border border-line bg-card/70 p-4"
           >
-            <p className="text-xs font-mono text-purple-300/80 mb-1">0{index + 1}</p>
-            <p className="font-semibold text-white text-sm mb-1">{step.title}</p>
-            <p className="text-xs text-gray-400 leading-relaxed">{step.body}</p>
+            <p className="text-xs font-mono text-sol-purple/80 mb-1">0{index + 1}</p>
+            <p className="font-semibold text-ink text-sm mb-1">{step.title}</p>
+            <p className="text-xs text-ink-2 leading-relaxed">{step.body}</p>
           </li>
         ))}
       </ol>
@@ -49,19 +49,19 @@ export function ChartVolumeExplainer({ compact = false, showCatalogLink = true }
             key={stat.label}
             className="rounded-xl border border-purple-500/20 bg-purple-950/20 p-4 text-center"
           >
-            <div className="text-lg font-bold text-purple-200">{stat.value}</div>
-            <div className="text-[0.65rem] uppercase tracking-wider text-gray-500 mt-1">{stat.label}</div>
-            <div className="text-xs text-gray-500 mt-1">{stat.hint}</div>
+            <div className="text-lg font-bold text-sol-purple">{stat.value}</div>
+            <div className="text-[0.65rem] uppercase tracking-wider text-ink-3 mt-1">{stat.label}</div>
+            <div className="text-xs text-ink-3 mt-1">{stat.hint}</div>
           </div>
         ))}
       </div>
 
-      <p className={`text-gray-400 ${compact ? 'text-xs' : 'text-sm'} leading-relaxed`}>{copy.footer}</p>
+      <p className={`text-ink-2 ${compact ? 'text-xs' : 'text-sm'} leading-relaxed`}>{copy.footer}</p>
 
       {showCatalogLink && !compact ? (
-        <p className="text-xs text-gray-500 mt-4">
+        <p className="text-xs text-ink-3 mt-4">
           See live{' '}
-          <Link href="/catalog" className="text-purple-300 hover:text-white transition-colors">
+          <Link href="/catalog" className="text-sol-purple hover:text-ink transition-colors">
             Gen volume
           </Link>{' '}
           on every catalog listing.

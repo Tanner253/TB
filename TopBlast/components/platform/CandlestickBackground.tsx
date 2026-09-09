@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
+import { THEME_EVENT, readTheme } from '@/hooks/useTheme'
 
 const CONFIG = {
   candleWidth: 0.8,
@@ -9,14 +10,18 @@ const CONFIG = {
   wickRadius: 0.1,
   bullColor: 0x089981,
   bearColor: 0xf23645,
-  bgColor: 0x030303,
-  gridColor: 0x2a2e39,
   cameraSpeed: 0.12,
   volatility: 5.5,
   trendStrength: 0.55,
   cameraZ: 60,
   cameraYOffset: 10,
 }
+
+/** Scene palette per theme — candles stay classic green/red in both. */
+const THEME_SCENE = {
+  dark: { bg: 0x030303, grid: 0x2a2e39, fogDensity: 0.008 },
+  light: { bg: 0xf7f1e8, grid: 0xd9ceba, fogDensity: 0.006 },
+} as const
 
 interface CandleData {
   x: number
@@ -46,9 +51,10 @@ export function CandlestickBackground() {
     if (!containerRef.current) return
 
     const container = containerRef.current
+    const initialScene = THEME_SCENE[readTheme()]
     const scene = new THREE.Scene()
-    scene.background = new THREE.Color(CONFIG.bgColor)
-    scene.fog = new THREE.FogExp2(CONFIG.bgColor, 0.008)
+    scene.background = new THREE.Color(initialScene.bg)
+    scene.fog = new THREE.FogExp2(initialScene.bg, initialScene.fogDensity)
     sceneRef.current = scene
 
     const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000)
@@ -79,10 +85,19 @@ export function CandlestickBackground() {
     rimLight.position.set(-10, 5, -10)
     scene.add(rimLight)
 
-    const gridHelper = new THREE.GridHelper(400, 100, CONFIG.gridColor, CONFIG.gridColor)
+    const gridHelper = new THREE.GridHelper(400, 100, initialScene.grid, initialScene.grid)
     gridHelper.position.y = -10
     scene.add(gridHelper)
     gridHelperRef.current = gridHelper
+
+    const applyThemeScene = () => {
+      const palette = THEME_SCENE[readTheme()]
+      scene.background = new THREE.Color(palette.bg)
+      scene.fog = new THREE.FogExp2(palette.bg, palette.fogDensity)
+      const gridMaterial = gridHelper.material as THREE.LineBasicMaterial
+      gridMaterial.color = new THREE.Color(palette.grid)
+    }
+    window.addEventListener(THEME_EVENT, applyThemeScene)
 
     lastCandleDataRef.current = { close: 0, x: 0 }
 
@@ -185,6 +200,7 @@ export function CandlestickBackground() {
 
     return () => {
       window.removeEventListener('resize', onWindowResize)
+      window.removeEventListener(THEME_EVENT, applyThemeScene)
       if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current)
       if (rendererRef.current && container.contains(rendererRef.current.domElement)) {
         container.removeChild(rendererRef.current.domElement)

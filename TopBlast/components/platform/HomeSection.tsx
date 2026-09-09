@@ -40,11 +40,11 @@ export function HomeSection({
       className={className}
     >
       <div className="mb-6">
-        <p className="home-section-label text-xs font-semibold uppercase tracking-[0.14em] text-gray-500 mb-2">
+        <p className="home-section-label text-xs font-semibold uppercase tracking-[0.14em] text-ink-3 mb-2">
           {label}
         </p>
-        <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white">{title}</h2>
-        {description ? <p className="text-sm text-gray-500 mt-2 max-w-3xl leading-relaxed">{description}</p> : null}
+        <h2 className="text-xl md:text-2xl font-bold tracking-tight text-ink">{title}</h2>
+        {description ? <p className="text-sm text-ink-3 mt-2 max-w-3xl leading-relaxed">{description}</p> : null}
       </div>
       {children}
     </motion.section>

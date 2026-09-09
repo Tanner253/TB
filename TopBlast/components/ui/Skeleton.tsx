@@ -17,7 +17,7 @@ export function Skeleton({
   height,
   animate = true,
 }: SkeletonProps) {
-  const baseClasses = 'bg-white/5'
+  const baseClasses = 'bg-ink/5'
   const variantClasses = {
     text: 'rounded',
     rectangular: 'rounded-lg',
@@ -52,7 +52,7 @@ export function Skeleton({
 // Skeleton for leaderboard cards
 export function LeaderboardCardSkeleton() {
   return (
-    <div className="bg-[#12121a] border border-white/10 rounded-xl p-5">
+    <div className="bg-[#12121a] border border-line rounded-xl p-5">
       <div className="flex items-center justify-between mb-4">
         <Skeleton variant="circular" width={48} height={48} />
         <div className="text-right space-y-2">

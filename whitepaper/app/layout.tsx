@@ -27,6 +27,7 @@ export const metadata: Metadata = {
     description:
       'Reward underwater holders with on-chart buybacks and token airdrops. Every cycle adds measurable Gen volume to your chart.',
     type: 'website',
+    images: ['/og-image.png'],
   },
   twitter: {
     card: 'summary_large_image',
@@ -34,6 +35,7 @@ export const metadata: Metadata = {
     description:
       'Creator fees become on-chart volume — Jupiter buys, token airdrops, no cashback sell pressure.',
     site: '@oSKNYo_dev',
+    images: ['/og-image.png'],
   },
 }
 

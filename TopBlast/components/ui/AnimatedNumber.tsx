@@ -62,7 +62,7 @@ export function AnimatedNumber({
           initial={{ opacity: 0, y: changeDirection === 'up' ? 10 : -10 }}
           animate={{ opacity: [1, 0], y: 0 }}
           transition={{ duration: 1 }}
-          className={changeDirection === 'up' ? 'text-green-400' : 'text-red-400'}
+          className={changeDirection === 'up' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
         >
           {changeDirection === 'up' ? '↑' : '↓'}
         </motion.span>
@@ -118,15 +118,15 @@ export function Countdown({ seconds, size = 'lg', showLabels = true, className =
         {hours > 0 && (
           <>
             <CountdownDigit value={hours} />
-            <span className="text-gray-500">:</span>
+            <span className="text-ink-3">:</span>
           </>
         )}
         <CountdownDigit value={minutes} />
-        <span className="text-gray-500 animate-pulse">:</span>
+        <span className="text-ink-3 animate-pulse">:</span>
         <CountdownDigit value={secs} />
       </div>
       {showLabels && (
-        <div className="flex justify-center gap-8 text-xs text-gray-500 mt-1 font-sans font-normal">
+        <div className="flex justify-center gap-8 text-xs text-ink-3 mt-1 font-sans font-normal">
           {hours > 0 && <span>hrs</span>}
           <span>min</span>
           <span>sec</span>
@@ -176,7 +176,7 @@ export function PriceTicker({ price, change, symbol = '', size = 'md' }: PriceTi
   }
 
   if (price === null) {
-    return <span className="text-gray-500">Loading...</span>
+    return <span className="text-ink-3">Loading...</span>
   }
 
   const formattedPrice = price < 0.0001 
@@ -187,10 +187,10 @@ export function PriceTicker({ price, change, symbol = '', size = 'md' }: PriceTi
 
   return (
     <div className={`flex items-center gap-2 ${sizeClasses[size]}`}>
-      {symbol && <span className="text-gray-400">{symbol}</span>}
+      {symbol && <span className="text-ink-2">{symbol}</span>}
       <motion.span
         className={`font-bold font-mono transition-colors ${
-          flash ? 'text-rh-lime' : 'text-white'
+          flash ? 'text-rh-lime' : 'text-ink'
         }`}
         animate={flash ? { scale: [1, 1.05, 1] } : {}}
         transition={{ duration: 0.2 }}
@@ -198,7 +198,7 @@ export function PriceTicker({ price, change, symbol = '', size = 'md' }: PriceTi
         {formattedPrice}
       </motion.span>
       {change !== null && change !== undefined && (
-        <span className={`text-sm ${change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+        <span className={`text-sm ${change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
           {change >= 0 ? '+' : ''}{change.toFixed(2)}%
         </span>
       )}

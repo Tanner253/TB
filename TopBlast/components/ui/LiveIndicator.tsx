@@ -17,8 +17,8 @@ const sizeConfig = {
 const variantConfig = {
   success: { bg: 'bg-rh-green', text: 'text-rh-green', glow: 'shadow-rh-green/50' },
   warning: { bg: 'bg-amber-400', text: 'text-amber-400', glow: 'shadow-amber-400/50' },
-  error: { bg: 'bg-red-400', text: 'text-red-400', glow: 'shadow-red-400/50' },
-  info: { bg: 'bg-rh-lime', text: 'text-rh-lime', glow: 'shadow-rh-lime/50' },
+  error: { bg: 'bg-red-400', text: 'text-red-600 dark:text-red-400', glow: 'shadow-red-400/50' },
+  info: { bg: 'bg-sol-purple', text: 'text-sol-purple', glow: 'shadow-sol-purple/50' },
 }
 
 export function LiveIndicator({ label = 'LIVE', size = 'md', variant = 'success' }: LiveIndicatorProps) {
@@ -74,7 +74,7 @@ export function ConnectionStatus({ connected = true, connecting = false }: Conne
     disconnected: {
       bg: 'bg-red-500/10',
       border: 'border-red-500/20',
-      text: 'text-red-400',
+      text: 'text-red-600 dark:text-red-400',
       dot: 'bg-red-400',
       label: 'Disconnected',
     },
@@ -120,7 +120,7 @@ export function DataFreshness({ lastUpdated, staleThreshold = 30 }: DataFreshnes
 
   return (
     <motion.div
-      className={`text-xs font-mono ${isStale ? 'text-amber-400' : 'text-gray-500'}`}
+      className={`text-xs font-mono ${isStale ? 'text-amber-400' : 'text-ink-3'}`}
       animate={isStale ? { opacity: [1, 0.5, 1] } : {}}
       transition={{ duration: 1, repeat: isStale ? Infinity : 0 }}
     >
@@ -135,7 +135,7 @@ export function ActivityPulse({ active = false }: { active?: boolean }) {
 
   return (
     <motion.div
-      className="w-2 h-2 bg-rh-lime rounded-full"
+      className="w-2 h-2 bg-sol-purple rounded-full"
       initial={{ scale: 0, opacity: 1 }}
       animate={{ scale: 2, opacity: 0 }}
       transition={{ duration: 0.5 }}

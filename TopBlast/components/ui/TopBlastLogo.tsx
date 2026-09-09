@@ -14,7 +14,7 @@ const SIZES = {
   xl: 96,
 }
 
-/** TopBlast rocket logo */
+/** TopBlast whale mark */
 export function TopBlastLogo({ size = 'md', className = '' }: TopBlastLogoProps) {
   const px = SIZES[size]
   return (
@@ -23,7 +23,7 @@ export function TopBlastLogo({ size = 'md', className = '' }: TopBlastLogoProps)
       alt="TopBlast"
       width={px}
       height={px}
-      className={`object-contain ${className}`}
+      className={`object-contain rounded-lg ${className}`}
       priority={size === 'xl'}
     />
   )

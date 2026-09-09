@@ -45,18 +45,18 @@ export function WhoGetsPaidRules({
         }
       >
         <p className="text-sm font-semibold uppercase tracking-wider text-amber-400 mb-2">Important</p>
-        <p className="text-gray-200 leading-relaxed">
-          <span className="text-white font-bold">Biggest wallet balance does not win.</span> Only wallets that pass{' '}
-          <span className="text-rh-lime font-semibold">every rule below</span> are ranked. Winners are the{' '}
-          <span className="text-red-400 font-semibold">top eligible losers by drawdown %</span> (most underwater first;
+        <p className="text-ink-2 leading-relaxed">
+          <span className="text-ink font-bold">Biggest wallet balance does not win.</span> Only wallets that pass{' '}
+          <span className="text-sol-purple font-semibold">every rule below</span> are ranked. Winners are the{' '}
+          <span className="text-red-600 dark:text-red-400 font-semibold">top eligible losers by drawdown %</span> (most underwater first;
           USD loss breaks ties).
         </p>
       </div>
 
       <EligibilityRequirements slug={slug} variant="full" className="mb-6" />
 
-      <div className="rounded-xl border border-white/10 bg-black/30 p-4 mb-6 text-left text-sm text-gray-400">
-        <p className="font-medium text-white mb-1">Protocol wallets excluded</p>
+      <div className="rounded-xl border border-line bg-card/60 p-4 mb-6 text-left text-sm text-ink-2">
+        <p className="font-medium text-ink mb-1">Protocol wallets excluded</p>
         <p>
           Liquidity pools (bonding curve / AMM), the payout pool wallet, and the platform dev fee wallet cannot rank
           or receive conviction-reward payouts.
@@ -65,16 +65,16 @@ export function WhoGetsPaidRules({
 
       <ExternalToolsEligibilityNote className="mb-6" defaultOpen />
 
-      <div className="rounded-xl border border-rh-green/20 bg-black/40 p-5 text-left">
-        <p className="text-sm font-semibold uppercase tracking-wider text-rh-lime mb-2">Payout split</p>
-        <p className="text-gray-300 text-sm leading-relaxed mb-3">
-          The <span className="text-white font-semibold">{winnerLabel}</span> wallets receive{' '}
+      <div className="rounded-xl border border-rh-green/20 bg-card/70 p-5 text-left">
+        <p className="text-sm font-semibold uppercase tracking-wider text-sol-purple mb-2">Payout split</p>
+        <p className="text-ink-2 text-sm leading-relaxed mb-3">
+          The <span className="text-ink font-semibold">{winnerLabel}</span> wallets receive{' '}
           <span className="text-rh-green font-semibold">{COMMUNITY}%</span> of the payout pool (after a{' '}
           {DEV_FEE}% dev fee), split{' '}
-          <span className="font-mono text-rh-lime">{shareLabel}</span>{' '}
+          <span className="font-mono text-sol-purple">{shareLabel}</span>{' '}
           of the winner pool (biggest loser gets {sharePercents[0]}%). Each cycle: pool SOL market-buys your session token on-chart, then tokens airdrop to winners automatically.
         </p>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-ink-3">
           The countdown timer stays in &quot;listing limbo&quot; until the first eligible holder appears — holding tokens
           alone does not start a payout cycle.
         </p>

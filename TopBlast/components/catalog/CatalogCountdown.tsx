@@ -65,11 +65,11 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
   if (paused && waitingForTopup) {
     return (
       <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>
-        <p className={`font-medium text-amber-200/90 ${textSize} leading-snug`}>
+        <p className={`font-medium text-yellow-600 dark:text-yellow-300 ${textSize} leading-snug`}>
           {tenant.pot_usd_formatted ? `${tenant.pot_usd_formatted} in pool` : 'Pool below minimum'}
         </p>
-        <p className={`text-gray-500 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
-          Waiting for topup
+        <p className={`text-ink-3 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
+          Waiting for volume
         </p>
       </div>
     )
@@ -78,10 +78,10 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
   if (paused && starting) {
     return (
       <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>
-        <p className={`font-medium text-rh-lime/90 ${textSize} leading-snug`}>
+        <p className={`font-medium text-sol-purple/90 ${textSize} leading-snug`}>
           {tenant.payout_eligible_count ?? 0} eligible
         </p>
-        <p className={`text-gray-500 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
+        <p className={`text-ink-3 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
           Payout timer starting
         </p>
       </div>
@@ -91,8 +91,8 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
   if (paused) {
     return (
       <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>
-        <p className={`font-medium text-amber-200/90 ${textSize} leading-snug`}>Listing limbo</p>
-        <p className={`text-gray-500 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
+        <p className={`font-medium text-yellow-600 dark:text-yellow-300 ${textSize} leading-snug`}>Listing limbo</p>
+        <p className={`text-ink-3 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
           Waiting for eligible holders
         </p>
       </div>
@@ -105,12 +105,12 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
       <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>
         <p
           className={`font-mono font-semibold tabular-nums leading-snug ${
-            due ? 'text-sol-mint animate-pulse' : 'text-white'
+            due ? 'text-sol-purple animate-pulse' : 'text-ink'
           } ${monoSize}`}
         >
           {due ? '00:00 · due' : `${formatPayoutCountdown(seconds)} · next`}
         </p>
-        <p className={`text-gray-500 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
+        <p className={`text-ink-3 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
           {tenant.payout_current_cycle != null && tenant.payout_current_cycle > 0
             ? `Cycle ${tenant.payout_current_cycle + 1}`
             : 'Next payout'}
@@ -121,17 +121,17 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
 
   return (
     <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>
-      <p className={`text-gray-400 ${textSize} leading-snug`}>
+      <p className={`text-ink-2 ${textSize} leading-snug`}>
         {tenant.payoutIntervalMinutes
           ? `Every ${tenant.payoutIntervalMinutes} min`
           : 'Awaiting start'}
       </p>
       {subtitle ? (
-        <p className={`text-gray-500 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
+        <p className={`text-ink-3 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
           {subtitle}
         </p>
       ) : (
-        <p className={`text-gray-600 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 invisible`} aria-hidden>
+        <p className={`text-ink-3 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 invisible`} aria-hidden>
           placeholder
         </p>
       )}

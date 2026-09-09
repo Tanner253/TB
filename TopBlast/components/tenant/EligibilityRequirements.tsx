@@ -89,12 +89,12 @@ export function EligibilityRequirements({
   return (
     <div className={className}>
       <p
-        className={`font-semibold uppercase tracking-wider text-rh-lime ${compact ? 'text-xs mb-3' : 'text-sm mb-4'}`}
+        className={`font-semibold uppercase tracking-wider text-sol-purple ${compact ? 'text-xs mb-3' : 'text-sm mb-4'}`}
       >
         Eligibility requirements
       </p>
       {!compact && (
-        <p className="text-sm text-gray-400 mb-4">
+        <p className="text-sm text-ink-2 mb-4">
           Holders must pass every rule to rank. Thresholds like minimum balance and payout schedule are set when you list.
           Winners are the top eligible losers by drawdown % (most underwater first).
         </p>
@@ -105,23 +105,23 @@ export function EligibilityRequirements({
             key={req.n}
             className={
               compact
-                ? 'flex gap-2 text-gray-300'
+                ? 'flex gap-2 text-ink-2'
                 : 'flex gap-3 rounded-lg border border-rh-green/10 bg-rh-green/5 p-4'
             }
           >
             <span
               className={
                 compact
-                  ? 'text-rh-lime font-bold shrink-0'
-                  : 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-rh-green/20 text-sm font-bold text-rh-lime'
+                  ? 'text-sol-purple font-bold shrink-0'
+                  : 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-rh-green/20 text-sm font-bold text-sol-purple'
               }
             >
               {req.n}.
             </span>
             <div>
-              <span className={compact ? 'text-white font-medium' : 'font-semibold text-white'}>{req.title}</span>
-              {!compact && <p className="text-sm text-gray-400 mt-0.5">{req.body}</p>}
-              {compact && <span className="text-gray-500"> — {req.body}</span>}
+              <span className={compact ? 'text-ink font-medium' : 'font-semibold text-ink'}>{req.title}</span>
+              {!compact && <p className="text-sm text-ink-2 mt-0.5">{req.body}</p>}
+              {compact && <span className="text-ink-3"> — {req.body}</span>}
             </div>
           </li>
         ))}

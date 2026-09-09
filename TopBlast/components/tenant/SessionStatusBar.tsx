@@ -6,10 +6,10 @@ import type { SessionChecklist, SessionChecklistItem, ChecklistItemStatus } from
 import { ExternalToolsEligibilityNote } from '@/components/tenant/ExternalToolsEligibilityNote'
 
 const statusIcon: Record<ChecklistItemStatus, { symbol: string; className: string }> = {
-  met: { symbol: '✓', className: 'bg-rh-green/20 text-rh-lime border-rh-green/30' },
-  pending: { symbol: '○', className: 'bg-white/5 text-gray-400 border-white/10' },
-  blocked: { symbol: '✕', className: 'bg-red-500/15 text-red-300 border-red-500/30' },
-  info: { symbol: '·', className: 'bg-blue-500/10 text-blue-300 border-blue-500/20' },
+  met: { symbol: '✓', className: 'bg-rh-green/20 text-sol-purple border-rh-green/30' },
+  pending: { symbol: '○', className: 'bg-ink/5 text-ink-2 border-line' },
+  blocked: { symbol: '✕', className: 'bg-red-500/15 text-red-600 dark:text-red-300 border-red-500/30' },
+  info: { symbol: '·', className: 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20' },
 }
 
 const overallStyles: Record<SessionChecklist['overall'], string> = {
@@ -22,7 +22,7 @@ const overallStyles: Record<SessionChecklist['overall'], string> = {
 function ChecklistRow({ item }: { item: SessionChecklistItem }) {
   const style = statusIcon[item.status]
   return (
-    <li className="flex gap-3 py-2.5 border-b border-white/[0.06] last:border-0">
+    <li className="flex gap-3 py-2.5 border-b border-line last:border-0">
       <span
         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${style.className}`}
         aria-hidden
@@ -30,8 +30,8 @@ function ChecklistRow({ item }: { item: SessionChecklistItem }) {
         {style.symbol}
       </span>
       <div className="min-w-0 pt-0.5">
-        <p className="text-sm font-medium text-white">{item.label}</p>
-        {item.detail ? <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{item.detail}</p> : null}
+        <p className="text-sm font-medium text-ink">{item.label}</p>
+        {item.detail ? <p className="text-xs text-ink-3 mt-0.5 leading-relaxed">{item.detail}</p> : null}
       </div>
     </li>
   )
@@ -80,7 +80,7 @@ export function SessionStatusBar({
         onClick={() => setOpen(v => !v)}
         aria-expanded={open}
         aria-controls={panelId}
-        className={`w-full text-left rounded-xl border px-4 py-3 transition-colors hover:bg-white/[0.03] ${barStyle}`}
+        className={`w-full text-left rounded-xl border px-4 py-3 transition-colors hover:bg-ink/[0.03] ${barStyle}`}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -98,13 +98,13 @@ export function SessionStatusBar({
               transition={{ duration: 1.6, repeat: Infinity }}
             />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-white truncate">
+              <p className="text-sm font-semibold text-ink truncate">
                 {flash ?? checklist.headline}
               </p>
-              <p className="text-xs text-gray-500 truncate">{checklist.summary}</p>
+              <p className="text-xs text-ink-3 truncate">{checklist.summary}</p>
             </div>
           </div>
-          <span className="shrink-0 text-xs font-medium text-gray-400 flex items-center gap-1">
+          <span className="shrink-0 text-xs font-medium text-ink-2 flex items-center gap-1">
             {open ? 'Hide' : 'Requirements'}
             <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
               ▾
@@ -123,10 +123,10 @@ export function SessionStatusBar({
             transition={{ duration: 0.22 }}
             className="overflow-hidden"
           >
-            <div className="mt-2 rounded-xl border border-white/10 bg-black/50 backdrop-blur-sm p-4 sm:p-5">
+            <div className="mt-2 rounded-xl border border-line bg-card/70 backdrop-blur-sm p-4 sm:p-5">
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                  <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-ink-3 mb-2">
                     Session setup
                   </p>
                   <ul>
@@ -136,10 +136,10 @@ export function SessionStatusBar({
                   </ul>
                 </div>
                 <div>
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                  <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-ink-3 mb-2">
                     Winner requirements
                   </p>
-                  <p className="text-xs text-gray-500 mb-3">
+                  <p className="text-xs text-ink-3 mb-3">
                     Holders must pass every rule. Top {winnerCount} eligible losers by drawdown % win from the pool.
                   </p>
                   <ul>
@@ -151,7 +151,7 @@ export function SessionStatusBar({
               </div>
 
               {checklist.blockers.length > 0 ? (
-                <div className="mt-4 pt-4 border-t border-white/[0.06]">
+                <div className="mt-4 pt-4 border-t border-line">
                   <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-amber-400/90 mb-2">
                     Blocking holders right now
                   </p>
@@ -159,7 +159,7 @@ export function SessionStatusBar({
                     {checklist.blockers.map(b => (
                       <span
                         key={b.reason}
-                        className="text-xs px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-200 border border-amber-500/20"
+                        className="text-xs px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-200 border border-amber-500/20"
                       >
                         {b.count}× {b.reason}
                       </span>

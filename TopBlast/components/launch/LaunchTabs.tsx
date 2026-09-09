@@ -22,7 +22,7 @@ export function LaunchTabBar({ activeTab, onTabChange }: LaunchTabsProps) {
     <div
       role="tablist"
       aria-label="Listing information"
-      className="flex gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/10 overflow-x-auto"
+      className="flex gap-1 p-1 rounded-xl bg-ink/[0.04] border border-line overflow-x-auto"
     >
       {TABS.map(tab => {
         const selected = activeTab === tab.id
@@ -35,8 +35,8 @@ export function LaunchTabBar({ activeTab, onTabChange }: LaunchTabsProps) {
             onClick={() => onTabChange(tab.id)}
             className={`shrink-0 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
               selected
-                ? 'bg-sol-mint/15 text-sol-mint border border-sol-mint/25'
-                : 'text-gray-400 hover:text-white border border-transparent'
+                ? 'bg-sol-purple/15 text-sol-purple border border-sol-purple/25 font-semibold'
+                : 'text-ink-2 hover:text-ink border border-transparent'
             }`}
           >
             <span className="hidden sm:inline">{tab.label}</span>

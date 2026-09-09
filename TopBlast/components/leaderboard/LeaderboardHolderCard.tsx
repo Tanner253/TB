@@ -41,10 +41,10 @@ function drawdownLabel(pct: number | undefined | null, hasVwap: boolean): string
 }
 
 function drawdownClass(pct: number | undefined | null, hasVwap: boolean): string {
-  if (!hasVwap || pct == null) return 'text-gray-500'
-  if (pct < 0) return 'text-red-400'
+  if (!hasVwap || pct == null) return 'text-ink-3'
+  if (pct < 0) return 'text-red-600 dark:text-red-400'
   if (pct > 0) return 'text-rh-green'
-  return 'text-gray-400'
+  return 'text-ink-2'
 }
 
 export function LeaderboardHolderCard({
@@ -71,7 +71,7 @@ export function LeaderboardHolderCard({
 
   return (
     <article
-      className={`p-4 border-b border-white/[0.06] ${!isEligible ? 'bg-white/[0.01]' : isWinnerSlot ? 'bg-rh-green/[0.03]' : ''}`}
+      className={`p-4 border-b border-line ${!isEligible ? 'bg-ink/[0.01]' : isWinnerSlot ? 'bg-rh-green/[0.03]' : ''}`}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2 min-w-0">
@@ -79,8 +79,8 @@ export function LeaderboardHolderCard({
             {isPedestal ? ['🥇', '🥈', '🥉'][eligibleRank - 1] : isWinnerSlot ? '🏅' : '🏅'}
           </span>
           <div className="min-w-0">
-            <p className="font-mono text-sm text-gray-200 truncate">{holder.wallet_display}</p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="font-mono text-sm text-ink-2 truncate">{holder.wallet_display}</p>
+            <p className="text-xs text-ink-3 mt-0.5">
               #{holder.rank ?? index + 1}
               {isWinnerSlot ? ` · winner #${eligibleRank}` : ''}
             </p>
@@ -93,27 +93,27 @@ export function LeaderboardHolderCard({
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mb-3">
         <div>
-          <dt className="text-[0.65rem] uppercase tracking-wider text-gray-500">Drawdown</dt>
+          <dt className="text-[0.65rem] uppercase tracking-wider text-ink-3">Drawdown</dt>
           <dd className={`font-mono ${drawdownClass(holder.drawdown_pct, hasVwap)}`}>
             {drawdownLabel(holder.drawdown_pct, hasVwap)}
           </dd>
         </div>
         <div>
-          <dt className="text-[0.65rem] uppercase tracking-wider text-gray-500">Balance</dt>
-          <dd className="font-mono text-gray-200">{formatNumber(holder.balance)}</dd>
+          <dt className="text-[0.65rem] uppercase tracking-wider text-ink-3">Balance</dt>
+          <dd className="font-mono text-ink-2">{formatNumber(holder.balance)}</dd>
         </div>
         <div>
-          <dt className="text-[0.65rem] uppercase tracking-wider text-gray-500">Loss (USD)</dt>
-          <dd className="font-mono text-gray-300">{holder.loss_usd ?? '—'}</dd>
+          <dt className="text-[0.65rem] uppercase tracking-wider text-ink-3">Loss (USD)</dt>
+          <dd className="font-mono text-ink-2">{holder.loss_usd ?? '—'}</dd>
         </div>
         <div>
-          <dt className="text-[0.65rem] uppercase tracking-wider text-gray-500">Payout</dt>
+          <dt className="text-[0.65rem] uppercase tracking-wider text-ink-3">Payout</dt>
           <dd className="font-mono font-semibold text-rh-green">
             {payoutAmount > 0 && isWinnerSlot ? (
               <>
                 ${payoutAmount.toFixed(2)}
                 {sharePercent != null ? (
-                  <span className="block text-xs font-normal text-gray-500">{sharePercent}% share</span>
+                  <span className="block text-xs font-normal text-ink-3">{sharePercent}% share</span>
                 ) : null}
               </>
             ) : (

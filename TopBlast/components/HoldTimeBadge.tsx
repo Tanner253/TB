@@ -46,7 +46,7 @@ export function HoldTimeBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-1 bg-amber-500/15 text-amber-300 text-xs rounded-full font-mono tabular-nums ${className}`}
+      className={`inline-flex items-center gap-1 px-2 py-1 bg-amber-500/15 text-amber-700 dark:text-amber-300 text-xs rounded-full font-mono tabular-nums ${className}`}
       title="Minimum hold time before eligibility"
     >
       <span className="text-amber-400/80">⏳</span>
@@ -104,12 +104,12 @@ export function HolderIneligibleCallout({
           ? 'border-blue-500/25 bg-blue-500/10 text-blue-200'
           : showHold
             ? 'border-amber-500/30 bg-amber-500/10 text-amber-100'
-            : 'border-white/10 bg-white/[0.04] text-gray-300'
+            : 'border-line bg-ink/[0.04] text-ink-2'
       } ${className}`}
       role="status"
     >
       {showHold ? (
-        <p className="font-medium text-amber-200 mb-0.5">
+        <p className="font-medium text-amber-700 dark:text-amber-200 mb-0.5">
           Eligible in {formatHoldCountdown(holdRemaining)}
         </p>
       ) : null}
@@ -145,7 +145,7 @@ export function HolderStatus({
 
   if (ineligibleReason === 'Loading transaction history...' || ineligibleReason === 'Recalculating...') {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-500/15 text-blue-300 text-xs rounded-full">
+      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-500/15 text-blue-700 dark:text-blue-300 text-xs rounded-full">
         Analyzing wallet...
       </span>
     )
@@ -164,7 +164,7 @@ export function HolderStatus({
 
   return (
     <span
-      className="inline-flex items-center gap-1 px-2 py-1 bg-gray-500/20 text-gray-400 text-xs rounded-full"
+      className="inline-flex items-center gap-1 px-2 py-1 bg-gray-500/20 text-ink-2 text-xs rounded-full"
       title={ineligibleReason || 'Not eligible'}
     >
       {ineligibleReason || 'Not eligible'}

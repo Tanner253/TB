@@ -64,7 +64,7 @@ export function catalogPayoutTimerLabel(tenant: PublicTenantSummary): string {
     case 'timer_starting':
       return 'Timer starting'
     case 'waiting_for_topup':
-      return 'Waiting for topup'
+      return 'Waiting for volume'
     case 'syncing':
       return 'Syncing'
     case 'limbo':

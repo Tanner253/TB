@@ -41,7 +41,7 @@ const severityStyles: Record<
 const overallStyles: Record<TenantDiagnostics['overall'], string> = {
   healthy: 'text-rh-green',
   attention: 'text-amber-400',
-  blocked: 'text-red-400',
+  blocked: 'text-red-600 dark:text-red-400',
   initializing: 'text-blue-400',
 }
 
@@ -58,12 +58,12 @@ export function TenantStatusPanel({ diagnostics, compact = false, slug }: Tenant
 
   return (
     <div
-      className={`rounded-xl border border-white/10 ${compact ? 'p-4' : 'p-6'} bg-black/40`}
+      className={`rounded-xl border border-line ${compact ? 'p-4' : 'p-6'} bg-card/70`}
       role="status"
       aria-live="polite"
     >
       <div className={`${compact ? 'mb-3' : 'mb-4'}`}>
-        <p className="text-xs uppercase tracking-wider text-gray-500 mb-1">Session status</p>
+        <p className="text-xs uppercase tracking-wider text-ink-3 mb-1">Session status</p>
         <h2 className={`text-lg font-bold ${overallStyles[diagnostics.overall]}`}>
           {diagnostics.headline}
         </h2>
@@ -82,11 +82,11 @@ export function TenantStatusPanel({ diagnostics, compact = false, slug }: Tenant
                   {style.icon}
                 </span>
                 <div className="min-w-0">
-                  <p className="font-medium text-white">{item.title}</p>
-                  <p className="text-gray-400 mt-0.5">{item.message}</p>
+                  <p className="font-medium text-ink">{item.title}</p>
+                  <p className="text-ink-2 mt-0.5">{item.message}</p>
                   {item.action ? (
-                    <p className="text-rh-lime/90 mt-2 text-sm">
-                      <span className="text-gray-500">What to do: </span>
+                    <p className="text-sol-purple/90 mt-2 text-sm">
+                      <span className="text-ink-3">What to do: </span>
                       {item.action}
                     </p>
                   ) : null}
@@ -98,7 +98,7 @@ export function TenantStatusPanel({ diagnostics, compact = false, slug }: Tenant
       </ul>
 
       {showEligibility ? (
-        <div className={`${compact ? 'mt-4 pt-4' : 'mt-6 pt-6'} border-t border-white/10`}>
+        <div className={`${compact ? 'mt-4 pt-4' : 'mt-6 pt-6'} border-t border-line`}>
           <EligibilityRequirements slug={slug} variant="compact" />
         </div>
       ) : null}

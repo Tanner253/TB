@@ -11,7 +11,7 @@ type SolanaBadgeProps = {
 export function SolanaBadge({ compact = false, className = '' }: SolanaBadgeProps) {
   return (
     <div
-      className={`inline-flex items-center gap-2 rounded-lg border border-sol-purple/40 bg-sol-purple/10 px-3 py-1.5 text-sol-mint shadow-[0_0_12px_rgba(153,69,255,0.2)] ${className}`}
+      className={`inline-flex items-center gap-2 rounded-lg border border-sol-purple/40 bg-sol-purple/10 px-3 py-1.5 text-sol-purple shadow-[0_0_12px_rgba(153,69,255,0.2)] ${className}`}
       title="TopBlast on Solana · on-chart buybacks + token airdrops"
     >
       <Image

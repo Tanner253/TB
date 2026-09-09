@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
@@ -24,6 +24,8 @@ import { getAddressExplorerUrl } from '@/lib/solana/explorer'
 import { deriveSessionDisplayState } from '@/lib/session/displayState'
 import { TokenAvatar } from '@/components/ui/TokenAvatar'
 import { SessionBannerLayer } from '@/components/leaderboard/SessionBannerLayer'
+import { Blasty } from '@/components/mascot/Blasty'
+import { triggerCelebration } from '@/components/mascot/celebrate'
 
 const CandlestickBackground = dynamic(
   () => import('@/components/platform/CandlestickBackground').then(m => m.CandlestickBackground),
@@ -91,7 +93,7 @@ function getRankStyle(rank: number) {
     default:
       return {
         emoji: '🏅',
-        border: 'border-white/10',
+        border: 'border-line',
         badge: 'bg-white/20',
         glow: '',
       }
@@ -144,7 +146,7 @@ function FreshnessIndicator({ lastUpdate }: { lastUpdate: Date | null }) {
 
   return (
     <motion.div
-      className={`text-xs font-mono ${isStale ? 'text-amber-400' : 'text-gray-500'}`}
+      className={`text-xs font-mono ${isStale ? 'text-amber-400' : 'text-ink-3'}`}
       animate={isStale ? { opacity: [1, 0.5, 1] } : {}}
       transition={{ duration: 1, repeat: isStale ? Infinity : 0 }}
     >
@@ -176,10 +178,10 @@ function hasVerifiedBuyHistory(
 }
 
 function drawdownClass(pct: number | undefined, hasVwap: boolean): string {
-  if (!hasVwap || pct == null) return 'text-gray-500'
-  if (pct < 0) return 'text-red-400'
+  if (!hasVwap || pct == null) return 'text-ink-3'
+  if (pct < 0) return 'text-red-600 dark:text-red-400'
   if (pct > 0) return 'text-rh-green'
-  return 'text-gray-400'
+  return 'text-ink-2'
 }
 
 function drawdownLabel(pct: number | undefined, hasVwap: boolean): string {
@@ -263,20 +265,44 @@ export default function LeaderboardPage() {
     PEDESTAL_SLOTS
   )
   
+  // Payout celebration — fire the whale-rocket overlay when a payout completes
+  // (phase transitions from payout_due back to a fresh countdown).
+  const prevPhaseRef = useRef<string | null>(null)
+  const duePoolRef = useRef(0)
+  useEffect(() => {
+    const phase = sessionDisplay.phase
+    if (phase === 'payout_due') {
+      duePoolRef.current = Math.max(duePoolRef.current, poolValue)
+    }
+    if (prevPhaseRef.current === 'payout_due' && phase === 'countdown') {
+      triggerCelebration({
+        label: 'PAYOUT SENT!',
+        sublabel:
+          duePoolRef.current > 0
+            ? `~$${duePoolRef.current.toFixed(2)} blasted to the biggest losers`
+            : 'Tokens blasted to the biggest losers',
+      })
+      duePoolRef.current = 0
+    }
+    prevPhaseRef.current = phase
+  }, [sessionDisplay.phase, poolValue])
+
+  const blastyPose = isPoolLimbo || isListingLimbo ? 'sleep' : isPayoutDueNow ? 'happy' : 'idle'
+
   const wsConnected = data?.ws_connected
   const lastPayoutError = data?.last_payout_error ?? null
   const payoutRetryMode = data?.payout_retry_mode === true
   const payoutRetryMinutes = data?.payout_retry_minutes ?? null
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-hidden">
+    <div className="min-h-screen bg-paper text-ink overflow-hidden">
       {/* Background: candlesticks → scrim → UI (Dex banner lives on the ticker bar) */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden>
         <CandlestickBackground />
-        <div className="absolute inset-0 bg-[#030303]/30" />
+        <div className="absolute inset-0 bg-paper/30" />
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-rh-green/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-rh-green-dark/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-rh-lime/5 to-transparent rounded-full" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-sol-purple/5 to-transparent rounded-full" />
       </div>
 
       <AppHeader
@@ -294,7 +320,7 @@ export default function LeaderboardPage() {
                   ? `On-chain refresh available in ${refreshCooldownSec}s`
                   : 'Refresh holder balances from chain'
               }
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs sm:text-sm font-medium transition-all border border-white/10 disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-ink/5 hover:bg-ink/10 rounded-lg text-xs sm:text-sm font-medium transition-all border border-line disabled:opacity-50"
             >
               <motion.span
                 animate={refreshing ? { rotate: 360 } : {}}
@@ -313,13 +339,13 @@ export default function LeaderboardPage() {
       {lastPayoutError ? (
         <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 pt-4">
           <div className="rounded-xl border border-amber-500/30 bg-amber-950/30 px-4 py-3 text-sm">
-            <p className="font-semibold text-amber-200 mb-1">Last payout attempt failed</p>
+            <p className="font-semibold text-amber-700 dark:text-amber-200 mb-1">Last payout attempt failed</p>
             <p className="text-amber-100/90 leading-relaxed">{lastPayoutError}</p>
-            <p className="text-xs text-amber-200/70 mt-2">
+            <p className="text-xs text-amber-700 dark:text-amber-200/70 mt-2">
               {payoutRetryMode && payoutRetryMinutes
                 ? `Pool SOL is safe — automatic retry in ~${payoutRetryMinutes} min (faster than the normal cycle).`
                 : 'Pool SOL is safe — the timer will retry automatically.'}{' '}
-              See <Link href={`${basePath}/history`} className="underline hover:text-white">History</Link> for details.
+              See <Link href={`${basePath}/history`} className="underline hover:text-ink">History</Link> for details.
             </p>
           </div>
         </div>
@@ -331,8 +357,8 @@ export default function LeaderboardPage() {
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: 'easeOut' }}
-          className={`relative overflow-hidden mb-6 sm:mb-8 w-full max-w-[600px] sm:max-w-[720px] lg:max-w-[900px] mx-auto rounded-2xl border border-white/10 ${
-            tokenBannerUrl ? 'bg-black' : 'bg-white/5 backdrop-blur-sm'
+          className={`relative overflow-hidden mb-6 sm:mb-8 w-full max-w-[600px] sm:max-w-[720px] lg:max-w-[900px] mx-auto rounded-2xl border border-line ${
+            tokenBannerUrl ? 'bg-black' : 'bg-ink/5 backdrop-blur-sm'
           }`}
         >
           <div className="relative aspect-[3/1] w-full overflow-hidden">
@@ -341,7 +367,7 @@ export default function LeaderboardPage() {
             <button
               type="button"
               onClick={() => setShowBannerOverlay(v => !v)}
-              className="absolute top-2 right-2 z-20 inline-flex h-9 w-9 sm:h-8 sm:w-8 items-center justify-center rounded-lg border border-white/25 bg-black/85 text-white shadow-[0_2px_10px_rgba(0,0,0,0.65)] backdrop-blur-sm hover:bg-black hover:text-white transition-colors"
+              className="absolute top-2 right-2 z-20 inline-flex h-9 w-9 sm:h-8 sm:w-8 items-center justify-center rounded-lg border border-white/25 bg-black/85 text-ink shadow-[0_2px_10px_rgba(0,0,0,0.65)] backdrop-blur-sm hover:bg-black hover:text-ink transition-colors"
               title={showBannerOverlay ? 'Hide info overlay' : 'Show info overlay'}
               aria-label={showBannerOverlay ? 'Hide info overlay' : 'Show info overlay'}
               aria-pressed={showBannerOverlay}
@@ -375,8 +401,8 @@ export default function LeaderboardPage() {
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <TokenAvatar symbol={tokenSymbol} iconUrl={tokenIconUrl} size="lg" highlighted />
-                  <span className="text-white/80 text-sm shrink-0">Token</span>
-                  <span className="text-rh-lime font-bold text-base truncate">${tokenSymbol}</span>
+                  <span className="text-ink/80 text-sm shrink-0">Token</span>
+                  <span className="text-sol-purple font-bold text-base truncate">${tokenSymbol}</span>
                 </div>
                 {tokenMint ? (
                   <CopyContractAddress
@@ -387,19 +413,19 @@ export default function LeaderboardPage() {
                     className="ticker-ca-inline"
                   />
                 ) : (
-                  <span className="text-xs text-white/50 font-mono">Loading CA…</span>
+                  <span className="text-xs text-ink/50 font-mono">Loading CA…</span>
                 )}
               </motion.div>
 
               <div className="grid grid-cols-3 gap-3 w-full max-w-xl mx-auto">
                 <div className="ticker-stat-chip rounded-xl px-3.5 py-2.5 min-w-0 text-center">
                   <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                    <span className="text-white/85 text-xs uppercase tracking-wide">Price</span>
+                    <span className="text-ink/85 text-xs uppercase tracking-wide">Price</span>
                     {isLive ? (
                       <span
                         className={`ticker-live-badge text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded ${
                           connection === 'websocket'
-                            ? 'bg-rh-green/25 text-rh-lime'
+                            ? 'bg-rh-green/25 text-sol-purple'
                             : 'bg-amber-500/35 text-amber-100'
                         }`}
                         title={connection === 'websocket' ? 'DexScreener WebSocket' : 'DexScreener live poll (1s)'}
@@ -413,25 +439,25 @@ export default function LeaderboardPage() {
                       <PriceTicker price={price || data?.token_price_raw} size="md" />
                     </div>
                   ) : (
-                    <span className="text-white/50 font-mono text-sm">Loading...</span>
+                    <span className="text-ink/50 font-mono text-sm">Loading...</span>
                   )}
                 </div>
 
                 <div className="ticker-stat-chip rounded-xl px-3.5 py-2.5 min-w-0 text-center">
-                  <span className="block text-white/85 text-xs uppercase tracking-wide mb-0.5">MCap</span>
-                  <span className="font-bold font-mono text-white text-lg tabular-nums">
+                  <span className="block text-ink/85 text-xs uppercase tracking-wide mb-0.5">MCap</span>
+                  <span className="font-bold font-mono text-ink text-lg tabular-nums">
                     {marketCap ? (
                       <AnimatedNumber value={marketCap} format="currency" />
                     ) : (
-                      <span className="text-white/50">--</span>
+                      <span className="text-ink/50">--</span>
                     )}
                   </span>
                 </div>
 
                 <div className="ticker-stat-chip rounded-xl px-3.5 py-2.5 min-w-0 text-center">
-                  <span className="block text-white/85 text-xs uppercase tracking-wide mb-0.5">Holders</span>
+                  <span className="block text-ink/85 text-xs uppercase tracking-wide mb-0.5">Holders</span>
                   <span
-                    className="font-bold font-mono text-white text-lg tabular-nums"
+                    className="font-bold font-mono text-ink text-lg tabular-nums"
                     title={
                       trueHolderCount != null
                         ? `${trueHolderCount.toLocaleString()} total holders on this token · top ${leaderboardTrackedCount} ranked for rewards`
@@ -447,7 +473,7 @@ export default function LeaderboardPage() {
 
           {/* Mobile: chips under the banner so art stays true 3:1 */}
           <div
-            className={`ticker-on-banner sm:hidden border-t border-white/10 bg-black/90 px-2.5 py-2.5 space-y-2 transition-opacity duration-300 ${
+            className={`ticker-on-banner sm:hidden border-t border-line bg-paper/90 px-2.5 py-2.5 space-y-2 transition-opacity duration-300 ${
               showBannerOverlay ? 'opacity-100' : 'opacity-0 h-0 py-0 overflow-hidden pointer-events-none'
             }`}
             aria-hidden={!showBannerOverlay}
@@ -455,7 +481,7 @@ export default function LeaderboardPage() {
             <div className="ticker-stat-chip flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 rounded-xl px-2.5 py-1.5 w-full">
               <div className="flex items-center gap-2 min-w-0">
                 <TokenAvatar symbol={tokenSymbol} iconUrl={tokenIconUrl} size="md" highlighted />
-                <span className="text-rh-lime font-bold text-sm truncate">${tokenSymbol}</span>
+                <span className="text-sol-purple font-bold text-sm truncate">${tokenSymbol}</span>
               </div>
               {tokenMint ? (
                 <CopyContractAddress
@@ -466,19 +492,19 @@ export default function LeaderboardPage() {
                   className="ticker-ca-inline"
                 />
               ) : (
-                <span className="text-xs text-white/50 font-mono">Loading CA…</span>
+                <span className="text-xs text-ink/50 font-mono">Loading CA…</span>
               )}
             </div>
 
             <div className="grid grid-cols-3 gap-1.5 w-full">
               <div className="ticker-stat-chip rounded-xl px-1.5 py-2 min-w-0 text-center">
                 <div className="flex items-center justify-center gap-1 mb-0.5">
-                  <span className="text-white/85 text-[10px] uppercase tracking-wide">Price</span>
+                  <span className="text-ink/85 text-[10px] uppercase tracking-wide">Price</span>
                   {isLive ? (
                     <span
                       className={`ticker-live-badge text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded ${
                         connection === 'websocket'
-                          ? 'bg-rh-green/25 text-rh-lime'
+                          ? 'bg-rh-green/25 text-sol-purple'
                           : 'bg-amber-500/35 text-amber-100'
                       }`}
                       title={connection === 'websocket' ? 'DexScreener WebSocket' : 'DexScreener live poll (1s)'}
@@ -492,25 +518,25 @@ export default function LeaderboardPage() {
                     <PriceTicker price={price || data?.token_price_raw} size="sm" />
                   </div>
                 ) : (
-                  <span className="text-white/50 font-mono text-xs">Loading...</span>
+                  <span className="text-ink/50 font-mono text-xs">Loading...</span>
                 )}
               </div>
 
               <div className="ticker-stat-chip rounded-xl px-1.5 py-2 min-w-0 text-center">
-                <span className="block text-white/85 text-[10px] uppercase tracking-wide mb-0.5">MCap</span>
-                <span className="font-bold font-mono text-white text-xs tabular-nums">
+                <span className="block text-ink/85 text-[10px] uppercase tracking-wide mb-0.5">MCap</span>
+                <span className="font-bold font-mono text-ink text-xs tabular-nums">
                   {marketCap ? (
                     <AnimatedNumber value={marketCap} format="currency" />
                   ) : (
-                    <span className="text-white/50">--</span>
+                    <span className="text-ink/50">--</span>
                   )}
                 </span>
               </div>
 
               <div className="ticker-stat-chip rounded-xl px-1.5 py-2 min-w-0 text-center">
-                <span className="block text-white/85 text-[10px] uppercase tracking-wide mb-0.5">Holders</span>
+                <span className="block text-ink/85 text-[10px] uppercase tracking-wide mb-0.5">Holders</span>
                 <span
-                  className="font-bold font-mono text-white text-xs tabular-nums"
+                  className="font-bold font-mono text-ink text-xs tabular-nums"
                   title={
                     trueHolderCount != null
                       ? `${trueHolderCount.toLocaleString()} total holders on this token · top ${leaderboardTrackedCount} ranked for rewards`
@@ -533,7 +559,10 @@ export default function LeaderboardPage() {
             className="relative bg-gradient-to-br from-purple-950/30 to-purple-900/10 border border-rh-green/30 rounded-2xl p-6 overflow-hidden"
           >
             <div className="absolute top-0 right-0 w-40 h-40 bg-rh-green/10 rounded-full blur-3xl" />
-            <div className="relative">
+            <div className="absolute -bottom-2 -right-2 sm:bottom-0 sm:right-2 opacity-90">
+              <Blasty pose={blastyPose} size={104} />
+            </div>
+            <div className="relative pr-24 sm:pr-28">
               <div className="flex items-center gap-2 text-rh-green text-sm font-medium mb-4">
                 <motion.div
                   animate={isTimerActive && !isPayoutDueNow ? { rotate: 360 } : { scale: [1, 1.1, 1] }}
@@ -547,7 +576,7 @@ export default function LeaderboardPage() {
                 {isSyncingHolders
                   ? 'SYNCING HOLDERS'
                   : isPoolLimbo
-                    ? 'WAITING FOR TOPUP'
+                    ? 'WAITING FOR VOLUME'
                     : isListingLimbo
                       ? 'WAITING FOR FIRST ELIGIBLE HOLDER'
                       : isTimerStarting
@@ -558,46 +587,46 @@ export default function LeaderboardPage() {
               </div>
               {isSyncingHolders ? (
                 <div className="py-4">
-                  <p className="text-2xl md:text-3xl font-bold text-rh-lime font-mono mb-3">Indexing chain…</p>
-                  <p className="text-gray-400 text-sm leading-relaxed">
+                  <p className="text-2xl md:text-3xl font-bold text-sol-purple font-mono mb-3">Indexing chain…</p>
+                  <p className="text-ink-2 text-sm leading-relaxed">
                     Loading holders and swap history for this token from Solana.
                   </p>
                 </div>
               ) : isPoolLimbo ? (
                 <div className="py-4">
-                  <p className="text-2xl md:text-3xl font-bold text-amber-300 font-mono mb-3">
+                  <p className="text-2xl md:text-3xl font-bold text-amber-700 dark:text-amber-300 font-mono mb-3">
                     ${poolValue.toFixed(2)} / ${minimumPoolUsd.toFixed(0)} min
                   </p>
-                  <p className="text-gray-400 text-sm leading-relaxed">
+                  <p className="text-ink-2 text-sm leading-relaxed">
                     Payout wallet needs at least ${minimumPoolUsd.toFixed(0)} USD in SOL before cycles can start.
                     If SOL is drained below that, the session stays in limbo — send SOL to the wallet below.
                   </p>
                 </div>
               ) : isListingLimbo ? (
                 <div className="py-4">
-                  <p className="text-2xl md:text-3xl font-bold text-rh-lime font-mono mb-3">Listing limbo</p>
-                  <p className="text-gray-400 text-sm leading-relaxed">
+                  <p className="text-2xl md:text-3xl font-bold text-sol-purple font-mono mb-3">Listing limbo</p>
+                  <p className="text-ink-2 text-sm leading-relaxed">
                     Holders are tracked but none pass every rule yet. The payout timer starts when the first wallet qualifies.
                   </p>
                 </div>
               ) : isTimerStarting ? (
                 <div className="py-4">
-                  <p className="text-2xl md:text-3xl font-bold text-rh-lime font-mono mb-3">
+                  <p className="text-2xl md:text-3xl font-bold text-sol-purple font-mono mb-3">
                     {eligibleCount} eligible {eligibleCount === 1 ? 'holder' : 'holders'}
                   </p>
-                  <p className="text-gray-400 text-sm leading-relaxed">
+                  <p className="text-ink-2 text-sm leading-relaxed">
                     Winners are set — starting the payout timer on the next sync.
                   </p>
                 </div>
               ) : isPayoutDueNow ? (
                 <div className="py-4">
-                  <p className="text-4xl md:text-5xl font-bold text-rh-lime font-mono mb-3 animate-pulse">00:00</p>
-                  <p className="text-gray-400 text-sm">Buying your token on-chart and airdropping winners…</p>
+                  <p className="text-4xl md:text-5xl font-bold text-sol-purple font-mono mb-3 animate-pulse">00:00</p>
+                  <p className="text-ink-2 text-sm">Buying your token on-chart and airdropping winners…</p>
                 </div>
               ) : (
                 <Countdown seconds={countdown ?? 0} size="xl" className="text-rh-green" />
               )}
-              <p className="text-gray-400 text-sm mt-4">
+              <p className="text-ink-2 text-sm mt-4">
                 {isPoolLimbo
                   ? `No payout cycle until the wallet holds at least $${minimumPoolUsd.toFixed(0)} USD in SOL`
                   : isListingLimbo
@@ -621,18 +650,18 @@ export default function LeaderboardPage() {
           >
             <div className="absolute bottom-0 left-0 w-40 h-40 bg-rh-green-dark/10 rounded-full blur-3xl" />
             <div className="relative">
-              <div className="flex items-center gap-2 text-rh-lime text-sm font-medium mb-4">
+              <div className="flex items-center gap-2 text-sol-purple text-sm font-medium mb-4">
                 <span>💰</span>
                 REWARD POOL
               </div>
-              <div className="text-5xl font-bold text-white mb-2">
+              <div className="text-5xl font-bold text-ink mb-2">
                 <AnimatedNumber
                   key={`pool-${data?.pool_balance_eth}-${data?.pool_balance_usd_raw}`}
                   value={poolValue}
                   format="currency"
                 />
               </div>
-              <p className="text-gray-400 text-sm">
+              <p className="text-ink-2 text-sm">
                 {data?.pool_balance_eth || '0'} SOL in pool
               </p>
               {data?.payout_wallet_address ? (
@@ -642,7 +671,7 @@ export default function LeaderboardPage() {
                     address={data.payout_wallet_address}
                     explorerUrl={getAddressExplorerUrl(data.payout_wallet_address)}
                   />
-                  <p className="text-[0.65rem] text-gray-600 mt-1">
+                  <p className="text-[0.65rem] text-ink-3 mt-1">
                     Send SOL to this public address to fund the pool — no account needed.
                   </p>
                 </div>
@@ -673,11 +702,11 @@ export default function LeaderboardPage() {
                 <span className="text-2xl sm:text-3xl">{showLimbo ? '⏳' : '🎯'}</span>
                 {showLimbo
                   ? isPoolLimbo
-                    ? 'Pool limbo — waiting for top-up'
+                    ? 'Pool limbo — waiting for volume'
                     : 'Listing limbo — tracked holders'
                   : 'Current Winners'}
               </h2>
-              <p className="text-gray-400 text-sm mt-1">
+              <p className="text-ink-2 text-sm mt-1">
                 {isPoolLimbo
                   ? `Payout wallet is below $${minimumPoolUsd.toFixed(0)} USD in SOL — cycles stay paused until it is refilled.`
                   : showLimbo
@@ -723,7 +752,7 @@ export default function LeaderboardPage() {
                       )}
                       {showLimbo && !isEligible ? (
                         <div className="absolute top-0 right-0 max-w-[55%]">
-                          <div className="bg-amber-600/90 text-white text-[0.65rem] sm:text-xs font-medium px-3 py-1 rounded-bl-lg truncate">
+                          <div className="bg-amber-600/90 text-ink text-[0.65rem] sm:text-xs font-medium px-3 py-1 rounded-bl-lg truncate">
                             {winner.ineligible_reason || 'Not eligible yet'}
                           </div>
                         </div>
@@ -737,7 +766,7 @@ export default function LeaderboardPage() {
                               className="rounded-bl-lg rounded-tr-2xl px-3 py-1"
                             />
                           ) : (
-                            <div className="bg-gray-600 text-white text-xs font-medium px-3 py-1 rounded-bl-lg">
+                            <div className="bg-gray-600 text-ink text-xs font-medium px-3 py-1 rounded-bl-lg">
                               {winner.ineligible_reason || 'Not eligible'}
                             </div>
                           )}
@@ -753,7 +782,7 @@ export default function LeaderboardPage() {
                           {style.emoji}
                         </motion.span>
                         <div className="text-right">
-                          <div className="text-sm text-gray-400 font-mono">{winner.wallet_display}</div>
+                          <div className="text-sm text-ink-2 font-mono">{winner.wallet_display}</div>
                           {isEligible && payoutInfo ? (
                             <div className="text-rh-green font-bold text-lg">
                               <AnimatedNumber value={payoutInfo.amount} format="currency" />
@@ -763,7 +792,7 @@ export default function LeaderboardPage() {
                               {drawdownLabel(winner.drawdown_pct, hasVwap)}
                             </div>
                           ) : (
-                            <div className="text-gray-500 text-sm">No payout yet</div>
+                            <div className="text-ink-3 text-sm">No payout yet</div>
                           )}
                         </div>
                       </div>
@@ -781,29 +810,29 @@ export default function LeaderboardPage() {
 
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between py-2 border-b border-white/5">
-                          <span className="text-gray-500">Position</span>
-                          <span className="text-white font-bold">{idx === 0 ? 'Biggest Loser' : idx === 1 ? 'Runner Up' : 'Third Place'}</span>
+                          <span className="text-ink-3">Position</span>
+                          <span className="text-ink font-bold">{idx === 0 ? 'Biggest Loser' : idx === 1 ? 'Runner Up' : 'Third Place'}</span>
                         </div>
                         <div className="flex justify-between py-2 border-b border-white/5">
-                          <span className="text-gray-500">Drawdown</span>
+                          <span className="text-ink-3">Drawdown</span>
                           <span className={`font-mono ${drawdownClass(winner.drawdown_pct, hasVwap)}`}>
                             {drawdownLabel(winner.drawdown_pct, hasVwap)}
                           </span>
                         </div>
                         <div className="flex justify-between py-2 border-b border-white/5">
-                          <span className="text-gray-500">Loss (USD)</span>
-                          <span className="text-gray-300 font-mono">{winner.loss_usd ?? '—'}</span>
+                          <span className="text-ink-3">Loss (USD)</span>
+                          <span className="text-ink-2 font-mono">{winner.loss_usd ?? '—'}</span>
                         </div>
                         <div className="flex justify-between py-2 border-b border-white/5">
-                          <span className="text-gray-500">Balance</span>
-                          <span className="text-white font-mono">{formatNumber(winner.balance)}</span>
+                          <span className="text-ink-3">Balance</span>
+                          <span className="text-ink font-mono">{formatNumber(winner.balance)}</span>
                         </div>
                         <div className="flex justify-between py-2">
-                          <span className="text-gray-500">{isEligible ? 'Share' : 'Status'}</span>
+                          <span className="text-ink-3">{isEligible ? 'Share' : 'Status'}</span>
                           {isEligible ? (
                             <span className="text-rh-green font-bold">{shareLabel}</span>
                           ) : (
-                            <span className="text-gray-500 text-xs text-right max-w-[60%]">
+                            <span className="text-ink-3 text-xs text-right max-w-[60%]">
                               See below
                             </span>
                           )}
@@ -828,7 +857,7 @@ export default function LeaderboardPage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="bg-rh-black border border-white/10 rounded-2xl p-12 text-center"
+              className="bg-rh-black border border-line rounded-2xl p-12 text-center"
             >
               {isLoading || isInitializing || isSyncingHolders ? (
                 <>
@@ -838,7 +867,7 @@ export default function LeaderboardPage() {
                     className="w-12 h-12 border-2 border-rh-green/30 border-t-rh-green rounded-full mx-auto mb-4"
                   />
                   <h3 className="text-xl font-bold mb-2">Loading holders</h3>
-                  <p className="text-gray-400">
+                  <p className="text-ink-2">
                     Pulling wallets and buy history from Solana…
                   </p>
                 </>
@@ -852,7 +881,7 @@ export default function LeaderboardPage() {
                     🔍
                   </motion.div>
                   <h3 className="text-xl font-bold mb-2">No holders indexed yet</h3>
-                  <p className="text-gray-400 mb-4 max-w-md mx-auto">
+                  <p className="text-ink-2 mb-4 max-w-md mx-auto">
                     Once wallets appear on-chain, they will show here with eligibility status — even before anyone wins.
                   </p>
                   <ExternalToolsEligibilityNote variant="inline" className="max-w-lg mx-auto text-left" />
@@ -867,12 +896,12 @@ export default function LeaderboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-rh-black border border-white/10 rounded-2xl overflow-hidden"
+          className="bg-rh-black border border-line rounded-2xl overflow-hidden"
         >
-          <div className="p-4 sm:p-6 border-b border-white/10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="p-4 sm:p-6 border-b border-line flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
               <h2 className="text-lg sm:text-xl font-bold">All tracked holders</h2>
-              <p className="text-xs sm:text-sm text-gray-400 mt-1">
+              <p className="text-xs sm:text-sm text-ink-2 mt-1">
                 {data?.eligible_count || 0} eligible
                 {winnerCount > PEDESTAL_SLOTS ? (
                   <> · top {winnerCount} paid per cycle</>
@@ -887,7 +916,7 @@ export default function LeaderboardPage() {
               </p>
               <ExternalToolsEligibilityNote variant="inline" className="mt-2 max-w-2xl" />
             </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-gray-400">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-ink-2">
               <span>{trueHolderCount != null ? `${formatNumber(trueHolderCount)} holders` : '— holders'}</span>
               <span className="hidden sm:inline w-px h-4 bg-white/20" />
               <span>{leaderboardTrackedCount} ranked for rewards</span>
@@ -914,14 +943,14 @@ export default function LeaderboardPage() {
               />
             ))}
             {rankings.length === 0 && !isLoading && !isInitializing ? (
-              <p className="px-4 py-10 text-center text-sm text-gray-500">No holders indexed yet.</p>
+              <p className="px-4 py-10 text-center text-sm text-ink-3">No holders indexed yet.</p>
             ) : null}
           </div>
 
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="text-left text-sm text-gray-400 border-b border-white/10 bg-white/5">
+                <tr className="text-left text-sm text-ink-2 border-b border-line bg-ink/5">
                   <th className="px-6 py-4 font-medium">Rank</th>
                   <th className="px-6 py-4 font-medium">Wallet</th>
                   <th className="px-6 py-4 font-medium text-right">Drawdown</th>
@@ -951,24 +980,24 @@ export default function LeaderboardPage() {
                       key={`row-${holder.wallet}`}
                       initial={false}
                       animate={{ opacity: 1, x: 0 }}
-                      className={`border-b border-white/5 hover:bg-white/5 transition-colors ${!isEligible ? 'bg-white/[0.01]' : isWinnerSlot ? 'bg-rh-green/[0.03]' : ''}`}
+                      className={`border-b border-white/5 hover:bg-ink/5 transition-colors ${!isEligible ? 'bg-ink/[0.01]' : isWinnerSlot ? 'bg-rh-green/[0.03]' : ''}`}
                     >
                       <td className="px-6 py-4 align-top">
                         <div className="flex items-center gap-2">
                           <span className="text-xl">{isPedestal ? style.emoji : '🏅'}</span>
                           {isWinnerSlot ? (
                             <span
-                              className={`${isPedestal ? style.badge : 'bg-rh-green/20 text-rh-lime border border-rh-green/30'} w-6 h-6 rounded-full flex items-center justify-center ${isPedestal ? 'text-black text-xs font-bold' : 'text-xs font-bold font-mono'}`}
+                              className={`${isPedestal ? style.badge : 'bg-rh-green/20 text-sol-purple border border-rh-green/30'} w-6 h-6 rounded-full flex items-center justify-center ${isPedestal ? 'text-black text-xs font-bold' : 'text-xs font-bold font-mono'}`}
                             >
                               {eligibleRank}
                             </span>
                           ) : (
-                            <span className="text-gray-500 font-mono text-sm">#{holder.rank ?? idx + 1}</span>
+                            <span className="text-ink-3 font-mono text-sm">#{holder.rank ?? idx + 1}</span>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-4 align-top">
-                        <span className="font-mono text-gray-300">{holder.wallet_display}</span>
+                        <span className="font-mono text-ink-2">{holder.wallet_display}</span>
                       </td>
                       <td className={`px-6 py-4 text-right font-mono align-top ${drawdownClass(holder.drawdown_pct, hasVwap)}`}>
                         {drawdownLabel(holder.drawdown_pct, hasVwap)}
@@ -995,12 +1024,12 @@ export default function LeaderboardPage() {
                             <span className="text-rh-green font-bold font-mono">
                               ${payoutInfo.amount.toFixed(2)}
                             </span>
-                            <span className="block text-xs text-gray-500 mt-0.5">
+                            <span className="block text-xs text-ink-3 mt-0.5">
                               {payoutInfo.sharePercent}% share
                             </span>
                           </div>
                         ) : (
-                          <span className="text-gray-600">-</span>
+                          <span className="text-ink-3">-</span>
                         )}
                       </td>
                     </motion.tr>
@@ -1008,7 +1037,7 @@ export default function LeaderboardPage() {
                 })}
                 {rankings.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={6} className="px-6 py-12 text-center text-ink-3">
                       {isLoading || isInitializing ? (
                         <div className="flex flex-col items-center gap-2">
                           <motion.div
@@ -1021,13 +1050,13 @@ export default function LeaderboardPage() {
                       ) : (data?.tracked_holders || 0) > 0 ? (
                         <div className="flex flex-col items-center gap-2 max-w-md mx-auto">
                           <span className="text-3xl">📊</span>
-                          <span className="text-white font-medium">Calculating rankings…</span>
-                          <span className="text-sm text-gray-500">
+                          <span className="text-ink font-medium">Calculating rankings…</span>
+                          <span className="text-sm text-ink-3">
                             Buy history loading from chain.
                           </span>
                         </div>
                       ) : (
-                        <span className="text-gray-500">No holders indexed yet.</span>
+                        <span className="text-ink-3">No holders indexed yet.</span>
                       )}
                     </td>
                   </tr>
@@ -1052,7 +1081,7 @@ export default function LeaderboardPage() {
             />
             Real-time tracking via Helius
           </div>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-ink-3">
             {trueHolderCount != null ? `${formatNumber(trueHolderCount)} holders on token · ` : null}
             {leaderboardTrackedCount} ranked for rewards • Top {winnerCount} losers paid every{' '}
             {data?.payout_interval_display || PAYOUT_INTERVAL_RANGE_COMPACT}
