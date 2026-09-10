@@ -31,7 +31,14 @@ Real domain is **ponsfamily.com** (`pons.family` does not resolve). Docs at
 | V1 Factory (legacy) | `0x0c37a24F5D23A486FA692d1500881d698B1F77a4` (start block 8600612) |
 | **V2 Factory** | `0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e` — ✅ 24,177 bytes deployed |
 | **V2 Fee Escrow** | `0xd3afeb2a57f70ef218aa82451c51b2fb0416ac9e` — ✅ 1,932 bytes, resolved via `feeEscrow()` |
-| **V2 Locker** | `0x267444d099b10fb5ed7c3cc7b7c767adca574952` — resolved via `locker()` |
+| **V2 Locker** | `0x267444D099b10fB5Ed7c3Cc7B7c767AdcA574952` — matches on-chain `locker()` |
+| **V2 Meme hook** (Uniswap V4) | `0xE5e702641Ea86F4ae6cC3cDaeD2B886f976Be044` |
+| **V2 Buyback vault** | `0x42df2a798f82289E177311362e8f5ccC45c1219c` |
+| **V2 Launch and buy** | `0xe33E9E479dF8802cb0866d5d05258bEc4cF62948` |
+| **V2 Launch deployer** | `0x3711ceA4feaDE896C913C68F01Eda97Cb06D1A42` |
+| **V2 Graduation executor** | `0xC7819B64A1dAECD7eC19856d026cb14EfBd89046` |
+| **V2 Graduation guard** | `0xf5695117b99B6f6401e67d4195BD653628176C6C` |
+| **Uniswap V4 PoolManager** | `0x8366a39cc670b4001a1121b8f6a443a643e40951` (via hook `poolManager()`) |
 | Trading fee | **1% per trade, split 70% creator / 30% protocol** |
 | Launch fee | 0.0005 ETH |
 | Graduation | at **4.2 ETH** paired WETH; the pool does *not* migrate — trading continues in the same Uniswap **V3** pool |
@@ -57,32 +64,99 @@ Real domain is **ponsfamily.com** (`pons.family` does not resolve). Docs at
    discovered by calling `feeEscrow()` on the V2 factory. Both selectors are
    present in the deployed code:
 
+   The docs publish the full escrow ABI, and **every function is verified
+   present in the deployed bytecode**:
+
    | Selector | Signature | Use |
    | :-- | :-- | :-- |
-   | `0x4e71d92d` | `claim()` | aggregated claim across all assets |
-   | `0x32f289cf` | `claimToken(address asset)` | per-asset claim (ETH or ERC-20) |
+   | `0x70a08231` | `balanceOf(address recipient)` | ETH owed to a creator |
+   | `0xf59e38b7` | `balanceOfToken(address recipient, address token)` | ERC-20 owed |
+   | `0x4e71d92d` | `claim()` | claim the native (ETH) ledger |
+   | `0x32f289cf` | `claimToken(address token)` | claim one asset's ledger |
+
+   Fees are **credited to an escrow, not pushed**, so a recipient that cannot
+   receive a transfer can never block a sweep for everyone else. The escrow
+   keeps a native ledger *and* a per-token ledger: native-quote launches
+   credit the former, custom-pair launches credit the latter under their
+   quote asset, and a released buyback vest credits it under the launch
+   token. A creator with launches against several quote assets holds several
+   separate balances and claims each independently.
 
    Called by the **creator wallet** — i.e. the payout wallet a launcher
    registers with us — which maps almost 1:1 onto today's
-   `lib/pump/collectCreatorFees.ts` flow. Still to confirm: a view for
-   *pending* balances (no `claimable`/`balances` getter matched the escrow
-   bytecode, so we may need to derive pending amounts from escrow events, or
-   simply attempt `claim()` on the existing throttle and treat a no-op as
-   "nothing to claim" — which is what the pump.fun collector already does).
+   `lib/pump/collectCreatorFees.ts` flow. Because `balanceOf` / `balanceOfToken` expose pending amounts, the
+   collector can check what is actually owed *before* spending gas — an
+   improvement on the pump.fun path, which has to attempt and no-op.
 
    Discovery is reproducible: `getLaunchedToken(address)` exists on both
    factories and the V1 locker; `graduationStatus(address)` on the V1 factory.
 
-2. **V1 vs V2 targeting.** Both generations are deployed. V2 has the clean
-   escrow-based claim above and graduates into Uniswap V4; V1 accrues fees
-   inside a locked Uniswap V3 position. Recommend building against **V2**
-   (new launches use it — the site badges tokens "V2") and treating V1 as
-   read-only/legacy.
+2. ~~**V1 vs V2 targeting.**~~ **DECIDED: V2 only.** V1 is legacy
+   (Uniswap V3, fees accruing inside a locked position); V2 is what new
+   launches use and has the clean escrow claim above.
 
-3. **Uniswap router addresses** for the buyback swap. V3 SwapRouter is in the
-   Pons docs' core-addresses section; the V4 Universal Router is reportedly
-   unpublished (the reference bot throws `NeedsV4Router`).
-4. **Block time**, to size `eth_getLogs` windows and tune the indexer cursor.
+3. **Swap execution — mostly RESOLVED.** Pons v2 tokens trade in **two
+   places over their life**, so the buyback has two paths.
+
+   **(a) Pre-graduation — no router needed at all.** Buy straight off the
+   bonding curve (docs, "Buying and selling"):
+
+   ```solidity
+   function buy(uint256 quoteIn, uint256 minTokensOut, address recipient)
+       payable returns (uint256 tokensOut)
+   function sell(uint256 tokensIn, uint256 minQuoteOut, address recipient)
+       returns (uint256 quoteOut)
+   function isNativeQuote() view returns (bool)
+   function pairToken() view returns (address)
+   ```
+
+   For a native-quote launch `quoteIn` must equal `value`, and refunds come
+   back in the same tx. This is *simpler than Jupiter* — a direct contract
+   call with built-in slippage protection via `minTokensOut`.
+
+   **Quoting:** the curve exposes no quote function. Reproduce its
+   constant-product maths locally from `getReserves()`, `sellableTokens()`,
+   `feeBps()`, `creatorTaxBps()` and `currentSnipeTaxBps(address)` — the docs
+   publish the exact integer order, so a local quote matches settlement.
+
+   **(b) Post-graduation — an ordinary Uniswap V4 pool.** Docs: *"There is
+   nothing pons-specific about swapping it, so any v4-aware router or
+   aggregator can trade it without integrating against pons at all."*
+
+   - **V4 PoolManager `0x8366a39cc670b4001a1121b8f6a443a643e40951`** —
+     found on-chain via `poolManager()` on the Pons Meme hook.
+   - Pool key: currencies sorted by address (native ETH = `0x0` always takes
+     `currency0`), `fee: 0` (the hook charges the fee, not the pool),
+     `tickSpacing` from the launch record, `hooks` = the Pons Meme hook.
+   - **Still open:** the canonical Universal Router address on this chain.
+     If none is deployed, the options are (i) swap directly against
+     PoolManager through its `unlock()` callback with our own small periphery
+     contract, or (ii) ship curve-only buybacks first — most TopBlast
+     listings will be pre-graduation anyway, so this does not block launch.
+
+   For reference, Pons **V1** (legacy) rides Uniswap V3:
+   V3 factory `0x1f7d7550B1b028f7571E69A784071F0205FD2EfA`,
+   Swap router `0xCaf681a66D020601342297493863E78C959E5cb2`,
+   Quoter V2 `0x33e885eD0Ec9bF04EcfB19341582aADCb4c8A9E7`,
+   Position manager `0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3`.
+
+4. ~~**Block time.**~~ **RESOLVED — and it materially shapes the indexer.**
+   **0.101 s per block, roughly 853,000 blocks/day.** Measured `eth_getLogs`
+   limits against the public RPC:
+
+   | Span | Result |
+   | :-- | :-- |
+   | 10,000 blocks (~17 min) | 33 logs, 109 ms |
+   | 100,000 blocks (~2.8 h) | 623 logs, 168 ms |
+   | 1,000,000 blocks | `logs matched by query exceeds limit of 10000` |
+   | 5,000,000+ blocks | HTTP 429, rate limited |
+
+   The indexer therefore needs **adaptive windowing** (halve the range when
+   the 10k-log cap trips, back off on 429) plus a persisted block cursor.
+   Filtering by token address keeps volumes low, and backfill starts at each
+   token's launch block (from the factory's `TokenLaunched` event) rather
+   than chain genesis. A paid or private RPC is likely wanted for production
+   throughput.
 
 ---
 
