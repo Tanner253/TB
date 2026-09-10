@@ -1,0 +1,242 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>TopBlast brand assets</title>
+<style>
+  body { background:#0d0d0d; color:#f2f2f2; font:14px Inter,system-ui,sans-serif; padding:24px; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:#d4fc50; margin:24px 0 8px; }
+  canvas { background:#000; max-width:100%; border:1px solid #2a2a2a; border-radius:8px; }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@700&display=swap">
+
+<h2>icon 512&times;512</h2><canvas id="icon" width="512" height="512"></canvas>
+<h2>banner 600&times;200</h2><canvas id="banner" width="600" height="200"></canvas>
+<h2>og 1200&times;630</h2><canvas id="og" width="1200" height="630"></canvas>
+<h2>favicon source 256&times;256</h2><canvas id="fav" width="256" height="256"></canvas>
+<p id="status">rendering…</p>
+
+<script src="./blasty-mark.js"></script>
+<script>
+/**
+ * Renders every TopBlast brand asset from one place so the icon, banner and
+ * OG image can never drift apart. Open this file in a browser; each canvas is
+ * the real asset at real pixel size. `window.assets()` returns them as data
+ * URLs, which is how the checked-in PNGs under public/ are produced.
+ */
+const ACCENT = '#d4fc50';
+
+function loadSvg(markup) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = rej;
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(markup)));
+  });
+}
+
+function rng(i, salt) {
+  const v = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453;
+  return v - Math.floor(v);
+}
+
+/** Faint candlestick skyline — the homepage motif, dialled way down. */
+function candles(x, w, h, count, baseline) {
+  for (let i = 0; i < count; i++) {
+    const cx = (i + 0.5) * (w / count) - 9;
+    const tall = h * (0.18 + rng(i, 3) * 0.42);
+    const top = baseline - tall;
+    const up = rng(i, 8) > 0.45;
+    x.fillStyle = up ? 'rgba(212,252,80,0.16)' : 'rgba(255,69,58,0.14)';
+    x.fillRect(cx, top, 18, tall);
+    x.fillRect(cx + 7, top - tall * 0.16, 4, tall * 1.32);
+  }
+}
+
+function stars(x, w, h, count) {
+  for (let i = 0; i < count; i++) {
+    const s = 1 + rng(i, 5) * 2;
+    x.fillStyle = 'rgba(242,242,242,' + (0.08 + rng(i, 9) * 0.22) + ')';
+    x.fillRect(rng(i, 3) * w, rng(i, 7) * h, s, s);
+  }
+}
+
+/** Dark scrim over the text column — candles behind copy kill legibility. */
+function textScrim(x, w, h, coverage) {
+  const g = x.createLinearGradient(0, 0, w * coverage, 0);
+  g.addColorStop(0, 'rgba(8,9,5,0.94)');
+  g.addColorStop(0.6, 'rgba(8,9,5,0.86)');
+  g.addColorStop(1, 'rgba(8,9,5,0)');
+  x.fillStyle = g;
+  x.fillRect(0, 0, w * coverage, h);
+}
+
+function roundRect(x, a, b, w, h, r) {
+  x.beginPath();
+  x.moveTo(a + r, b);
+  x.arcTo(a + w, b, a + w, b + h, r);
+  x.arcTo(a + w, b + h, a, b + h, r);
+  x.arcTo(a, b + h, a, b, r);
+  x.arcTo(a, b, a + w, b, r);
+  x.closePath();
+}
+
+/** TOP in lime + BLAST in white — the wordmark, drawn left-aligned at (px,py). */
+function wordmark(x, px, py, size) {
+  x.textAlign = 'left';
+  x.textBaseline = 'alphabetic';
+  x.font = '900 ' + size + 'px Inter, system-ui, sans-serif';
+  x.fillStyle = ACCENT;
+  x.fillText('TOP', px, py);
+  const w = x.measureText('TOP').width;
+  x.fillStyle = '#f2f2f2';
+  x.fillText('BLAST', px + w, py);
+}
+
+function drawIcon(canvas, whale) {
+  const x = canvas.getContext('2d');
+  const S = canvas.width;
+  const bg = x.createLinearGradient(0, 0, S, S);
+  bg.addColorStop(0, '#141a0c');
+  bg.addColorStop(0.55, '#0d0d0d');
+  bg.addColorStop(1, '#080a04');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, S, S);
+  stars(x, S, S, 40);
+
+  // lime halo behind the mascot
+  const halo = x.createRadialGradient(S * 0.5, S * 0.52, S * 0.05, S * 0.5, S * 0.52, S * 0.46);
+  halo.addColorStop(0, 'rgba(212,252,80,0.22)');
+  halo.addColorStop(0.7, 'rgba(212,252,80,0.06)');
+  halo.addColorStop(1, 'rgba(212,252,80,0)');
+  x.fillStyle = halo;
+  x.beginPath();
+  x.arc(S / 2, S * 0.52, S * 0.46, 0, Math.PI * 2);
+  x.fill();
+
+  const ww = S * 0.92;
+  x.drawImage(whale, (S - ww) / 2, S * 0.22, ww, ww * 300 / 400);
+}
+
+function drawBanner(canvas, whale) {
+  const x = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const bg = x.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#101408');
+  bg.addColorStop(0.5, '#0d0d0d');
+  bg.addColorStop(1, '#151a0a');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, W, H);
+  stars(x, W, H, 34);
+  candles(x, W, H, 22, H);
+
+  const glow = x.createRadialGradient(W * 0.78, H * 0.5, 10, W * 0.78, H * 0.5, H * 0.9);
+  glow.addColorStop(0, 'rgba(212,252,80,0.18)');
+  glow.addColorStop(1, 'rgba(212,252,80,0)');
+  x.fillStyle = glow;
+  x.fillRect(0, 0, W, H);
+
+  textScrim(x, W, H, 0.62);
+
+  wordmark(x, 30, 62, 40);
+
+  x.font = '700 19px Inter, system-ui, sans-serif';
+  x.fillStyle = '#f2f2f2';
+  x.fillText('When you drawdown,', 30, 94);
+  x.fillStyle = ACCENT;
+  x.fillText('we blast you up.', 30, 118);
+
+  x.font = '500 12px Inter, system-ui, sans-serif';
+  x.fillStyle = 'rgba(242,242,242,0.58)';
+  x.fillText('Hold through the dip · get paid every cycle · Robinhood Chain', 30, 141);
+
+  x.font = '700 13px "JetBrains Mono", monospace';
+  const chip = x.measureText('topblast.family').width + 28;
+  x.fillStyle = '#11160a';
+  roundRect(x, 30, 152, chip, 28, 14);
+  x.fill();
+  x.fillStyle = 'rgba(212,252,80,0.14)';
+  roundRect(x, 30, 152, chip, 28, 14);
+  x.fill();
+  x.strokeStyle = 'rgba(212,252,80,0.55)';
+  x.lineWidth = 1.5;
+  roundRect(x, 30, 152, chip, 28, 14);
+  x.stroke();
+  x.fillStyle = ACCENT;
+  x.fillText('topblast.family', 44, 171);
+
+  const ww = 214;
+  x.drawImage(whale, W - ww - 6, 26, ww, ww * 300 / 400);
+}
+
+function drawOg(canvas, whale) {
+  const x = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const bg = x.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#121708');
+  bg.addColorStop(0.5, '#0d0d0d');
+  bg.addColorStop(1, '#171d0b');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, W, H);
+  stars(x, W, H, 90);
+  candles(x, W, H, 26, H);
+
+  const glow = x.createRadialGradient(W * 0.74, H * 0.48, 20, W * 0.74, H * 0.48, H * 0.8);
+  glow.addColorStop(0, 'rgba(212,252,80,0.20)');
+  glow.addColorStop(1, 'rgba(212,252,80,0)');
+  x.fillStyle = glow;
+  x.fillRect(0, 0, W, H);
+
+  textScrim(x, W, H, 0.66);
+
+  wordmark(x, 78, 200, 96);
+
+  x.font = '700 42px Inter, system-ui, sans-serif';
+  x.fillStyle = '#f2f2f2';
+  x.fillText('When you drawdown,', 78, 276);
+  x.fillStyle = ACCENT;
+  x.fillText('we blast you up.', 78, 330);
+
+  x.font = '500 26px Inter, system-ui, sans-serif';
+  x.fillStyle = 'rgba(242,242,242,0.6)';
+  x.fillText('Loss-mining rewards for holders, on Robinhood Chain', 78, 392);
+
+  x.font = '700 24px "JetBrains Mono", monospace';
+  const chip = x.measureText('topblast.family').width + 52;
+  x.fillStyle = '#11160a';
+  roundRect(x, 78, 430, chip, 56, 28);
+  x.fill();
+  x.fillStyle = 'rgba(212,252,80,0.14)';
+  roundRect(x, 78, 430, chip, 56, 28);
+  x.fill();
+  x.strokeStyle = 'rgba(212,252,80,0.55)';
+  x.lineWidth = 2.5;
+  roundRect(x, 78, 430, chip, 56, 28);
+  x.stroke();
+  x.fillStyle = ACCENT;
+  x.fillText('topblast.family', 104, 466);
+
+  const ww = 470;
+  x.drawImage(whale, W - ww - 20, 148, ww, ww * 300 / 400);
+}
+
+async function main() {
+  const whale = await loadSvg(blastyMark());
+  const noSpout = await loadSvg(blastyMark({ spout: false }));
+  drawIcon(document.getElementById('icon'), whale);
+  drawBanner(document.getElementById('banner'), whale);
+  drawOg(document.getElementById('og'), whale);
+  drawIcon(document.getElementById('fav'), noSpout);
+  document.getElementById('status').textContent = 'ready';
+  window.__ready = true;
+}
+
+window.assets = function () {
+  return {
+    icon: document.getElementById('icon').toDataURL('image/png'),
+    banner: document.getElementById('banner').toDataURL('image/png'),
+    og: document.getElementById('og').toDataURL('image/png'),
+    fav: document.getElementById('fav').toDataURL('image/png'),
+  };
+};
+
+document.fonts.ready.then(main);
+</script>

@@ -5,7 +5,7 @@ export const SITE_TAGLINE = 'When you drawdown, we blast you up.'
 export const SITE_TITLE = 'TopBlast | Lose Money, Get Blasted Up'
 
 export const SITE_DESCRIPTION =
-  'Hold through the dip, get paid. Every cycle, each listed token’s reward pot buys the token and airdrops it to the most underwater holders. On Solana.'
+  'Hold through the dip, get paid. Every cycle, each listed token’s reward pot buys the token and airdrops it to the most underwater holders. On Robinhood Chain.'
 
 export const OG_IMAGE_PATH = '/og-image.png'
 

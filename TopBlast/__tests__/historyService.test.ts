@@ -82,8 +82,8 @@ describe('fetchAppPayoutHistory', () => {
     expect(history.cycles[0].token_mint).toBe('PepeMint1111111111111111111111111111111111')
     expect(history.cycles[0].token_mint_explorer_url).toContain('PepeMint1111111111111111111111111111111111')
     expect(history.cycles[0].session_slug).toBe('pepe')
-    expect(history.cycles[0].payouts[0].amount_unit).toBe('SOL')
-    expect(history.cycles[0].payouts[1].amount_unit).toBe('SOL')
+    expect(history.cycles[0].payouts[0].amount_unit).toBe('ETH')
+    expect(history.cycles[0].payouts[1].amount_unit).toBe('ETH')
   })
 
   it('labels native token winner payouts with the session symbol', async () => {
@@ -123,7 +123,7 @@ describe('fetchAppPayoutHistory', () => {
     expect(cycle).toBeDefined()
     expect(cycle!.payouts.find(p => p.rank === 1)?.amount_unit).toBe('TBLAST')
     expect(cycle!.payouts.find(p => p.rank === 1)?.amount_eth).toBe('2,729,025')
-    expect(cycle!.payouts.find(p => p.rank === 0)?.amount_unit).toBe('SOL')
+    expect(cycle!.payouts.find(p => p.rank === 0)?.amount_unit).toBe('ETH')
     expect(cycle!.total_token_amount).toBe('2,729,025')
     expect(cycle!.total_token_symbol).toBe('TBLAST')
     expect(cycle!.total_usd_formatted).toBe('$7.58')

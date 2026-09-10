@@ -182,7 +182,7 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
     const amountTokens = p.amountTokens || 0
     const amountUsd = p.amount || 0
     const amountAsset = resolvePayoutAmountAsset(p.rank, amountTokens, amountUsd)
-    const amountUnit = amountAsset === 'sol' ? 'SOL' : tokenMeta.symbol
+    const amountUnit = amountAsset === 'sol' ? 'ETH' : tokenMeta.symbol
 
     cycle.payouts.push({
       rank: p.rank,

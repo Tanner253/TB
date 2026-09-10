@@ -72,7 +72,7 @@ export function WhoGetsPaidRules({
           <span className="text-rh-green font-semibold">{COMMUNITY}%</span> of the payout pool (after a{' '}
           {DEV_FEE}% dev fee), split{' '}
           <span className="font-mono text-sol-purple">{shareLabel}</span>{' '}
-          of the winner pool (biggest loser gets {sharePercents[0]}%). Each cycle: pool SOL market-buys your session token on-chart, then tokens airdrop to winners automatically.
+          of the winner pool (biggest loser gets {sharePercents[0]}%). Each cycle: pool ETH market-buys your session token on-chart, then tokens airdrop to winners automatically.
         </p>
         <p className="text-xs text-ink-3">
           The countdown timer stays in &quot;listing limbo&quot; until the first eligible holder appears — holding tokens

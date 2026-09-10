@@ -190,7 +190,7 @@ export default function StatsPage() {
         >
           <h1 className="text-3xl font-bold mb-2">Protocol Statistics</h1>
           <div className="flex items-center gap-4 text-sm text-ink-2">
-            <span>Real-time data from Solana</span>
+            <span>Real-time data from Robinhood Chain</span>
             {lastUpdate && (
               <>
                 <span className="w-1 h-1 bg-gray-600 rounded-full" />
@@ -287,7 +287,7 @@ export default function StatsPage() {
               </div>
               {stats?.protocol.total_generated_volume_sol ? (
                 <div className="text-xs text-ink-3 mt-1 font-mono">
-                  {stats.protocol.total_generated_volume_sol} SOL bought on-chart
+                  {stats.protocol.total_generated_volume_sol} ETH bought on-chart
                 </div>
               ) : null}
             </div>

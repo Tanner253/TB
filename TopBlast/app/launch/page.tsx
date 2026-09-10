@@ -244,7 +244,7 @@ export default function LaunchPage() {
                   autoComplete="off"
                   value={form.payoutWalletPrivateKey}
                   onChange={e => setForm(f => ({ ...f, payoutWalletPrivateKey: e.target.value.trim() }))}
-                  placeholder="Base58 private key — fund with SOL for winner payouts"
+                  placeholder="EVM private key (0x…) — fund with ETH for winner payouts"
                   className="mt-1 w-full rounded-lg bg-card/70 border border-line px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
                 />
                 <p className="text-xs text-ink-3 mt-2">{LAUNCH_KEY_HELP.payoutWalletPrivateKey.body}</p>

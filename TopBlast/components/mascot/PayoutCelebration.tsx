@@ -14,7 +14,7 @@ import { CELEBRATE_EVENT, type CelebrationDetail } from './celebrate'
 import { playPayoutFanfare } from '@/hooks/useSoundEffects'
 
 const CONFETTI_COUNT = 60
-const COLORS = ['#fbbf24', '#f59e0b', '#a78bfa', '#34d399', '#f472b6', '#38bdf8']
+const COLORS = ['#d4fc50', '#e2ff66', '#a9cf33', '#30d158', '#facc15', '#f2f2f2']
 
 interface Particle {
   left: number

@@ -31,7 +31,7 @@ function MetricCell({
         <p className="text-[0.65rem] text-ink-3 tabular-nums truncate">{secondary}</p>
       ) : (
         <p className="text-[0.65rem] text-ink-3 tabular-nums invisible" aria-hidden>
-          0.0000 SOL
+          0.0000 ETH
         </p>
       )}
     </div>
@@ -73,13 +73,13 @@ export function CatalogMetrics({ tenant, layout = 'grid' }: CatalogMetricsProps)
       <MetricCell
         label="Pot"
         primary={tenant.pot_usd_formatted ?? '—'}
-        secondary={tenant.pot_sol != null ? `${tenant.pot_sol.toFixed(4)} SOL` : null}
+        secondary={tenant.pot_sol != null ? `${tenant.pot_sol.toFixed(4)} ETH` : null}
       />
       <MetricCell
         label="Gen volume"
-        title="Lifetime SOL spent buying this token on-chart during payout cycles (Jupiter swaps before winner airdrops)"
+        title="Lifetime ETH spent buying this token on-chart during payout cycles (Pons buys before winner airdrops)"
         primary={tenant.total_generated_volume_usd_formatted ?? '$0'}
-        secondary={tenant.total_generated_volume_sol_formatted ?? '0 SOL'}
+        secondary={tenant.total_generated_volume_sol_formatted ?? '0 ETH'}
         primaryClassName="text-sol-purple"
       />
       <MetricCell

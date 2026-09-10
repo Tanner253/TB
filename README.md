@@ -8,10 +8,10 @@ Turn creator-fee SOL into Jupiter buybacks and token airdrops for your most unde
 
 <br />
 
-[![App](https://img.shields.io/badge/App-topblasted.fun-9945FF?style=for-the-badge)](https://topblasted.fun)
-[![Launch](https://img.shields.io/badge/Launch-Create%20listing-14F195?style=for-the-badge)](https://topblasted.fun/launch)
-[![Docs](https://img.shields.io/badge/Docs-whitepaper.topblasted.fun-0ea5e9?style=for-the-badge)](https://whitepaper.topblasted.fun)
-[![Catalog](https://img.shields.io/badge/Catalog-Live%20sessions-6366f1?style=for-the-badge)](https://topblasted.fun/catalog)
+[![App](https://img.shields.io/badge/App-topblast.family-9945FF?style=for-the-badge)](https://topblast.family)
+[![Launch](https://img.shields.io/badge/Launch-Create%20listing-14F195?style=for-the-badge)](https://topblast.family/launch)
+[![Docs](https://img.shields.io/badge/Docs-whitepaper.topblast.family-0ea5e9?style=for-the-badge)](https://whitepaper.topblast.family)
+[![Catalog](https://img.shields.io/badge/Catalog-Live%20sessions-6366f1?style=for-the-badge)](https://topblast.family/catalog)
 
 <br />
 
@@ -22,7 +22,7 @@ Turn creator-fee SOL into Jupiter buybacks and token airdrops for your most unde
 
 <br />
 
-[Whitepaper](https://whitepaper.topblasted.fun) · [GitHub](https://github.com/Tanner253/TB) · [X Community](https://x.com/i/communities/2019975359567983064)
+[Whitepaper](https://whitepaper.topblast.family) · [GitHub](https://github.com/Tanner253/TB) · [X Community](https://x.com/i/communities/2019975359567983064)
 
 </div>
 
@@ -71,7 +71,7 @@ flowchart TD
 
 ### For launchers
 
-- **Self-serve** — [`/launch`](https://topblasted.fun/launch) with encrypted payout keys
+- **Self-serve** — [`/launch`](https://topblast.family/launch) with encrypted payout keys
 - **Isolated sessions** — `/[slug]/leaderboard` · `/history` · `/stats`
 - **Live catalog** — sort by pot, Gen volume, total paid out
 - **Diagnostics** — empty pool, indexing, no eligible holders
@@ -204,7 +204,7 @@ Payouts also fire when the leaderboard timer hits zero during API polling.
 ```
 TB/
 ├── TopBlast/          # Main app — payout engine, API, UI
-├── whitepaper/        # Docs site → whitepaper.topblasted.fun
+├── whitepaper/        # Docs site → whitepaper.topblast.family
 └── README.md
 ```
 
@@ -249,7 +249,7 @@ TopBlast/
 
 <br />
 
-**[topblasted.fun](https://topblasted.fun)** · **[whitepaper.topblasted.fun](https://whitepaper.topblasted.fun)**
+**[topblast.family](https://topblast.family)** · **[whitepaper.topblast.family](https://whitepaper.topblast.family)**
 
 <br />
 

@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
-import { SolanaBadge } from './components/SolanaBadge'
+import { ChainBadge } from './components/ChainBadge'
 import { DocNavbar, DocSubnav } from './components/docs/DocNavbar'
 import { DocContent } from './components/docs/DocContent'
 import { APP_URL, PAYOUT, PAYOUT_INTERVAL_HERO_RANGE, WINNER_COUNT } from './components/docs/config'
@@ -50,7 +50,7 @@ function Hero() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.35 }}
         >
-          <SolanaBadge />
+          <ChainBadge />
         </motion.div>
 
         <motion.p

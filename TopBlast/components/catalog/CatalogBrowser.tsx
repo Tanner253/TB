@@ -186,7 +186,7 @@ export function CatalogBrowser() {
             <span>Token</span>
             <span className="hidden md:block">Mint</span>
             <span>Pot</span>
-            <span title="Lifetime SOL bought on-chart via payout-cycle Jupiter swaps">Gen volume</span>
+            <span title="Lifetime ETH bought on-chart via payout-cycle Pons buys">Gen volume</span>
             <span>Paid out</span>
             <span className="hidden lg:block">Payouts</span>
             <span>Status</span>

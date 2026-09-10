@@ -46,7 +46,7 @@ const TIPS: Record<string, string[]> = {
   ],
   '/catalog': [
     'Every card here is a live session. Tap one to see who’s winning that pot.',
-    '“Gen volume” = how much SOL the protocol has bought into that token. Bigger = louder chart.',
+    '“Gen volume” = how much ETH the protocol has bought into that token. Bigger = louder chart.',
     'Sort by pot size to find where the real money’s waiting.',
   ],
   '/launch': [
@@ -65,7 +65,7 @@ const TIPS: Record<string, string[]> = {
     'This page is my favorite. It’s just receipts.',
   ],
   stats: [
-    'All of this updates live from Solana. No screenshots, no trust-me-bro.',
+    'All of this updates live from Robinhood Chain. No screenshots, no trust-me-bro.',
   ],
   '/game': [],
 }

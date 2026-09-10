@@ -205,17 +205,17 @@ function SessionTab() {
       <p className="text-sm text-ink-2 max-w-3xl leading-relaxed">
         Each listing runs on the payout schedule you pick when listing. When the first eligible underwater holder
         appears, the timer starts — no manual trigger. See the{' '}
-        <span className="text-ink-2">Chart volume</span> tab for how Jupiter buys feed your chart each cycle.
+        <span className="text-ink-2">Chart volume</span> tab for how on-chart buys feed your chart each cycle.
       </p>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           {
             title: 'Pool usage',
-            body: '~99% of your funded payout wallet SOL is used each cycle.',
+            body: '~99% of your funded payout wallet ETH is used each cycle.',
           },
           {
             title: 'Winner pool',
-            body: '88% swaps into your token via Jupiter, then airdrops to eligible losers (3–10 per listing).',
+            body: '88% swaps into your token on Pons, then airdrops to eligible losers (3–10 per listing).',
           },
           {
             title: 'Split',
@@ -244,7 +244,7 @@ function PlatformTab() {
     <div className="space-y-5 max-w-3xl">
       <p className="text-sm text-ink-2 leading-relaxed">
         Every listing pays a flat {DEV_FEE_PCT}% protocol fee from the payout pool each cycle. This is
-        independent of the Jupiter buyback that funds holder rewards.
+        independent of the on-chart buyback that funds holder rewards.
       </p>
       <div className="rounded-lg border border-sol-purple/15 bg-card/70 p-4 font-mono text-xs text-ink-2 space-y-2">
         <p className="text-ink-2">{FLYWHEEL_TREE.root}</p>

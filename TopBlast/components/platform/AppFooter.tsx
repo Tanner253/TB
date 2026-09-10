@@ -64,7 +64,7 @@ export function AppFooter() {
           )}
         </nav>
 
-        <p className="text-xs text-ink-3">© {new Date().getFullYear()} TopBlast · Built on Solana</p>
+        <p className="text-xs text-ink-3">© {new Date().getFullYear()} TopBlast · Built on Robinhood Chain</p>
       </div>
     </footer>
   )

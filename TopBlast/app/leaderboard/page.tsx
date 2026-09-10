@@ -290,7 +290,7 @@ export default function LeaderboardPage() {
 
   const blastyPose = isPoolLimbo || isListingLimbo ? 'sleep' : isPayoutDueNow ? 'happy' : 'idle'
 
-  // 'sol' listings pay winners SOL directly — no buyback/airdrop copy
+  // 'sol' listings pay winners the native asset directly — no buyback/airdrop copy
   const paysInSol = data?.payout_mode === 'sol'
 
   const wsConnected = data?.ws_connected
@@ -347,8 +347,8 @@ export default function LeaderboardPage() {
             <p className="text-amber-100/90 leading-relaxed">{lastPayoutError}</p>
             <p className="text-xs text-amber-700 dark:text-amber-200/70 mt-2">
               {payoutRetryMode && payoutRetryMinutes
-                ? `Pool SOL is safe — automatic retry in ~${payoutRetryMinutes} min (faster than the normal cycle).`
-                : 'Pool SOL is safe — the timer will retry automatically.'}{' '}
+                ? `Pool ETH is safe — automatic retry in ~${payoutRetryMinutes} min (faster than the normal cycle).`
+                : 'Pool ETH is safe — the timer will retry automatically.'}{' '}
               See <Link href={`${basePath}/history`} className="underline hover:text-ink">History</Link> for details.
             </p>
           </div>
@@ -593,7 +593,7 @@ export default function LeaderboardPage() {
                 <div className="py-4">
                   <p className="text-2xl md:text-3xl font-bold text-sol-purple font-mono mb-3">Indexing chain…</p>
                   <p className="text-ink-2 text-sm leading-relaxed">
-                    Loading holders and swap history for this token from Solana.
+                    Loading holders and trade history for this token from Robinhood Chain.
                   </p>
                 </div>
               ) : isPoolLimbo ? (
@@ -602,8 +602,8 @@ export default function LeaderboardPage() {
                     ${poolValue.toFixed(2)} / ${minimumPoolUsd.toFixed(0)} min
                   </p>
                   <p className="text-ink-2 text-sm leading-relaxed">
-                    Payout wallet needs at least ${minimumPoolUsd.toFixed(0)} USD in SOL before cycles can start.
-                    If SOL is drained below that, the session stays in limbo — send SOL to the wallet below.
+                    Payout wallet needs at least ${minimumPoolUsd.toFixed(0)} USD in ETH before cycles can start.
+                    If ETH is drained below that, the session stays in limbo — send ETH to the wallet below.
                   </p>
                 </div>
               ) : isListingLimbo ? (
@@ -627,7 +627,7 @@ export default function LeaderboardPage() {
                   <p className="text-4xl md:text-5xl font-bold text-sol-purple font-mono mb-3 animate-pulse">00:00</p>
                   <p className="text-ink-2 text-sm">
                     {paysInSol
-                      ? 'Sending SOL from the pool to winners…'
+                      ? 'Sending ETH from the pool to winners…'
                       : 'Buying your token on-chart and airdropping winners…'}
                   </p>
                 </div>
@@ -636,19 +636,19 @@ export default function LeaderboardPage() {
               )}
               <p className="text-ink-2 text-sm mt-4">
                 {isPoolLimbo
-                  ? `No payout cycle until the wallet holds at least $${minimumPoolUsd.toFixed(0)} USD in SOL`
+                  ? `No payout cycle until the wallet holds at least $${minimumPoolUsd.toFixed(0)} USD in ETH`
                   : isListingLimbo
                     ? 'No payout cycle until someone qualifies'
                     : isTimerStarting
-                    ? `Top ${winnerCount} eligible losers will receive pool SOL each cycle once the timer is live`
+                    ? `Top ${winnerCount} eligible losers will receive pool ETH each cycle once the timer is live`
                     : isPayoutDueNow
                       ? paysInSol
-                        ? 'Direct SOL payouts — timer resets after completion'
+                        ? 'Direct ETH payouts — timer resets after completion'
                         : 'On-chart buy + token airdrops — timer resets after completion'
                       : payoutRetryMode
                         ? `Retry scheduled — faster ${payoutRetryMinutes ?? 3} min interval after swap failure`
                         : paysInSol
-                          ? `Top ${winnerCount} losers are paid SOL from the pool each cycle`
+                          ? `Top ${winnerCount} losers are paid ETH from the pool each cycle`
                           : `Top ${winnerCount} losers receive session tokens via on-chart buyback each cycle`}
               </p>
             </div>
@@ -674,7 +674,7 @@ export default function LeaderboardPage() {
                 />
               </div>
               <p className="text-ink-2 text-sm">
-                {data?.pool_balance_eth || '0'} SOL in pool
+                {data?.pool_balance_eth || '0'} ETH in pool
               </p>
               {data?.payout_wallet_address ? (
                 <div className="mt-1.5">
@@ -684,7 +684,7 @@ export default function LeaderboardPage() {
                     explorerUrl={getAddressExplorerUrl(data.payout_wallet_address)}
                   />
                   <p className="text-[0.65rem] text-ink-3 mt-1">
-                    Send SOL to this public address to fund the pool — no account needed.
+                    Send ETH to this public address to fund the pool — no account needed.
                   </p>
                 </div>
               ) : null}
@@ -720,7 +720,7 @@ export default function LeaderboardPage() {
               </h2>
               <p className="text-ink-2 text-sm mt-1">
                 {isPoolLimbo
-                  ? `Payout wallet is below $${minimumPoolUsd.toFixed(0)} USD in SOL — cycles stay paused until it is refilled.`
+                  ? `Payout wallet is below $${minimumPoolUsd.toFixed(0)} USD in ETH — cycles stay paused until it is refilled.`
                   : showLimbo
                     ? 'No one eligible yet — each card shows why. Timer starts when the first holder passes every rule.'
                   : winnerCount > PEDESTAL_SLOTS
@@ -880,7 +880,7 @@ export default function LeaderboardPage() {
                   />
                   <h3 className="text-xl font-bold mb-2">Loading holders</h3>
                   <p className="text-ink-2">
-                    Pulling wallets and buy history from Solana…
+                    Pulling wallets and buy history from Robinhood Chain…
                   </p>
                 </>
               ) : (

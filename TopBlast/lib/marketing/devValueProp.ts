@@ -1,4 +1,4 @@
-/** Shared marketing copy — Solana dev / launcher narrative. */
+/** Shared marketing copy — Robinhood Chain dev / launcher narrative. */
 
 import { formatPayoutIntervalOptionsList } from '@/lib/platform/payoutIntervals'
 
@@ -7,7 +7,7 @@ const PAYOUT_SCHEDULE_OPTIONS = formatPayoutIntervalOptionsList()
 export const DEV_HERO = {
   headline: 'Creator fees become on-chart volume',
   subhead:
-    'Fund a payout wallet with creator-fee SOL. Each cycle the protocol buys your session token via Jupiter, then airdrops it to eligible underwater holders (3–10 winners, set at launch).',
+    'Fund a payout wallet with creator-fee ETH. Each cycle the protocol buys your session token on Pons, then airdrops it to eligible underwater holders (3–10 winners, set at launch).',
   cta: 'List your token',
 } as const
 
@@ -18,7 +18,7 @@ export const HOME_VS_CASHBACK = {
   cashback: {
     label: 'Cashback / rebate bots',
     points: [
-      'Pay SOL rebates for volume traded on chart — often sell-side',
+      'Pay ETH rebates for volume traded on chart — often sell-side',
       'Rewards trading activity, not underwater holders',
       'Mercenary volume — no incentive to hold through drawdown',
     ],
@@ -27,7 +27,7 @@ export const HOME_VS_CASHBACK = {
     label: 'TopBlast conviction rewards',
     points: [
       'Rewards holders with conviction who stay underwater',
-      'Pool SOL market-buys your token via Jupiter each cycle',
+      'Pool ETH market-buys your token on Pons each cycle',
       'Winners receive your token — tracked as Gen volume in the catalog',
     ],
   },
@@ -42,12 +42,12 @@ export const HOME_LAUNCH_STEPS = [
   },
   {
     title: 'Fund the payout wallet',
-    body: 'Send creator-fee SOL to the wallet you registered. ~99% of the balance is used each cycle.',
+    body: 'Send creator-fee ETH to the wallet you registered. ~99% of the balance is used each cycle.',
     href: '/launch',
   },
   {
     title: 'Holders get indexed',
-    body: 'Helius tracks balances and buy prices. Rankings appear on your listing within minutes.',
+    body: 'TopBlast reads balances and buy prices straight from chain logs. Rankings appear on your listing within minutes.',
   },
   {
     title: 'Cycles run on autopilot',
@@ -60,15 +60,15 @@ export const CHART_VOLUME_ENGINE = {
   title: 'Built-in chart volume',
   tagline: 'Every payout cycle buys your token, then airdrops winners',
   intro:
-    'When you list on TopBlast, your payout wallet doesn’t just send SOL — it routes winner rewards through your session token. That means recurring Jupiter buys on your chart plus token airdrops to the top eligible losers.',
+    'When you list on TopBlast, your payout wallet doesn’t just send ETH — it routes winner rewards through your session token. That means recurring on-chart buys plus token airdrops to the top eligible losers.',
   steps: [
     {
       title: 'Fund the pool',
-      body: 'Creator-fee SOL sits in your listing’s payout wallet — you control the budget.',
+      body: 'Creator-fee ETH sits in your listing’s payout wallet — you control the budget.',
     },
     {
       title: 'On-chart buyback',
-      body: 'Each cycle, the protocol swaps pool SOL into your session token via Jupiter. Buys show as real chart volume.',
+      body: 'Each cycle, the protocol swaps pool ETH into your session token on Pons. Buys show as real chart volume.',
     },
     {
       title: 'Token airdrops',
@@ -76,9 +76,9 @@ export const CHART_VOLUME_ENGINE = {
     },
   ],
   stats: [
-    { label: 'Buy pressure', value: 'Every cycle', hint: 'Jupiter route into your mint' },
+    { label: 'Buy pressure', value: 'Every cycle', hint: 'Pons route into your token' },
     { label: 'Distribution', value: '3–10 winners', hint: 'Set when you list' },
-    { label: 'Tracking', value: 'Gen volume', hint: 'Lifetime SOL bought on-chart' },
+    { label: 'Tracking', value: 'Gen volume', hint: 'Lifetime ETH bought on-chart' },
   ],
   footer:
     'Unlike cashback bots that reward traded volume (often sells), TopBlast rewards underwater holders: winners must hold through drawdown to qualify — and they receive your token from on-chart buys, not exit liquidity.',
@@ -87,21 +87,21 @@ export const CHART_VOLUME_ENGINE = {
 /** Homepage “How it works” — dedicated chart volume tab. */
 export const HOME_CHART_VOLUME = {
   eyebrow: 'Your listing, your chart',
-  title: 'Every cycle, pool SOL market-buys your token',
+  title: 'Every cycle, pool ETH market-buys your token',
   lead:
-    'List on TopBlast and fund a payout wallet with creator-fee SOL. On each payout cycle, the protocol swaps ~88% of the pool into your session token via Jupiter — a real market buy on your active pair. Traders see it on your chart; TopBlast tracks the running total as Gen volume.',
+    'List on TopBlast and fund a payout wallet with creator-fee ETH. On each payout cycle, the protocol swaps ~88% of the pool into your session token on Pons — a real market buy on your active pair. Traders see it on your chart; TopBlast tracks the running total as Gen volume.',
   flow: [
     {
       title: 'You fund the pool',
-      body: 'Creator-fee SOL in the payout wallet you register when listing.',
+      body: 'Creator-fee ETH in the payout wallet you register when listing.',
     },
     {
       title: 'Cycle triggers',
       body: 'When eligible underwater holders exist, the timer runs and the cycle executes.',
     },
     {
-      title: 'Jupiter buys your mint',
-      body: '~88% of pool SOL swaps into your session token on the open market — on-chart buy volume.',
+      title: 'Pons buys your token',
+      body: '~88% of pool ETH swaps into your session token on the open market — on-chart buy volume.',
     },
     {
       title: 'Winners airdropped',
@@ -109,12 +109,12 @@ export const HOME_CHART_VOLUME = {
     },
     {
       title: 'Gen volume updated',
-      body: 'SOL spent on buys accumulates on your catalog listing — proof of protocol-driven chart volume.',
+      body: 'ETH spent on buys accumulates on your catalog listing — proof of protocol-driven chart volume.',
     },
   ],
   callouts: [
     {
-      label: 'Your mint',
+      label: 'Your token',
       value: 'Every buy routes to the token you listed',
     },
     {
@@ -123,18 +123,18 @@ export const HOME_CHART_VOLUME = {
     },
     {
       label: 'Your budget',
-      value: 'You control how much SOL funds cycles',
+      value: 'You control how much ETH funds cycles',
     },
   ],
   notThis:
-    'This is not a manual dev buy you schedule yourself, and not a cashback rebate that pays traders to sell. TopBlast automates recurring Jupiter buys into your token each cycle you fund the pool.',
+    'This is not a manual dev buy you schedule yourself, and not a cashback rebate that pays traders to sell. TopBlast automates recurring on-chart buys into your token each cycle you fund the pool.',
 } as const
 
 export const ALTERNATIVES_COMPARISON = [
   {
     id: 'cashback',
     name: 'Cashback / rebates',
-    holderBehavior: 'Trade volume → claim SOL rebates',
+    holderBehavior: 'Trade volume → claim ETH rebates',
     chartEffect: 'Sell-side volume rewarded',
     devOptics: 'Mercenary flow, weak holders',
     tone: 'negative' as const,
@@ -164,7 +164,7 @@ export const DYNAMIC_POT = {
   bullets: [
     {
       title: 'Pot size',
-      body: '~99% of your funded payout wallet SOL each cycle. You control budget by topping up creator-fee SOL.',
+      body: '~99% of your funded payout wallet ETH each cycle. You control budget by topping up creator-fee ETH.',
     },
     {
       title: 'Min loss threshold',
@@ -172,7 +172,7 @@ export const DYNAMIC_POT = {
     },
     {
       title: 'Winners',
-      body: 'Eligible losers by drawdown % (3–10 winners per listing). Each cycle: SOL swaps into your session token on-chart, then tokens airdrop in descending rank order.',
+      body: 'Eligible losers by drawdown % (3–10 winners per listing). Each cycle: ETH swaps into your session token on-chart, then tokens airdrop in descending rank order.',
     },
     {
       title: 'Timer',
@@ -197,15 +197,15 @@ export const CREATOR_BENEFITS = [
   },
   {
     title: 'You fund the program',
-    body: 'Payouts come from your creator-rewards wallet. You choose how much SOL to allocate.',
+    body: 'Payouts come from your creator-rewards wallet. You choose how much ETH to allocate.',
   },
   {
     title: 'Hands-off operations',
     body: `Rankings, eligibility, timer, buybacks, and token airdrops run on autopilot per listing — on the schedule you pick (${PAYOUT_SCHEDULE_OPTIONS}).`,
   },
   {
-    title: 'Built for Pump.fun → migration',
-    body: 'Live price follows DexScreener across bonding curve and PumpSwap/Raydium migration automatically.',
+    title: 'Built for Pons → graduation',
+    body: 'Live price follows DexScreener across the Pons bonding curve and the Uniswap v4 pool after graduation, automatically.',
   },
 ] as const
 

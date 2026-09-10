@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://whitepaper.topblasted.fun'),
+  metadataBase: new URL('https://whitepaper.topblast.family'),
   title: 'TopBlast | Loss-Mining + Chart Volume for Solana',
   description:
     'Turn creator-fee SOL into on-chart Jupiter buybacks and token airdrops for underwater holders. Self-serve SaaS for any SPL token — Gen volume tracked in the catalog.',
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#9945FF',
+  themeColor: '#d4fc50',
 }
 
 export default function RootLayout({

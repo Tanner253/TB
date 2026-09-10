@@ -21,16 +21,20 @@ module.exports = {
         'ink-3': 'rgb(var(--tb-ink-3) / <alpha-value>)',
         line: 'rgb(var(--tb-line) / <alpha-value>)',
         gold: 'rgb(var(--tb-gold) / <alpha-value>)',
-        // Solana brand palette — now theme-aware via CSS vars
+        // Brand accent. Named `sol.*` for historical reasons — the values are
+        // now the Pons lime, theme-aware via CSS vars. Anything placed ON an
+        // accent fill must use `text-on-accent`, not white.
+        accent: 'rgb(var(--tb-accent-fill) / <alpha-value>)',
+        'on-accent': 'rgb(var(--tb-on-accent) / <alpha-value>)',
         sol: {
           purple: 'rgb(var(--tb-purple) / <alpha-value>)',
           'purple-dark': 'rgb(var(--tb-purple-dark) / <alpha-value>)',
-          'purple-deep': '#5B21B6',
+          'purple-deep': 'rgb(var(--tb-purple-deep) / <alpha-value>)',
           mint: 'rgb(var(--tb-mint) / <alpha-value>)',
           'mint-bright': 'rgb(var(--tb-mint-bright) / <alpha-value>)',
           black: 'rgb(var(--tb-card) / <alpha-value>)',
         },
-        // Legacy rh-* tokens → Solana (keeps existing class names working)
+        // Legacy rh-* tokens → brand accent (keeps existing class names working)
         rh: {
           green: 'rgb(var(--tb-purple) / <alpha-value>)',
           'green-dark': 'rgb(var(--tb-purple-dark) / <alpha-value>)',
@@ -40,13 +44,15 @@ module.exports = {
         },
       },
       boxShadow: {
-        'rh-glow': '0 0 20px rgb(var(--tb-purple) / 0.35), 0 0 60px rgb(var(--tb-mint) / 0.12)',
-        'rh-glow-sm': '0 0 12px rgb(var(--tb-purple) / 0.3)',
-        'sol-glow': '0 0 20px rgb(var(--tb-purple) / 0.35), 0 0 60px rgb(var(--tb-mint) / 0.12)',
+        // Pons uses a soft lime bloom under its primary buttons.
+        'rh-glow': '0 8px 24px rgb(var(--tb-accent-fill) / 0.28), 0 0 60px rgb(var(--tb-accent-fill) / 0.10)',
+        'rh-glow-sm': '0 4px 14px rgb(var(--tb-accent-fill) / 0.28)',
+        'sol-glow': '0 8px 24px rgb(var(--tb-accent-fill) / 0.28), 0 0 60px rgb(var(--tb-accent-fill) / 0.10)',
         card: '0 1px 2px rgb(var(--tb-ink) / 0.04), 0 8px 24px rgb(var(--tb-ink) / 0.05)',
       },
       backgroundImage: {
-        'sol-gradient': 'linear-gradient(135deg, rgb(var(--tb-purple)) 0%, rgb(var(--tb-mint)) 100%)',
+        'sol-gradient': 'linear-gradient(135deg, rgb(var(--tb-accent-fill)) 0%, rgb(var(--tb-mint)) 100%)',
+        'accent-gradient': 'linear-gradient(135deg, rgb(var(--tb-accent-fill)) 0%, rgb(var(--tb-mint)) 100%)',
       },
     },
   },

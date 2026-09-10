@@ -63,16 +63,16 @@ function roundRect(x: CanvasRenderingContext2D, a: number, b: number, w: number,
 function drawBackground(x: CanvasRenderingContext2D, variant: RektCardVariant) {
   const g = x.createLinearGradient(0, 0, 0, H)
   if (variant === 'depths') {
-    g.addColorStop(0, '#1d0f3d')
-    g.addColorStop(0.55, '#150a2e')
-    g.addColorStop(1, '#060312')
+    g.addColorStop(0, '#161a10')
+    g.addColorStop(0.55, '#101208')
+    g.addColorStop(1, '#080a04')
   } else if (variant === 'moon') {
-    g.addColorStop(0, '#0b0518')
-    g.addColorStop(0.6, '#1c0f38')
-    g.addColorStop(1, '#2a1653')
+    g.addColorStop(0, '#0a0c06')
+    g.addColorStop(0.6, '#161a0e')
+    g.addColorStop(1, '#232b14')
   } else {
-    g.addColorStop(0, '#170a2e')
-    g.addColorStop(1, '#241047')
+    g.addColorStop(0, '#121509')
+    g.addColorStop(1, '#1d240f')
   }
   x.fillStyle = g
   x.fillRect(0, 0, W, H)
@@ -82,7 +82,7 @@ function drawBackground(x: CanvasRenderingContext2D, variant: RektCardVariant) {
     for (let i = 0; i < 26; i++) {
       x.beginPath()
       x.arc(rng(i, 3) * W, rng(i, 7) * H, 3 + rng(i, 11) * 10, 0, Math.PI * 2)
-      x.strokeStyle = `rgba(125,211,252,${0.06 + rng(i, 13) * 0.12})`
+      x.strokeStyle = `rgba(191,228,245,${0.06 + rng(i, 13) * 0.12})`
       x.lineWidth = 2
       x.stroke()
     }
@@ -90,8 +90,8 @@ function drawBackground(x: CanvasRenderingContext2D, variant: RektCardVariant) {
     for (let i = 0; i < 5; i++) {
       const cx = 100 + i * 200 + rng(i, 17) * 80
       const ray = x.createLinearGradient(cx, 0, cx - 120, H)
-      ray.addColorStop(0, 'rgba(167,139,250,0.10)')
-      ray.addColorStop(1, 'rgba(167,139,250,0)')
+      ray.addColorStop(0, 'rgba(212,252,80,0.10)')
+      ray.addColorStop(1, 'rgba(212,252,80,0)')
       x.fillStyle = ray
       x.beginPath()
       x.moveTo(cx - 30, 0)
@@ -110,12 +110,12 @@ function drawBackground(x: CanvasRenderingContext2D, variant: RektCardVariant) {
     }
     x.beginPath()
     x.arc(W - 160, 190, 90, 0, Math.PI * 2)
-    x.fillStyle = '#e9e5f8'
+    x.fillStyle = '#f2f2f2'
     x.fill()
     x.beginPath()
     x.arc(W - 190, 165, 22, 0, Math.PI * 2)
     x.arc(W - 130, 210, 16, 0, Math.PI * 2)
-    x.fillStyle = '#cfc7ec'
+    x.fillStyle = '#c9cdbc'
     x.fill()
   } else {
     // falling red candlesticks
@@ -171,13 +171,13 @@ export async function renderRektCard(
   x.textAlign = 'left'
   x.textBaseline = 'alphabetic'
   x.font = '800 44px Inter, sans-serif'
-  x.fillStyle = '#a78bfa'
+  x.fillStyle = '#d4fc50'
   x.fillText('TOP', 60, 92)
   const tw = x.measureText('TOP').width
   x.fillStyle = '#ffffff'
   x.fillText('BLAST', 60 + tw, 92)
   x.font = '700 26px Inter, sans-serif'
-  x.fillStyle = 'rgba(233,213,255,0.85)'
+  x.fillStyle = 'rgba(233,246,198,0.85)'
   x.fillText('REKT REPORT CARD', 62, 132)
   x.font = '700 30px "JetBrains Mono", monospace'
   x.fillStyle = 'rgba(255,255,255,0.6)'
@@ -198,7 +198,7 @@ export async function renderRektCard(
   // score block
   x.textAlign = 'left'
   x.font = '800 190px Inter, sans-serif'
-  x.fillStyle = report.rektScore >= 40 ? '#fb7185' : '#34d399'
+  x.fillStyle = report.rektScore >= 40 ? '#ff453a' : '#30d158'
   x.fillText(String(report.rektScore), 60, 420)
   const sw = x.measureText(String(report.rektScore)).width
   x.font = '800 60px Inter, sans-serif'
@@ -208,10 +208,10 @@ export async function renderRektCard(
   // grade chip
   x.font = '800 46px Inter, sans-serif'
   const gw = x.measureText(report.grade).width
-  x.fillStyle = 'rgba(153,69,255,0.35)'
+  x.fillStyle = 'rgba(212,252,80,0.35)'
   roundRect(x, 58, 452, gw + 56, 76, 20)
   x.fill()
-  x.strokeStyle = 'rgba(167,139,250,0.8)'
+  x.strokeStyle = 'rgba(212,252,80,0.8)'
   x.lineWidth = 3
   roundRect(x, 58, 452, gw + 56, 76, 20)
   x.stroke()
@@ -220,18 +220,18 @@ export async function renderRektCard(
 
   // quip
   x.font = 'italic 600 30px Inter, sans-serif'
-  x.fillStyle = 'rgba(233,213,255,0.9)'
+  x.fillStyle = 'rgba(233,246,198,0.9)'
   x.fillText(`“${report.quip}”`, 60, 578)
 
   // stat rows
   const rows: Array<[string, string, string]> = [
-    ['Unrealized PnL', fmtUsd(report.totalPnlUsd, !opts.showUsd), report.totalPnlUsd < 0 ? '#fb7185' : '#34d399'],
+    ['Unrealized PnL', fmtUsd(report.totalPnlUsd, !opts.showUsd), report.totalPnlUsd < 0 ? '#ff453a' : '#30d158'],
     ['Cost basis', fmtUsd(report.totalCostUsd, !opts.showUsd), '#ffffff'],
     ['Bags value', fmtUsd(report.totalValueUsd, !opts.showUsd), '#ffffff'],
   ]
   const worst = report.bags.find(b => (b.drawdownPct ?? 1) < 0)
   if (worst && worst.drawdownPct != null) {
-    rows.push([`Worst bag · $${worst.symbol}`, `${worst.drawdownPct.toFixed(1)}%`, '#fb7185'])
+    rows.push([`Worst bag · $${worst.symbol}`, `${worst.drawdownPct.toFixed(1)}%`, '#ff453a'])
   }
 
   let ry = 660
@@ -260,7 +260,7 @@ export async function renderRektCard(
     x.stroke()
     x.textAlign = 'left'
     x.font = '800 36px Inter, sans-serif'
-    x.fillStyle = '#fde047'
+    x.fillStyle = '#facc15'
     x.fillText(
       `🏆 Paid ${report.wins.cyclesWon}× for losing${opts.showUsd ? ` · ${fmtUsd(report.wins.totalUsd, false)}` : ''}`,
       86,
@@ -279,11 +279,11 @@ export async function renderRektCard(
   // footer
   x.textAlign = 'center'
   x.font = '700 30px Inter, sans-serif'
-  x.fillStyle = '#e9d5ff'
+  x.fillStyle = '#e9f6c6'
   x.fillText('when you drawdown, we blast you up', W / 2, H - 96)
   x.font = '800 34px "JetBrains Mono", monospace'
-  x.fillStyle = '#a78bfa'
-  x.fillText('topblasted.fun', W / 2, H - 50)
+  x.fillStyle = '#d4fc50'
+  x.fillText('topblast.family', W / 2, H - 50)
 
   return canvas
 }

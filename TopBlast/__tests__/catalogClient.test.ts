@@ -49,10 +49,10 @@ describe('formatCompactUsd', () => {
     expect(formatCompactUsd(842)).toBe('$842')
   })
 
-  it('formats compact SOL for catalog gen volume', () => {
-    expect(formatCompactSol(1_200)).toBe('1.2K SOL')
-    expect(formatCompactSol(0.0523)).toBe('0.05 SOL')
-    expect(formatCompactSol(0)).toBe('0 SOL')
+  it('formats compact native amounts for catalog gen volume', () => {
+    expect(formatCompactSol(1_200)).toBe('1.2K ETH')
+    expect(formatCompactSol(0.0523)).toBe('0.05 ETH')
+    expect(formatCompactSol(0)).toBe('0 ETH')
   })
 })
 

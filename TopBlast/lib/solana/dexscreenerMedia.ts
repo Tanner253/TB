@@ -40,7 +40,7 @@ const DEX_MISS_CACHE_TTL_MS = 30 * 1000
 const PUMP_COIN_API = 'https://frontend-api-v3.pump.fun/coins'
 const DEX_FETCH_HEADERS = {
   Accept: 'application/json',
-  'User-Agent': 'TopBlast/1.0 (+https://topblasted.fun)',
+  'User-Agent': 'TopBlast/1.0 (+https://topblast.family)',
 } as const
 
 declare global {

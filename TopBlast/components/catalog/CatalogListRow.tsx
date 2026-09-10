@@ -31,7 +31,7 @@ function PotCell({ tenant }: { tenant: PublicTenantSummary }) {
   return (
     <MetricValue
       primary={tenant.pot_usd_formatted ?? '—'}
-      secondary={tenant.pot_sol != null ? `${tenant.pot_sol.toFixed(4)} SOL` : null}
+      secondary={tenant.pot_sol != null ? `${tenant.pot_sol.toFixed(4)} ETH` : null}
     />
   )
 }
@@ -40,7 +40,7 @@ function GeneratedVolumeCell({ tenant }: { tenant: PublicTenantSummary }) {
   return (
     <MetricValue
       primary={tenant.total_generated_volume_usd_formatted ?? '$0'}
-      secondary={tenant.total_generated_volume_sol_formatted ?? '0 SOL'}
+      secondary={tenant.total_generated_volume_sol_formatted ?? '0 ETH'}
       primaryClassName="text-sol-purple"
     />
   )
@@ -104,9 +104,9 @@ export function CatalogListRow({ tenant }: { tenant: PublicTenantSummary }) {
               {tenant.payout_mode === 'sol' ? (
                 <span
                   className="text-[0.6rem] uppercase tracking-wider text-sky-700 dark:text-sky-300 shrink-0"
-                  title="Winners are paid SOL directly from the pool — no buyback, no airdrop"
+                  title="Winners are paid ETH directly from the pool — no buyback, no airdrop"
                 >
-                  ◎ SOL payouts
+                  Ξ ETH payouts
                 </span>
               ) : null}
               <CatalogTimerBadge tenant={tenant} compact />

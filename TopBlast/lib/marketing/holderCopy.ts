@@ -8,7 +8,7 @@
 import { WHITEPAPER_URL } from '@/lib/marketing/urls'
 
 export const HOLDER_HERO = {
-  eyebrow: 'Live on Solana',
+  eyebrow: 'Live on Robinhood Chain',
   headline: 'Down bad? Get blasted up.',
   subhead:
     'Every cycle, each listed token’s reward pot buys that token on the open market and airdrops it to the holders who are most underwater. Hold through the dip — the biggest losers win.',
@@ -57,5 +57,5 @@ export const CAN_I_GET_PAID = {
 export const WHITEPAPER_CALLOUT = {
   title: 'Everything technical lives in the whitepaper',
   body: 'How drawdowns are ranked, how the pot is split, how holders are indexed, what Gen volume means — it’s all documented.',
-  cta: { label: 'whitepaper.topblasted.fun', href: WHITEPAPER_URL },
+  cta: { label: 'whitepaper.topblast.family', href: WHITEPAPER_URL },
 } as const

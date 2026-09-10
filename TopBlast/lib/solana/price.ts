@@ -144,23 +144,23 @@ export function formatCompactUsd(amount: number): string {
   return `$${Math.round(amount).toLocaleString('en-US')}`
 }
 
-/** Compact SOL for catalog gen volume — K/M above 1K, coarse below. */
+/** Compact native-asset amount for catalog gen volume — K/M above 1K, coarse below. */
 export function formatCompactSol(sol: number): string {
-  if (!Number.isFinite(sol) || sol <= 0) return '0 SOL'
+  if (!Number.isFinite(sol) || sol <= 0) return '0 ETH'
 
   if (sol >= 1_000_000) {
-    return `${formatCompactUnit(sol / 1_000_000)}M SOL`
+    return `${formatCompactUnit(sol / 1_000_000)}M ETH`
   }
   if (sol >= 1_000) {
-    return `${formatCompactUnit(sol / 1_000)}K SOL`
+    return `${formatCompactUnit(sol / 1_000)}K ETH`
   }
   if (sol >= 1) {
-    return `${formatCompactUnit(sol)} SOL`
+    return `${formatCompactUnit(sol)} ETH`
   }
   if (sol >= 0.01) {
-    return `${sol.toFixed(2)} SOL`
+    return `${sol.toFixed(2)} ETH`
   }
-  return '<0.01 SOL'
+  return '<0.01 ETH'
 }
 
 function formatCompactUnit(value: number): string {

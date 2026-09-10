@@ -21,7 +21,7 @@ function pass(message) {
 }
 
 if (!rawUrl) {
-  fail('Set TOPBLAST_APP_URL (use https://www.topblasted.fun if apex redirects)')
+  fail('Set TOPBLAST_APP_URL (use https://www.topblast.family if apex redirects)')
 }
 
 const appUrl = await resolveAppUrl(rawUrl)

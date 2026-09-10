@@ -53,7 +53,7 @@ export function CopyContractAddress({
           type="button"
           onClick={onCopy}
           className="group inline-flex items-center gap-1 font-mono text-ink-3 hover:text-sol-purple-dark transition-colors"
-          title={`${address}\nCopy public address to send SOL to the reward pool`}
+          title={`${address}\nCopy public address to send ETH to the reward pool`}
           aria-label="Copy payout pool wallet address"
         >
           <span>{formatWalletAddress(address)}</span>

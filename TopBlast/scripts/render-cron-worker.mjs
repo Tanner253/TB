@@ -3,7 +3,7 @@
  * Background worker — POST /api/cron/tenants on a schedule.
  * Render cron, GitHub Actions, or any scheduler can invoke this script.
  *
- * Env: TOPBLAST_APP_URL (use https://www.topblasted.fun — apex 308 strips auth)
+ * Env: TOPBLAST_APP_URL (use https://www.topblast.family — apex 308 strips auth)
  *      CRON_SECRET
  */
 import { resolveAppUrl } from './resolveAppUrl.mjs'

@@ -72,7 +72,7 @@ function formatCycleTotal(cycle: PayoutCycle): string {
     parts.push(`${cycle.total_token_amount} ${cycle.total_token_symbol}`)
   }
   if (Number.parseFloat(cycle.total_sol.replace(/,/g, '')) > 0) {
-    parts.push(`${cycle.total_sol} SOL`)
+    parts.push(`${cycle.total_sol} ETH`)
   }
   return parts.length > 0 ? parts.join(' + ') : cycle.total_usd_formatted
 }
@@ -82,7 +82,7 @@ function formatCycleTotalShort(cycle: PayoutCycle): string {
     return `${cycle.total_token_amount} ${cycle.total_token_symbol}`
   }
   if (Number.parseFloat(cycle.total_sol.replace(/,/g, '')) > 0) {
-    return `${cycle.total_sol} SOL`
+    return `${cycle.total_sol} ETH`
   }
   return cycle.total_usd_formatted
 }

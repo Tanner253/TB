@@ -31,7 +31,7 @@ export function ForCreatorsSection({
     <section className={compact ? 'space-y-6' : 'mb-12 space-y-8'}>
       {!hideHero ? (
         <div className="text-left">
-          <p className="text-xs uppercase tracking-wider text-sol-purple mb-2">For Solana token creators</p>
+          <p className="text-xs uppercase tracking-wider text-sol-purple mb-2">For Robinhood Chain token creators</p>
           <h2 className={`font-bold mb-3 ${compact ? 'text-xl' : 'text-2xl md:text-3xl'}`}>
             {DEV_HERO.headline}
           </h2>

@@ -1,6 +1,6 @@
-export const APP_URL = 'https://topblasted.fun'
+export const APP_URL = 'https://topblast.family'
 
-export const WHITEPAPER_URL = 'https://whitepaper.topblasted.fun'
+export const WHITEPAPER_URL = 'https://whitepaper.topblast.family'
 
 export const LINKS = {
   twitter: 'https://x.com/i/communities/2019975359567983064',

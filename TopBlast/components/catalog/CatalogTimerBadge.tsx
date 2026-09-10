@@ -32,7 +32,7 @@ export function CatalogTimerBadge({ tenant, compact = false }: CatalogTimerBadge
   const phase = deriveCatalogSessionDisplay(tenant).phase
   const title =
     phase === 'waiting_for_topup'
-      ? 'Pool below minimum — send SOL to the payout wallet to start cycles'
+      ? 'Pool below minimum — send ETH to the payout wallet to start cycles'
       : phase === 'timer_starting'
         ? 'Eligible holders found — payout timer will start shortly'
         : 'Payout timer paused until an eligible underwater holder qualifies'

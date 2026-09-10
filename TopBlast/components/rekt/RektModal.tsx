@@ -125,7 +125,7 @@ export function RektModal() {
         showWins && report.wins.cyclesWon > 0
           ? `TopBlast paid me ${report.wins.cyclesWon}× for losing.`
           : null,
-        'Get your card → topblasted.fun',
+        'Get your card → topblast.family',
       ]
         .filter(Boolean)
         .join('\n')
@@ -214,7 +214,7 @@ export function RektModal() {
               <input
                 value={input}
                 onChange={e => setInput(e.target.value.trim())}
-                placeholder="Solana wallet address…"
+                placeholder="Wallet address (0x…)"
                 className="flex-1 min-w-0 rounded-xl bg-card-2/70 border border-line px-3 py-2.5 font-mono text-xs focus:border-sol-purple/50 outline-none"
                 aria-label="Wallet address"
               />

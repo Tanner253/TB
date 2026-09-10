@@ -14,7 +14,7 @@ const PAYOUT_META = `Payout cycles every ${PAYOUT_INTERVAL_RANGE_COMPACT}`
 const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('tb-theme');if(t!=='light'){document.documentElement.classList.add('dark')}}catch(e){document.documentElement.classList.add('dark')}})()`
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://topblasted.fun'),
+  metadataBase: new URL('https://topblast.family'),
   title: SITE_TITLE,
   description: `${SITE_DESCRIPTION} ${PAYOUT_META}.`,
   keywords: [
@@ -30,16 +30,16 @@ export const metadata: Metadata = {
   authors: [{ name: 'TopBlast' }],
   openGraph: {
     title: SITE_TITLE,
-    description: `${SITE_DESCRIPTION} Solana · ${PAYOUT_META}.`,
+    description: `${SITE_DESCRIPTION} Robinhood Chain · ${PAYOUT_META}.`,
     type: 'website',
     siteName: 'TopBlast',
-    url: 'https://topblasted.fun',
+    url: 'https://topblast.family',
     locale: 'en_US',
   },
   twitter: {
     card: 'summary_large_image',
     title: SITE_TITLE,
-    description: `${SITE_DESCRIPTION} Solana · ${PAYOUT_META}.`,
+    description: `${SITE_DESCRIPTION} Robinhood Chain · ${PAYOUT_META}.`,
     site: '@oSKNYo_dev',
     creator: '@oSKNYo_dev',
   },
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#7c3aed',
+  themeColor: '#d4fc50',
 }
 
 export default function RootLayout({

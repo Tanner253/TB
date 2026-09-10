@@ -6,69 +6,85 @@
 
 /* ═══════════════════════════════════════════════════════════════
    THEME TOKENS
-   Light (default): warm paper — friendly, simple, readable.
-   Dark (.dark on <html>): the original Solana terminal look.
+   Palette follows Pons (ponsfamily.com): lime #d4fc50 on near-black.
+   Dark (.dark on <html>, the default): the Pons look, near-verbatim.
+   Light: same accent deepened so it stays readable on white.
+   NOTE: the lime needs DARK text on top of it — use --tb-on-accent
+   for anything sitting on an accent fill, never white.
    All tokens are RGB triplets so Tailwind can apply alpha:
    e.g. bg-paper, text-ink/60, border-line.
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  /* Surfaces */
-  --tb-paper: 247 241 232;      /* warm cream page bg */
-  --tb-card: 255 253 248;       /* raised card */
-  --tb-card-2: 250 245 237;     /* subtle inset panel */
+  /* Surfaces — light counterpart to the Pons dark theme */
+  --tb-paper: 250 250 248;      /* near-white page */
+  --tb-card: 255 255 255;       /* raised card */
+  --tb-card-2: 245 246 240;     /* subtle inset panel */
   /* Text */
-  --tb-ink: 28 25 23;           /* primary text (warm near-black) */
-  --tb-ink-2: 87 83 78;         /* secondary text */
-  --tb-ink-3: 148 140 130;      /* tertiary / hints */
+  --tb-ink: 20 20 20;           /* primary text */
+  --tb-ink-2: 90 92 84;         /* secondary text */
+  --tb-ink-3: 138 140 130;      /* tertiary / hints */
   /* Lines */
-  --tb-line: 226 216 200;       /* borders */
-  /* Brand accents (Solana identity, tuned per theme) */
-  --tb-purple: 124 58 237;      /* violet-600 — readable on cream */
-  --tb-purple-dark: 109 40 217;
-  --tb-mint: 4 120 87;          /* emerald-700 — "mint" text on cream */
-  --tb-mint-bright: 5 150 105;
+  --tb-line: 226 228 216;       /* borders */
+  /* Brand accent — Pons lime. On light backgrounds the bright lime is
+     unreadable as text, so text/borders use a deepened lime while fills
+     keep the real thing (see --tb-accent-fill). */
+  --tb-purple: 92 122 10;       /* deep lime — readable on white */
+  --tb-purple-dark: 74 99 8;
+  --tb-purple-deep: 54 72 6;
+  --tb-accent-fill: 212 252 80; /* #d4fc50 — Pons signature lime */
+  --tb-on-accent: 17 17 17;     /* text/icons sitting on the lime fill */
+  --tb-mint: 22 138 62;         /* success green */
+  --tb-mint-bright: 30 165 76;
   /* Status */
-  --tb-red: 220 38 38;
-  --tb-amber: 180 83 9;
-  --tb-gold: 202 138 4;
+  --tb-red: 214 45 32;
+  --tb-amber: 176 96 12;
+  --tb-gold: 168 124 8;
   /* Legacy vars used by a few raw CSS rules */
-  --color-bg-primary: #f7f1e8;
-  --color-bg-secondary: #fffdf8;
-  --color-bg-tertiary: #f0e9dd;
-  --color-accent-purple: #7c3aed;
-  --color-accent-purple-dark: #6d28d9;
-  --color-accent-mint: #047857;
-  --color-accent-mint-bright: #059669;
-  --color-accent-red: #dc2626;
-  --color-accent-amber: #b45309;
+  --color-bg-primary: #fafaf8;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #f5f6f0;
+  --color-accent-purple: #5c7a0a;
+  --color-accent-purple-dark: #4a6308;
+  --color-accent-mint: #168a3e;
+  --color-accent-mint-bright: #1ea54c;
+  --color-accent-red: #d62d20;
+  --color-accent-amber: #b0600c;
   color-scheme: light;
 }
 
 .dark {
-  --tb-paper: 3 3 3;
-  --tb-card: 10 10 10;
-  --tb-card-2: 17 17 17;
-  --tb-ink: 255 255 255;
-  --tb-ink-2: 156 163 175;
-  --tb-ink-3: 107 114 128;
-  --tb-line: 38 38 42;
-  --tb-purple: 153 69 255;
-  --tb-purple-dark: 122 47 212;
-  --tb-mint: 20 241 149;
-  --tb-mint-bright: 25 251 155;
-  --tb-red: 239 68 68;
-  --tb-amber: 245 158 11;
+  /* Surfaces — taken from ponsfamily.com */
+  --tb-paper: 13 13 13;         /* #0d0d0d page */
+  --tb-card: 22 22 22;          /* #161616 card */
+  --tb-card-2: 28 28 28;        /* #1c1c1c elevated */
+  /* Text */
+  --tb-ink: 242 242 242;        /* #f2f2f2 */
+  --tb-ink-2: 154 154 154;
+  --tb-ink-3: 120 120 120;
+  /* Lines */
+  --tb-line: 42 42 42;          /* #2a2a2a */
+  /* Brand accent — Pons lime, used directly in dark */
+  --tb-purple: 212 252 80;      /* #d4fc50 */
+  --tb-purple-dark: 181 230 61; /* pressed/hover */
+  --tb-purple-deep: 42 58 20;   /* #2a3a14 — Pons --accent-mid */
+  --tb-accent-fill: 212 252 80;
+  --tb-on-accent: 17 17 17;     /* #111 — Pons uses dark text on lime */
+  --tb-mint: 48 209 88;         /* #30d158 */
+  --tb-mint-bright: 74 222 112;
+  /* Status */
+  --tb-red: 255 69 58;          /* #ff453a */
+  --tb-amber: 243 161 63;
   --tb-gold: 250 204 21;
-  --color-bg-primary: #000000;
-  --color-bg-secondary: #0a0a0a;
-  --color-bg-tertiary: #111111;
-  --color-accent-purple: #9945FF;
-  --color-accent-purple-dark: #7A2FD4;
-  --color-accent-mint: #14F195;
-  --color-accent-mint-bright: #19FB9B;
-  --color-accent-red: #ef4444;
-  --color-accent-amber: #f59e0b;
+  --color-bg-primary: #0d0d0d;
+  --color-bg-secondary: #161616;
+  --color-bg-tertiary: #1c1c1c;
+  --color-accent-purple: #d4fc50;
+  --color-accent-purple-dark: #b5e63d;
+  --color-accent-mint: #30d158;
+  --color-accent-mint-bright: #4ade70;
+  --color-accent-red: #ff453a;
+  --color-accent-amber: #f3a13f;
   color-scheme: dark;
 }
 
@@ -354,7 +370,7 @@ body {
 }
 
 .gradient-text-accent {
-  background: linear-gradient(135deg, rgb(var(--tb-purple)) 0%, rgb(var(--tb-purple-dark)) 55%, #a78bfa 100%);
+  background: linear-gradient(135deg, rgb(var(--tb-accent-fill)) 0%, rgb(var(--tb-purple)) 55%, rgb(var(--tb-mint)) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

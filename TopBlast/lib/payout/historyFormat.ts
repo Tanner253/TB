@@ -11,7 +11,7 @@ export function resolvePayoutAmountAsset(
   if (rank === 0) return 'sol'
   if (amountTokens <= 0) return 'token'
   const impliedUnitPrice = amountUsd / amountTokens
-  // Session tokens are far cheaper than SOL; SOL winner payouts imply ~$50+ per unit.
+  // Session tokens are far cheaper than ETH; native winner payouts imply a much higher unit price.
   return impliedUnitPrice < 0.05 ? 'token' : 'sol'
 }
 
