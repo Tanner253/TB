@@ -29,6 +29,9 @@ Real domain is **ponsfamily.com** (`pons.family` does not resolve). Docs at
 | V1 Factory (active) | `0xA5aAb3F0c6EeadF30Ef1D3Eb997108E976351feB` (start block 8991118) — ✅ 24,353 bytes deployed |
 | V1 Locker | `0x736D76699C26D0d966744cAe304C000d471f7F35` — ✅ 5,426 bytes deployed |
 | V1 Factory (legacy) | `0x0c37a24F5D23A486FA692d1500881d698B1F77a4` (start block 8600612) |
+| **V2 Factory** | `0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e` — ✅ 24,177 bytes deployed |
+| **V2 Fee Escrow** | `0xd3afeb2a57f70ef218aa82451c51b2fb0416ac9e` — ✅ 1,932 bytes, resolved via `feeEscrow()` |
+| **V2 Locker** | `0x267444d099b10fb5ed7c3cc7b7c767adca574952` — resolved via `locker()` |
 | Trading fee | **1% per trade, split 70% creator / 30% protocol** |
 | Launch fee | 0.0005 ETH |
 | Graduation | at **4.2 ETH** paired WETH; the pool does *not* migrate — trading continues in the same Uniswap **V3** pool |
@@ -47,20 +50,35 @@ Real domain is **ponsfamily.com** (`pons.family` does not resolve). Docs at
 
 ## 2. Open questions (must resolve before payouts can run)
 
-1. **Creator-fee claim ABI.** Docs confirm *"creator rewards accrue in the
-   token's locked position … the creator can claim them at any time"* but do
-   **not** publish the function signature. Two shapes exist:
-   - **V1**: LP fees inside the Locker-held Uniswap V3 position → likely a
-     `collect`-style call on the Locker.
-   - **V2**: a **Fee Escrow** exposing `claim()` / `claimToken(asset)`.
+1. ~~**Creator-fee claim ABI.**~~ **RESOLVED — verified in deployed bytecode.**
+   Pons **V2 is live on mainnet** (contrary to the `pons-fork-v2` README, whose
+   addresses were unpublished at the time of writing). Creator fees are pulled
+   from the **Fee Escrow** at `0xd3afeb2a57f70ef218aa82451c51b2fb0416ac9e`,
+   discovered by calling `feeEscrow()` on the V2 factory. Both selectors are
+   present in the deployed code:
 
-   Resolve by reading the deployed Locker ABI/bytecode plus
-   `github.com/ponsdotdev/ponsfamily`, cross-checked against
-   `github.com/rebateprotocol/pons-fork-v2` (`src/core/abis.ts`) — an existing
-   creator-fee bot (buyback&burn / cashback) doing exactly this job.
-2. **V1 vs V2 targeting.** The site badges tokens "V2", yet `pons-fork-v2`
-   states v2 addresses are *not yet published*. Decide whether we ship
-   supporting V1 (documented + deployed today) and add V2 when it lands.
+   | Selector | Signature | Use |
+   | :-- | :-- | :-- |
+   | `0x4e71d92d` | `claim()` | aggregated claim across all assets |
+   | `0x32f289cf` | `claimToken(address asset)` | per-asset claim (ETH or ERC-20) |
+
+   Called by the **creator wallet** — i.e. the payout wallet a launcher
+   registers with us — which maps almost 1:1 onto today's
+   `lib/pump/collectCreatorFees.ts` flow. Still to confirm: a view for
+   *pending* balances (no `claimable`/`balances` getter matched the escrow
+   bytecode, so we may need to derive pending amounts from escrow events, or
+   simply attempt `claim()` on the existing throttle and treat a no-op as
+   "nothing to claim" — which is what the pump.fun collector already does).
+
+   Discovery is reproducible: `getLaunchedToken(address)` exists on both
+   factories and the V1 locker; `graduationStatus(address)` on the V1 factory.
+
+2. **V1 vs V2 targeting.** Both generations are deployed. V2 has the clean
+   escrow-based claim above and graduates into Uniswap V4; V1 accrues fees
+   inside a locked Uniswap V3 position. Recommend building against **V2**
+   (new launches use it — the site badges tokens "V2") and treating V1 as
+   read-only/legacy.
+
 3. **Uniswap router addresses** for the buyback swap. V3 SwapRouter is in the
    Pons docs' core-addresses section; the V4 Universal Router is reportedly
    unpublished (the reference bot throws `NeedsV4Router`).
