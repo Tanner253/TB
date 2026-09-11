@@ -50,10 +50,23 @@ test('uses actual partial fill in receipt, not the submitted amount or quote', a
   expect(result.tokensOutRaw).toBe('500')
   expect(result.quoteSpent).toBe(55e-18)
 })
-test('graduated launch cannot fall back to a curve swap', async () => {
+test('graduated launch routes to v4, never back to the curve', async () => {
+  ;(getPonsLaunch as jest.Mock).mockResolvedValue({
+    token, curve, nativeQuote: true, phase: 2, poolFee: 0, tickSpacing: 200,
+  })
+  // Simulation is the gate before signing; make it fail so nothing is sent.
+  client.call = jest.fn().mockRejectedValue(new Error('no pool'))
+  const result = await buybackSessionToken({ tokenAddress: token, quoteInWei: 100n, tokenDecimals: 0, privateKeyHex: key, execute: true })
+  expect(result.venue).toBe('uniswap-v4')
+  expect(result.success).toBe(false)
+  expect(wallet.writeContract).not.toHaveBeenCalled()
+})
+
+test('a launch record missing pool geometry errors instead of throwing', async () => {
   ;(getPonsLaunch as jest.Mock).mockResolvedValue({ token, curve, nativeQuote: true, phase: 2 })
   const result = await buybackSessionToken({ tokenAddress: token, quoteInWei: 100n, tokenDecimals: 0, privateKeyHex: key, execute: true })
   expect(result.success).toBe(false)
+  expect(result.error).toMatch(/pool geometry/)
   expect(wallet.writeContract).not.toHaveBeenCalled()
 })
 test('confirmation timeout retains submitted hash for reconciliation', async () => {

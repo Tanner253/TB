@@ -16,22 +16,22 @@ import 'server-only'
  * Graduation is the interesting one. Two separate things break, and they are
  * worth keeping apart:
  *
- *   - BUYING needs a v4-aware router, which this chain has no confirmed
- *     canonical deployment of yet (set PONS_V4_ROUTER once it does). Without
- *     it we cannot do the on-chart buyback — but we can still pay winners ETH
- *     straight from the pool, which is an existing, fully supported payout
- *     mode. So the cycle degrades instead of stopping.
+ *   - BUYING needs a v4-aware router. The Universal Router on this chain was
+ *     identified and verified on-chain (see lib/pons/v4.ts), so on-chart
+ *     buybacks survive graduation. PONS_V4_ROUTER=off forces the fallback to
+ *     native payouts if that route ever misbehaves.
  *
  *   - COST BASIS for wallets that bought *after* graduation comes from v4
- *     swap events we do not index yet. Balances are unaffected (they are
- *     plain ERC-20 Transfers), and everyone who bought on the curve keeps the
- *     exact VWAP we already recorded. Holders with no known basis fall out of
- *     the rankings on their own — `hasTransferIn` already excludes them —
- *     which is the right failure: never pay someone on a guessed entry price.
+ *     swap events we do not index yet — this is the one real remaining gap.
+ *     Balances are unaffected (they are plain ERC-20 Transfers), and everyone
+ *     who bought on the curve keeps the exact VWAP we already recorded.
+ *     Holders with no known basis fall out of the rankings on their own —
+ *     `hasTransferIn` already excludes them — which is the right failure:
+ *     never pay someone on a guessed entry price.
  *
- * Net effect: a graduated listing keeps running, keeps paying its curve-era
- * holders, and pays in ETH until the router lands. Nothing silently changes
- * meaning; `degradedReason` says exactly what is reduced and why.
+ * Net effect: a graduated listing keeps running and keeps buying on-chart;
+ * only wallets that entered after graduation sit out until v4 swap indexing
+ * lands. `degradedReason` says exactly what is reduced and why.
  */
 
 import { config } from '@/lib/config'
@@ -71,9 +71,13 @@ function halt(reason: string, launch: PonsLaunch | null = null): PonsCapability 
   }
 }
 
-/** A v4-aware router, once one is configured for this chain. */
+/**
+ * The Universal Router is known and verified on this chain, so v4 execution
+ * is available by default. The env var remains an override / kill switch:
+ * set PONS_V4_ROUTER=off to force graduated launches back to ETH payouts.
+ */
 export function v4RouterConfigured(): boolean {
-  return Boolean(process.env.PONS_V4_ROUTER?.trim())
+  return process.env.PONS_V4_ROUTER?.trim().toLowerCase() !== 'off'
 }
 
 export async function resolvePonsCapability(
@@ -120,8 +124,8 @@ export async function resolvePonsCapability(
         costBasisPartial: true,
         venue: 'uniswap-v4',
         degradedReason: canBuyback
-          ? 'Graduated to Uniswap v4 — wallets that bought after graduation are not ranked yet'
-          : 'Graduated to Uniswap v4 — paying winners in ETH until a v4 router is configured, ' +
+          ? 'Graduated to Uniswap v4 — buybacks route through the Universal Router; wallets that bought after graduation are not ranked yet'
+          : 'Graduated to Uniswap v4 with v4 routing disabled — paying winners in ETH, ' +
             'and wallets that bought after graduation are not ranked yet',
         haltReason: null,
         launch,

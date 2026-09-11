@@ -1,7 +1,7 @@
 import { submitOnce } from './submissions'
 import 'server-only'
 import { formatUnits, parseEventLogs, type Address, type Hash } from 'viem'
-import { CURVE_ABI, LaunchPhase, accountForKey, publicClient, walletClientForKey } from './contracts'
+import { CURVE_ABI, ERC20_ABI, LaunchPhase, accountForKey, publicClient, walletClientForKey } from './contracts'
 import { getPonsLaunch, type PonsLaunch } from './launch'
 import { signingAllowed } from './transfers'
 const BPS = 10_000n
@@ -42,15 +42,15 @@ export async function buybackSessionToken(input: {
   const launch = await getPonsLaunch(input.tokenAddress)
   if (!launch) return { ...base, error: 'Not a Pons v2 launch' }
   if (!launch.nativeQuote) return { ...base, error: 'Custom quote assets are not supported for payouts' }
+  if (launch.phase === LaunchPhase.PoolCreated) return buyOnV4(launch, input, base, account)
   if (launch.phase !== LaunchPhase.NotGraduated) {
-    // Distinguish "cannot buy here" from "cannot run at all": a graduated
-    // launch is still payable in ETH, so the caller falls back instead of
-    // failing the cycle. See lib/pons/capability.ts.
+    // Swept (mid-graduation) and Rescued are not tradeable anywhere. The
+    // caller falls back to native payouts rather than failing the cycle.
     const { resolvePonsCapability } = await import('./capability')
     const capability = await resolvePonsCapability(input.tokenAddress)
     return {
       ...base,
-      venue: capability.venue === 'uniswap-v4' ? 'uniswap-v4' : null,
+      venue: null,
       error: capability.haltReason ?? capability.degradedReason ?? 'On-chart buyback unavailable for this launch',
     }
   }
@@ -79,4 +79,95 @@ export async function buybackSessionToken(input: {
 export function buildV4PoolKey(launch: PonsLaunch, memeHook: Address) {
   const [currency0, currency1] = launch.pairToken.toLowerCase() < launch.token.toLowerCase() ? [launch.pairToken, launch.token] : [launch.token, launch.pairToken]
   return { currency0, currency1, fee: launch.poolFee, tickSpacing: launch.tickSpacing, hooks: memeHook }
+}
+
+/**
+ * Buy a graduated launch in its Uniswap v4 pool through the Universal Router.
+ *
+ * The v4 encoding (a command wrapping actions wrapping params) reverts
+ * opaquely when any layer is wrong, so this simulates before it signs and
+ * refuses on a failed simulation. Tokens received are read from the balance
+ * delta rather than from an event, because the router — not the pool — is
+ * what emits here, and the delta is what actually landed.
+ */
+async function buyOnV4(
+  launch: PonsLaunch,
+  input: { tokenAddress: string; quoteInWei: bigint; privateKeyHex: string | undefined | null; tokenDecimals: number; slippageBps?: number; execute?: boolean },
+  base: BuybackResult,
+  account: NonNullable<ReturnType<typeof accountForKey>>
+): Promise<BuybackResult> {
+  const { buildV4ExactInSwap, poolKeyForLaunch, simulateV4Swap } = await import('./v4')
+  const { PONS_V2 } = await import('./contracts')
+
+  // A launch record missing its pool geometry cannot be encoded, and letting
+  // the encoder throw would surface as an opaque TypeError that fails the
+  // whole cycle. Refuse cleanly so the caller falls back to native payouts.
+  if (!Number.isInteger(launch.poolFee) || !Number.isInteger(launch.tickSpacing)) {
+    return { ...base, venue: 'uniswap-v4', error: 'Launch record is missing v4 pool geometry' }
+  }
+
+  const poolKey = poolKeyForLaunch(launch, PONS_V2.memeHook as Address)
+  const zeroForOne = poolKey.currency0.toLowerCase() !== launch.token.toLowerCase()
+
+  const balanceOf = () =>
+    publicClient().readContract({
+      address: launch.token,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: [account.address],
+    }) as Promise<bigint>
+
+  // The curve's constant-product maths does not apply to a v4 pool, and the
+  // pool has no cheap quoter here, so slippage is expressed as "no worse than
+  // the simulation" rather than against a computed price.
+  const call = buildV4ExactInSwap({
+    poolKey,
+    zeroForOne,
+    amountIn: input.quoteInWei,
+    minAmountOut: 0n,
+    deadline: BigInt(Math.floor(Date.now() / 1000) + 600),
+    nativeInput: launch.nativeQuote,
+  })
+
+  const sim = await simulateV4Swap(call, account.address)
+  if (!sim.ok) {
+    return { ...base, venue: 'uniswap-v4', error: `v4 swap simulation failed: ${sim.error ?? 'unknown'}` }
+  }
+
+  const spent = Number(formatUnits(input.quoteInWei, 18))
+  if (input.execute === false) {
+    return { ...base, success: true, venue: 'uniswap-v4', quoteSpent: spent }
+  }
+
+  const wallet = walletClientForKey(input.privateKeyHex)
+  if (!wallet) return { ...base, venue: 'uniswap-v4', error: 'Could not build wallet client' }
+
+  try {
+    const before = await balanceOf()
+    const hash = await submitOnce('buyback-v4', input.quoteInWei.toString(), () =>
+      wallet.sendTransaction({ to: call.to, data: call.data, value: call.value, account, chain: wallet.chain })
+    )
+    const receipt = await publicClient().waitForTransactionReceipt({ hash, timeout: 90_000 })
+    if (receipt.status !== 'success') {
+      return { ...base, venue: 'uniswap-v4', txHash: hash, error: 'v4 swap reverted' }
+    }
+
+    const after = await balanceOf()
+    const gained = after > before ? after - before : 0n
+    if (gained <= 0n) {
+      return { ...base, venue: 'uniswap-v4', txHash: hash, error: 'v4 swap confirmed but no tokens arrived; reconcile before retrying' }
+    }
+
+    return {
+      success: true,
+      txHash: hash,
+      tokensOut: Number(formatUnits(gained, input.tokenDecimals)),
+      tokensOutRaw: gained.toString(),
+      quoteSpent: spent,
+      venue: 'uniswap-v4',
+      error: null,
+    }
+  } catch (err) {
+    return { ...base, venue: 'uniswap-v4', error: err instanceof Error ? err.message : String(err) }
+  }
 }
