@@ -1,3 +1,4 @@
+import { isPonsSession } from '@/lib/pons/session'
 import 'server-only'
 
 import { config } from '@/lib/config'
@@ -19,6 +20,11 @@ import {
  * Collect Pump creator fees for the active tenant context (leaderboard or catalog sweep).
  */
 export async function collectPumpCreatorFeesForActiveTenant(): Promise<PumpCollectResult | null> {
+  if (isPonsSession()) {
+    const { claimCreatorFees } = await import('@/lib/pons/fees')
+    const result = await claimCreatorFees({ tokenAddress: config.tokenMint, privateKeyHex: getPayoutPrivateKey(), execute: config.executePayouts })
+    return result.success ? { status: 'skipped', reason: result.claimed ? 'Pons fees collected' : (result.skippedReason ?? 'Pons dry run') } : { status: 'error', error: result.error ?? 'Pons claim failed' }
+  }
   if (!isPumpAutoCollectEnabled()) {
     return null
   }

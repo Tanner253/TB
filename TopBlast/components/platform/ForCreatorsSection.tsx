@@ -95,7 +95,7 @@ export function ForCreatorsSection({
       {showLaunchCta ? (
         <Link
           href="/launch"
-          className="inline-block px-6 py-3 bg-sol-gradient text-white dark:text-black rounded-xl font-bold text-sm hover:opacity-90"
+          className="inline-block px-6 py-3 bg-sol-gradient text-on-accent rounded-xl font-bold text-sm hover:opacity-90"
         >
           {DEV_HERO.cta} →
         </Link>

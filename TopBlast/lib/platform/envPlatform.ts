@@ -1,3 +1,4 @@
+import { accountForKey } from '@/lib/pons/keys'
 import { Keypair } from '@solana/web3.js'
 import { DEFAULT_WINNER_COUNT, validateWinnerCount } from '@/lib/payout/winnerCount'
 import { envDefaultPayoutMode } from '@/lib/payout/payoutMode'
@@ -23,7 +24,7 @@ export function getPlatformEnvPayoutAddress(): string {
   const key = process.env.PAYOUT_WALLET_PRIVATE_KEY?.trim()
   if (!key) return ''
   try {
-    return Keypair.fromSecretKey(bs58.decode(key)).publicKey.toBase58()
+    return accountForKey(key)?.address.toLowerCase() ?? Keypair.fromSecretKey(bs58.decode(key)).publicKey.toBase58()
   } catch {
     return ''
   }

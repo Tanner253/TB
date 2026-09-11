@@ -1,3 +1,4 @@
+import { isPonsSession, isEvmAddress } from '@/lib/pons/session'
 /**
  * Payout Executor - timer and payout execution.
  * Timer stays in "waiting" until the first eligible holder exists, then counts down uniformly via MongoDB.
@@ -434,6 +435,10 @@ async function syncPayoutTimerWithPoolMinimum(): Promise<void> {
 
 /** Live eligible winners that still hold the session token on-chain (same bar as payout). */
 export async function countVerifiedPayableWinners(limit?: number): Promise<number> {
+  if (isPonsSession()) {
+    const { refreshPonsRankings } = await import('@/lib/pons/rankings')
+    await refreshPonsRankings({ force: true })
+  }
   const winnerLimit = limit ?? config.winnerCount
   const winners = await resolveLivePayableWinners(winnerLimit)
   if (winners.length === 0) return 0
@@ -513,7 +518,7 @@ export async function resolveLivePayableWinners(limit?: number): Promise<Payable
     dbRankings.rankings.map(h => [h.wallet, { ...h }] as const)
   )
   const liveHolders: Array<{ wallet: string; balance: number; isContract: boolean }> =
-    workerOwnsIndexing()
+    !isPonsSession() && workerOwnsIndexing()
       ? (getStaleTokenHolders(config.tokenMint) ?? []).map(h => ({
           wallet: h.wallet,
           balance: h.balance,
@@ -750,6 +755,10 @@ async function completeVerifiedPayoutCycle(
 }
 
 export async function executePayout(knownWinners?: PayableWinner[]): Promise<PayoutResult> {
+  if (isPonsSession()) {
+    const { assertPonsReady } = await import('@/lib/pons/rankings')
+    try { await assertPonsReady() } catch (error) { return { success: false, error: error instanceof Error ? error.message : 'Pons not ready' } }
+  }
   if (!isPayoutExecutionAuthorized()) {
     console.error('[Payout] Blocked — not running inside authorized server context')
     return { success: false, error: 'Payout execution not authorized' }
@@ -865,7 +874,8 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
       if (!config.devWalletAddress) return false
       try {
         // eslint-disable-next-line no-new
-        new PublicKey(config.devWalletAddress)
+        if (isPonsSession()) { if (!isEvmAddress(config.devWalletAddress)) throw new Error('Invalid EVM treasury') }
+        else new PublicKey(config.devWalletAddress)
         return true
       } catch {
         return false
@@ -1275,7 +1285,7 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
         continue
       }
 
-      const requiredSol = pending.amountSol + 0.001
+      const requiredSol = pending.amountSol + (isPonsSession() ? 0.00001 : 0.001)
 
       if (availableSol < requiredSol) {
         console.log(`[Payout] ${label}: Insufficient balance — skipping`)
@@ -1376,7 +1386,7 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
         expectedWinnerAmounts: payoutAmounts,
       })
 
-      if (transferCheck.ok && availableSol >= totalDevFeeSol + 0.001) {
+      if (transferCheck.ok && availableSol >= totalDevFeeSol + (isPonsSession() ? 0.00001 : 0.001)) {
         console.log(`[Payout] Dev fee: Sending ${totalDevFeeSol.toFixed(6)} SOL to ${config.devWalletAddress.slice(0, 10)}...`)
         const txResult = config.executePayouts
           ? await transferSol(config.devWalletAddress, totalDevFeeSol)

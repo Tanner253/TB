@@ -1,3 +1,4 @@
+import { isPonsSession } from '@/lib/pons/session'
 /**
  * Hands-off background cycle for a tenant: index rankings, advance timer, execute payout when due.
  * Used by multi-tenant cron — no leaderboard traffic required.
@@ -104,7 +105,7 @@ export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
     }
   }
 
-  if (isPumpAutoCollectEnabled()) {
+  if (isPonsSession() || isPumpAutoCollectEnabled()) {
     try {
       await collectPumpCreatorFeesForActiveTenant()
     } catch (err) {

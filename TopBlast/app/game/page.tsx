@@ -83,7 +83,7 @@ type Phase = 'loading' | 'ready' | 'charging' | 'flying' | 'done'
 
 /**
  * Mid-air pickups (mechanics ported from bball.fun's layered spawner):
- *  coin    — +1 ◎, tiny lift
+ *  coin    — +1 Ξ, tiny lift
  *  ring    — violet boost ring (low sky): forward + up
  *  jet     — golden jetstream ring (mid sky): bigger kick
  *  balloon — party balloon (mid sky): big vertical pop
@@ -460,7 +460,7 @@ export default function BlastOffPage() {
             runCoins += 5
             whale.vx += 8
             whale.vy -= 4
-            announce('SATELLITE SLING! 🛰️ +5◎', 26)
+            announce('SATELLITE SLING! 🛰️ +5Ξ', 26)
             playPayoutFanfare()
             setHud(h => ({ ...h, coins: runCoins }))
             break
@@ -701,7 +701,7 @@ export default function BlastOffPage() {
             ctx.stroke()
             ctx.fillStyle = '#b45309'
             ctx.font = 'bold 13px monospace'
-            ctx.fillText('◎', px, py + 1)
+            ctx.fillText('Ξ', px, py + 1)
             break
           }
           case 'ring':
@@ -956,7 +956,7 @@ export default function BlastOffPage() {
           </h1>
           <p className="mt-2 text-sm sm:text-base text-ink-2 max-w-xl mx-auto">
             Blasty bought the top. Charge the blast, launch them out of the water, and recover the
-            drawdown — every meter is a dollar. Grab <span className="text-gold font-semibold">◎ coins</span> for upgrades.
+            drawdown — every meter is a dollar. Grab <span className="text-gold font-semibold">Ξ coins</span> for upgrades.
           </p>
         </div>
 
@@ -967,7 +967,7 @@ export default function BlastOffPage() {
             <span className="text-ink-3 font-normal">recovered</span>
           </span>
           <span>
-            ◎ <span className="text-gold">{hud.coins}</span>{' '}
+            Ξ <span className="text-gold">{hud.coins}</span>{' '}
             <span className="text-ink-3 font-normal">this run</span>
           </span>
           <span>
@@ -1020,12 +1020,12 @@ export default function BlastOffPage() {
                   <p className="text-ink-3 text-sm mt-1">Best: ${store.best}</p>
                 )}
                 <p className="mt-2 text-sm text-ink-2">
-                  ◎ {result.coins} coin{result.coins === 1 ? '' : 's'} banked
+                  Ξ {result.coins} coin{result.coins === 1 ? '' : 's'} banked
                 </p>
                 <button
                   type="button"
                   onClick={launchAgain}
-                  className="mt-5 w-full rounded-xl bg-sol-purple px-4 py-3 text-sm font-bold text-white hover:bg-sol-purple-dark transition-colors"
+                  className="mt-5 w-full rounded-xl bg-accent px-4 py-3 text-sm font-bold text-on-accent hover:bg-accent-hover transition-colors"
                 >
                   🚀 LAUNCH AGAIN
                 </button>
@@ -1045,14 +1045,14 @@ export default function BlastOffPage() {
         </p>
         <p className="mt-1 text-center text-xs text-ink-3">
           Fly through <span className="text-sol-purple font-semibold">rings</span>, 🎈 balloons and 🛰️
-          satellites for boosts · bounce off <span className="text-emerald-600 dark:text-emerald-400 font-semibold">green candles</span> ·
+          satellites for boosts · bounce off <span className="text-sol-mint font-semibold">green candles</span> ·
           dodge 🐻 bear clouds and <span className="text-red-600 dark:text-red-400 font-semibold">red candles</span>
         </p>
 
         {/* shop */}
         <section className="mt-8">
           <h2 className="text-lg font-extrabold tracking-tight mb-4 text-center">
-            Upgrade shop <span className="text-gold font-bold">· ◎ {store.coins}</span>
+            Upgrade shop <span className="text-gold font-bold">· Ξ {store.coins}</span>
           </h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {UPGRADE_DEFS.map(def => {
@@ -1085,11 +1085,11 @@ export default function BlastOffPage() {
                       maxed
                         ? 'bg-ink/[0.06] text-ink-3 cursor-default'
                         : affordable
-                          ? 'bg-sol-purple text-white hover:bg-sol-purple-dark'
+                          ? 'bg-accent text-on-accent hover:bg-accent-hover'
                           : 'bg-ink/[0.06] text-ink-3 cursor-not-allowed'
                     }`}
                   >
-                    {maxed ? 'MAXED' : `◎ ${cost}`}
+                    {maxed ? 'MAXED' : `Ξ ${cost}`}
                   </button>
                 </motion.div>
               )

@@ -221,7 +221,7 @@ export function RektModal() {
               <button
                 type="submit"
                 disabled={loading || !input.trim()}
-                className="rounded-xl bg-sol-purple px-4 py-2.5 text-sm font-bold text-white hover:bg-sol-purple-dark transition-colors disabled:opacity-50"
+                className="rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-on-accent hover:bg-accent-hover transition-colors disabled:opacity-50"
               >
                 {loading ? '…' : 'Scan'}
               </button>
@@ -303,7 +303,7 @@ export function RektModal() {
                     href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-xl bg-sol-purple px-3 py-2.5 text-center text-xs font-bold text-white hover:bg-sol-purple-dark transition-colors"
+                    className="rounded-xl bg-accent px-3 py-2.5 text-center text-xs font-bold text-on-accent hover:bg-accent-hover transition-colors"
                   >
                     Share to 𝕏
                   </a>

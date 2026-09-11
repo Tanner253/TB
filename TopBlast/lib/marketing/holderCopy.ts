@@ -8,7 +8,7 @@
 import { WHITEPAPER_URL } from '@/lib/marketing/urls'
 
 export const HOLDER_HERO = {
-  eyebrow: 'Live on Robinhood Chain',
+  eyebrow: 'A Pons SaaS · Live on Robinhood Chain',
   headline: 'Down bad? Get blasted up.',
   subhead:
     'Every cycle, each listed token’s reward pot buys that token on the open market and airdrops it to the holders who are most underwater. Hold through the dip — the biggest losers win.',

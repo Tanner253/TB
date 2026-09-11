@@ -353,7 +353,7 @@ export function AppHeader({ active, trailing }: AppHeaderProps) {
             <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
               <Link
                 href="/launch"
-                className={`inline-flex px-3.5 py-1.5 bg-sol-gradient text-white dark:text-black rounded-lg font-semibold text-sm shadow-rh-glow-sm hover:opacity-90 transition-opacity whitespace-nowrap ${
+                className={`inline-flex px-3.5 py-1.5 bg-sol-gradient text-on-accent rounded-lg font-semibold text-sm shadow-rh-glow-sm hover:opacity-90 transition-opacity whitespace-nowrap ${
                   active === 'launch' ? 'ring-2 ring-sol-purple/50' : ''
                 }`}
               >

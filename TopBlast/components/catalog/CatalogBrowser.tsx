@@ -163,7 +163,7 @@ export function CatalogBrowser() {
               <p className="text-sm text-ink-3 mb-6">Be the first to list your token on TopBlast.</p>
               <Link
                 href="/launch"
-                className="inline-flex px-5 py-2.5 bg-sol-gradient text-white dark:text-black rounded-lg font-semibold text-sm"
+                className="inline-flex px-5 py-2.5 bg-sol-gradient text-on-accent rounded-lg font-semibold text-sm"
               >
                 List your token
               </Link>

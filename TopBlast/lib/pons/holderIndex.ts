@@ -1,271 +1,155 @@
+import { getV1Launch, V3_ABI } from './v1'
 import 'server-only'
-
-/**
- * Holder balances + cost basis for a Pons v2 launch — the Robinhood Chain
- * replacement for Birdeye holder snapshots AND Helius VWAP hydration.
- *
- * Both come from on-chain logs, indexed forward from the launch block:
- *
- *  - **Balances** from ERC-20 `Transfer` logs on the token.
- *  - **Cost basis** from `CurveBuy` / `CurveSell` logs on the launch's curve.
- *    These carry `quoteIn` and `tokensOut` per recipient, so VWAP is exact
- *    rather than inferred from swap heuristics the way the Solana path had
- *    to be. Post-graduation trades happen in the Uniswap v4 pool and are
- *    picked up as plain transfers (see `hasPoolActivity`).
- *
- * State is checkpointed in Mongo so each cycle only scans new blocks.
- */
-
-import { formatUnits, getAddress, parseAbiItem, type Address, type Log } from 'viem'
+import mongoose from 'mongoose'
+import { formatUnits, parseEventLogs, type Address } from 'viem'
 import connectDB from '@/lib/db'
-import { scanLogs, latestBlock } from '@/lib/evm/logReader'
-import { CURVE_ABI, ERC20_ABI, NATIVE_ADDRESS } from './contracts'
-import { getPonsLaunch, type PonsLaunch } from './launch'
-
-const TRANSFER_EVENT = parseAbiItem(
-  'event Transfer(address indexed from, address indexed to, uint256 value)'
-)
-const CURVE_BUY_EVENT = parseAbiItem(
-  'event CurveBuy(address indexed buyer, address indexed recipient, uint256 quoteIn, uint256 tokensOut, uint256 fee, uint256 tax)'
-)
-const CURVE_SELL_EVENT = parseAbiItem(
-  'event CurveSell(address indexed seller, address indexed recipient, uint256 tokensIn, uint256 quoteOut, uint256 fee, uint256 tax)'
-)
-
-/** Per-cycle scan budget so one huge backlog can't stall the whole cron. */
-function maxBlocksPerCycle(): bigint {
-  const n = parseInt(process.env.PONS_INDEX_MAX_BLOCKS_PER_CYCLE ?? '', 10)
-  return BigInt(Number.isFinite(n) && n > 0 ? n : 2_000_000) // ~2.3h of chain
-}
+import { scanLogs } from '@/lib/evm/logReader'
+import { CURVE_ABI, ERC20_ABI, NATIVE_ADDRESS, V4_POOL_MANAGER, PONS_V2, getChainId, publicClient } from './contracts'
+import { getPonsLaunch } from './launch'
 
 export interface IndexedHolder {
   wallet: string
-  /** Human units. */
   balance: number
-  /** Volume-weighted average entry price in quote-asset units, null if unknown. */
   vwap: number | null
   totalTokensBought: number
   totalQuoteSpent: number
   firstBuyAt: Date | null
   hasSold: boolean
-  /** Received tokens without a recorded buy (airdrop / wallet transfer in). */
   hasTransferIn: boolean
 }
-
-interface RawHolder {
-  balanceRaw: bigint
-  boughtRaw: bigint
-  quoteSpentRaw: bigint
-  firstBuyMs: number | null
-  hasSold: boolean
-  hasTransferIn: boolean
-}
-
-function blank(): RawHolder {
-  return {
-    balanceRaw: 0n,
-    boughtRaw: 0n,
-    quoteSpentRaw: 0n,
-    firstBuyMs: null,
-    hasSold: false,
-    hasTransferIn: false,
-  }
-}
-
-/** Addresses that are protocol plumbing, never real holders. */
-function isSystemAddress(addr: string, launch: PonsLaunch): boolean {
-  const a = addr.toLowerCase()
-  return (
-    a === NATIVE_ADDRESS ||
-    a === launch.curve.toLowerCase() ||
-    a === launch.token.toLowerCase()
-  )
-}
-
 export interface IndexResult {
   holders: IndexedHolder[]
   lastIndexedBlock: number
-  /** True when we hit the per-cycle budget and more blocks remain. */
   incomplete: boolean
   quoteDecimals: number
   quoteIsNative: boolean
 }
+type Raw = { balance: string; bought: string; spent: string; firstBuyMs: number | null; sold: boolean; transferIn: boolean }
+type Checkpoint = { _id: string; version: number; launchBlock: string; cursor: string; blockHash: string; holders: Record<string, Raw> }
 
-/**
- * Builds the full holder set for a launch by replaying its logs.
- *
- * `fromBlock` should be the persisted cursor; pass the launch block on first
- * run. Returns holders plus the new cursor to persist.
- */
-export async function indexLaunchHolders(input: {
-  tokenAddress: string
-  launchBlock: bigint
-  fromBlock?: bigint
-  /** Carry forward previously indexed state so scans stay incremental. */
-  priorState?: Map<string, RawHolder>
-}): Promise<IndexResult | null> {
-  const launch = await getPonsLaunch(input.tokenAddress)
+/** Locate the initial mint using logs; public RPC may not retain historical state. */
+async function deploymentBlock(token: Address, head: bigint): Promise<bigint> {
+  const event = ERC20_ABI.find(a => a.type === 'event' && a.name === 'Transfer')!
+  for (let end = head; end >= 0n;) {
+    const start = end > 399_999n ? end - 399_999n : 0n
+    const logs = await publicClient().getLogs({ address: token, event, args: { from: NATIVE_ADDRESS }, fromBlock: start, toBlock: end, strict: true })
+    if (logs.length) return logs[0].blockNumber!
+    if (start === 0n) break
+    end = start - 1n
+  }
+  throw new Error('Initial token mint event not found; cannot build complete balances')
+}
+export async function indexLaunchHolders(input: { tokenAddress: string; launchBlock?: bigint; fromBlock?: bigint }): Promise<IndexResult | null> {
+  const v2 = await getPonsLaunch(input.tokenAddress)
+  const v1 = v2 ? null : await getV1Launch(input.tokenAddress)
+  const launch = v2 ?? (v1 ? { token: v1.token, curve: v1.pool, pairToken: v1.pairedToken, nativeQuote: v1.nativeQuote } : null)
   if (!launch) return null
-
   await connectDB()
-
-  const tokenDecimals = await getTokenDecimals(launch.token)
-  const quoteDecimals = launch.nativeQuote ? 18 : await getTokenDecimals(launch.pairToken)
-
-  const holders = input.priorState ?? new Map<string, RawHolder>()
-  const get = (addr: string): RawHolder => {
-    const key = addr.toLowerCase()
-    let h = holders.get(key)
-    if (!h) {
-      h = blank()
-      holders.set(key, h)
-    }
-    return h
+  const db = mongoose.connection.db
+  if (!db) throw new Error('Database is required for Pons indexing')
+  const collection = db.collection<Checkpoint>('pons_holder_checkpoints')
+  const id = getChainId() + ':' + launch.token.toLowerCase()
+  const saved = await collection.findOne({ _id: id })
+  const client = publicClient()
+  const head = await client.getBlockNumber()
+  const confirmed = head > 100n ? head - 100n : 0n
+  let prior = saved
+  if (prior) {
+    const block = await client.getBlock({ blockNumber: BigInt(prior.cursor) })
+    if (block.hash !== prior.blockHash) prior = null // replay after a reorg
   }
-
-  const head = await latestBlock()
-  const start = input.fromBlock ?? input.launchBlock
-  if (start > head) {
-    return {
-      holders: [],
-      lastIndexedBlock: Number(head),
-      incomplete: false,
-      quoteDecimals,
-      quoteIsNative: launch.nativeQuote,
-    }
-  }
-
-  // --- balances from token Transfer logs ---
-  const transferScan = await scanLogs({
-    address: launch.token,
-    events: [TRANSFER_EVENT],
-    fromBlock: start,
-    toBlock: head,
-    maxBlocks: maxBlocksPerCycle(),
-    onLogs: logs => {
-      for (const log of logs) {
-        const a = log as Log<bigint, number, false, typeof TRANSFER_EVENT>
-        const from = a.args?.from as string | undefined
-        const to = a.args?.to as string | undefined
-        const value = (a.args?.value as bigint | undefined) ?? 0n
-        if (!from || !to || value <= 0n) continue
-
-        if (!isSystemAddress(from, launch)) {
-          const h = get(from)
-          h.balanceRaw -= value
-          // Sending tokens out of a tracked wallet counts as disposal.
-          h.hasSold = true
-        }
-        if (!isSystemAddress(to, launch)) {
-          const h = get(to)
-          h.balanceRaw += value
-          // A transfer whose source is not the curve had no recorded buy.
-          if (from.toLowerCase() !== launch.curve.toLowerCase()) h.hasTransferIn = true
-        }
-      }
-    },
-  })
-
-  // --- cost basis from curve trades (exact, not inferred) ---
-  await scanLogs({
-    address: launch.curve,
-    events: [CURVE_BUY_EVENT, CURVE_SELL_EVENT],
-    fromBlock: start,
-    toBlock: transferScan.lastBlock,
-    onLogs: async logs => {
-      for (const log of logs) {
-        const name = (log as { eventName?: string }).eventName
-        const args = (log as { args?: Record<string, unknown> }).args ?? {}
-        const recipient = args.recipient as string | undefined
-        if (!recipient) continue
-        const h = get(recipient)
-
-        if (name === 'CurveBuy') {
-          const quoteIn = (args.quoteIn as bigint) ?? 0n
-          const tokensOut = (args.tokensOut as bigint) ?? 0n
-          h.boughtRaw += tokensOut
-          h.quoteSpentRaw += quoteIn
-          if (h.firstBuyMs == null) {
-            h.firstBuyMs = await blockTimeMs(log as { blockNumber?: bigint })
+  const launchBlock = prior ? BigInt(prior.launchBlock) : await deploymentBlock(launch.token, v1 && v1.restrictionsEndBlock < confirmed ? v1.restrictionsEndBlock : confirmed)
+  const start = prior ? BigInt(prior.cursor) + 1n : launchBlock
+  const raw: Record<string, Raw> = structuredClone(prior?.holders ?? {})
+  const get = (address: string) => raw[address.toLowerCase()] ??= { balance: '0', bought: '0', spent: '0', firstBuyMs: null, sold: false, transferIn: false }
+  const excluded = new Set([NATIVE_ADDRESS, launch.token, launch.curve, V4_POOL_MANAGER, ...Object.values(PONS_V2)].map(a => a.toLowerCase()))
+  const [decimals, quoteDecimals] = await Promise.all([
+    client.readContract({ address: launch.token, abi: ERC20_ABI, functionName: 'decimals' }),
+    launch.nativeQuote ? Promise.resolve(18) : client.readContract({ address: launch.pairToken, abi: ERC20_ABI, functionName: 'decimals' }),
+  ])
+  const budget = 2_000_000n
+  const end = start + budget - 1n < confirmed ? start + budget - 1n : confirmed
+  const times = new Map<string, number>()
+  if (start <= end) {
+    await scanLogs({
+      address: [launch.token, launch.curve],
+      events: [...ERC20_ABI, ...CURVE_ABI, ...V3_ABI].filter(a => a.type === 'event'),
+      fromBlock: start, toBlock: end,
+      onLogs: async logs => {
+        for (const log of logs) {
+          const { eventName: name, args = {} } = log as unknown as { eventName: string; args: Record<string, any> }
+          if (name === 'Transfer' && log.address.toLowerCase() === launch.token.toLowerCase()) {
+            const { from, to, value } = args
+            if (!from || !to || typeof value !== 'bigint') throw new Error('Malformed Transfer log')
+            if (from.toLowerCase() === to.toLowerCase()) continue
+            if (!excluded.has(from.toLowerCase())) {
+              const h = get(from); h.balance = (BigInt(h.balance) - value).toString(); h.sold = true
+            }
+            if (!excluded.has(to.toLowerCase())) {
+              const h = get(to); h.balance = (BigInt(h.balance) + value).toString()
+              if (from.toLowerCase() !== launch.curve.toLowerCase()) h.transferIn = true
+            }
+          } else if (name === 'CurveBuy' && log.address.toLowerCase() === launch.curve.toLowerCase()) {
+            const h = get(args.recipient)
+            h.bought = (BigInt(h.bought) + args.tokensOut).toString()
+            h.spent = (BigInt(h.spent) + args.quoteIn).toString()
+            if (h.firstBuyMs == null) {
+              const bn = log.blockNumber!
+              if (!times.has(bn.toString())) times.set(bn.toString(), Number((await client.getBlock({ blockNumber: bn })).timestamp) * 1000)
+              h.firstBuyMs = times.get(bn.toString())!
+            }
+          } else if (name === 'Swap' && v1 && log.address.toLowerCase() === v1.pool.toLowerCase()) {
+            const tokenDelta = v1.isToken0 ? args.amount0 : args.amount1
+            const quoteDelta = v1.isToken0 ? args.amount1 : args.amount0
+            if (tokenDelta < 0n && quoteDelta > 0n) {
+              const receipt = await client.getTransactionReceipt({ hash: log.transactionHash! })
+              const trades = parseEventLogs({ abi: V3_ABI, logs: receipt.logs, eventName: 'Swap' })
+                .filter(e => e.address.toLowerCase() === v1.pool.toLowerCase())
+              // Ambiguous multi-swap transactions never get invented entry prices.
+              if (trades.length === 1) {
+                const transfers = parseEventLogs({ abi: ERC20_ABI, logs: receipt.logs, eventName: 'Transfer' })
+                  .filter(e => e.address.toLowerCase() === launch.token.toLowerCase())
+                const net = new Map<string, bigint>()
+                for (const e of transfers) {
+                  const from = e.args.from.toLowerCase(), to = e.args.to.toLowerCase()
+                  net.set(from, (net.get(from) ?? 0n) - e.args.value)
+                  net.set(to, (net.get(to) ?? 0n) + e.args.value)
+                }
+                const recipients = [...net].filter(([address, amount]) => amount > 0n && !excluded.has(address))
+                if (recipients.length === 1 && recipients[0][1] === -tokenDelta) {
+                  const h = get(recipients[0][0])
+                  h.bought = (BigInt(h.bought) - tokenDelta).toString()
+                  h.spent = (BigInt(h.spent) + quoteDelta).toString()
+                  if (h.firstBuyMs == null) h.firstBuyMs = Number((await client.getBlock({ blockNumber: log.blockNumber! })).timestamp) * 1000
+                }
+              }
+            }
+          } else if (name === 'CurveSell' && log.address.toLowerCase() === launch.curve.toLowerCase()) {
+            get(args.seller).sold = true // recipient receives quote; seller disposes tokens
           }
-          // A curve buy is a genuine entry, not an unexplained transfer in.
-          h.hasTransferIn = false
-        } else if (name === 'CurveSell') {
-          h.hasSold = true
         }
-      }
-    },
-  })
-
-  const out: IndexedHolder[] = []
-  for (const [wallet, h] of holders) {
-    if (h.balanceRaw <= 0n) continue
-    const balance = Number(formatUnits(h.balanceRaw, tokenDecimals))
-    const bought = Number(formatUnits(h.boughtRaw, tokenDecimals))
-    const spent = Number(formatUnits(h.quoteSpentRaw, quoteDecimals))
-    out.push({
-      wallet: getAddress(wallet),
-      balance,
-      vwap: bought > 0 && spent > 0 ? spent / bought : null,
-      totalTokensBought: bought,
-      totalQuoteSpent: spent,
-      firstBuyAt: h.firstBuyMs ? new Date(h.firstBuyMs) : null,
-      hasSold: h.hasSold,
-      hasTransferIn: h.hasTransferIn,
+      },
     })
+    const checkpoint: Checkpoint = {
+      _id: id, version: (saved?.version ?? 0) + 1, launchBlock: launchBlock.toString(),
+      cursor: end.toString(), blockHash: (await client.getBlock({ blockNumber: end })).hash!,
+      holders: raw,
+    }
+    if (saved) {
+      const write = await collection.replaceOne({ _id: id, version: saved.version }, checkpoint)
+      if (!write.matchedCount) throw new Error('Concurrent Pons index refresh; retry')
+    } else await collection.insertOne(checkpoint)
   }
-
-  out.sort((a, b) => b.balance - a.balance)
-
-  return {
-    holders: out,
-    lastIndexedBlock: Number(transferScan.lastBlock),
-    incomplete: transferScan.truncated,
-    quoteDecimals,
-    quoteIsNative: launch.nativeQuote,
+  const holders: IndexedHolder[] = []
+  for (const [wallet, h] of Object.entries(raw)) {
+    if (excluded.has(wallet) || BigInt(h.balance) <= 0n) continue
+    const balance = Number(formatUnits(BigInt(h.balance), Number(decimals)))
+    const bought = Number(formatUnits(BigInt(h.bought), Number(decimals)))
+    const spent = Number(formatUnits(BigInt(h.spent), Number(quoteDecimals)))
+    holders.push({ wallet, balance, vwap: bought > 0 ? spent / bought : null, totalTokensBought: bought, totalQuoteSpent: spent,
+      firstBuyAt: h.firstBuyMs == null ? null : new Date(h.firstBuyMs), hasSold: h.sold, hasTransferIn: h.transferIn })
   }
+  return { holders: holders.sort((a,b) => b.balance - a.balance), lastIndexedBlock: Number(end), incomplete: end < confirmed,
+    quoteDecimals: Number(quoteDecimals), quoteIsNative: launch.nativeQuote }
 }
-
-const decimalsCache = new Map<string, number>()
-
-async function getTokenDecimals(token: Address): Promise<number> {
-  const key = token.toLowerCase()
-  const hit = decimalsCache.get(key)
-  if (hit != null) return hit
-  try {
-    const { publicClient } = await import('./contracts')
-    const d = await publicClient().readContract({
-      address: token,
-      abi: ERC20_ABI,
-      functionName: 'decimals',
-    })
-    const n = Number(d)
-    decimalsCache.set(key, n)
-    return n
-  } catch {
-    return 18
-  }
-}
-
-const blockTimeCache = new Map<string, number>()
-
-async function blockTimeMs(log: { blockNumber?: bigint }): Promise<number | null> {
-  const bn = log.blockNumber
-  if (bn == null) return null
-  const key = bn.toString()
-  const hit = blockTimeCache.get(key)
-  if (hit != null) return hit
-  try {
-    const { publicClient } = await import('./contracts')
-    const block = await publicClient().getBlock({ blockNumber: bn })
-    const ms = Number(block.timestamp) * 1000
-    if (blockTimeCache.size > 5_000) blockTimeCache.clear()
-    blockTimeCache.set(key, ms)
-    return ms
-  } catch {
-    return null
-  }
-}
-
-/** Curve ABI re-export so callers can subscribe to trades without re-importing. */
 export { CURVE_ABI }

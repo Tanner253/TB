@@ -132,7 +132,7 @@ function getStatusBadge(status: string) {
       )
     case 'partial':
       return (
-        <span className="inline-flex items-center gap-1.5 bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full text-xs font-medium">
+        <span className="inline-flex items-center gap-1.5 bg-tb-amber/15 text-tb-amber px-3 py-1 rounded-full text-xs font-medium">
           <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
           Partial
         </span>
@@ -242,7 +242,7 @@ export default function HistoryPage() {
             {data?.stats.total_cycles || 0} cycles · {data?.stats.total_payouts || 0} successful ·{' '}
             {data?.stats.total_distributed_usd_formatted || '$0'} distributed
             {data?.network === 'devnet' && (
-              <span className="ml-2 text-amber-400">(Devnet)</span>
+              <span className="ml-2 text-tb-amber">(Testnet)</span>
             )}
           </p>
         </motion.div>

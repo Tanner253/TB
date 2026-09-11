@@ -1,3 +1,4 @@
+import { isPonsSession } from '@/lib/pons/session'
 /**
  * Live holder rankings from Birdeye — replaces per-wallet Helius VWAP hydration.
  * Writes CurrentRankings only; does not execute payouts or mutate in-memory holder state.
@@ -82,6 +83,7 @@ export function buildRankingRowsFromBirdeye(
     balance: number
     vwap: number | null
     firstBuyTimestamp: number | null
+    totalTokensBought?: number
     hasSold: boolean
     hasTransferIn: boolean
   }>,
@@ -109,7 +111,7 @@ export function buildRankingRowsFromBirdeye(
     )
     if (balance < ctx.minTokenHolding) continue
 
-    const totalTokensBought = snap.vwap && snap.vwap > 0 ? balance : 0
+    const totalTokensBought = snap.totalTokensBought ?? (snap.vwap && snap.vwap > 0 ? balance : 0)
     const lastWinCycle = ctx.lastWinByWallet.get(snap.wallet) ?? null
 
     const eligibility = evaluateHolderEligibility({
@@ -295,6 +297,7 @@ export async function refreshLiveHolderRankings(options?: {
   force?: boolean
   session?: HolderRefreshSession
 }): Promise<RefreshLiveHolderRankingsResult> {
+  if (isPonsSession()) return (await import('@/lib/pons/rankings')).refreshPonsRankings(options)
   if (!isBirdeyeHolderSourceEnabled() || !config.tokenMint) {
     return { refreshed: false, holderCount: 0, holdersWithVwap: 0, eligibleCount: 0, apiCalls: 0 }
   }

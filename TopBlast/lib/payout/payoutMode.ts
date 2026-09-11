@@ -40,5 +40,5 @@ export function envDefaultPayoutMode(): PayoutMode {
 
 /** Short human label, e.g. for catalog badges. */
 export function payoutModeLabel(mode: PayoutMode, tokenSymbol?: string): string {
-  return mode === 'sol' ? 'SOL payouts' : `$${tokenSymbol || 'TOKEN'} airdrops`
+  return mode === 'sol' ? 'ETH payouts' : `$${tokenSymbol || 'TOKEN'} airdrops`
 }

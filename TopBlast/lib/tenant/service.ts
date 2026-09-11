@@ -1,3 +1,5 @@
+import { isPonsSession, isEvmAddress } from '@/lib/pons/session'
+import { accountForKey } from '@/lib/pons/keys'
 import { Keypair, PublicKey } from '@solana/web3.js'
 import bs58 from 'bs58'
 import connectDB from '@/lib/db'
@@ -35,11 +37,14 @@ function isLikelySolanaMint(mint: string): boolean {
 }
 
 function derivePayoutAddress(privateKeyBase58: string): string {
+  const evm = accountForKey(privateKeyBase58)
+  if (evm) return evm.address.toLowerCase()
   const decoded = bs58.decode(privateKeyBase58.trim())
   return Keypair.fromSecretKey(decoded).publicKey.toBase58()
 }
 
 function validatePrivateKey(privateKeyBase58: string): void {
+  if (accountForKey(privateKeyBase58)) return
   try {
     const decoded = bs58.decode(privateKeyBase58.trim())
     Keypair.fromSecretKey(decoded)
@@ -49,6 +54,7 @@ function validatePrivateKey(privateKeyBase58: string): void {
 }
 
 function validateMint(mint: string): void {
+  if (isPonsSession(mint)) { if (!isEvmAddress(mint)) throw new Error('Invalid EVM token address'); return }
   try {
     // eslint-disable-next-line no-new
     new PublicKey(mint.trim())
@@ -140,11 +146,23 @@ export async function createTenant(input: CreateTenantInput) {
     throw new Error('This slug or mint is reserved for the operator manual listing')
   }
 
-  const mint = input.mint.trim()
+  const mint = isPonsSession(input.mint) ? input.mint.trim().toLowerCase() : input.mint.trim()
   const symbol = (input.symbol || 'TOKEN').trim().slice(0, 12)
-  const decimals = input.decimals ?? 6
+  let decimals = input.decimals ?? 6
   const payoutWalletAddress = derivePayoutAddress(input.payoutWalletPrivateKey)
+  if (isPonsSession(mint)) {
+    const { getPonsLaunch } = await import('@/lib/pons/launch')
+    const { publicClient, ERC20_ABI, isTestnet } = await import('@/lib/pons/contracts')
+    if (isTestnet()) throw new Error('Pons testnet deployment is not configured')
+    const launch = await getPonsLaunch(mint)
+    if (!launch || !launch.nativeQuote || !launch.onCurve) throw new Error('List an active native-ETH Pons v2 curve')
+    if (!accountForKey(input.payoutWalletPrivateKey)) throw new Error('Expected a 32-byte EVM private key')
+    if (launch.creatorFeeRecipient.toLowerCase() !== payoutWalletAddress) throw new Error('Payout wallet must be the Pons creator fee recipient')
+    decimals = Number(await publicClient().readContract({ address: launch.token, abi: ERC20_ABI, functionName: 'decimals' }))
+    if (input.decimals != null && input.decimals !== decimals) throw new Error('Token decimals do not match the chain')
+  }
   const devWalletAddress = requirePlatformDevWalletAddress()
+  if (isPonsSession(mint) && !isEvmAddress(devWalletAddress)) throw new Error('Platform treasury must be an EVM address')
   const payoutIntervalMinutes = validatePayoutIntervalMinutes(input.payoutIntervalMinutes)
   const winnerCount = validateWinnerCount(input.winnerCount)
   const minTokenHolding = validateMinTokenHolding(input.minTokenHolding)
@@ -160,6 +178,7 @@ export async function createTenant(input: CreateTenantInput) {
     throw new Error('This token mint is already registered')
   }
 
+  if (isPonsSession(mint) && await Tenant.exists({ payoutWalletAddress })) throw new Error('Use a dedicated payout wallet for each listing')
   const encryptedPayoutKey = encryptSecret(input.payoutWalletPrivateKey.trim())
 
   const tenant = await Tenant.create({

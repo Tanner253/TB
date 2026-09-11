@@ -21,10 +21,14 @@ module.exports = {
         'ink-3': 'rgb(var(--tb-ink-3) / <alpha-value>)',
         line: 'rgb(var(--tb-line) / <alpha-value>)',
         gold: 'rgb(var(--tb-gold) / <alpha-value>)',
+        'tb-amber': 'rgb(var(--tb-amber) / <alpha-value>)',
         // Brand accent. Named `sol.*` for historical reasons — the values are
         // now the Pons lime, theme-aware via CSS vars. Anything placed ON an
         // accent fill must use `text-on-accent`, not white.
-        accent: 'rgb(var(--tb-accent-fill) / <alpha-value>)',
+        accent: {
+          DEFAULT: 'rgb(var(--tb-accent-fill) / <alpha-value>)',
+          hover: 'rgb(var(--tb-accent-hover) / <alpha-value>)',
+        },
         'on-accent': 'rgb(var(--tb-on-accent) / <alpha-value>)',
         sol: {
           purple: 'rgb(var(--tb-purple) / <alpha-value>)',

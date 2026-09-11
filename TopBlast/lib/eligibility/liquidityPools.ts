@@ -1,3 +1,4 @@
+import { isPonsSession, walletKey } from '@/lib/pons/session'
 /**
  * Liquidity pool / AMM addresses must never rank or receive conviction-reward payouts.
  * Sources: Pump.fun bonding-curve PDA, DexScreener pair addresses for the mint.
@@ -58,6 +59,16 @@ export function derivePumpBondingCurveAddress(mint: string): string | null {
 }
 
 export async function refreshLiquidityPoolAddresses(mint: string): Promise<Set<string>> {
+  if (isPonsSession(mint)) {
+    const { getPonsLaunch } = await import('@/lib/pons/launch')
+    const { PONS_V2, V4_POOL_MANAGER, NATIVE_ADDRESS } = await import('@/lib/pons/contracts')
+    const launch = await getPonsLaunch(mint)
+    const v1 = launch ? null : await (await import('@/lib/pons/v1')).getV1Launch(mint)
+    if (!launch && !v1) throw new Error('Pons launch unavailable')
+    const addresses = new Set([launch?.curve ?? v1!.pool, launch?.token ?? v1!.token, V4_POOL_MANAGER, NATIVE_ADDRESS, ...Object.values(PONS_V2)].map(walletKey))
+    poolCacheMap().set(poolCacheKey(mint), { addresses, fetchedAt: Date.now() })
+    return addresses
+  }
   const normalizedMint = mint.trim()
   const addresses = new Set<string>()
 
@@ -105,7 +116,7 @@ export function isLiquidityPoolWallet(wallet: string, mint?: string): boolean {
   const resolvedMint = mint?.trim() || config.tokenMint?.trim()
   if (!resolvedMint) return false
 
-  return getCachedLiquidityPoolAddresses(resolvedMint).has(wallet)
+  return getCachedLiquidityPoolAddresses(resolvedMint).has(walletKey(wallet))
 }
 
 export function resetLiquidityPoolCache(mint?: string): void {

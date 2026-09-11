@@ -23,7 +23,7 @@ export const LAUNCH_KEY_HELP = {
   payoutWalletPrivateKey: {
     title: 'Payout wallet private key (dedicated creator wallet only)',
     body:
-      'Use a dedicated Solana payout wallet — not your personal trading wallet or seed phrase. TopBlast never asks token holders for private keys; only listing creators submit this once when they list. The key is encrypted at rest and only decrypted server-side to run your payout cycles.',
+      'Use a dedicated Robinhood Chain payout wallet — not your personal trading wallet or seed phrase. TopBlast never asks token holders for private keys; only listing creators submit this once when they list. The key is encrypted at rest and only decrypted server-side to run your payout cycles.',
   },
   payoutInterval: {
     title: 'Payout frequency',
@@ -46,13 +46,13 @@ export const LAUNCH_KEY_HELP = {
         label: 'Your token (default)',
         tag: 'On-chart buy volume',
         body:
-          'Each cycle the pool market-buys your token via Jupiter, then airdrops it to winners. Green candles on your chart, and lifetime buys tracked as Gen volume in the catalog.',
+          'Each cycle the pool market-buys your token on the Pons curve, then airdrops it to winners. Green candles on your chart, and lifetime buys tracked as Gen volume in the catalog.',
       },
       sol: {
-        label: 'SOL',
+        label: 'ETH',
         tag: 'No chart impact',
         body:
-          'Winners are paid SOL straight from the pool. Nothing is bought or sold on your chart — no buyback volume, no airdropped supply for winners to sell.',
+          'Winners are paid ETH straight from the pool. Nothing is bought or sold on your chart — no buyback volume, no airdropped supply for winners to sell.',
       },
     },
   },
@@ -73,7 +73,7 @@ export const LAUNCH_FLOW = {
     },
     {
       title: 'We index your token on-chain',
-      body: 'Holder balances and buy history are pulled via Helius. Rankings usually appear within a few minutes of listing.',
+      body: 'Holder balances and buy history are pulled from Pons trade and ERC-20 transfer logs. Rankings usually appear within a few minutes of listing.',
     },
     {
       title: 'Cycles run automatically',
@@ -92,12 +92,12 @@ export const HOW_TO_RUN_LISTING = {
   steps: [
     {
       n: 1,
-      title: 'List with a valid base58 payout private key',
+      title: 'List with a valid hex EVM payout private key',
       body: 'Use the creator-rewards wallet for your token. TopBlast encrypts it at rest and only decrypts it to execute your payout cycles.',
     },
     {
       n: 2,
-      title: 'Fund that wallet\'s public address with SOL',
+      title: 'Fund that wallet\'s public address with ETH',
       body: 'Winner payouts come from this wallet each cycle (~99% of balance). If it is empty, cycles cannot pay out — your session status will show the deposit address.',
     },
     {

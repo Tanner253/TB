@@ -1,3 +1,5 @@
+import { isPonsSession, isEvmAddress, walletKey } from '@/lib/pons/session'
+import { accountForKey } from '@/lib/pons/keys'
 /**
  * Wallets that must never rank or receive winner payouts.
  * Payout pool wallet + dev fee wallet + optional EXCLUDED_WALLETS.
@@ -17,6 +19,7 @@ const PROTOCOL_WALLET_REASON = 'Protocol wallet excluded'
 
 const cachedExcludedByTenant = new Map<string, Set<string>>()
 function isValidSolanaAddress(address: string): boolean {
+  if (isPonsSession(address)) return isEvmAddress(address)
   try {
     // eslint-disable-next-line no-new
     new PublicKey(address)
@@ -30,6 +33,7 @@ function isValidSolanaAddress(address: string): boolean {
 export function getPayoutWalletAddressFromEnv(): string | null {
   const key = getPayoutPrivateKey()
   if (!key) return null
+  if (isPonsSession()) return accountForKey(key)?.address.toLowerCase() ?? null
 
   try {
     const decoded = bs58.decode(key)
@@ -46,23 +50,23 @@ export function getExcludedParticipantWallets(): Set<string> {
 
   const excluded = new Set<string>()
   const payout = getPayoutWalletAddressFromEnv()
-  if (payout) excluded.add(payout)
+  if (payout) excluded.add(walletKey(payout))
 
   const runtimeDev = getTenantRuntime()?.devWalletAddress?.trim()
   const devWallet = runtimeDev || config.devWalletAddress
   if (devWallet && isValidSolanaAddress(devWallet)) {
-    excluded.add(devWallet)
+    excluded.add(walletKey(devWallet))
   }
 
   for (const addr of getCachedLiquidityPoolAddresses(config.tokenMint)) {
-    excluded.add(addr)
+    excluded.add(walletKey(addr))
   }
 
   const extra = process.env.EXCLUDED_WALLETS || ''
   for (const part of extra.split(',')) {
     const addr = part.trim()
     if (addr && isValidSolanaAddress(addr)) {
-      excluded.add(addr)
+      excluded.add(walletKey(addr))
     }
   }
 
@@ -71,7 +75,7 @@ export function getExcludedParticipantWallets(): Set<string> {
 }
 export function isExcludedParticipantWallet(wallet: string): boolean {
   if (!wallet) return false
-  if (getExcludedParticipantWallets().has(wallet)) return true
+  if (getExcludedParticipantWallets().has(walletKey(wallet))) return true
   return isLiquidityPoolWallet(wallet, config.tokenMint)
 }
 

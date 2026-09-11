@@ -1,3 +1,4 @@
+import { isPonsSession, isEvmAddress, walletKey } from '@/lib/pons/session'
 import 'server-only'
 
 import { PublicKey } from '@solana/web3.js'
@@ -9,11 +10,13 @@ import type { PayableWinner } from '@/lib/payout/types'
 
 /** SOL kept in the payout wallet after any cycle (rent + future tx fees). */
 export function getMinWalletReserveSol(): number {
+  if (isPonsSession()) { const eth = Number(process.env.MIN_WALLET_RESERVE_ETH ?? '0.0001'); return Number.isFinite(eth) && eth >= 0 ? eth : 0.0001 }
   const raw = parseFloat(process.env.MIN_WALLET_RESERVE_SOL || '0.01')
   return Number.isFinite(raw) && raw >= 0 ? raw : 0.01
 }
 
 export function isValidSolanaAddress(address: string): boolean {
+  if (isPonsSession()) return isEvmAddress(address)
   const trimmed = address?.trim()
   if (!trimmed) return false
   // Reject EVM-style hex addresses — Solana PublicKey can mis-parse some strings.
@@ -51,7 +54,7 @@ export function maxDistributableSol(walletSol: number): number {
 }
 
 function holderOwnsSessionToken(wallet: string, balanceByWallet: Map<string, number>): boolean {
-  const balance = balanceByWallet.get(wallet)
+  const balance = balanceByWallet.get(walletKey(wallet))
   return balance != null && balance >= config.minTokenHolding
 }
 
@@ -67,7 +70,7 @@ export async function filterWinnersHoldingSessionToken(
   const balanceByWallet = new Map<string, number>()
   for (const row of holders) {
     if (!row.isContract) {
-      balanceByWallet.set(row.wallet, row.balance / Math.pow(10, config.tokenDecimals))
+      balanceByWallet.set(walletKey(row.wallet), row.balance / Math.pow(10, config.tokenDecimals))
     }
   }
 
@@ -83,6 +86,7 @@ export async function assertPayoutTransferAllowed(input: {
   expectedWinnerAmounts: number[]
 }): Promise<{ ok: true } | { ok: false; reason: string }> {
   const { rank, recipient, amountSol, walletSol, allowedWinners, expectedWinnerAmounts } = input
+  if (!Number.isFinite(amountSol) || amountSol <= 0 || !Number.isFinite(walletSol)) return { ok: false, reason: 'Invalid payout amount' }
 
   if (!isValidSolanaAddress(recipient)) {
     return { ok: false, reason: 'Recipient is not a valid Solana address' }
@@ -94,7 +98,7 @@ export async function assertPayoutTransferAllowed(input: {
     if (!dev || !isValidSolanaAddress(dev)) {
       return { ok: false, reason: 'Dev fee blocked — DEV_WALLET_ADDRESS is missing or invalid' }
     }
-    if (recipient !== dev) {
+    if (walletKey(recipient) !== walletKey(dev)) {
       return { ok: false, reason: 'Dev fee recipient does not match DEV_WALLET_ADDRESS' }
     }
     const distributable = maxDistributableSol(walletSol)
@@ -119,13 +123,13 @@ export async function assertPayoutTransferAllowed(input: {
     }
   }
 
-  if (rank < 1 || rank > 3) {
+  if (rank < 1 || rank > config.winnerCount) {
     return { ok: false, reason: `Invalid winner rank ${rank}` }
   }
 
   const winnerIndex = rank - 1
   const expected = allowedWinners[winnerIndex]
-  if (!expected || expected.wallet !== recipient) {
+  if (!expected || walletKey(expected.wallet) !== walletKey(recipient)) {
     return {
       ok: false,
       reason: `Recipient ${recipient.slice(0, 8)}... is not live eligible winner #${rank}`,
@@ -148,7 +152,7 @@ export async function assertPayoutTransferAllowed(input: {
   const balanceByWallet = new Map<string, number>()
   for (const row of holders) {
     if (!row.isContract) {
-      balanceByWallet.set(row.wallet, row.balance / Math.pow(10, config.tokenDecimals))
+      balanceByWallet.set(walletKey(row.wallet), row.balance / Math.pow(10, config.tokenDecimals))
     }
   }
 
@@ -178,17 +182,17 @@ export async function assertPayoutTokenTransferAllowed(input: {
     return { ok: false, reason: 'Recipient is an excluded protocol wallet' }
   }
 
-  if (rank < 1 || rank > 3) {
+  if (rank < 1 || rank > config.winnerCount) {
     return { ok: false, reason: `Invalid winner rank ${rank}` }
   }
 
-  if (amountTokens <= 0) {
+  if (!Number.isFinite(amountTokens) || amountTokens <= 0) {
     return { ok: false, reason: 'Token payout amount must be greater than 0' }
   }
 
   const winnerIndex = rank - 1
   const expected = allowedWinners[winnerIndex]
-  if (!expected || expected.wallet !== recipient) {
+  if (!expected || walletKey(expected.wallet) !== walletKey(recipient)) {
     return {
       ok: false,
       reason: `Recipient ${recipient.slice(0, 8)}... is not live eligible winner #${rank}`,
@@ -203,7 +207,7 @@ export async function assertPayoutTokenTransferAllowed(input: {
   const balanceByWallet = new Map<string, number>()
   for (const row of holders) {
     if (!row.isContract) {
-      balanceByWallet.set(row.wallet, row.balance / Math.pow(10, config.tokenDecimals))
+      balanceByWallet.set(walletKey(row.wallet), row.balance / Math.pow(10, config.tokenDecimals))
     }
   }
 

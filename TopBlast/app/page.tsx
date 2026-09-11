@@ -5,6 +5,7 @@ import { AppHeader } from '@/components/platform/AppHeader'
 import { FeaturedTokens } from '@/components/catalog/FeaturedTokens'
 import { HomeHero } from '@/components/platform/HomeHero'
 import { HowItWorksSimple } from '@/components/platform/HowItWorksSimple'
+import { PoweredByPons } from '@/components/platform/PoweredByPons'
 import { HomeReveal } from '@/components/platform/HomeSection'
 
 const CandlestickBackground = dynamic(
@@ -38,6 +39,10 @@ export default function HomePage() {
           </HomeReveal>
 
           <HowItWorksSimple />
+
+          <HomeReveal>
+            <PoweredByPons />
+          </HomeReveal>
         </main>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { signingAllowed } from './transfers'
 import 'server-only'
 
 /**
@@ -17,6 +18,7 @@ import 'server-only'
 import { formatEther, formatUnits, isAddress, type Address } from 'viem'
 import {
   ERC20_ABI,
+  CURVE_ABI,
   FEE_ESCROW_ABI,
   PONS_V2,
   accountForKey,
@@ -125,6 +127,7 @@ export async function claimCreatorFees(input: {
     error: null,
   }
 
+  if (input.execute !== false && (input.execute !== true || !signingAllowed())) return { ...base, error: 'Payout signing disabled or unauthorized' }
   const account = accountForKey(input.privateKeyHex)
   if (!account) {
     return { ...base, error: 'Payout wallet key missing or not a valid EVM key', skippedReason: 'no_key' }
@@ -146,6 +149,22 @@ export async function claimCreatorFees(input: {
     }
   }
 
+  // A creator can sweep a curve without an internal buyback. Other sweeps
+  // require Pons' trusted operator; never bypass that contract restriction.
+  if (input.execute === true && launch.onCurve && !launch.buybackEnabled) {
+    const client = publicClient()
+    const [fee, tax] = await Promise.all([
+      client.readContract({ address: launch.curve, abi: CURVE_ABI, functionName: 'quoteFeeBalance' }),
+      client.readContract({ address: launch.curve, abi: CURVE_ABI, functionName: 'creatorTaxBalance' }),
+    ])
+    if (fee + tax >= minClaimWei()) {
+      const wallet = walletClientForKey(input.privateKeyHex)!
+      const { request } = await client.simulateContract({ address: launch.curve, abi: CURVE_ABI, functionName: 'sweepFees', args: [0n], account })
+      const hash = await wallet.writeContract(request)
+      const receipt = await client.waitForTransactionReceipt({ hash })
+      if (receipt.status !== 'success') return { ...base, txHash: hash, error: 'Pons fee sweep reverted' }
+    }
+  }
   const pending = await getPendingFees(input.tokenAddress, account.address)
   if (!pending) return { ...base, error: 'Could not read pending fees' }
 

@@ -24,7 +24,7 @@ export function HowItWorksSimple() {
             className="relative rounded-2xl border border-line bg-card/85 p-6 text-center shadow-card backdrop-blur"
           >
             <span
-              className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-sol-purple text-xs font-extrabold text-white"
+              className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-accent text-xs font-extrabold text-on-accent"
               aria-hidden
             >
               {i + 1}

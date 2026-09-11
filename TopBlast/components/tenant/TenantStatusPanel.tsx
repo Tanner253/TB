@@ -42,7 +42,7 @@ const overallStyles: Record<TenantDiagnostics['overall'], string> = {
   healthy: 'text-rh-green',
   attention: 'text-amber-400',
   blocked: 'text-red-600 dark:text-red-400',
-  initializing: 'text-blue-400',
+  initializing: 'text-sol-purple',
 }
 
 interface TenantStatusPanelProps {

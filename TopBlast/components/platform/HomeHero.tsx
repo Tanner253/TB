@@ -64,7 +64,7 @@ export function HomeHero() {
           >
             <Link
               href={HOLDER_HERO.primaryCta.href}
-              className="inline-flex items-center gap-2 rounded-xl bg-sol-purple px-5 py-3 text-sm sm:text-base font-bold text-white shadow-rh-glow-sm transition-all hover:scale-[1.03] hover:bg-sol-purple-dark active:scale-95"
+              className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm sm:text-base font-bold text-on-accent shadow-rh-glow-sm transition-all hover:scale-[1.03] hover:bg-accent-hover active:scale-95"
             >
               {HOLDER_HERO.primaryCta.label} →
             </Link>

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { TopBlastLogo } from '@/components/ui/TopBlastLogo'
-import { EXTERNAL_LINKS, WHITEPAPER_URL } from '@/lib/marketing/devValueProp'
+import { EXTERNAL_LINKS, PONS_URL, WHITEPAPER_URL } from '@/lib/marketing/devValueProp'
 import { MISSION_BODY, MISSION_HERO, MISSION_LEAD } from '@/lib/marketing/brand'
 import { Blasty } from '@/components/mascot/Blasty'
 
@@ -64,7 +64,18 @@ export function AppFooter() {
           )}
         </nav>
 
-        <p className="text-xs text-ink-3">© {new Date().getFullYear()} TopBlast · Built on Robinhood Chain</p>
+        <p className="text-xs text-ink-3">
+          © {new Date().getFullYear()} TopBlast · a{' '}
+          <a
+            href={PONS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-sol-purple hover:underline"
+          >
+            Pons
+          </a>{' '}
+          SaaS on Robinhood Chain
+        </p>
       </div>
     </footer>
   )

@@ -1,3 +1,4 @@
+import { isPonsSession } from '@/lib/pons/session'
 /**
  * Birdeye token holder snapshots — one paginated call per 100 wallets (by CA).
  * @see https://docs.birdeye.so/reference/get-defi-v3-token-holder
@@ -9,7 +10,7 @@ import { mapBirdeyeWalletHolderRow, type BirdeyeWalletHolderRow } from '@/lib/so
 const BASE_URL = 'https://public-api.birdeye.so'
 
 export function isBirdeyeHolderSourceEnabled(): boolean {
-  return Boolean(process.env.BIRDEYE_API_KEY?.trim())
+  return isPonsSession() || Boolean(process.env.BIRDEYE_API_KEY?.trim())
 }
 
 function getApiKey(): string {
@@ -51,6 +52,7 @@ function reportedHolderCountCache() {
 
 /** True CA holder count from Birdeye — one lightweight call (limit=1), cached 5 min. */
 export async function fetchBirdeyeReportedHolderCount(mint: string): Promise<number | null> {
+  if (isPonsSession(mint)) return null
   if (!isBirdeyeHolderSourceEnabled()) return null
   const normalized = mint.trim()
   if (!normalized) return null
@@ -134,6 +136,7 @@ export async function fetchBirdeyeTokenHolders(
     pageDelayMs?: number
   }
 ): Promise<FetchBirdeyeHoldersResult> {
+  if (isPonsSession(mint)) throw new Error('Pons holders must use the RPC indexer')
   const apiKey = getApiKey()
   const maxHolders = options?.maxHolders ?? 500
   const pageDelayMs = options?.pageDelayMs ?? 0

@@ -9,7 +9,8 @@ import 'server-only'
  */
 
 import { createPublicClient, createWalletClient, http, parseAbi, defineChain } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+import { accountForKey } from './keys'
+export { accountForKey } from './keys'
 
 export const ROBINHOOD_MAINNET_CHAIN_ID = 4663
 export const ROBINHOOD_TESTNET_CHAIN_ID = 46630
@@ -37,7 +38,7 @@ export const PONS_V2 = {
 } as const
 
 export function isTestnet(): boolean {
-  const n = (process.env.CHAIN_NETWORK || process.env.SOLANA_NETWORK || 'mainnet').toLowerCase()
+  const n = (process.env.CHAIN_NETWORK || 'mainnet').toLowerCase()
   return n === 'testnet' || n === 'devnet'
 }
 
@@ -74,18 +75,9 @@ export function publicClient() {
  * isolation is unchanged.
  */
 export function walletClientForKey(privateKeyHex: string | undefined | null) {
-  if (!privateKeyHex) return null
-  const body = privateKeyHex.startsWith('0x') ? privateKeyHex.slice(2) : privateKeyHex
-  if (!/^[0-9a-fA-F]{64}$/.test(body)) return null
-  const account = privateKeyToAccount(`0x${body}`)
+  const account = accountForKey(privateKeyHex)
+  if (!account) return null
   return createWalletClient({ account, chain: robinhoodChain, transport: http(getRpcUrl()) })
-}
-
-export function accountForKey(privateKeyHex: string | undefined | null) {
-  if (!privateKeyHex) return null
-  const body = privateKeyHex.startsWith('0x') ? privateKeyHex.slice(2) : privateKeyHex
-  if (!/^[0-9a-fA-F]{64}$/.test(body)) return null
-  return privateKeyToAccount(`0x${body}`)
 }
 
 // ---------------------------------------------------------------------------
@@ -104,11 +96,14 @@ export const FACTORY_ABI = parseAbi([
   'struct LaunchedToken { address token; address curve; address deployer; address creatorFeeRecipient; address pairToken; uint256 graduationThreshold; uint24 poolFee; int24 tickSpacing; uint16 creatorTaxBps; bool buybackEnabled; uint8 phase; uint256 sweptQuote; uint256 sweptTokens; uint256 sweptAt; bool exists; }',
   'function getLaunchedToken(address token) view returns (LaunchedToken)',
   'event TokenLaunched(address indexed token, address indexed curve, address indexed deployer, address pairToken, uint256 launchConfigId, uint256 graduationThreshold)',
-  'event CreatorFeeRecipientUpdated(address indexed token, address indexed recipient)',
+  'event CreatorFeeRecipientUpdated(address indexed token, address indexed previousRecipient, address indexed newRecipient)',
 ])
 
 /** Bonding curve — buys/sells and the state needed to quote them locally. */
 export const CURVE_ABI = parseAbi([
+  'function quoteFeeBalance() view returns (uint256)',
+  'function creatorTaxBalance() view returns (uint256)',
+  'function sweepFees(uint256 minBuybackTokensOut)',
   'function buy(uint256 quoteIn, uint256 minTokensOut, address recipient) payable returns (uint256 tokensOut)',
   'function sell(uint256 tokensIn, uint256 minQuoteOut, address recipient) returns (uint256 quoteOut)',
   'function isNativeQuote() view returns (bool)',

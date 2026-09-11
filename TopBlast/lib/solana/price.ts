@@ -1,3 +1,4 @@
+import { isPonsSession } from '@/lib/pons/session'
 import axios from 'axios'
 import { config } from '@/lib/config'
 import { tenantCacheKey } from '@/lib/tenant/tenantCacheKey'
@@ -53,6 +54,7 @@ export async function getTokenPrice(mint?: string): Promise<number | null> {
 }
 
 export async function getResolvedTokenPrice(mint?: string): Promise<ResolvedTokenPrice | null> {
+  if (isPonsSession(mint || config.tokenMint)) return (await import('@/lib/pons/price')).resolvedPrice(mint)
   const tokenMint = (mint || config.tokenMint)?.trim()
   if (!tokenMint) return null
 
@@ -182,6 +184,7 @@ export function formatTokens(amount: number): string {
 }
 
 export async function getSolPrice(): Promise<number | null> {
+  if (isPonsSession()) return (await import('@/lib/pons/price')).ethPrice()
   const now = Date.now()
 
   if (solPriceCache.price !== null && now - solPriceCache.timestamp < SOL_PRICE_CACHE_TTL) {

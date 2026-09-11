@@ -211,7 +211,7 @@ export function WhaleCompanion() {
               <Link
                 href="/game"
                 onClick={() => setShowBubble(false)}
-                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-sol-purple px-3 py-2 text-xs font-bold text-white hover:bg-sol-purple-dark transition-colors"
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-xs font-bold text-on-accent hover:bg-accent-hover transition-colors"
               >
                 🎮 Play Blast Off
               </Link>

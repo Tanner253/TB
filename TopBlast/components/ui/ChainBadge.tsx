@@ -28,7 +28,7 @@ export function ChainBadge({ compact = false, className = '' }: ChainBadgeProps)
         <path d="M24 12L20 26L24 36L28 26L24 12Z" fill="rgb(var(--tb-paper))" opacity="0.2" />
       </svg>
       <span className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>
-        {compact ? 'Robinhood Chain' : 'Live on Robinhood Chain · Pons'}
+        {compact ? 'Pons · Robinhood' : 'A Pons SaaS · Live on Robinhood Chain'}
       </span>
     </div>
   )

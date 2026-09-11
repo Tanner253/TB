@@ -65,7 +65,7 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
   if (paused && waitingForTopup) {
     return (
       <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>
-        <p className={`font-medium text-yellow-600 dark:text-yellow-300 ${textSize} leading-snug`}>
+        <p className={`font-medium text-tb-amber ${textSize} leading-snug`}>
           {tenant.pot_usd_formatted ? `${tenant.pot_usd_formatted} in pool` : 'Pool below minimum'}
         </p>
         <p className={`text-ink-3 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
@@ -91,7 +91,7 @@ export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownPr
   if (paused) {
     return (
       <div className={`${COUNTDOWN_SLOT_CLASS} ${compact ? 'mt-1' : 'mt-1.5'}`}>
-        <p className={`font-medium text-yellow-600 dark:text-yellow-300 ${textSize} leading-snug`}>Listing limbo</p>
+        <p className={`font-medium text-tb-amber ${textSize} leading-snug`}>Listing limbo</p>
         <p className={`text-ink-3 ${compact ? 'text-[0.65rem]' : 'text-xs'} mt-0.5 leading-snug truncate`}>
           Waiting for eligible holders
         </p>

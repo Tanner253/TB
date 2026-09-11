@@ -215,7 +215,7 @@ import {
   PLATFORM_BUYBACK_PCT_OF_POOL,
   PLATFORM_OPS_PCT_OF_POOL,
 } from '@/lib/platform/flywheel'
-import { WHITEPAPER_URL } from '@/lib/marketing/urls'
+import { PONS_DOCS_URL, PONS_URL, WHITEPAPER_URL } from '@/lib/marketing/urls'
 
 export const TRUST_FOOTER =
   `Payout keys are encrypted at rest. TopBlast only signs transactions to pay eligible winners from your wallet. ` +
@@ -223,10 +223,39 @@ export const TRUST_FOOTER =
   `${PLATFORM_BUYBACK_PCT_OF_POOL}% of the pool (${DEV_FEE_BUYBACK_SHARE_PCT}% of the fee) market-buys the platform token for burn, ` +
   `${PLATFORM_OPS_PCT_OF_POOL}% funds ops and infra. Buyback + burn automation is on the roadmap.`
 
-export { APP_URL, WHITEPAPER_URL, appHostname } from '@/lib/marketing/urls'
+export { APP_URL, WHITEPAPER_URL, appHostname, PONS_URL, PONS_DOCS_URL, CHAIN_NAME } from '@/lib/marketing/urls'
 
 export const EXTERNAL_LINKS = {
   twitter: 'https://x.com/i/communities/2019975359567983064',
   github: 'https://github.com/Tanner253/TB',
   whitepaper: WHITEPAPER_URL,
+  pons: PONS_URL,
+  ponsDocs: PONS_DOCS_URL,
+} as const
+
+/**
+ * The Pons relationship, said plainly. TopBlast is not a competing launchpad —
+ * it is a rewards layer that sits on top of one, and every mechanic below is a
+ * Pons primitive we read or call.
+ */
+export const POWERED_BY_PONS = {
+  eyebrow: 'A Pons SaaS',
+  title: 'Built on Pons, end to end',
+  lead:
+    'TopBlast does not launch tokens or hold liquidity — Pons does. We plug into your Pons launch and turn its creator fees into rewards for the holders who stay underwater.',
+  points: [
+    {
+      title: 'Your Pons launch, unchanged',
+      body: 'List a token you already deployed on Pons. Nothing is redeployed, migrated, or wrapped.',
+    },
+    {
+      title: 'Pons creator fees, claimed for you',
+      body: 'TopBlast reads what the Pons fee escrow owes you and claims it automatically — no dashboard visits.',
+    },
+    {
+      title: 'Buys on your Pons curve',
+      body: 'Every cycle buys your token on its own Pons bonding curve, and follows it into the Uniswap v4 pool after graduation.',
+    },
+  ],
+  cta: { label: 'Launch a token on Pons →', href: PONS_URL },
 } as const

@@ -41,7 +41,7 @@ export interface PonsLaunch {
 
 /** Reads the factory launch record. Returns null for non-Pons-v2 tokens. */
 export async function getPonsLaunch(token: string): Promise<PonsLaunch | null> {
-  if (!isAddress(token)) return null
+  if (!isAddress(token, { strict: false })) return null
   try {
     const raw = await publicClient().readContract({
       address: PONS_V2.factory,

@@ -1,3 +1,4 @@
+import { accountForKey } from '@/lib/pons/keys'
 import { Keypair } from '@solana/web3.js'
 import bs58 from 'bs58'
 import 'server-only'
@@ -60,7 +61,7 @@ export function getManualEnvPayoutAddress(): string {
   const key = process.env.MANUAL_PAYOUT_WALLET_PRIVATE_KEY?.trim()
   if (!key) return ''
   try {
-    return Keypair.fromSecretKey(bs58.decode(key)).publicKey.toBase58()
+    return accountForKey(key)?.address.toLowerCase() ?? Keypair.fromSecretKey(bs58.decode(key)).publicKey.toBase58()
   } catch {
     return ''
   }

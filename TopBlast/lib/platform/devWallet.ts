@@ -1,3 +1,4 @@
+import { isEvmAddress } from '@/lib/pons/session'
 import { PublicKey } from '@solana/web3.js'
 
 /** Platform treasury — receives 12% dev fee from every SaaS tenant (env-only, not user-supplied). */
@@ -10,6 +11,7 @@ export function requirePlatformDevWalletAddress(): string {
   if (!address) {
     throw new Error('TopBlast is not fully configured yet. Please try again later.')
   }
+  if (isEvmAddress(address)) return address.toLowerCase()
   try {
     // eslint-disable-next-line no-new
     new PublicKey(address)

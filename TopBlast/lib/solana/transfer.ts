@@ -1,3 +1,6 @@
+import { isPonsSession } from '@/lib/pons/session'
+import { accountForKey } from '@/lib/pons/keys'
+import { config } from '@/lib/config'
 import { 
   Keypair, 
   PublicKey, 
@@ -12,7 +15,7 @@ import { isPayoutExecutionAuthorized } from '@/lib/payout/payoutAuthContext'
 import { getSolanaRpcUrl, getSolanaRpcUrlCandidates } from '@/lib/solana/rpcUrl'
 
 /** Minimum SOL transfer (rent exemption floor for new accounts). */
-export const MIN_TRANSFER_SOL = 0.001
+export const MIN_TRANSFER_SOL = 0.000001
 
 /**
  * Get the Solana RPC URL based on environment
@@ -140,6 +143,7 @@ export async function transferSol(
   recipientAddress: string,
   amountSol: number
 ): Promise<{ success: boolean; txHash: string | null; error: string | null }> {
+  if (isPonsSession()) return (await import('@/lib/pons/transfers')).transfer(recipientAddress, amountSol)
   if (!isPayoutExecutionAuthorized()) {
     return {
       success: false,
@@ -282,6 +286,7 @@ export async function transferSol(
  * Derive payout wallet public address from configured private key (no RPC).
  */
 export function getPayoutWalletAddressFromKey(): string | null {
+  if (isPonsSession()) return accountForKey(getPayoutPrivateKey())?.address.toLowerCase() ?? null
   const privateKey = getPayoutPrivateKey()
   if (!privateKey) return null
   try {
@@ -299,6 +304,7 @@ export async function getWalletSolBalance(address: string): Promise<{
   address: string
   rpcError?: string
 } | null> {
+  if (isPonsSession(address)) return (await import('@/lib/pons/transfers')).getWalletBalance(address)
   const trimmed = address?.trim()
   if (!trimmed) return null
 

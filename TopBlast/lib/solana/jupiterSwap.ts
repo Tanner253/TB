@@ -1,3 +1,5 @@
+import { isPonsSession } from '@/lib/pons/session'
+import { parseEther } from 'viem'
 import 'server-only'
 
 import axios from 'axios'
@@ -194,6 +196,14 @@ export async function swapSolForToken(
   outputMint: string,
   tokenDecimals: number
 ): Promise<SwapSolForTokenResult> {
+  if (isPonsSession(outputMint)) {
+    const { buybackSessionToken } = await import('@/lib/pons/buyback')
+    if (!Number.isFinite(amountSol) || amountSol <= 0) return { success: false, txHash: null, error: 'Invalid buyback amount', outputAmountRaw: null, outputAmountHuman: null }
+    const result = await buybackSessionToken({ tokenAddress: outputMint, quoteInWei: parseEther(amountSol.toFixed(18)),
+      privateKeyHex: getPayoutPrivateKey(), tokenDecimals, slippageBps: getPayoutSwapSlippageBps(), execute: true })
+    return { success: result.success, txHash: result.txHash, error: result.error, outputAmountRaw: result.tokensOutRaw ?? null, outputAmountHuman: result.tokensOut }
+  }
+
   const empty: SwapSolForTokenResult = {
     success: false,
     txHash: null,

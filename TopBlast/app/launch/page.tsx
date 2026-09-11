@@ -127,12 +127,12 @@ export default function LaunchPage() {
               </label>
 
               <label className="block">
-                <span className="text-sm text-ink-2">SPL mint (contract address)</span>
+                <span className="text-sm text-ink-2">Pons token contract address</span>
                 <input
                   required
                   value={form.mint}
                   onChange={e => setForm(f => ({ ...f, mint: e.target.value.trim() }))}
-                  placeholder="Token mint base58"
+                  placeholder="0x…"
                   className="mt-1 w-full rounded-lg bg-card/70 border border-line px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
                 />
               </label>
@@ -255,7 +255,7 @@ export default function LaunchPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-3 bg-sol-gradient text-white dark:text-black rounded-xl font-bold disabled:opacity-50"
+                className="w-full py-3 bg-sol-gradient text-on-accent rounded-xl font-bold disabled:opacity-50"
               >
                 {submitting ? 'Creating listing…' : 'Create listing & start TopBlast'}
               </button>

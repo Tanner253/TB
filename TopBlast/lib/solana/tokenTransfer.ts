@@ -1,3 +1,4 @@
+import { isPonsSession } from '@/lib/pons/session'
 import 'server-only'
 
 import {
@@ -66,6 +67,12 @@ export async function getPayoutWalletTokenBalance(
   mint: string,
   decimals: number
 ): Promise<number> {
+  if (isPonsSession(mint)) {
+    const p = await import('@/lib/pons/transfers')
+    const address = p.getPayoutWalletAddress()
+    if (!address) throw new Error('Invalid EVM payout key')
+    return p.tokenBalance(mint, address, decimals)
+  }
   const payoutKeypair = loadPayoutKeypair()
   if (!payoutKeypair) return 0
 
@@ -101,6 +108,7 @@ export async function transferSessionToken(
   decimals: number,
   symbol?: string
 ): Promise<TokenTransferResult> {
+  if (isPonsSession(mint)) return (await import('@/lib/pons/transfers')).transfer(recipientAddress, amountHuman, mint, decimals)
   if (!isPayoutExecutionAuthorized()) {
     return {
       success: false,
@@ -263,6 +271,7 @@ export async function resolveSwapDeliveredTokens(input: {
     }
   }
 
+  if (isPonsSession(mint)) return 0 // Never distribute an unconfirmed quote
   if (quotedOutputHuman != null && quotedOutputHuman > 0) {
     console.warn(
       `[Payout] Swap balance delta still 0 after polling — falling back to Jupiter quote (${quotedOutputHuman.toFixed(4)} tokens)`

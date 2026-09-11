@@ -1,3 +1,4 @@
+import { isPonsSession } from '@/lib/pons/session'
 /**
  * Solana indexer — Helius DAS + Enhanced Transactions
  * API-compatible with the former EVM indexer surface used by holderService / API routes.
@@ -19,6 +20,7 @@ export async function getTokenHolders(
   mint: string,
   limit: number = 1000
 ): Promise<{ wallet: string; balance: number; isContract: boolean }[]> {
+  if (isPonsSession(mint)) return (await import('@/lib/pons/rankings')).liveHolderBalances(mint, limit)
   if (!mint) return []
 
   await ensureLiquidityPoolAddresses(mint)

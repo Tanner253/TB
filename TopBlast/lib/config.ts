@@ -1,6 +1,7 @@
 // Environment configuration — Solana (Helius)
 // When a tenant request is active (AsyncLocalStorage), values come from that tenant.
 
+import { isAddress } from 'viem'
 import { MIN_HOLD_DURATION_MINUTES } from '@/lib/eligibility/holdDuration'
 import { DEFAULT_WINNER_COUNT, minPoolForWinnerCount, validateWinnerCount } from '@/lib/payout/winnerCount'
 import { envDefaultPayoutMode } from '@/lib/payout/payoutMode'
@@ -111,7 +112,7 @@ function resolveConfig(): ConfigShape {
     minLossThresholdPct: tenant.minLossThresholdPct,
     minPoolSol: tenant.minPoolSol,
     minPoolEth: tenant.minPoolEth,
-    executePayouts: tenant.executePayouts,
+    executePayouts: /^0x/i.test(tenant.tokenMint) ? tenant.executePayouts && process.env.EXECUTE_PAYOUTS === 'true' : tenant.executePayouts,
     // Per-listing payout currency; existing rows without the field stay 'token'.
     payoutAsNativeToken: (tenant.payoutMode ?? 'token') === 'token',
     winnerCount,
@@ -127,6 +128,7 @@ export const config = new Proxy({} as ConfigShape, {
 })
 
 function isLikelySolanaMint(mint: string): boolean {
+  if (isAddress(mint, { strict: false })) return true
   if (!mint || mint.length < 32 || mint.length > 44) return false
   if (mint.startsWith('0x')) return false
   return /^[1-9A-HJ-NP-Za-km-z]+$/.test(mint)
@@ -145,7 +147,7 @@ export function validateConfig(): { valid: boolean; errors: string[] } {
     errors.push('MONGODB_URI is required')
   }
 
-  if (!config.heliusApiKey) {
+  if (!/^0x/i.test(config.tokenMint) && !config.heliusApiKey) {
     errors.push('HELIUS_API_KEY is required')
   }
 
