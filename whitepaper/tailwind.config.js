@@ -20,6 +20,9 @@ module.exports = {
           'mint-bright': '#4ade70',
           black: '#161616',
         },
+        // Tailwind's gray-500/600 fail AA on a near-black page; these are the
+        // lifted equivalents used everywhere muted text appears.
+        gray: { 500: '#949ba6', 600: '#8b929c' },
         rh: {
           green: '#d4fc50',
           'green-dark': '#b5e63d',

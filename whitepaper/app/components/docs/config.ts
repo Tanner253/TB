@@ -58,9 +58,9 @@ export const FLYWHEEL = {
   opsShareOfDevFee: 50,
   burnStatus: 'planned' as const,
   intro:
-    'Every SaaS listing pays a flat 12% protocol fee in SOL on each payout cycle. Fees route to the TopBlast platform treasury — half funds platform-token buyback, half funds ops and growth.',
+    'Every SaaS listing pays a flat 12% protocol fee in ETH on each payout cycle. Fees route to the TopBlast platform treasury — half funds platform-token buyback, half funds ops and growth.',
   tree: {
-    root: 'Every tenant cycle → 12% SOL to the platform treasury',
+    root: 'Every tenant cycle → 12% ETH to the platform treasury',
     buyback: '6% of original pool (50% of fee) → market-buy platform token',
     ops: '6% of original pool (50% of fee) → ops / infra / growth',
     burn: 'Purchased tokens → burn address / incinerator',
@@ -88,14 +88,14 @@ export const CHART_VOLUME = {
   title: 'Built-in chart volume',
   tagline: 'Every payout cycle buys your token, then airdrops winners',
   intro:
-    'When you launch on TopBlast, winner rewards route through your session token. Each cycle executes a Jupiter buy on your chart, then airdrops purchased tokens to eligible underwater holders (3–10 winners per listing, set at launch). Lifetime SOL spent on buys is tracked as Gen volume in the catalog.',
+    'When you list on TopBlast, winner rewards route through your session token. Each cycle executes a real buy on your chart — on the Pons bonding curve, or in your Uniswap v4 pool once the launch graduates — then airdrops the purchased tokens to eligible underwater holders (3–10 winners per listing, set at launch). Lifetime ETH spent on buys is tracked as Gen volume in the catalog.',
   steps: [
-    { title: 'Fund the pool', body: 'Creator-fee SOL in your listing payout wallet — you control the budget.' },
-    { title: 'On-chart buyback', body: 'Pool SOL swaps into your session token via Jupiter — real chart volume.' },
+    { title: 'Fund the pool', body: 'Creator-fee ETH in your listing payout wallet — claimed from the Pons fee escrow automatically. You control the budget.' },
+    { title: 'On-chart buyback', body: 'Pool ETH buys your session token on its Pons curve — real chart volume.' },
     { title: 'Token airdrops', body: 'Purchased tokens split by rank (biggest loser gets most) and airdrop to eligible winners — wallet-to-wallet, no claim.' },
   ],
   genVolume:
-    'Gen volume is the cumulative SOL the protocol has market-bought into your mint across all payout cycles. It appears on catalog cards and listing stats — proof of recurring buy pressure, not rebates or manual dev buys.',
+    'Gen volume is the cumulative ETH the protocol has market-bought into your token across all payout cycles. It appears on catalog cards and listing stats — proof of recurring buy pressure, not rebates or manual dev buys.',
 } as const
 
 /** Sticky section strip — shown on desktop & mobile (horizontal scroll) */

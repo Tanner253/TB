@@ -36,9 +36,20 @@ const TOKEN_CA = ''
 
 const UPDATES = [
   {
+    version: 'v4.0.0',
+    date: 'Sep 2026',
+    tag: 'Current',
+    items: [
+      'Migrated to Robinhood Chain — TopBlast is now a Pons SaaS',
+      'Pons creator fees claimed automatically from the v2 fee escrow',
+      'On-chart buys on the Pons bonding curve, and in Uniswap v4 after graduation',
+      'Holder balances and exact cost basis indexed straight from chain logs',
+    ],
+  },
+  {
     version: 'v3.3.0',
     date: 'Aug 2026',
-    tag: 'Current',
+    tag: 'Shipped',
     items: [
       'Configurable winners per cycle (3–10 at launch, descending split)',
       'Gen volume — lifetime on-chart SOL tracked per catalog listing',
@@ -79,10 +90,11 @@ const UPDATES = [
 ]
 
 const ROADMAP = [
-  { phase: '1', title: 'Solana launch', status: 'Done', detail: 'Loss-mining, Jupiter on-chart buybacks, token airdrops, Gen volume tracking, eligibility-gated timer.' },
+  { phase: '1', title: 'Solana launch', status: 'Done', detail: 'Loss-mining, on-chart buybacks, token airdrops, Gen volume tracking, eligibility-gated timer.' },
   { phase: '2', title: 'Multi-tenant SaaS', status: 'Done', detail: 'Self-serve listings, catalog, per-slug sessions, encrypted keys.' },
-  { phase: '3', title: 'Growth & automation', status: 'Now', detail: 'Buyback bot, creator analytics, public API.' },
-  { phase: '4', title: 'Scale', status: '2027', detail: 'Launch partners, premium tiers, automated treasury ops.' },
+  { phase: '3', title: 'Robinhood Chain + Pons', status: 'Done', detail: 'Same mechanics, new chain: Pons fee escrow claims, curve buys, Uniswap v4 after graduation, log-based indexing.' },
+  { phase: '4', title: 'Growth & automation', status: 'Now', detail: 'Buyback bot, creator analytics, public API.' },
+  { phase: '5', title: 'Scale', status: '2027', detail: 'Launch partners, premium tiers, automated treasury ops.' },
 ]
 
 export function DocContent() {
@@ -92,15 +104,15 @@ export function DocContent() {
     <main className="doc-main">
       <DocSection id="for-creators">
         <DocHeader
-          eyebrow="For Solana builders"
+          eyebrow="For Robinhood Chain builders"
           title="Creator fees become on-chart volume"
-          description={`TopBlast is a loss-mining protocol and chart volume engine. Each payout cycle market-buys your session token via Jupiter, airdrops tokens to eligible underwater holders (${WINNER_COUNT.rangeLabel} winners per listing), and tracks lifetime buys as Gen volume in the catalog — real buy pressure for holders, not sell-side rebate volume.`}
+          description={`TopBlast is a loss-mining protocol and chart volume engine, built on Pons. Each payout cycle market-buys your session token on its own Pons market, airdrops tokens to eligible underwater holders (${WINNER_COUNT.rangeLabel} winners per listing), and tracks lifetime buys as Gen volume in the catalog — real buy pressure for holders, not sell-side rebate volume.`}
         />
         <DocTable
           headers={['Approach', 'Holder behavior', 'Chart effect']}
           highlightRow={2}
           rows={[
-            ['Cashback / rebates', 'Trade volume → claim SOL rebates', 'Sell-side volume rewarded'],
+            ['Cashback / rebates', 'Trade volume → claim ETH rebates', 'Sell-side volume rewarded'],
             ['Creator rewards only', 'Fees accumulate to dev', 'No direct holder loop'],
             ['TopBlast loss-mining', 'Hold underwater, compete for rewards', 'On-chart buybacks + token airdrops every cycle'],
           ]}
@@ -118,7 +130,7 @@ export function DocContent() {
           </DocCard>
           <DocCard title="Chart volume">
             <p className="doc-prose">
-              Each cycle swaps pool SOL into your session token via Jupiter before distributing to winners. Lifetime buys are tracked as <strong>Gen volume</strong> in the catalog.
+              Each cycle buys your session token with pool ETH before distributing to winners — on the Pons bonding curve, or in your Uniswap v4 pool once the launch graduates. Lifetime buys are tracked as <strong>Gen volume</strong> in the catalog.
             </p>
           </DocCard>
           <DocCard title="Dynamic pot">
@@ -126,9 +138,9 @@ export function DocContent() {
               Pool size and min-loss threshold scale together. Bigger funded wallet → bigger payouts → higher bar to qualify.
             </p>
           </DocCard>
-          <DocCard title="Pump.fun ready">
+          <DocCard title="Graduation ready">
             <p className="doc-prose">
-              Live price follows DexScreener across bonding curve and PumpSwap/Raydium migration — no manual pair switch.
+              Live price follows DexScreener across the Pons bonding curve and the Uniswap v4 pool after graduation — no manual pair switch. Buybacks follow the same route automatically.
             </p>
           </DocCard>
         </DocGrid>
@@ -144,7 +156,7 @@ export function DocContent() {
           title={CHART_VOLUME.title}
           description={CHART_VOLUME.intro}
         />
-        <p className="doc-prose text-purple-200/90 font-medium mb-6">{CHART_VOLUME.tagline}</p>
+        <p className="doc-prose text-sol-purple/90 font-medium mb-6">{CHART_VOLUME.tagline}</p>
         <DocGrid cols={3}>
           {CHART_VOLUME.steps.map((step, index) => (
             <DocCard key={step.title} title={`${index + 1} · ${step.title}`} accent="purple">
@@ -160,13 +172,13 @@ export function DocContent() {
         <DocCard title="Gen volume" accent="mint">
           <p className="doc-prose">{CHART_VOLUME.genVolume}</p>
         </DocCard>
-        <DocCard title="Payout currency — token or SOL (chosen at launch)">
+        <DocCard title="Payout currency — token or ETH (chosen at launch)">
           <p className="doc-prose">
             By default winners receive your token via the buyback + airdrop flow above. Launchers who
-            prefer zero chart impact can instead select <strong>SOL payouts</strong> when listing:
-            winners are paid SOL directly from the pool — no Jupiter buy, no airdropped supply, and no
+            prefer zero chart impact can instead select <strong>ETH payouts</strong> when listing:
+            winners are paid ETH directly from the pool — no on-chart buy, no airdropped supply, and no
             Gen volume accrues for that listing. The choice is locked at listing creation, and
-            SOL-payout listings are badged &ldquo;◎ SOL payouts&rdquo; in the catalog.
+            ETH-payout listings are badged &ldquo;Ξ ETH payouts&rdquo; in the catalog.
           </p>
         </DocCard>
         <div className="doc-cta-row">
@@ -182,14 +194,14 @@ export function DocContent() {
         />
         <DocGrid cols={3}>
           <DocCard title="1 · Track entry" accent="purple">
-            <p className="doc-prose">VWAP is computed from on-chain buy history via Helius. Sells are ignored for cost basis.</p>
+            <p className="doc-prose">VWAP comes from the market\u2019s own trade events, which carry the exact ETH paid and tokens received per buyer \u2014 an exact cost basis rather than an inferred one. Sells are ignored for cost basis.</p>
           </DocCard>
           <DocCard title="2 · Rank drawdown" accent="amber">
             <p className="doc-prose">Every cycle scans holders. Eligible wallets sort by drawdown % (most underwater first), USD loss tiebreaks.</p>
           </DocCard>
           <DocCard title="3 · Blast rewards" accent="mint">
             <p className="doc-prose">
-              Top {WINNER_COUNT.rangeLabel} eligible losers share the winner pool in descending rank order (biggest loser gets the largest slice; default {WINNER_COUNT.default}-winner split is {formatWinnerSharePercents(WINNER_COUNT.default)}). Pool SOL swaps into your session token on-chart, then tokens airdrop — no claim step.
+              Top {WINNER_COUNT.rangeLabel} eligible losers share the winner pool in descending rank order (biggest loser gets the largest slice; default {WINNER_COUNT.default}-winner split is {formatWinnerSharePercents(WINNER_COUNT.default)}). Pool ETH buys your session token on-chart, then tokens airdrop — no claim step.
             </p>
           </DocCard>
         </DocGrid>
@@ -211,11 +223,11 @@ Ranking: most negative drawdown % first → USD loss tiebreaker`}</DocCode>
         <DocHeader
           eyebrow="Game design"
           title="Dynamic pot & eligibility"
-          description="The pool and qualification threshold move together — you control budget by topping up creator-fee SOL."
+          description="The pool and qualification threshold move together — you control budget by topping up creator-fee ETH."
         />
         <DocGrid cols={2}>
           <DocCard title="Pot size">
-            <p className="doc-prose">~99% of the launcher&apos;s payout wallet SOL each cycle. Fund the wallet; the protocol handles the rest.</p>
+            <p className="doc-prose">~99% of the launcher&apos;s payout wallet ETH each cycle. Fund the wallet; the protocol handles the rest.</p>
           </DocCard>
           <DocCard title="Min loss rule">
             <p className="doc-prose">Underwater loss must be ≥ 10% of live pool USD. $500 pool → ~$50 min loss. $5,000 → ~$500.</p>
@@ -289,7 +301,7 @@ Platform token: configured by operators via server env — session at /leaderboa
             <DocList
               items={[
                 `Pick winners per cycle (${WINNER_COUNT.rangeLabel}), payout frequency, and minimum token balance in the launch form`,
-                'Fund your creator-rewards wallet with SOL',
+                'Fund your creator-rewards wallet with ETH',
                 'Session diagnostics explain empty pool, indexing, or no eligible holders',
                 `Flat ${PAYOUT.dev}% protocol fee each cycle → platform treasury`,
                 'Listings never share holder data or payout keys',
@@ -308,7 +320,7 @@ Platform token: configured by operators via server env — session at /leaderboa
           </DocCard>
         </DocGrid>
         <div className="doc-fee-flow">
-          <span>Payout pool (SOL)</span>
+          <span>Payout pool (ETH)</span>
           <span className="doc-fee-arrow">→</span>
           <span className="doc-fee-pill doc-fee-pill--winners">{PAYOUT.community}% winners · {WINNER_COUNT.rangeLabel} · descending split</span>
           <span className="doc-fee-plus">+</span>
@@ -338,7 +350,7 @@ Platform token: configured by operators via server env — session at /leaderboa
         </DocGrid>
         <DocCard title="Launcher payout key">
           <p className="doc-prose">
-            Submitted at /launch — usually the wallet receiving Pump.fun or Raydium creator fees. TopBlast signs Jupiter swaps and token airdrops from this wallet only. Never logged in plain text.
+            Submitted at /launch — it must be the wallet Pons pays creator fees to, which is the wallet that launched the token. TopBlast signs buys and token airdrops from this wallet only. Never logged in plain text.
           </p>
         </DocCard>
       </DocSection>
@@ -409,24 +421,24 @@ Platform token: configured by operators via server env — session at /leaderboa
         <DocHeader
           eyebrow="Architecture"
           title="Technical stack"
-          description="Production implementation on Solana mainnet — no mocked chain data in prod."
+          description="Production implementation on Robinhood Chain mainnet — no mocked chain data in prod."
         />
         <DocGrid cols={3}>
           <DocCard title="Data layer">
-            <DocList items={['MongoDB — holders, snapshots, payouts, tenant keys', 'Helius RPC + DAS — balances & tx history', 'Per-tenant isolation by slug']} />
+            <DocList items={['MongoDB — holders, snapshots, payouts, tenant keys', 'Robinhood Chain RPC — balances and trade history from logs', 'Per-tenant isolation by slug']} />
           </DocCard>
           <DocCard title="Price feed">
-            <DocList items={['DexScreener WebSocket + 1s REST fallback in browser', 'Server: DexScreener → Jupiter → Helius (no TTL cache)', 'Auto pair switch on Pump.fun migration']} />
+            <DocList items={['DexScreener WebSocket + 1s REST fallback in browser', 'Server: DexScreener, then the market itself (no TTL cache)', 'Auto pair switch on graduation to Uniswap v4']} />
           </DocCard>
           <DocCard title="Runtime">
-            <DocList items={['Next.js 14 on Vercel', 'Multi-tenant cron /api/cron/tenants', 'Jupiter swaps + SPL token airdrops per cycle']} />
+            <DocList items={['Next.js 14 on Vercel', 'Multi-tenant cron /api/cron/tenants', 'On-chart buys + ERC-20 airdrops per cycle']} />
           </DocCard>
         </DocGrid>
         <div className="doc-faq">
           {[
             {
               q: 'What is Gen volume?',
-              a: 'Gen volume is the cumulative SOL TopBlast has spent market-buying your session token via Jupiter across all successful payout cycles. It is stored per tenant and shown in the catalog — a public measure of protocol-driven chart volume, separate from organic trading volume.',
+              a: 'Gen volume is the cumulative ETH TopBlast has spent market-buying your session token across all successful payout cycles. It is stored per tenant and shown in the catalog — a public measure of protocol-driven chart volume, separate from organic trading volume.',
             },
             {
               q: 'What starts the payout timer?',
@@ -504,7 +516,7 @@ Platform token: configured by operators via server env — session at /leaderboa
             <a href={LINKS.github} target="_blank" rel="noopener noreferrer">GitHub</a>
             <a href={LINKS.twitter} target="_blank" rel="noopener noreferrer">X</a>
           </div>
-          <p className="doc-footer-copy">© 2026 TopBlast · Built on Solana</p>
+          <p className="doc-footer-copy">© 2026 TopBlast · a Pons SaaS on Robinhood Chain</p>
         </div>
       </footer>
     </main>

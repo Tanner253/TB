@@ -3,17 +3,17 @@ import './globals.css'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://whitepaper.topblast.family'),
-  title: 'TopBlast | Loss-Mining + Chart Volume for Solana',
+  title: 'TopBlast | Loss-Mining + Chart Volume on Robinhood Chain',
   description:
-    'Turn creator-fee SOL into on-chart Jupiter buybacks and token airdrops for underwater holders. Self-serve SaaS for any SPL token — Gen volume tracked in the catalog.',
+    'Turn Pons creator fees into on-chart buybacks and token airdrops for underwater holders. Self-serve SaaS for any Pons token on Robinhood Chain — Gen volume tracked in the catalog.',
   keywords: [
-    'solana',
-    'spl',
-    'pump.fun',
+    'robinhood chain',
+    'pons',
+    'ponsfamily',
     'loss-mining',
     'chart volume',
     'gen volume',
-    'jupiter',
+    'uniswap v4',
     'buyback',
     'token creator',
     'creator rewards',
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: 'TopBlast' }],
   openGraph: {
-    title: 'TopBlast | Loss-Mining + Chart Volume for Solana',
+    title: 'TopBlast | Loss-Mining + Chart Volume on Robinhood Chain',
     description:
       'Reward underwater holders with on-chart buybacks and token airdrops. Every cycle adds measurable Gen volume to your chart.',
     type: 'website',
@@ -31,9 +31,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TopBlast | Loss-Mining + Chart Volume for Solana',
+    title: 'TopBlast | Loss-Mining + Chart Volume on Robinhood Chain',
     description:
-      'Creator fees become on-chart volume — Jupiter buys, token airdrops, no cashback sell pressure.',
+      'Creator fees become on-chart volume — real buys on your Pons curve, token airdrops, no cashback sell pressure.',
     site: '@oSKNYo_dev',
     images: ['/og-image.png'],
   },

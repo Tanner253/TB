@@ -111,7 +111,7 @@ function Hero() {
             <div className="text-xs text-gray-400 mt-1">To Community</div>
           </div>
           <div className="glass-panel rounded-xl p-4 text-center">
-            <div className="text-3xl font-bold text-purple-300 font-mono">∞</div>
+            <div className="text-3xl font-bold text-sol-purple font-mono">∞</div>
             <div className="text-xs text-gray-400 mt-1">On-Chart Volume</div>
             <div className="text-[0.65rem] text-gray-500 mt-0.5">Buybacks every cycle</div>
           </div>
@@ -124,20 +124,20 @@ function Hero() {
 function RektTicker() {
   const liveFeed = [
     { wallet: '7xK...Fa1', loss: '-72.5%', payout: 'Winner 🏆' },
-    { wallet: 'Sol...ale', loss: '-45.2%', payout: '2nd Place' },
+    { wallet: '0x7f…a3e1', loss: '-45.2%', payout: '2nd Place' },
     { wallet: 'DeFi...Pro', loss: '-38.7%', payout: '3rd Place' },
     { wallet: 'Diam...Hand', loss: '-29.1%', payout: 'Eligible ✓' },
     { wallet: 'Moon...Boy', loss: '-15.3%', payout: 'Eligible ✓' },
   ]
 
   return (
-    <div className="w-full bg-purple-900/20 border-y border-rh-green/30 overflow-hidden py-3 relative z-20 backdrop-blur-sm">
+    <div className="w-full bg-sol-purple/10 border-y border-sol-purple/25 overflow-hidden py-3 relative z-20 backdrop-blur-sm">
       <div className="flex animate-slide whitespace-nowrap gap-12 px-4">
         {[...liveFeed, ...liveFeed, ...liveFeed, ...liveFeed].map((item, i) => (
           <div key={i} className="flex items-center gap-2 text-sm font-mono">
             <span className="text-gray-400">{item.wallet}</span>
             <span className="text-red-500 font-bold">{item.loss}</span>
-            <span className="text-rh-green bg-purple-900/30 px-2 py-0.5 rounded text-xs">{item.payout}</span>
+            <span className="text-sol-purple bg-sol-purple/15 px-2 py-0.5 rounded text-xs">{item.payout}</span>
           </div>
         ))}
       </div>
