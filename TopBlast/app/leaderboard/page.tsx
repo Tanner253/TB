@@ -1,5 +1,6 @@
 'use client'
 
+import { humanizePayoutError } from '@/lib/payout/payoutErrorCopy'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
@@ -296,7 +297,7 @@ export default function LeaderboardPage() {
   const paysInSol = data?.payout_mode === 'sol'
 
   const wsConnected = data?.ws_connected
-  const lastPayoutError = data?.last_payout_error ?? null
+  const lastPayoutError = humanizePayoutError(data?.last_payout_error ?? null)
   const payoutRetryMode = data?.payout_retry_mode === true
   const payoutRetryMinutes = data?.payout_retry_minutes ?? null
 
@@ -345,8 +346,10 @@ export default function LeaderboardPage() {
       {lastPayoutError ? (
         <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 pt-4">
           <div className="rounded-xl border border-amber-500/30 bg-amber-950/30 px-4 py-3 text-sm">
-            <p className="font-semibold text-amber-700 dark:text-amber-200 mb-1">Last payout attempt failed</p>
-            <p className="text-amber-100/90 leading-relaxed">{lastPayoutError}</p>
+            <p className="font-semibold text-amber-700 dark:text-amber-200 mb-1">
+              {lastPayoutError.retried ? 'Last payout did not land' : 'Last payout attempt failed'}
+            </p>
+            <p className="text-amber-100/90 leading-relaxed" title={lastPayoutError.raw}>{lastPayoutError.message}</p>
             <p className="text-xs text-amber-700 dark:text-amber-200/70 mt-2">
               {payoutRetryMode && payoutRetryMinutes
                 ? `Pool ETH is safe — automatic retry in ~${payoutRetryMinutes} min (faster than the normal cycle).`

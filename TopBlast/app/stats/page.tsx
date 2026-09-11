@@ -285,11 +285,9 @@ export default function StatsPage() {
               <div className="text-2xl font-bold text-sol-purple">
                 {stats?.protocol.total_generated_volume_usd || '$0'}
               </div>
-              {stats?.protocol.total_generated_volume_sol ? (
-                <div className="text-xs text-ink-3 mt-1 font-mono">
-                  {stats.protocol.total_generated_volume_sol} ETH bought on-chart
-                </div>
-              ) : null}
+              {/* Deliberately USD-only: this total spans the Solana era and
+                  Robinhood Chain, so no single native unit describes it. */}
+              <div className="text-xs text-ink-3 mt-1 font-mono">bought on-chart, all sessions</div>
             </div>
             <div>
               <div className="text-xs text-ink-2 uppercase tracking-wider mb-2">Total Distributed</div>

@@ -1233,7 +1233,11 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
 
         const tokenUsd = tokenAmount * sessionTokenPrice
         await Payout.findByIdAndUpdate(pending.id, {
-          txHash: txResult.txHash || swapTxHash,
+          // Only ever the transfer's own hash. This used to fall back to the
+          // cycle's buyback swap, which stamped a failed payout with an
+          // unrelated SUCCESSFUL transaction — the history then linked a
+          // holder to a green Solscan page for money they never received.
+          txHash: txResult.txHash,
           amount: tokenUsd,
           amountTokens: tokenAmount,
           status: txResult.success ? 'success' : 'failed',

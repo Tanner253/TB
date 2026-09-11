@@ -1,3 +1,4 @@
+import { nativeUnitForMint } from '@/lib/platform/chainShape'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
 import {
@@ -83,7 +84,7 @@ export function catalogCountdownSubtitle(tenant: PublicTenantSummary): string | 
   }
   if (display.phase === 'waiting_for_topup') {
     return eligible > 0
-      ? `${eligible} eligible — send ETH to fund the pool`
+      ? `${eligible} eligible — send ${nativeUnitForMint(tenant.mint)} to fund the pool`
       : 'Pool below minimum — top up to start cycles'
   }
   if (display.phase === 'timer_starting') {
@@ -100,7 +101,7 @@ export function catalogCountdownSubtitle(tenant: PublicTenantSummary): string | 
 
 export function formatCatalogPot(tenant: PublicTenantSummary): string | null {
   if (tenant.pot_usd_formatted != null && tenant.pot_sol != null) {
-    return `${tenant.pot_usd_formatted} · ${tenant.pot_sol.toFixed(4)} ETH`
+    return `${tenant.pot_usd_formatted} · ${tenant.pot_sol.toFixed(4)} ${nativeUnitForMint(tenant.mint)}`
   }
   return null
 }

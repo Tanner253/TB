@@ -1,3 +1,4 @@
+import { nativeUnitForMint } from '@/lib/platform/chainShape'
 import 'server-only'
 
 import connectDB from '@/lib/db'
@@ -194,7 +195,7 @@ export async function enrichCatalogTenants(
       total_generated_volume_sol: genVolume.total_sol,
       total_generated_volume_usd: genVolume.total_usd,
       total_generated_volume_usd_formatted: formatCompactUsd(genVolume.total_usd),
-      total_generated_volume_sol_formatted: formatCompactSol(genVolume.total_sol),
+      total_generated_volume_sol_formatted: formatCompactSol(genVolume.total_sol, nativeUnitForMint(tenant.mint)),
       payout_timer_status: rawTimerStatus,
       payout_seconds_remaining: rawSecondsRemaining,
       payout_current_cycle: timer?.currentCycle ?? 0,

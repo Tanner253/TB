@@ -1,3 +1,4 @@
+import { nativeUnitForMint } from '@/lib/platform/chainShape'
 import connectDB from '@/lib/db'
 import { Payout, Tenant } from '@/lib/db/models'
 import { aggregateSuccessfulPayoutTotals } from '@/lib/payout/payoutTotals'
@@ -182,7 +183,7 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
     const amountTokens = p.amountTokens || 0
     const amountUsd = p.amount || 0
     const amountAsset = resolvePayoutAmountAsset(p.rank, amountTokens, amountUsd)
-    const amountUnit = amountAsset === 'sol' ? 'ETH' : tokenMeta.symbol
+    const amountUnit = amountAsset === 'sol' ? nativeUnitForMint(tokenMeta.mint) : tokenMeta.symbol
 
     cycle.payouts.push({
       rank: p.rank,

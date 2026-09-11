@@ -1,5 +1,7 @@
 'use client'
 
+import { humanizePayoutError } from '@/lib/payout/payoutErrorCopy'
+import { nativeUnitForMint } from '@/lib/platform/chainShape'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
@@ -66,13 +68,18 @@ interface HistoryData {
   cycles: PayoutCycle[]
 }
 
+/** Each cycle is denominated by the chain its own token settled on. */
+function cycleNativeUnit(cycle: PayoutCycle): 'SOL' | 'ETH' {
+  return nativeUnitForMint(cycle.token_mint)
+}
+
 function formatCycleTotal(cycle: PayoutCycle): string {
   const parts: string[] = []
   if (cycle.total_token_amount && cycle.total_token_symbol) {
     parts.push(`${cycle.total_token_amount} ${cycle.total_token_symbol}`)
   }
   if (Number.parseFloat(cycle.total_sol.replace(/,/g, '')) > 0) {
-    parts.push(`${cycle.total_sol} ETH`)
+    parts.push(`${cycle.total_sol} ${cycleNativeUnit(cycle)}`)
   }
   return parts.length > 0 ? parts.join(' + ') : cycle.total_usd_formatted
 }
@@ -82,7 +89,7 @@ function formatCycleTotalShort(cycle: PayoutCycle): string {
     return `${cycle.total_token_amount} ${cycle.total_token_symbol}`
   }
   if (Number.parseFloat(cycle.total_sol.replace(/,/g, '')) > 0) {
-    return `${cycle.total_sol} ETH`
+    return `${cycle.total_sol} ${cycleNativeUnit(cycle)}`
   }
   return cycle.total_usd_formatted
 }
@@ -363,9 +370,19 @@ export default function HistoryPage() {
                                     )}
                                   </>
                                 )}
-                                {payout.status === 'failed' && (
-                                  <span className="text-red-600 dark:text-red-400 text-xs">• Failed: {payout.error}</span>
-                                )}
+                                {payout.status === 'failed' && (() => {
+                                  const copy = humanizePayoutError(payout.error)
+                                  if (!copy) return null
+                                  return (
+                                    // Raw chain error stays on the title so support can still read it.
+                                    <span
+                                      className={`text-xs ${copy.retried ? 'text-tb-amber' : 'text-red-600 dark:text-red-400'}`}
+                                      title={copy.raw}
+                                    >
+                                      • {copy.retried ? 'Not sent' : 'Failed'}: {copy.message}
+                                    </span>
+                                  )
+                                })()}
                               </div>
                             </div>
                           </div>
@@ -377,8 +394,11 @@ export default function HistoryPage() {
                           </div>
                         </div>
                         
-                        {/* TX Hash */}
-                        {payout.tx_hash && (
+                        {/* TX Hash — never on a failed payout. A hash there is
+                            either an unrelated transaction (see the executor's
+                            old swap fallback) or a transfer that did not land;
+                            linking it reads as proof the holder was paid. */}
+                        {payout.tx_hash && payout.status !== 'failed' && (
                           <div className="mt-3 pt-3 border-t border-white/5">
                             <span className="text-xs text-ink-3">TX: </span>
                             <a 

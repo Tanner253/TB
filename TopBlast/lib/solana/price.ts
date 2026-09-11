@@ -146,23 +146,27 @@ export function formatCompactUsd(amount: number): string {
   return `$${Math.round(amount).toLocaleString('en-US')}`
 }
 
-/** Compact native-asset amount for catalog gen volume — K/M above 1K, coarse below. */
-export function formatCompactSol(sol: number): string {
-  if (!Number.isFinite(sol) || sol <= 0) return '0 ETH'
+/**
+ * Compact native-asset amount for catalog gen volume — K/M above 1K, coarse
+ * below. The unit is passed in rather than assumed: a Solana-era listing
+ * generated its volume in SOL and must keep saying so.
+ */
+export function formatCompactSol(sol: number, unit: 'SOL' | 'ETH' = 'ETH'): string {
+  if (!Number.isFinite(sol) || sol <= 0) return `0 ${unit}`
 
   if (sol >= 1_000_000) {
-    return `${formatCompactUnit(sol / 1_000_000)}M ETH`
+    return `${formatCompactUnit(sol / 1_000_000)}M ${unit}`
   }
   if (sol >= 1_000) {
-    return `${formatCompactUnit(sol / 1_000)}K ETH`
+    return `${formatCompactUnit(sol / 1_000)}K ${unit}`
   }
   if (sol >= 1) {
-    return `${formatCompactUnit(sol)} ETH`
+    return `${formatCompactUnit(sol)} ${unit}`
   }
   if (sol >= 0.01) {
-    return `${sol.toFixed(2)} ETH`
+    return `${sol.toFixed(2)} ${unit}`
   }
-  return '<0.01 ETH'
+  return `<0.01 ${unit}`
 }
 
 function formatCompactUnit(value: number): string {

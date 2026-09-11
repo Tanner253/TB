@@ -22,3 +22,15 @@ export function isLegacyChainMint(mint: string | null | undefined): boolean {
   if (!trimmed) return false
   return !isEvmAddressShape(trimmed)
 }
+
+/**
+ * The native asset a listing settles in, by the chain its token lives on.
+ *
+ * Historical payouts must keep saying what they actually paid. A Solana
+ * cycle paid SOL; relabelling it ETH after the migration would quietly
+ * falsify the record, and the payout history is the one place users check
+ * to confirm what they received.
+ */
+export function nativeUnitForMint(mint: string | null | undefined): 'SOL' | 'ETH' {
+  return isLegacyChainMint(mint) ? 'SOL' : 'ETH'
+}
