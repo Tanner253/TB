@@ -25,7 +25,9 @@ export interface IndexResult {
   quoteIsNative: boolean
 }
 type Raw = { balance: string; bought: string; spent: string; firstBuyMs: number | null; sold: boolean; transferIn: boolean }
-type Checkpoint = { _id: string; version: number; launchBlock: string; cursor: string; blockHash: string; holders: Record<string, Raw> }
+type Checkpoint = { _id: string; version: number; launchBlock: string; cursor: string; blockHash: string; holders: Record<string, Raw>
+  /** Newest post-graduation trade already folded in (unix seconds). */
+  v4Cursor?: number }
 
 /** Locate the initial mint using logs; public RPC may not retain historical state. */
 async function deploymentBlock(token: Address, head: bigint): Promise<bigint> {
@@ -130,10 +132,16 @@ export async function indexLaunchHolders(input: { tokenAddress: string; launchBl
         }
       },
     })
+    // Only a v2 launch record knows about graduation; v1 pools are indexed
+    // from their own Swap events above.
+    const v4Cursor = await foldV4Trades({
+      launch: { token: launch.token, pairToken: launch.pairToken, nativeQuote: launch.nativeQuote, onUniswapV4: Boolean(v2?.onUniswapV4) },
+      raw, get, excluded, prior: saved?.v4Cursor ?? 0,
+    })
     const checkpoint: Checkpoint = {
       _id: id, version: (saved?.version ?? 0) + 1, launchBlock: launchBlock.toString(),
       cursor: end.toString(), blockHash: (await client.getBlock({ blockNumber: end })).hash!,
-      holders: raw,
+      holders: raw, v4Cursor,
     }
     if (saved) {
       const write = await collection.replaceOne({ _id: id, version: saved.version }, checkpoint)
@@ -153,3 +161,49 @@ export async function indexLaunchHolders(input: { tokenAddress: string; launchBl
     quoteDecimals: Number(quoteDecimals), quoteIsNative: launch.nativeQuote }
 }
 export { CURVE_ABI }
+
+/**
+ * Adds post-graduation Uniswap v4 buys to the ledger.
+ *
+ * Curve trades stay the source of truth for everything before graduation —
+ * they are exact and already indexed above. This only covers what the curve
+ * can no longer see, and only for launches that have actually graduated.
+ *
+ * Returns the cursor to persist. On any failure it returns the previous
+ * cursor unchanged, so a bad fetch re-reads the same window next cycle
+ * rather than silently skipping trades.
+ */
+async function foldV4Trades(input: {
+  launch: { token: Address; pairToken: Address; nativeQuote: boolean; onUniswapV4: boolean }
+  raw: Record<string, Raw>
+  get: (address: string) => Raw
+  excluded: Set<string>
+  prior: number
+}): Promise<number> {
+  if (!input.launch.onUniswapV4) return input.prior
+
+  const { fetchV4Trades, newestTradeTime } = await import('./v4Trades')
+  const trades = await fetchV4Trades({
+    token: input.launch.token,
+    sinceUnix: input.prior,
+    quoteAddress: input.launch.nativeQuote ? NATIVE_ADDRESS : input.launch.pairToken,
+  })
+  if (!trades || trades.length === 0) return input.prior
+
+  // Oldest first so `firstBuyMs` lands on the genuine first entry.
+  for (const trade of [...trades].sort((a, b) => a.unixTime - b.unixTime)) {
+    if (input.excluded.has(trade.owner)) continue
+    const h = input.get(trade.owner)
+    if (trade.isBuy) {
+      h.bought = (BigInt(h.bought) + trade.tokenDelta).toString()
+      h.spent = (BigInt(h.spent) + trade.quoteDelta).toString()
+      // A real market buy is an entry, not an unexplained transfer in.
+      h.transferIn = false
+      if (h.firstBuyMs == null) h.firstBuyMs = trade.unixTime * 1000
+    } else {
+      h.sold = true
+    }
+  }
+
+  return newestTradeTime(trades, input.prior)
+}

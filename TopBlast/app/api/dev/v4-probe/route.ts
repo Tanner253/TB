@@ -45,6 +45,14 @@ export async function GET(request: NextRequest) {
 
     const sim = await simulateV4Swap(call, from)
 
+    // Post-graduation cost basis, the piece curve events can't see.
+    const { fetchV4Trades } = await import('@/lib/pons/v4Trades')
+    const trades = await fetchV4Trades({
+      token: launch.token,
+      sinceUnix: Number(request.nextUrl.searchParams.get('since') ?? '0'),
+      quoteAddress: launch.nativeQuote ? '0x0000000000000000000000000000000000000000' : launch.pairToken,
+    })
+
     return NextResponse.json({
       router: v4RouterAddress(),
       launch: { token: launch.token, phase: launch.phase, nativeQuote: launch.nativeQuote },
@@ -54,6 +62,21 @@ export async function GET(request: NextRequest) {
       calldataBytes: (call.data.length - 2) / 2,
       valueWei: call.value.toString(),
       simulation: sim,
+      v4Trades: trades == null
+        ? { available: false }
+        : {
+            available: true,
+            count: trades.length,
+            buys: trades.filter(t => t.isBuy).length,
+            sample: trades.slice(0, 4).map(t => ({
+              owner: t.owner,
+              isBuy: t.isBuy,
+              tokens: t.tokenDelta.toString(),
+              quoteWei: t.quoteDelta.toString(),
+              impliedEthPerToken: Number(t.quoteDelta) / Number(t.tokenDelta),
+              at: new Date(t.unixTime * 1000).toISOString(),
+            })),
+          },
     })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)

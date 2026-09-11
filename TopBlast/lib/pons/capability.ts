@@ -21,17 +21,15 @@ import 'server-only'
  *     buybacks survive graduation. PONS_V4_ROUTER=off forces the fallback to
  *     native payouts if that route ever misbehaves.
  *
- *   - COST BASIS for wallets that bought *after* graduation comes from v4
- *     swap events we do not index yet — this is the one real remaining gap.
- *     Balances are unaffected (they are plain ERC-20 Transfers), and everyone
- *     who bought on the curve keeps the exact VWAP we already recorded.
- *     Holders with no known basis fall out of the rankings on their own —
- *     `hasTransferIn` already excludes them — which is the right failure:
- *     never pay someone on a guessed entry price.
+ *   - COST BASIS for wallets that bought *after* graduation is read from
+ *     Birdeye, which indexes this chain's v4 swaps with the trader resolved
+ *     (see lib/pons/v4Trades.ts). Without BIRDEYE_API_KEY those wallets have
+ *     no known basis and fall out of the rankings on their own — the right
+ *     failure, since the alternative is paying someone on a guessed entry
+ *     price. Curve-era holders always keep their exact VWAP either way.
  *
- * Net effect: a graduated listing keeps running and keeps buying on-chart;
- * only wallets that entered after graduation sit out until v4 swap indexing
- * lands. `degradedReason` says exactly what is reduced and why.
+ * Net effect: a graduated listing keeps running, keeps buying on-chart, and
+ * keeps ranking new entrants. `degradedReason` says what is reduced and why.
  */
 
 import { config } from '@/lib/config'
@@ -117,16 +115,18 @@ export async function resolvePonsCapability(
 
     case LaunchPhase.PoolCreated: {
       const canBuyback = v4RouterConfigured()
+      const costBasisPartial = !process.env.BIRDEYE_API_KEY?.trim()
+      const notes = [
+        canBuyback ? null : 'v4 routing is disabled, so winners are paid in ETH',
+        costBasisPartial ? 'BIRDEYE_API_KEY is unset, so wallets that bought after graduation are not ranked' : null,
+      ].filter(Boolean)
       return {
         halted: false,
         canIndex: true,
         canBuyback,
-        costBasisPartial: true,
+        costBasisPartial,
         venue: 'uniswap-v4',
-        degradedReason: canBuyback
-          ? 'Graduated to Uniswap v4 — buybacks route through the Universal Router; wallets that bought after graduation are not ranked yet'
-          : 'Graduated to Uniswap v4 with v4 routing disabled — paying winners in ETH, ' +
-            'and wallets that bought after graduation are not ranked yet',
+        degradedReason: notes.length ? `Graduated to Uniswap v4 — ${notes.join('; ')}` : null,
         haltReason: null,
         launch,
       }
