@@ -3,10 +3,22 @@ import 'server-only'
 /**
  * Rekt Report Card — public wallet drawdown report (ecosystem tool, Phase B).
  *
- * Reuses the exact cost-basis engine the payout eligibility system runs on
- * (calculateWalletVwap → Helius buy history), pointed at an arbitrary wallet:
- *   holdings (Helius RPC) → prices/symbols (DexScreener batch) → per-bag VWAP
- *   → drawdowns, unrealized PnL, and a Rekt Score with Blasty commentary.
+ * Reuses the exact cost-basis engine the payout eligibility system runs on,
+ * pointed at an arbitrary wallet:
+ *   holdings → prices/symbols (DexScreener) → per-bag VWAP → drawdowns,
+ *   unrealized PnL, and a Rekt Score with Blasty commentary.
+ *
+ * The shape is identical on both chains; only the three chain-specific steps
+ * differ, and each has the same contract:
+ *
+ *                    Solana                     Robinhood Chain
+ *   holdings         getTokenAccountsByOwner    Transfer logs + Multicall3
+ *   cost basis       Helius buy history         curve CurveBuy events
+ *   native price     SOL/USD                    ETH/USD
+ *
+ * On both chains an unknown entry price stays null rather than being
+ * estimated — the card says "no buy history found" instead of inventing a
+ * number the scoring would then treat as fact.
  *
  * Purely additive: nothing in the app imports this except the /api/rekt route.
  */
@@ -18,10 +30,12 @@ import { getSolPrice } from '@/lib/solana/price'
 import { getHeliusRpcUrl } from '@/lib/solana/rpcUrl'
 import {
   NATIVE_SOL_MINT,
+  selectBestPairOnChain,
   selectBestSolanaPair,
   parseUsd,
   type DexScreenerPairLike,
 } from '@/lib/solana/dexscreenerShared'
+import { isEvmAddressShape } from '@/lib/platform/chainShape'
 
 const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
 const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
@@ -96,9 +110,11 @@ interface DexInfo {
 }
 
 export function isValidWalletAddress(raw: string): boolean {
+  const value = raw.trim()
+  if (isEvmAddressShape(value)) return true
   try {
     // eslint-disable-next-line no-new
-    new PublicKey(raw.trim())
+    new PublicKey(value)
     return true
   } catch {
     return false
@@ -160,8 +176,11 @@ type PairWithMeta = DexScreenerPairLike & {
   baseToken: { address: string; symbol?: string; name?: string }
 }
 
-/** Batch price + symbol lookup for arbitrary mints via DexScreener. */
-async function fetchDexInfo(mints: string[]): Promise<Map<string, DexInfo>> {
+/** Batch price + symbol lookup for arbitrary tokens via DexScreener. */
+async function fetchDexInfo(
+  mints: string[],
+  chainId: 'solana' | 'robinhood' = 'solana'
+): Promise<Map<string, DexInfo>> {
   const out = new Map<string, DexInfo>()
   for (let i = 0; i < mints.length; i += DEX_BATCH) {
     const batch = mints.slice(i, i + DEX_BATCH)
@@ -172,7 +191,7 @@ async function fetchDexInfo(mints: string[]): Promise<Map<string, DexInfo>> {
       })
       const pairs: PairWithMeta[] = res.data?.pairs ?? []
       for (const mint of batch) {
-        const best = selectBestSolanaPair(pairs, mint) as PairWithMeta | null
+        const best = selectBestPairOnChain(pairs, mint, chainId) as PairWithMeta | null
         if (!best) continue
         const price = parseUsd(best.priceUsd)
         if (!price || price <= 0) continue
@@ -261,8 +280,10 @@ async function fetchWalletWins(wallet: string): Promise<RektWins> {
     const { default: connectDB } = await import('@/lib/db')
     const { Payout } = await import('@/lib/db/models')
     await connectDB()
+    // EVM addresses are persisted lower-cased; base58 is case-sensitive.
+    const lookup = isEvmAddressShape(wallet) ? wallet.toLowerCase() : wallet
     const rows = await Payout.find({
-      wallet,
+      wallet: lookup,
       status: 'success',
       rank: { $gte: 1 },
     })
@@ -296,6 +317,109 @@ async function fetchWalletWins(wallet: string): Promise<RektWins> {
 
 export async function buildRektReport(walletRaw: string): Promise<RektReportData> {
   const wallet = walletRaw.trim()
+  if (isEvmAddressShape(wallet)) return buildEvmRektReport(wallet)
+  return buildSolanaRektReport(wallet)
+}
+
+/**
+ * Robinhood Chain report. Same scoring and commentary as Solana — only
+ * holdings discovery, cost basis and the native price differ.
+ */
+async function buildEvmRektReport(wallet: string): Promise<RektReportData> {
+  const { discoverWalletTokens, getWalletBalances, getWalletCostBasis } = await import(
+    '@/lib/pons/wallet'
+  )
+  const { ethPrice } = await import('@/lib/pons/price')
+
+  const candidates = await discoverWalletTokens(wallet)
+  const held = await getWalletBalances(wallet, candidates)
+
+  const dexInfo = await fetchDexInfo(
+    held.map(h => h.token).slice(0, DEX_BATCH * 2),
+    'robinhood'
+  )
+
+  const priced = held
+    .map(h => ({ bag: h, info: dexInfo.get(h.token) ?? dexInfo.get(h.token.toLowerCase()) }))
+    .filter((h): h is { bag: (typeof held)[number]; info: DexInfo } => {
+      return !!h.info && h.bag.balance * h.info.priceUsd >= minBagUsd()
+    })
+    .sort((a, b) => b.bag.balance * b.info.priceUsd - a.bag.balance * a.info.priceUsd)
+
+  const toAnalyze = priced.slice(0, rektMaxTokens())
+  const nativeUsd = (await ethPrice()) || 0
+
+  const bags: RektBag[] = []
+  for (const { bag, info } of toAnalyze) {
+    let vwapUsd: number | null = null
+    let buyCount = 0
+    let firstBuyAt: string | null = null
+    let hasSold = false
+    try {
+      const basis = await getWalletCostBasis(wallet, bag.token, bag.decimals)
+      // Curve basis is denominated in ETH; the card is in USD.
+      if (basis.vwap && basis.vwap > 0 && nativeUsd > 0) vwapUsd = basis.vwap * nativeUsd
+      buyCount = basis.buyCount
+      firstBuyAt = basis.firstBuyAt ? basis.firstBuyAt.toISOString() : null
+      hasSold = basis.hasSold
+    } catch (err) {
+      console.warn(
+        `[Rekt] Cost basis failed for ${bag.token.slice(0, 10)}…:`,
+        err instanceof Error ? err.message : err
+      )
+    }
+
+    const valueUsd = bag.balance * info.priceUsd
+    bags.push({
+      mint: bag.token,
+      symbol: info.symbol || bag.symbol,
+      balance: bag.balance,
+      priceUsd: info.priceUsd,
+      valueUsd,
+      vwap: vwapUsd,
+      drawdownPct: vwapUsd ? ((info.priceUsd - vwapUsd) / vwapUsd) * 100 : null,
+      pnlUsd: vwapUsd ? (info.priceUsd - vwapUsd) * bag.balance : null,
+      buyCount,
+      firstBuyAt,
+      hasSold,
+    })
+  }
+
+  return finishReport({ wallet, bags, nativeUsd, holdingsFound: held.length })
+}
+
+/** Shared tail: ordering, totals, score, wins. Identical on both chains. */
+async function finishReport(input: {
+  wallet: string
+  bags: RektBag[]
+  nativeUsd: number
+  holdingsFound: number
+}): Promise<RektReportData> {
+  const bags = [...input.bags].sort((a, b) => (a.drawdownPct ?? 1) - (b.drawdownPct ?? 1))
+  const rektScore = computeRektScore(
+    bags.map(b => ({ vwap: b.vwap, balance: b.balance, priceUsd: b.priceUsd }))
+  )
+  const { grade, quip } = scoreToGrade(rektScore)
+  const wins = await fetchWalletWins(input.wallet)
+
+  return {
+    wallet: input.wallet,
+    computedAt: new Date().toISOString(),
+    solPrice: input.nativeUsd,
+    totalValueUsd: bags.reduce((s, b) => s + b.valueUsd, 0),
+    totalCostUsd: bags.reduce((s, b) => s + (b.vwap ? b.vwap * b.balance : 0), 0),
+    totalPnlUsd: bags.reduce((s, b) => s + (b.pnlUsd ?? 0), 0),
+    rektScore,
+    grade,
+    quip,
+    bags,
+    holdingsFound: input.holdingsFound,
+    analyzedCount: bags.length,
+    wins,
+  }
+}
+
+async function buildSolanaRektReport(wallet: string): Promise<RektReportData> {
   const holdings = await getWalletHoldings(wallet)
 
   const dexInfo = await fetchDexInfo(
@@ -358,31 +482,5 @@ export async function buildRektReport(walletRaw: string): Promise<RektReportData
     })
   }
 
-  // Deepest drawdowns first — this is a rekt card, lead with the wounds.
-  bags.sort((a, b) => (a.drawdownPct ?? 1) - (b.drawdownPct ?? 1))
-
-  const totalValueUsd = bags.reduce((s, b) => s + b.valueUsd, 0)
-  const totalCostUsd = bags.reduce((s, b) => s + (b.vwap ? b.vwap * b.balance : 0), 0)
-  const totalPnlUsd = bags.reduce((s, b) => s + (b.pnlUsd ?? 0), 0)
-  const rektScore = computeRektScore(
-    bags.map(b => ({ vwap: b.vwap, balance: b.balance, priceUsd: b.priceUsd }))
-  )
-  const { grade, quip } = scoreToGrade(rektScore)
-  const wins = await fetchWalletWins(wallet)
-
-  return {
-    wallet,
-    computedAt: new Date().toISOString(),
-    solPrice,
-    totalValueUsd,
-    totalCostUsd,
-    totalPnlUsd,
-    rektScore,
-    grade,
-    quip,
-    bags,
-    holdingsFound: holdings.length,
-    analyzedCount: bags.length,
-    wins,
-  }
+  return finishReport({ wallet, bags, nativeUsd: solPrice, holdingsFound: holdings.length })
 }

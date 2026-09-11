@@ -48,6 +48,36 @@ export function inferMigrationStage(dexId: string): PumpMigrationStage {
   return 'standard'
 }
 
+/**
+ * Deepest-liquidity pair for a token on a given DexScreener chain.
+ * EVM addresses are case-insensitive, Solana mints are not, so matching is
+ * exact on Solana and case-folded elsewhere.
+ */
+export function selectBestPairOnChain(
+  pairs: DexScreenerPairLike[],
+  token: string,
+  chainId: string
+): DexScreenerPairLike | null {
+  const needle = chainId === 'solana' ? token.trim() : token.trim().toLowerCase()
+  const norm = (v: string | undefined) =>
+    chainId === 'solana' ? v : v?.toLowerCase()
+
+  const eligible = pairs.filter(pair => {
+    if (pair.chainId !== chainId) return false
+    if (!parseUsd(pair.priceUsd)) return false
+    return norm(pair.baseToken.address) === needle || norm(pair.quoteToken.address) === needle
+  })
+
+  if (eligible.length === 0) return null
+
+  return eligible.sort((a, b) => {
+    const liqA = a.liquidity?.usd ?? 0
+    const liqB = b.liquidity?.usd ?? 0
+    if (liqB !== liqA) return liqB - liqA
+    return (b.volume?.h24 ?? 0) - (a.volume?.h24 ?? 0)
+  })[0]
+}
+
 export function selectBestSolanaPair(
   pairs: DexScreenerPairLike[],
   mint: string
