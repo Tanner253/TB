@@ -49,8 +49,19 @@ export function FeaturedTokens({ limit = 3 }: FeaturedTokensProps) {
       ) : null}
 
       {!loading && !error && featured.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-line p-8 text-center bg-card/60 text-ink-2 text-sm">
-          No live listings yet.
+        <div className="rounded-xl border border-dashed border-line p-8 text-center bg-card/60">
+          <p className="text-sm text-ink-2">
+            No live sessions yet — TopBlast now runs on Robinhood Chain.
+          </p>
+          <p className="mt-1 text-xs text-ink-3">
+            Earlier Solana sessions are retired; their payouts still count in the totals above.
+          </p>
+          <Link
+            href="/launch"
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-bold text-on-accent transition-all hover:scale-[1.03] hover:bg-accent-hover active:scale-95"
+          >
+            List a Pons token →
+          </Link>
         </div>
       ) : null}
 

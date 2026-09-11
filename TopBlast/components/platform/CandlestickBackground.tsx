@@ -15,6 +15,17 @@ const CONFIG = {
   trendStrength: 0.55,
   cameraZ: 60,
   cameraYOffset: 10,
+  /**
+   * Framing nudge as a fraction of the viewport, applied through the camera's
+   * view offset rather than its transform — the aim and the animation are
+   * untouched, only the window we render through moves.
+   *
+   * The camera aims 35 units ahead of itself, and perspective drags the
+   * candle band toward the lower right of that aim; these pull it back to
+   * the middle. Positive values move the CONTENT left and up.
+   */
+  frameShiftX: 0.3,
+  frameShiftY: 0.18,
 }
 
 /** Scene palette per theme — candles stay classic green/red in both. */
@@ -188,9 +199,16 @@ export function CandlestickBackground() {
       rendererRef.current.render(sceneRef.current, cameraRef.current)
     }
 
+    const applyFraming = (cam: THREE.PerspectiveCamera, w: number, h: number) => {
+      cam.setViewOffset(w, h, w * CONFIG.frameShiftX, h * CONFIG.frameShiftY, w, h)
+    }
+
+    applyFraming(camera, window.innerWidth, window.innerHeight)
+
     const onWindowResize = () => {
       if (!cameraRef.current || !rendererRef.current) return
       cameraRef.current.aspect = window.innerWidth / window.innerHeight
+      applyFraming(cameraRef.current, window.innerWidth, window.innerHeight)
       cameraRef.current.updateProjectionMatrix()
       rendererRef.current.setSize(window.innerWidth, window.innerHeight)
     }

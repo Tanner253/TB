@@ -886,10 +886,26 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
     const results: any[] = []
     let totalPaidSol = 0
 
-    // Per-listing payout currency: 'token' listings run the Jupiter buyback +
-    // airdrop; 'sol' listings pay winners SOL straight from the pool.
-    const payWinnersInNativeToken =
+    // Per-listing payout currency: 'token' listings run the buyback + airdrop;
+    // 'sol' listings pay winners the native asset straight from the pool.
+    //
+    // A graduated Pons launch cannot be bought on-chart until a v4 router is
+    // configured, so it falls back to native payouts for the cycle rather
+    // than failing it. Winners still get paid; only the chart buy is lost.
+    let payWinnersInNativeToken =
       config.payoutAsNativeToken && Boolean(config.tokenMint) && config.executePayouts
+
+    if (payWinnersInNativeToken && isPonsSession()) {
+      const { resolvePonsCapability } = await import('@/lib/pons/capability')
+      const capability = await resolvePonsCapability(config.tokenMint)
+      if (!capability.canBuyback) {
+        console.warn(
+          `[Payout] On-chart buyback unavailable (${capability.degradedReason ?? 'unsupported venue'}) — ` +
+            'paying winners in ETH this cycle'
+        )
+        payWinnersInNativeToken = false
+      }
+    }
 
     console.log('[Payout] Creating pending winner payout records...')
 

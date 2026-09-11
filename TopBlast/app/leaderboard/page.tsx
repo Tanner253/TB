@@ -20,6 +20,7 @@ import { ExternalToolsEligibilityNote } from '@/components/tenant/ExternalToolsE
 import type { SessionChecklist } from '@/lib/tenant/sessionChecklist'
 import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 import { CopyContractAddress, solscanTokenUrl } from '@/components/ui/CopyContractAddress'
+import { isLegacyChainMint } from '@/lib/platform/chainShape'
 import { getAddressExplorerUrl } from '@/lib/solana/explorer'
 import { deriveSessionDisplayState } from '@/lib/session/displayState'
 import { TokenAvatar } from '@/components/ui/TokenAvatar'
@@ -206,6 +207,7 @@ export default function LeaderboardPage() {
   }, [refresh])
 
   const tokenMint = data?.token_mint || priceMint || null
+  const isRetiredSession = isLegacyChainMint(tokenMint)
   const tokenSymbol = data?.token_symbol || 'TopBlast'
   const { media: tokenMedia } = useTokenMedia(tokenMint)
   const tokenIconUrl = tokenMedia?.iconUrl ?? null
@@ -560,7 +562,7 @@ export default function LeaderboardPage() {
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="relative bg-gradient-to-br from-purple-950/30 to-purple-900/10 border border-rh-green/30 rounded-2xl p-6 overflow-hidden"
+            className="relative bg-gradient-to-br from-sol-purple/12 to-transparent border border-sol-purple/25 rounded-2xl p-6 overflow-hidden"
           >
             <div className="absolute top-0 right-0 w-40 h-40 bg-rh-green/10 rounded-full blur-3xl" />
             <div className="absolute -bottom-2 -right-2 sm:bottom-0 sm:right-2 opacity-90">
@@ -577,7 +579,9 @@ export default function LeaderboardPage() {
                 >
                   {isTimerActive && !isPayoutDueNow ? '⏱️' : '⏳'}
                 </motion.div>
-                {isSyncingHolders
+                {isRetiredSession
+                  ? 'SESSION ENDED'
+                  : isSyncingHolders
                   ? 'SYNCING HOLDERS'
                   : isPoolLimbo
                     ? 'WAITING FOR VOLUME'
@@ -589,7 +593,15 @@ export default function LeaderboardPage() {
                           ? 'PAYOUT PROCESSING'
                           : 'NEXT PAYOUT IN'}
               </div>
-              {isSyncingHolders ? (
+              {isRetiredSession ? (
+                <div className="py-4">
+                  <p className="text-2xl md:text-3xl font-bold text-tb-amber font-mono mb-3">Retired</p>
+                  <p className="text-ink-2 text-sm leading-relaxed">
+                    This listing ran on Solana. TopBlast moved to Robinhood Chain, so no
+                    further cycles will run here.
+                  </p>
+                </div>
+              ) : isSyncingHolders ? (
                 <div className="py-4">
                   <p className="text-2xl md:text-3xl font-bold text-sol-purple font-mono mb-3">Indexing chain…</p>
                   <p className="text-ink-2 text-sm leading-relaxed">
@@ -635,7 +647,9 @@ export default function LeaderboardPage() {
                 <Countdown seconds={countdown ?? 0} size="xl" className="text-rh-green" />
               )}
               <p className="text-ink-2 text-sm mt-4">
-                {isPoolLimbo
+                {isRetiredSession
+                  ? 'Final results — the payouts below already happened'
+                  : isPoolLimbo
                   ? `No payout cycle until the wallet holds at least $${minimumPoolUsd.toFixed(0)} USD in ETH`
                   : isListingLimbo
                     ? 'No payout cycle until someone qualifies'
@@ -658,7 +672,7 @@ export default function LeaderboardPage() {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="relative bg-gradient-to-br from-purple-950/20 to-purple-900/5 border border-rh-green-dark/20 rounded-2xl p-6 overflow-hidden"
+            className="relative bg-gradient-to-br from-sol-purple/10 to-transparent border border-sol-purple/20 rounded-2xl p-6 overflow-hidden"
           >
             <div className="absolute bottom-0 left-0 w-40 h-40 bg-rh-green-dark/10 rounded-full blur-3xl" />
             <div className="relative">
@@ -692,7 +706,24 @@ export default function LeaderboardPage() {
           </motion.div>
         </div>
 
-        {showSessionStatusBar ? (
+        {isRetiredSession ? (
+          <div className="mb-8 rounded-xl border border-tb-amber/35 bg-tb-amber/10 p-5">
+            <p className="text-sm font-bold text-tb-amber">This session has ended</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-ink-2">
+              TopBlast now runs on Robinhood Chain, so this Solana listing no longer
+              runs payout cycles. Everything it already paid is still counted in the
+              platform totals, and the full history below stays online.
+            </p>
+            <Link
+              href="/catalog"
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-on-accent transition-all hover:scale-[1.03] hover:bg-accent-hover active:scale-95"
+            >
+              See live sessions →
+            </Link>
+          </div>
+        ) : null}
+
+        {showSessionStatusBar && !isRetiredSession ? (
           <SessionStatusBar
             checklist={sessionChecklist}
             eligibleCount={eligibleCount}
@@ -711,15 +742,19 @@ export default function LeaderboardPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div>
               <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2 sm:gap-3">
-                <span className="text-2xl sm:text-3xl">{showLimbo ? '⏳' : '🎯'}</span>
-                {showLimbo
+                <span className="text-2xl sm:text-3xl">{isRetiredSession ? '🏁' : showLimbo ? '⏳' : '🎯'}</span>
+                {isRetiredSession
+                  ? 'Final standings'
+                  : showLimbo
                   ? isPoolLimbo
                     ? 'Pool limbo — waiting for volume'
                     : 'Listing limbo — tracked holders'
                   : 'Current Winners'}
               </h2>
               <p className="text-ink-2 text-sm mt-1">
-                {isPoolLimbo
+                {isRetiredSession
+                  ? 'Where this session finished. No further cycles will run.'
+                  : isPoolLimbo
                   ? `Payout wallet is below $${minimumPoolUsd.toFixed(0)} USD in ETH — cycles stay paused until it is refilled.`
                   : showLimbo
                     ? 'No one eligible yet — each card shows why. Timer starts when the first holder passes every rule.'

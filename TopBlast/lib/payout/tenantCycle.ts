@@ -44,7 +44,7 @@ export interface TenantCycleResult {
   payoutSuccess?: boolean
   payoutError?: string | null
   /** Set when the cycle was skipped without doing any paid API work. */
-  skipped?: 'market_cap_floor'
+  skipped?: 'market_cap_floor' | 'legacy_chain'
   marketCapUsd?: number | null
 }
 
@@ -82,6 +82,26 @@ async function resolveDormancy(): Promise<{ dormant: boolean; marketCapUsd: numb
 
 export async function runAutomatedTenantCycle(): Promise<TenantCycleResult> {
   await ensureTimerStateSync()
+
+  // Pre-migration Solana listings can't be indexed or paid on this chain.
+  // Return before any paid lookup — including the dormancy check.
+  const { isLegacyChainListing } = await import('@/lib/platform/legacyChain')
+  if (isLegacyChainListing(config.tokenMint)) {
+    if (getPayoutTimerInfo().timer_status === 'active') {
+      await pausePayoutTimerToWaiting().catch(() => {})
+    }
+    console.log(
+      `[TenantCycle] ${config.tenantSlug} retired \u2014 ${config.tokenMint} is not a Robinhood Chain token. ` +
+        'Skipping indexing + payouts (history and totals unaffected).'
+    )
+    return {
+      indexed: false,
+      eligibleCount: 0,
+      timerStatus: 'waiting',
+      payoutAttempted: false,
+      skipped: 'legacy_chain',
+    }
+  }
 
   const dormancy = await resolveDormancy()
   if (dormancy.dormant) {

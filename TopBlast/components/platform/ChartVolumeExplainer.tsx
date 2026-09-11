@@ -13,7 +13,7 @@ export function ChartVolumeExplainer({ compact = false, showCatalogLink = true }
 
   return (
     <section
-      className={`rounded-2xl border border-purple-500/25 bg-gradient-to-br from-purple-950/30 via-card/40 to-transparent ${
+      className={`rounded-2xl border border-sol-purple/25 bg-gradient-to-br from-sol-purple/10 via-card/40 to-transparent ${
         compact ? 'p-5' : 'p-6 md:p-8'
       }`}
     >
@@ -47,7 +47,7 @@ export function ChartVolumeExplainer({ compact = false, showCatalogLink = true }
         {copy.stats.map(stat => (
           <div
             key={stat.label}
-            className="rounded-xl border border-purple-500/20 bg-purple-950/20 p-4 text-center"
+            className="rounded-xl border border-sol-purple/20 bg-sol-purple/[0.07] p-4 text-center"
           >
             <div className="text-lg font-bold text-sol-purple">{stat.value}</div>
             <div className="text-[0.65rem] uppercase tracking-wider text-ink-3 mt-1">{stat.label}</div>

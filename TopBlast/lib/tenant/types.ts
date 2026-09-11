@@ -76,6 +76,8 @@ export interface PublicTenantSummary {
    * (homepage totals, history, stats).
    */
   catalog_hidden?: boolean
+  /** Token is on the pre-migration chain: retired from browsing, still counted in totals. */
+  legacy_chain?: boolean
   /** Live distributable SOL in the payout wallet (catalog). */
   pot_sol?: number | null
   pot_usd?: number | null

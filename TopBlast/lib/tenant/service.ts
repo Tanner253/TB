@@ -105,7 +105,11 @@ export async function listPublicTenants(): Promise<PublicTenantSummary[]> {
   // browsing surfaces skip them, while sessions and aggregate stats
   // (homepage totals, history) keep counting every listing.
   const { annotateCatalogTenantsByMarketCap } = await import('@/lib/platform/catalogVisibility')
-  return annotateCatalogTenantsByMarketCap(enriched)
+  const scored = await annotateCatalogTenantsByMarketCap(enriched)
+  // Retire the pre-migration Solana listings the same way: hidden and
+  // inactive, but every historical payout still counts toward the totals.
+  const { annotateLegacyChainTenants } = await import('@/lib/platform/legacyChain')
+  return annotateLegacyChainTenants(scored)
 }
 
 export async function getTenantBySlug(slug: string) {

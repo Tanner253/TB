@@ -3,7 +3,6 @@ import 'server-only'
 import mongoose from 'mongoose'
 import { config } from '@/lib/config'
 import { indexLaunchHolders } from './holderIndex'
-import { getPonsLaunch } from './launch'
 import { publicClient, ERC20_ABI, getChainId, isTestnet } from './contracts'
 import { ethPrice, resolvedPrice } from './price'
 import { getLivePoolBalance } from '@/lib/payout/poolBalance'
@@ -15,9 +14,10 @@ import type { HolderRefreshSession } from '@/lib/platform/holderRefreshPolicy'
 import connectDB from '@/lib/db'
 
 export async function assertPonsReady() {
-  if (isTestnet()) throw new Error('Pons deployment is verified for mainnet only')
-  const launch = await getPonsLaunch(config.tokenMint)
-  if (!launch || !launch.nativeQuote || !launch.onCurve) throw new Error('Pons payouts require an active native-ETH curve; graduated/custom-quote launches are paused')
+  const { resolvePonsCapability } = await import('./capability')
+  const capability = await resolvePonsCapability(config.tokenMint)
+  if (capability.halted) throw new Error(capability.haltReason ?? 'Pons launch is not payable')
+  if (capability.degradedReason) console.warn(`[Pons] Degraded service: ${capability.degradedReason}`)
   await connectDB()
   const checkpoint = await mongoose.connection.db!.collection('pons_holder_checkpoints').findOne({ _id: (getChainId() + ':' + config.tokenMint.toLowerCase()) as any })
   const head = await publicClient().getBlockNumber()
@@ -28,9 +28,10 @@ export async function refreshPonsRankings(options?: { force?: boolean; session?:
   await connectDB()
   try {
     if (isTestnet()) throw new Error('Pons testnet deployment not configured')
-    const launch = await getPonsLaunch(config.tokenMint)
-    const v1 = launch ? null : await getV1Launch(config.tokenMint)
-    if (!(launch?.nativeQuote && launch.onCurve) && !v1?.nativeQuote) throw new Error('Launch is not a supported ETH market')
+    const { resolvePonsCapability } = await import('./capability')
+    const capability = await resolvePonsCapability(config.tokenMint)
+    const v1 = capability.launch ? null : await getV1Launch(config.tokenMint)
+    if (capability.halted && !v1?.nativeQuote) throw new Error(capability.haltReason ?? 'Launch is not a supported ETH market')
     const index = await indexLaunchHolders({ tokenAddress: config.tokenMint })
     if (!index) throw new Error('Pons indexing unavailable')
     if (index.incomplete) throw new Error('Pons historical backfill is still running')

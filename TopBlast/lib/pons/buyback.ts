@@ -42,7 +42,18 @@ export async function buybackSessionToken(input: {
   const launch = await getPonsLaunch(input.tokenAddress)
   if (!launch) return { ...base, error: 'Not a Pons v2 launch' }
   if (!launch.nativeQuote) return { ...base, error: 'Custom quote assets are not supported for payouts' }
-  if (launch.phase !== LaunchPhase.NotGraduated) return { ...base, error: 'Payouts paused: graduated or inactive launch requires V4 execution and cost basis support' }
+  if (launch.phase !== LaunchPhase.NotGraduated) {
+    // Distinguish "cannot buy here" from "cannot run at all": a graduated
+    // launch is still payable in ETH, so the caller falls back instead of
+    // failing the cycle. See lib/pons/capability.ts.
+    const { resolvePonsCapability } = await import('./capability')
+    const capability = await resolvePonsCapability(input.tokenAddress)
+    return {
+      ...base,
+      venue: capability.venue === 'uniswap-v4' ? 'uniswap-v4' : null,
+      error: capability.haltReason ?? capability.degradedReason ?? 'On-chart buyback unavailable for this launch',
+    }
+  }
   const quote = await quoteCurveBuy(launch.curve, input.quoteInWei, account.address, input.slippageBps)
   if (!quote) return { ...base, error: 'No executable curve quote' }
   if (input.execute === false) return { ...base, success: true, venue: 'curve',
