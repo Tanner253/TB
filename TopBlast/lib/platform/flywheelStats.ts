@@ -18,6 +18,7 @@ import mongoose from 'mongoose'
 import connectDB from '@/lib/db'
 import { getChainId } from '@/lib/pons/contracts'
 import { FLYWHEEL_BUYBACKS_COLLECTION } from '@/lib/platform/platformBuyback'
+import { DEV_FEE_BUYBACK_SHARE_PCT } from '@/lib/platform/flywheel'
 
 export interface FlywheelStats
 {
@@ -26,8 +27,18 @@ export interface FlywheelStats
   feesCollectedUsd: number
   /** Native asset spent buying the platform token. */
   spentEth: number
-  /** Platform tokens burned — confirmed burns only. */
+  /** Platform tokens burned — confirmed burns only, this chain. */
   tokensBurned: number
+  /** Supply destroyed by the pre-migration program, measured on-chain. */
+  legacyBurned: number
+  legacyBurnedPct: number
+  /** Burned this chain + legacy. The headline number. */
+  totalBurned: number
+  /**
+   * Share of collected fees the split routes to buyback. Stated as routed,
+   * not spent: the fee split is a fact, the historical spend is not recorded.
+   */
+  routedToBuybackUsd: number
   /** Number of completed buy+burn rounds. */
   purchases: number
   /** Rounds that bought but could not burn yet. */
@@ -42,6 +53,10 @@ const EMPTY: FlywheelStats = {
   feesCollectedUsd: 0,
   spentEth: 0,
   tokensBurned: 0,
+  legacyBurned: 0,
+  legacyBurnedPct: 0,
+  totalBurned: 0,
+  routedToBuybackUsd: 0,
   purchases: 0,
   pendingBurns: 0,
   lastPurchaseAt: null,
@@ -67,21 +82,33 @@ export async function getFlywheelStats(): Promise<FlywheelStats> {
       .find({ chainId: getChainId() })
       .toArray()
 
+    // The Solana-era program left no records, but its burns are measurable.
+    const { getLegacyFlywheel } = await import('@/lib/platform/legacyFlywheel')
+    const legacy = await getLegacyFlywheel()
+
     const burned = rounds.filter(r => r.burned === true)
     const lastPurchase = rounds
       .map(r => (r.createdAt instanceof Date ? r.createdAt : null))
       .filter((d): d is Date => d != null)
       .sort((a, b) => b.getTime() - a.getTime())[0]
 
+    const feesUsd = round2(fees?.usd ?? 0)
+    const chainBurned = round6(burned.reduce((sum, r) => sum + (Number(r.tokensBurned) || 0), 0))
+    const legacyBurned = round6(legacy?.burned ?? 0)
+
     return {
       feesCollectedEth: round6(fees?.eth ?? 0),
-      feesCollectedUsd: round2(fees?.usd ?? 0),
+      feesCollectedUsd: feesUsd,
       spentEth: round6(rounds.reduce((sum, r) => sum + (Number(r.spentEth) || 0), 0)),
-      tokensBurned: round6(burned.reduce((sum, r) => sum + (Number(r.tokensBurned) || 0), 0)),
+      tokensBurned: chainBurned,
+      legacyBurned,
+      legacyBurnedPct: Math.round((legacy?.burnedPct ?? 0) * 100) / 100,
+      totalBurned: round6(chainBurned + legacyBurned),
+      routedToBuybackUsd: round2((feesUsd * DEV_FEE_BUYBACK_SHARE_PCT) / 100),
       purchases: burned.length,
       pendingBurns: rounds.length - burned.length,
       lastPurchaseAt: lastPurchase ? lastPurchase.toISOString() : null,
-      live: burned.length > 0,
+      live: burned.length > 0 || legacyBurned > 0,
     }
   } catch (err) {
     console.warn('[Flywheel] Stats unavailable:', err instanceof Error ? err.message : err)

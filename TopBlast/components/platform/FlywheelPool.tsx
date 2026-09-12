@@ -21,6 +21,10 @@ interface FlywheelData {
   feesCollectedUsd: number
   spentEth: number
   tokensBurned: number
+  legacyBurned: number
+  legacyBurnedPct: number
+  totalBurned: number
+  routedToBuybackUsd: number
   purchases: number
   pendingBurns: number
   lastPurchaseAt: string | null
@@ -28,12 +32,6 @@ interface FlywheelData {
   automated: boolean
   token: { symbol: string; mint: string | null }
   rates: { feePct: number; buybackPctOfPool: number; opsPctOfPool: number }
-}
-
-function fmtEth(n: number): string {
-  if (n <= 0) return '0'
-  if (n < 0.000001) return '<0.000001'
-  return n.toFixed(6).replace(/0+$/, '').replace(/\.$/, '')
 }
 
 function fmtTokens(n: number): string {
@@ -76,8 +74,24 @@ export function FlywheelPool() {
     // USD only: this total spans the Solana era and Robinhood Chain, so no
     // single native unit describes it honestly.
     { label: 'Fees collected', value: fmtUsd(data.feesCollectedUsd), sub: 'all sessions, all time' },
-    { label: 'Spent on buybacks', value: `${fmtEth(data.spentEth)} ETH`, sub: `${data.purchases} purchase${data.purchases === 1 ? '' : 's'}` },
-    { label: 'Supply burned', value: `${fmtTokens(data.tokensBurned)} $${symbol}`, sub: data.live ? 'confirmed on-chain' : 'no burns yet' },
+    {
+      // "Routed", not "spent". The fee split is a fact; a spend figure for the
+      // manual Solana-era program was never recorded, and an unverifiable
+      // number is worth less than an honest one.
+      label: 'Routed to buyback',
+      value: fmtUsd(data.routedToBuybackUsd),
+      sub: `${data.rates.buybackPctOfPool}% of every pool`,
+    },
+    {
+      label: 'Supply burned',
+      value: `${fmtTokens(data.totalBurned)} $${symbol}`,
+      sub:
+        data.legacyBurnedPct > 0
+          ? `${data.legacyBurnedPct}% of supply · verifiable on-chain`
+          : data.live
+            ? 'confirmed on-chain'
+            : 'no burns yet',
+    },
   ]
 
   return (
