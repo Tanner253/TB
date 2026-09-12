@@ -1,5 +1,6 @@
 'use client'
 
+import { CycleProof } from '@/components/history/CycleProof'
 import { humanizePayoutError } from '@/lib/payout/payoutErrorCopy'
 import { nativeUnitForMint } from '@/lib/platform/chainShape'
 import { useState, useEffect } from 'react'
@@ -424,6 +425,7 @@ export default function HistoryPage() {
                           {formatCycleTotalShort(cycle)}
                         </span>
                       </div>
+                      <CycleProof cycle={cycle} className="mt-4 border-t border-line/60 pt-4" />
                     </div>
                   </div>
                 ) : (

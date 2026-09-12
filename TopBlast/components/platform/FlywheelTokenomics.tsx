@@ -31,8 +31,10 @@ function FlywheelTree({ compact = false }: { compact?: boolean }) {
           <div className="pl-5 mt-1 text-ink-2">
             <span className="text-sol-purple">└─ </span>
             {FLYWHEEL_TREE.burn}
-            {FLYWHEEL_BURN_STATUS === 'planned' ? (
-              <span className="ml-2 text-xs uppercase tracking-wider text-amber-400/90">(automated — roadmap)</span>
+            {FLYWHEEL_BURN_STATUS === 'staged' ? (
+              <span className="ml-2 text-xs uppercase tracking-wider text-tb-amber">
+                (built — enable per deploy)
+              </span>
             ) : null}
           </div>
         </div>

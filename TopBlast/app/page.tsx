@@ -6,6 +6,7 @@ import { FeaturedTokens } from '@/components/catalog/FeaturedTokens'
 import { HomeHero } from '@/components/platform/HomeHero'
 import { HowItWorksSimple } from '@/components/platform/HowItWorksSimple'
 import { PoweredByPons } from '@/components/platform/PoweredByPons'
+import { FlywheelPool } from '@/components/platform/FlywheelPool'
 import { HomeReveal } from '@/components/platform/HomeSection'
 
 const CandlestickBackground = dynamic(
@@ -39,6 +40,10 @@ export default function HomePage() {
           </HomeReveal>
 
           <HowItWorksSimple />
+
+          <HomeReveal>
+            <FlywheelPool />
+          </HomeReveal>
 
           <HomeReveal>
             <PoweredByPons />

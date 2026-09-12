@@ -221,7 +221,7 @@ export const TRUST_FOOTER =
   `Payout keys are encrypted at rest. TopBlast only signs transactions to pay eligible winners from your wallet. ` +
   `A flat ${DEV_FEE_PCT}% protocol fee per cycle goes to the platform treasury: ` +
   `${PLATFORM_BUYBACK_PCT_OF_POOL}% of the pool (${DEV_FEE_BUYBACK_SHARE_PCT}% of the fee) market-buys the platform token for burn, ` +
-  `${PLATFORM_OPS_PCT_OF_POOL}% funds ops and infra. Buyback + burn automation is on the roadmap.`
+  `${PLATFORM_OPS_PCT_OF_POOL}% funds ops and infra. The buy and burn run inside the payout cycle, after winners are paid.`
 
 export { APP_URL, WHITEPAPER_URL, appHostname, PONS_URL, PONS_DOCS_URL, CHAIN_NAME } from '@/lib/marketing/urls'
 

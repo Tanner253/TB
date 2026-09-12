@@ -34,6 +34,13 @@ export interface BuybackResult {
 export async function buybackSessionToken(input: {
   tokenAddress: string; quoteInWei: bigint; privateKeyHex: string | undefined | null
   tokenDecimals: number; slippageBps?: number; execute?: boolean
+  /**
+   * Journal key for the idempotency record. The default covers the session
+   * buyback; a second buy in the same cycle (the platform flywheel) MUST pass
+   * its own label, or submitOnce hands back the session buy's hash and the
+   * flywheel silently reports a purchase it never made.
+   */
+  journalAction?: string
 }): Promise<BuybackResult> {
   const base: BuybackResult = { success: false, txHash: null, tokensOut: 0, quoteSpent: 0, venue: null, error: null }
   if (input.execute !== false && (input.execute !== true || !signingAllowed())) return { ...base, error: 'Payout signing disabled or unauthorized' }
@@ -63,7 +70,7 @@ export async function buybackSessionToken(input: {
   try {
     const { request } = await publicClient().simulateContract({ address: launch.curve, abi: CURVE_ABI, functionName: 'buy',
       args: [input.quoteInWei, quote.minTokensOut, account.address], value: input.quoteInWei, account })
-    hash = await submitOnce('buyback', input.quoteInWei.toString(), () => wallet.writeContract(request))
+    hash = await submitOnce(input.journalAction ?? 'buyback', input.quoteInWei.toString(), () => wallet.writeContract(request))
     const receipt = await publicClient().waitForTransactionReceipt({ hash, timeout: 90_000 })
     if (receipt.status !== 'success') return { ...base, txHash: hash, error: 'Curve buy reverted' }
     const events = parseEventLogs({ abi: CURVE_ABI, logs: receipt.logs, eventName: 'CurveBuy' })
@@ -92,7 +99,7 @@ export function buildV4PoolKey(launch: PonsLaunch, memeHook: Address) {
  */
 async function buyOnV4(
   launch: PonsLaunch,
-  input: { tokenAddress: string; quoteInWei: bigint; privateKeyHex: string | undefined | null; tokenDecimals: number; slippageBps?: number; execute?: boolean },
+  input: { tokenAddress: string; quoteInWei: bigint; privateKeyHex: string | undefined | null; tokenDecimals: number; slippageBps?: number; execute?: boolean; journalAction?: string },
   base: BuybackResult,
   account: NonNullable<ReturnType<typeof accountForKey>>
 ): Promise<BuybackResult> {
@@ -144,7 +151,7 @@ async function buyOnV4(
 
   try {
     const before = await balanceOf()
-    const hash = await submitOnce('buyback-v4', input.quoteInWei.toString(), () =>
+    const hash = await submitOnce(`${input.journalAction ?? 'buyback'}-v4`, input.quoteInWei.toString(), () =>
       wallet.sendTransaction({ to: call.to, data: call.data, value: call.value, account, chain: wallet.chain })
     )
     const receipt = await publicClient().waitForTransactionReceipt({ hash, timeout: 90_000 })

@@ -65,7 +65,7 @@ export const FLYWHEEL = {
     ops: '6% of original pool (50% of fee) → ops / infra / growth',
     burn: 'Purchased tokens → burn address / incinerator',
     burnNote:
-      'Buyback + burn automation is on the roadmap. Dev fees accrue to the platform treasury today; market buys are executed manually until the bot ships.',
+      'Buy and burn run inside the payout cycle, after winners are paid. Dev fees accrue to the platform treasury today; market buys are executed manually until the bot ships.',
   },
 } as const
 

@@ -1378,16 +1378,52 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
       return pausePayoutForNoWinners('No successful winner payouts this cycle', nextCycle)
     }
 
+    // The flywheel takes its share BEFORE the ops transfer, out of the same
+    // fee, and only after winners have been paid. If it fails for any reason
+    // the share falls back into the ops transfer rather than being stranded —
+    // see lib/platform/platformBuyback.ts.
+    let flywheelSpent = 0
+    if (config.executePayouts && totalDevFeeSol >= MIN_TRANSFER_SOL && isPonsSession()) {
+      try {
+        const { buybackAndBurnPlatformToken, buybackShareOfFee } = await import(
+          '@/lib/platform/platformBuyback'
+        )
+        const { buyback } = buybackShareOfFee(totalDevFeeSol)
+        if (buyback > 0) {
+          const flywheel = await buybackAndBurnPlatformToken({
+            quoteInWei: BigInt(Math.floor(buyback * 1e18)),
+            privateKeyHex: (await import('@/lib/tenant/context')).getPayoutPrivateKey(),
+            tenantSlug: config.tenantSlug,
+            cycle: nextCycle,
+            execute: true,
+          })
+          if (flywheel.bought) {
+            flywheelSpent = flywheel.spentEth
+            console.log(
+              `[Flywheel] Bought ${flywheel.tokensBurned || '?'} platform tokens for ` +
+                `${flywheel.spentEth} ETH${flywheel.burned ? ' and burned them' : ' (burn pending)'}`
+            )
+          } else if (flywheel.error) {
+            console.warn(`[Flywheel] Skipped, ops keeps the share: ${flywheel.error}`)
+          }
+        }
+      } catch (err) {
+        console.warn('[Flywheel] Skipped, ops keeps the share:', err instanceof Error ? err.message : err)
+      }
+    }
+
+    const opsFeeSol = Math.max(0, totalDevFeeSol - flywheelSpent)
+
     // Dev fee only runs after at least one winner is paid — avoids dev-only partial cycles.
-    if (devWalletValid && config.executePayouts && totalDevFeeSol >= MIN_TRANSFER_SOL) {
+    if (devWalletValid && config.executePayouts && opsFeeSol >= MIN_TRANSFER_SOL) {
       const devPayout = await Payout.create({
         ...tenantFields(),
         ...payoutTokenFields(),
         cycle: nextCycle,
         rank: 0,
         wallet: config.devWalletAddress,
-        amount: totalDevFeeSol * solPrice,
-        amountTokens: totalDevFeeSol,
+        amount: opsFeeSol * solPrice,
+        amountTokens: opsFeeSol,
         drawdownPct: 0,
         lossUsd: 0,
         txHash: null,
@@ -1400,16 +1436,16 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
       const transferCheck = await assertPayoutTransferAllowed({
         rank: 0,
         recipient: config.devWalletAddress,
-        amountSol: totalDevFeeSol,
+        amountSol: opsFeeSol,
         walletSol: availableSol,
         allowedWinners: eligibleWinners,
         expectedWinnerAmounts: payoutAmounts,
       })
 
-      if (transferCheck.ok && availableSol >= totalDevFeeSol + (isPonsSession() ? 0.00001 : 0.001)) {
-        console.log(`[Payout] Dev fee: Sending ${totalDevFeeSol.toFixed(6)} SOL to ${config.devWalletAddress.slice(0, 10)}...`)
+      if (transferCheck.ok && availableSol >= opsFeeSol + (isPonsSession() ? 0.00001 : 0.001)) {
+        console.log(`[Payout] Ops fee: Sending ${opsFeeSol.toFixed(6)} to ${config.devWalletAddress.slice(0, 10)}...`)
         const txResult = config.executePayouts
-          ? await transferSol(config.devWalletAddress, totalDevFeeSol)
+          ? await transferSol(config.devWalletAddress, opsFeeSol)
           : { success: false, txHash: null, error: 'EXECUTE_PAYOUTS disabled' }
 
         await Payout.findByIdAndUpdate(devPayout._id, {

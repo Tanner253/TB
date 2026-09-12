@@ -256,9 +256,10 @@ function PlatformTab() {
           <span className="text-sol-purple/60">└─ </span>
           {PLATFORM_OPS_PCT_OF_POOL}% of pool — {FLYWHEEL_TREE.ops}
         </p>
-        {FLYWHEEL_BURN_STATUS === 'planned' ? (
-          <p className="text-ink-3 pt-1">{FLYWHEEL_TREE.burn} (roadmap)</p>
-        ) : null}
+        <p className="text-ink-3 pt-1">
+          {FLYWHEEL_TREE.burn}
+          {FLYWHEEL_BURN_STATUS === 'staged' ? ' (enabled per deploy)' : ''}
+        </p>
       </div>
     </div>
   )
