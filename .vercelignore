@@ -1,0 +1,15 @@
+# Uploaded by `vercel` CLI deploys from the repo root (the projects set Root
+# Directory to TopBlast/ or whitepaper/). Env files hold production secrets —
+# the DB URI and payout keys — and Next.js would read them at build time, so
+# they must never leave this machine. Production env comes from Vercel.
+**/.env
+**/.env.*
+!**/env.example.txt
+
+# Build output and dependencies are rebuilt on Vercel.
+**/node_modules
+**/.next
+**/tsconfig.tsbuildinfo
+
+.git
+.vercel
