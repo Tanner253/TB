@@ -21,9 +21,6 @@ interface FlywheelData {
   feesCollectedUsd: number
   spentEth: number
   tokensBurned: number
-  legacyBurned: number
-  legacyBurnedPct: number
-  totalBurned: number
   routedToBuybackUsd: number
   purchases: number
   pendingBurns: number
@@ -71,26 +68,18 @@ export function FlywheelPool() {
   const symbol = data.token.symbol || 'TOPBLAST'
 
   const metrics = [
-    // USD only: this total spans the Solana era and Robinhood Chain, so no
-    // single native unit describes it honestly.
     { label: 'Fees collected', value: fmtUsd(data.feesCollectedUsd), sub: 'all sessions, all time' },
     {
-      // "Routed", not "spent". The fee split is a fact; a spend figure for the
-      // manual Solana-era program was never recorded, and an unverifiable
-      // number is worth less than an honest one.
+      // "Routed", not "spent" — the fee split is a fact, the spend is only a
+      // fact once a buyback has actually run.
       label: 'Routed to buyback',
       value: fmtUsd(data.routedToBuybackUsd),
       sub: `${data.rates.buybackPctOfPool}% of every pool`,
     },
     {
       label: 'Supply burned',
-      value: `${fmtTokens(data.totalBurned)} $${symbol}`,
-      sub:
-        data.legacyBurnedPct > 0
-          ? `${data.legacyBurnedPct}% of supply · verifiable on-chain`
-          : data.live
-            ? 'confirmed on-chain'
-            : 'no burns yet',
+      value: `${fmtTokens(data.tokensBurned)} $${symbol}`,
+      sub: data.live ? 'confirmed on-chain' : 'no burns yet',
     },
   ]
 

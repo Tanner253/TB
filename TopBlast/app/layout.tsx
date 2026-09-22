@@ -18,14 +18,15 @@ export const metadata: Metadata = {
   title: SITE_TITLE,
   description: `${SITE_DESCRIPTION} ${PAYOUT_META}.`,
   keywords: [
-    'solana',
-    'spl',
+    'robinhood chain',
+    'pons',
+    'ponsfamily',
     'defi',
     'cashback alternative',
     'holder rewards',
+    'loss mining',
     'crypto',
     'topblast',
-    'helius',
   ],
   authors: [{ name: 'TopBlast' }],
   openGraph: {

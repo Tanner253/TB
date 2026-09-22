@@ -600,8 +600,7 @@ export default function LeaderboardPage() {
                 <div className="py-4">
                   <p className="text-2xl md:text-3xl font-bold text-tb-amber font-mono mb-3">Retired</p>
                   <p className="text-ink-2 text-sm leading-relaxed">
-                    This listing ran on Solana. TopBlast moved to Robinhood Chain, so no
-                    further cycles will run here.
+                    This listing is not on Robinhood Chain, so no further cycles will run here.
                   </p>
                 </div>
               ) : isSyncingHolders ? (
@@ -713,9 +712,8 @@ export default function LeaderboardPage() {
           <div className="mb-8 rounded-xl border border-tb-amber/35 bg-tb-amber/10 p-5">
             <p className="text-sm font-bold text-tb-amber">This session has ended</p>
             <p className="mt-1.5 text-sm leading-relaxed text-ink-2">
-              TopBlast now runs on Robinhood Chain, so this Solana listing no longer
-              runs payout cycles. Everything it already paid is still counted in the
-              platform totals, and the full history below stays online.
+              This listing is not on Robinhood Chain, so it no longer runs payout
+              cycles. Its history stays online below.
             </p>
             <Link
               href="/catalog"

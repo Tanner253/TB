@@ -50,11 +50,9 @@ export function FeaturedTokens({ limit = 3 }: FeaturedTokensProps) {
 
       {!loading && !error && featured.length === 0 ? (
         <div className="rounded-xl border border-dashed border-line p-8 text-center bg-card/60">
-          <p className="text-sm text-ink-2">
-            No live sessions yet — TopBlast now runs on Robinhood Chain.
-          </p>
+          <p className="text-sm text-ink-2">No live sessions yet.</p>
           <p className="mt-1 text-xs text-ink-3">
-            Earlier Solana sessions are retired; their payouts still count in the totals above.
+            List a Pons token and its first payout cycle starts automatically.
           </p>
           <Link
             href="/launch"

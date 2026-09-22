@@ -53,7 +53,7 @@ const UPDATES = [
     items: [
       'Configurable winners per cycle (3–10 at launch, descending split)',
       'Gen volume — lifetime on-chart SOL tracked per catalog listing',
-      'Native-token payouts default (Jupiter buy + SPL airdrop each cycle)',
+      'Native-token payouts default (on-chart buy + airdrop each cycle)',
       'Payout slippage retries and failure persistence for production',
     ],
   },
@@ -62,8 +62,8 @@ const UPDATES = [
     date: 'Aug 2026',
     tag: 'Shipped',
     items: [
-      'Dev-first positioning and unified Solana docs',
-      'Live DexScreener price stream with Pump.fun migration',
+      'Dev-first positioning and unified docs',
+      'Live DexScreener price stream across graduation',
       'Session diagnostics for self-serve troubleshooting',
     ],
   },
@@ -80,19 +80,19 @@ const UPDATES = [
   {
     version: 'v3.0.0',
     date: 'Aug 2026',
-    tag: 'Solana',
+    tag: 'Shipped',
     items: [
-      'On-chart buybacks + token airdrops on Solana mainnet',
-      'Helius holder indexing and VWAP engine',
+      'On-chart buybacks + token airdrops',
+      'Holder indexing and VWAP engine',
       '12% dev fee · 88% to eligible losers (3–10 winners per listing)',
     ],
   },
 ]
 
 const ROADMAP = [
-  { phase: '1', title: 'Solana launch', status: 'Done', detail: 'Loss-mining, on-chart buybacks, token airdrops, Gen volume tracking, eligibility-gated timer.' },
+  { phase: '1', title: 'Loss-mining engine', status: 'Done', detail: 'On-chart buybacks, token airdrops, Gen volume tracking, eligibility-gated timer.' },
   { phase: '2', title: 'Multi-tenant SaaS', status: 'Done', detail: 'Self-serve listings, catalog, per-slug sessions, encrypted keys.' },
-  { phase: '3', title: 'Robinhood Chain + Pons', status: 'Done', detail: 'Same mechanics, new chain: Pons fee escrow claims, curve buys, Uniswap v4 after graduation, log-based indexing.' },
+  { phase: '3', title: 'Robinhood Chain + Pons', status: 'Done', detail: 'Pons fee escrow claims, curve buys, Uniswap v4 after graduation, log-based indexing.' },
   { phase: '4', title: 'Growth & automation', status: 'Now', detail: 'Buyback bot, creator analytics, public API.' },
   { phase: '5', title: 'Scale', status: '2027', detail: 'Launch partners, premium tiers, automated treasury ops.' },
 ]
