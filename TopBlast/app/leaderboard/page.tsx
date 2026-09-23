@@ -20,7 +20,8 @@ import { LeaderboardHolderCard } from '@/components/leaderboard/LeaderboardHolde
 import { ExternalToolsEligibilityNote } from '@/components/tenant/ExternalToolsEligibilityNote'
 import type { SessionChecklist } from '@/lib/tenant/sessionChecklist'
 import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
-import { CopyContractAddress, solscanTokenUrl } from '@/components/ui/CopyContractAddress'
+import { CopyContractAddress } from '@/components/ui/CopyContractAddress'
+import { tokenExplorerUrl } from '@/lib/platform/explorer'
 import { isLegacyChainMint } from '@/lib/platform/chainShape'
 import { getAddressExplorerUrl } from '@/lib/solana/explorer'
 import { deriveSessionDisplayState } from '@/lib/session/displayState'
@@ -216,7 +217,7 @@ export default function LeaderboardPage() {
   const [showBannerOverlay, setShowBannerOverlay] = useState(true)
   const tokenExplorerUrl =
     data?.token_mint_explorer_url ||
-    (tokenMint ? solscanTokenUrl(tokenMint) : null)
+    (tokenMint ? tokenExplorerUrl(tokenMint) : null)
 
   // Always show the page - use inline loading states for data
   const isLoading = loading && !data

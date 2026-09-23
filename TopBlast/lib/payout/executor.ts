@@ -1240,7 +1240,7 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
           // Only ever the transfer's own hash. This used to fall back to the
           // cycle's buyback swap, which stamped a failed payout with an
           // unrelated SUCCESSFUL transaction — the history then linked a
-          // holder to a green Solscan page for money they never received.
+          // holder to a green explorer page for money they never received.
           txHash: txResult.txHash,
           amount: tokenUsd,
           amountTokens: tokenAmount,

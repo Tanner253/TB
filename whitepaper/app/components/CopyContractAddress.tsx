@@ -28,12 +28,37 @@ export function CopyContractAddress({
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
     } catch {
-      // clipboard unavailable
+      // writeText rejects on an unfocused document, among others. Fall back to
+      // the legacy path rather than leaving the button silently dead.
+      try {
+        const el = document.createElement('textarea')
+        el.value = address
+        el.setAttribute('readonly', '')
+        el.style.position = 'fixed'
+        el.style.opacity = '0'
+        document.body.appendChild(el)
+        el.select()
+        const ok = document.execCommand('copy')
+        document.body.removeChild(el)
+        if (ok) {
+          setCopied(true)
+          window.setTimeout(() => setCopied(false), 2000)
+        }
+      } catch {
+        // nothing more to try; the address stays selectable in the title
+      }
     }
   }, [address])
 
+  // Robinhood Chain runs Blockscout; the chain.robinhood.com redirect drops
+  // the path, so link the canonical host directly. A legacy base58 mint still
+  // belongs on Solscan.
+  const isEvm = /^0x[0-9a-fA-F]{40}$/.test(address.trim())
   const explorer =
-    explorerUrl ?? `https://solscan.io/token/${address}`
+    explorerUrl ??
+    (isEvm
+      ? `https://robinhoodchain.blockscout.com/token/${address}`
+      : `https://solscan.io/token/${address}`)
 
   return (
     <div

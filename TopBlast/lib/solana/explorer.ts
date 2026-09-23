@@ -1,38 +1,40 @@
-const SOLSCAN_MAINNET = 'https://solscan.io'
-const SOLSCAN_DEVNET = 'https://solscan.io/?cluster=devnet'
+/**
+ * Explorer links for server-rendered payloads (payout history, cycle proof).
+ *
+ * Kept at this path because a lot of callers import it, but the chain is no
+ * longer assumed: every function delegates to `lib/platform/explorer`, which
+ * picks Solscan or Robinhood Chain's Blockscout from the address shape. A
+ * legacy Solana payout keeps its Solscan link; an EVM one gets Blockscout.
+ */
 
-function getSolscanBase(): string {
-  const network = process.env.SOLANA_NETWORK || 'mainnet'
-  return network === 'devnet' ? SOLSCAN_DEVNET : SOLSCAN_MAINNET
+import {
+  addressExplorerUrl,
+  explorerLabel,
+  tokenExplorerUrl,
+  txExplorerUrl,
+} from '@/lib/platform/explorer'
+
+function onTestnet(): boolean {
+  return (process.env.CHAIN_NETWORK || 'mainnet').toLowerCase() === 'testnet'
 }
 
 export function getTxExplorerUrl(txHash: string | null | undefined): string | null {
-  if (!txHash) return null
-  const base = getSolscanBase()
-  if (base.includes('cluster=devnet')) {
-    return `${SOLSCAN_MAINNET}/tx/${txHash}?cluster=devnet`
-  }
-  return `${base}/tx/${txHash}`
+  return txExplorerUrl(txHash, { testnet: onTestnet() })
 }
 
 export function getAddressExplorerUrl(address: string | null | undefined): string | null {
-  if (!address) return null
-  const network = process.env.SOLANA_NETWORK || 'mainnet'
-  if (network === 'devnet') {
-    return `${SOLSCAN_MAINNET}/account/${address}?cluster=devnet`
-  }
-  return `${SOLSCAN_MAINNET}/account/${address}`
+  return addressExplorerUrl(address, { testnet: onTestnet() })
 }
 
 export function getTokenMintExplorerUrl(mint: string | null | undefined): string | null {
-  if (!mint) return null
-  const network = process.env.SOLANA_NETWORK || 'mainnet'
-  if (network === 'devnet') {
-    return `${SOLSCAN_MAINNET}/token/${mint}?cluster=devnet`
-  }
-  return `${SOLSCAN_MAINNET}/token/${mint}`
+  return tokenExplorerUrl(mint, { testnet: onTestnet() })
 }
 
-export function getExplorerLabel(): string {
-  return 'Solscan'
+/**
+ * Explorer name for link text. Takes the address it is labelling — a session
+ * can show a legacy row and an EVM row on the same page, so there is no single
+ * answer for the whole deployment.
+ */
+export function getExplorerLabel(value?: string | null): string {
+  return explorerLabel(value)
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import { explorerLabel, tokenExplorerUrl } from '@/lib/platform/explorer'
 
 function formatAddress(address: string) {
   if (address.length <= 14) return address
@@ -12,8 +13,55 @@ function formatWalletAddress(address: string) {
   return `${address.slice(0, 6)}…${address.slice(-4)}`
 }
 
+/**
+ * Token page on whichever explorer the address belongs to — Blockscout for
+ * Robinhood Chain, Solscan for the legacy chain. Kept under the old name so
+ * existing imports keep working.
+ */
 export function solscanTokenUrl(mint: string): string {
-  return `https://solscan.io/token/${mint}`
+  return tokenExplorerUrl(mint) ?? ''
+}
+
+/**
+ * Copy that actually reports what happened.
+ *
+ * `navigator.clipboard.writeText` rejects in more cases than it looks —
+ * an unfocused document is enough, and it throws NotAllowedError. Swallowing
+ * that left the button silently dead, which is indistinguishable from a broken
+ * address. So: try the async API, fall back to a hidden textarea + execCommand,
+ * and only then admit failure in the label.
+ */
+async function copyText(value: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(value)
+    return true
+  } catch {
+    // fall through to the legacy path
+  }
+  try {
+    const el = document.createElement('textarea')
+    el.value = value
+    el.setAttribute('readonly', '')
+    el.style.position = 'fixed'
+    el.style.top = '-1000px'
+    el.style.opacity = '0'
+    document.body.appendChild(el)
+    el.select()
+    el.setSelectionRange(0, value.length)
+    const ok = document.execCommand('copy')
+    document.body.removeChild(el)
+    return ok
+  } catch {
+    return false
+  }
+}
+
+type CopyState = 'idle' | 'copied' | 'failed'
+
+function copyLabel(state: CopyState): string {
+  if (state === 'copied') return 'Copied!'
+  if (state === 'failed') return 'Press ⌘/Ctrl+C'
+  return 'Copy'
 }
 
 type CopyContractAddressProps = {
@@ -32,17 +80,16 @@ export function CopyContractAddress({
   className = '',
   variant = 'pill',
 }: CopyContractAddressProps) {
-  const [copied, setCopied] = useState(false)
-  const resolvedExplorer = explorerUrl ?? solscanTokenUrl(address)
+  const [state, setState] = useState<CopyState>('idle')
+  const resolvedExplorer = explorerUrl ?? tokenExplorerUrl(address)
+  const label = explorerLabel(address)
 
   const onCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(address)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // clipboard unavailable
-    }
+    // A failed copy still leaves the address selectable in the title, and the
+    // label tells the reader to use the keyboard.
+    const ok = await copyText(address)
+    setState(ok ? 'copied' : 'failed')
+    window.setTimeout(() => setState('idle'), ok ? 2000 : 4000)
   }, [address])
 
   if (variant === 'footer') {
@@ -58,7 +105,7 @@ export function CopyContractAddress({
         >
           <span>{formatWalletAddress(address)}</span>
           <span className="font-sans text-[10px] text-ink-3 group-hover:text-sol-purple-dark">
-            {copied ? 'Copied!' : 'Copy'}
+            {copyLabel(state)}
           </span>
         </button>
         {resolvedExplorer ? (
@@ -67,8 +114,8 @@ export function CopyContractAddress({
             target="_blank"
             rel="noopener noreferrer"
             className="shrink-0 text-ink-3 hover:text-sol-purple-dark transition-colors"
-            title="View wallet on Solscan"
-            aria-label="View pool wallet on Solscan"
+            title={`View wallet on ${label}`}
+            aria-label={`View pool wallet on ${label}`}
           >
             ↗
           </a>
@@ -91,18 +138,20 @@ export function CopyContractAddress({
         >
           <span className="truncate">{formatAddress(address)}</span>
           <span className="shrink-0 text-[10px] font-sans text-ink-2 group-hover:text-rh-green">
-            {copied ? 'Copied!' : 'Copy'}
+            {copyLabel(state)}
           </span>
         </button>
-        <a
-          href={resolvedExplorer}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 text-[10px] text-ink-3 hover:text-rh-green transition-colors"
-          title="View on Solscan"
-        >
-          ↗
-        </a>
+        {resolvedExplorer ? (
+          <a
+            href={resolvedExplorer}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 text-[10px] text-ink-3 hover:text-rh-green transition-colors"
+            title={`View on ${label}`}
+          >
+            ↗
+          </a>
+        ) : null}
       </div>
     )
   }
@@ -120,18 +169,18 @@ export function CopyContractAddress({
         aria-label="Copy contract address"
       >
         <span>{formatAddress(address)}</span>
-        <span className="text-xs text-ink-3 group-hover:text-rh-green">
-          {copied ? 'Copied!' : 'Copy'}
-        </span>
+        <span className="text-xs text-ink-3 group-hover:text-rh-green">{copyLabel(state)}</span>
       </button>
-      <a
-        href={resolvedExplorer}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-xs text-ink-3 hover:text-rh-green transition-colors"
-      >
-        Solscan ↗
-      </a>
+      {resolvedExplorer ? (
+        <a
+          href={resolvedExplorer}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-ink-3 hover:text-rh-green transition-colors"
+        >
+          {label} ↗
+        </a>
+      ) : null}
     </div>
   )
 }
