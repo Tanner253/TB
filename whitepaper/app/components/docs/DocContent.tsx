@@ -237,7 +237,7 @@ Ranking: most negative drawdown % first → USD loss tiebreaker`}</DocCode>
           </DocCard>
           <DocCard title="Example">
             <p className="doc-prose">
-              $2,000 pool → ~$200 min loss → 1st place ≈ <strong className="text-sol-mint">$1,056</strong> with default {WINNER_COUNT.default} winners ({firstPlaceSharePercent(WINNER_COUNT.default)}% of {PAYOUT.community}% winner pool after {PAYOUT.dev}% fee). More winners → smaller shares for everyone.
+              $2,000 pool → ~$200 min loss → 1st place ≈ <strong className="text-sol-mint">$960</strong> with default {WINNER_COUNT.default} winners ({firstPlaceSharePercent(WINNER_COUNT.default)}% of the {PAYOUT.community}% winner pool, after the {PAYOUT.protocol}% protocol fee). More winners → smaller shares for everyone.
             </p>
           </DocCard>
         </DocGrid>
@@ -311,9 +311,9 @@ Platform token: configured by operators via server env — session at /leaderboa
           <DocCard title="For platform token holders" accent="purple">
             <DocList
               items={[
-                `${FLYWHEEL.devFeeBuybackShare}% of all dev fees → platform token buyback`,
-                `${FLYWHEEL.buybackPctOfPool}% of every community payout pool network-wide`,
-                `${FLYWHEEL.opsShareOfDevFee}% of dev fees → infra, security, growth`,
+                `${FLYWHEEL.buybackPctOfPool}% of every payout pool network-wide buys the platform token`,
+                'Every token bought is burned the same cycle — supply drops permanently',
+                `${FLYWHEEL.opsPctOfPool}% of every pool → infra, security, growth`,
                 'More SaaS tenants → recurring buy pressure on platform token',
               ]}
             />
@@ -371,8 +371,8 @@ Platform token: configured by operators via server env — session at /leaderboa
               </div>
               <div className="doc-flywheel-line doc-flywheel-line--nested">
                 <span className="doc-flywheel-glyph">└─</span> {FLYWHEEL.tree.burn}
-                {FLYWHEEL.burnStatus === 'planned' ? (
-                  <span className="doc-flywheel-badge">Automated — roadmap</span>
+                {FLYWHEEL.burnStatus === 'automated' ? (
+                  <span className="doc-flywheel-badge">Automatic — every cycle</span>
                 ) : null}
               </div>
               <div className="doc-flywheel-line">
@@ -383,9 +383,9 @@ Platform token: configured by operators via server env — session at /leaderboa
           <p className="doc-prose doc-prose--muted mt-4">{FLYWHEEL.tree.burnNote}</p>
         </DocCard>
         <DocGrid cols={3}>
-          <DocStat label="Protocol fee" value={`${FLYWHEEL.devFeePct}%`} hint="Per tenant cycle" />
-          <DocStat label="Buyback" value={`${FLYWHEEL.buybackPctOfPool}%`} hint={`${FLYWHEEL.devFeeBuybackShare}% of fee → token`} />
-          <DocStat label="Ops / infra" value={`${FLYWHEEL.opsPctOfPool}%`} hint={`${FLYWHEEL.opsShareOfDevFee}% of fee`} />
+          <DocStat label="Protocol fee" value={`${FLYWHEEL.protocolFeePct}%`} hint={`Per cycle · ${FLYWHEEL.communityPct}% to losers`} />
+          <DocStat label="Buyback & burn" value={`${FLYWHEEL.buybackPctOfPool}%`} hint={`${FLYWHEEL.buybackShareOfProtocol}% of the fee → burned`} />
+          <DocStat label="Ops / infra" value={`${FLYWHEEL.opsPctOfPool}%`} hint="Dev wallet" />
         </DocGrid>
         <DocGrid cols={2}>
           <DocCard title="Fee split">

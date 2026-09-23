@@ -1,8 +1,8 @@
 import 'server-only'
 
 /**
- * The flywheel, automated: half the protocol fee buys the platform token and
- * burns it, every cycle, without anyone pressing a button.
+ * The flywheel, automated: 8% of every payout pool buys the platform token
+ * and burns it, every cycle, without anyone pressing a button.
  *
  * Three properties this is built around, in priority order:
  *
@@ -23,9 +23,10 @@ import 'server-only'
  *     That is recorded as exactly that, and the public flywheel numbers count
  *     burned tokens only from confirmed burns.
  *
- * Off unless FLYWHEEL_AUTO_BUYBACK=true. This spends real money on a path
- * that, until the platform token exists and one cycle has run clean, has
- * never executed — so it does not switch itself on.
+ * On by default: the burn is a standing promise about supply, not an operator
+ * chore, so it cannot depend on someone remembering a flag. It still no-ops
+ * safely when PLATFORM_TOKEN_MINT is unset, and FLYWHEEL_AUTO_BUYBACK=false
+ * remains as an explicit kill switch.
  */
 
 import { formatUnits, parseAbi, type Address } from 'viem'
@@ -36,20 +37,20 @@ import { accountForKey } from '@/lib/pons/keys'
 import { buybackSessionToken } from '@/lib/pons/buyback'
 import { isPonsSession } from '@/lib/pons/session'
 import { getPlatformTokenMint } from '@/lib/platform/config'
-import { DEV_FEE_BUYBACK_SHARE_PCT } from '@/lib/platform/flywheel'
+import { BUYBACK_BURN_PCT } from '@/lib/platform/flywheel'
 
 const BURNABLE_ABI = parseAbi(['function burn(uint256 value)'])
 
 export const FLYWHEEL_BUYBACKS_COLLECTION = 'platform_buybacks'
 
+/** Automatic unless explicitly switched off. */
 export function autoBuybackEnabled(): boolean {
-  return process.env.FLYWHEEL_AUTO_BUYBACK?.trim().toLowerCase() === 'true'
+  return process.env.FLYWHEEL_AUTO_BUYBACK?.trim().toLowerCase() !== 'false'
 }
 
-/** Share of a cycle's protocol fee that buys and burns the platform token. */
-export function buybackShareOfFee(totalFee: number): { buyback: number; ops: number } {
-  const buyback = (totalFee * DEV_FEE_BUYBACK_SHARE_PCT) / 100
-  return { buyback, ops: totalFee - buyback }
+/** The burn share of a pool, in the pool's own units. */
+export function buybackShareOfPool(poolAmount: number): number {
+  return (poolAmount * BUYBACK_BURN_PCT) / 100
 }
 
 export interface FlywheelResult {

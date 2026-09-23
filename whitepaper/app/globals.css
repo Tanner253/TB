@@ -800,6 +800,13 @@ body {
   color: #d1d5db;
 }
 
+/* The burn slice reads as the brand violet — it is the one cut that buys
+   the platform token rather than funding anyone. */
+.doc-bar--burn {
+  background: rgba(153, 69, 255, 0.55);
+  color: #f4f0fa;
+}
+
 .doc-faq {
   margin-top: 1.5rem;
   border: 1px solid rgba(255, 255, 255, 0.06);

@@ -1,3 +1,9 @@
+import {
+  BUYBACK_BURN_PCT,
+  COMMUNITY_PCT,
+  DEV_FEE_PCT,
+  PROTOCOL_FEE_PCT,
+} from '@/lib/platform/flywheel'
 /** Shared marketing copy — Robinhood Chain dev / launcher narrative. */
 
 import { formatPayoutIntervalOptionsList } from '@/lib/platform/payoutIntervals'
@@ -89,7 +95,7 @@ export const HOME_CHART_VOLUME = {
   eyebrow: 'Your listing, your chart',
   title: 'Every cycle, pool ETH market-buys your token',
   lead:
-    'List on TopBlast and fund a payout wallet with creator-fee ETH. On each payout cycle, the protocol swaps ~88% of the pool into your session token on Pons — a real market buy on your active pair. Traders see it on your chart; TopBlast tracks the running total as Gen volume.',
+    `List on TopBlast and fund a payout wallet with creator-fee ETH. On each payout cycle, the protocol swaps ~${COMMUNITY_PCT}% of the pool into your session token on Pons — a real market buy on your active pair. Traders see it on your chart; TopBlast tracks the running total as Gen volume.`,
   flow: [
     {
       title: 'You fund the pool',
@@ -101,7 +107,7 @@ export const HOME_CHART_VOLUME = {
     },
     {
       title: 'Pons buys your token',
-      body: '~88% of pool ETH swaps into your session token on the open market — on-chart buy volume.',
+      body: `~${COMMUNITY_PCT}% of pool ETH swaps into your session token on the open market — on-chart buy volume.`,
     },
     {
       title: 'Winners airdropped',
@@ -209,19 +215,13 @@ export const CREATOR_BENEFITS = [
   },
 ] as const
 
-import {
-  DEV_FEE_PCT,
-  DEV_FEE_BUYBACK_SHARE_PCT,
-  PLATFORM_BUYBACK_PCT_OF_POOL,
-  PLATFORM_OPS_PCT_OF_POOL,
-} from '@/lib/platform/flywheel'
 import { PONS_DOCS_URL, PONS_URL, WHITEPAPER_URL } from '@/lib/marketing/urls'
 
 export const TRUST_FOOTER =
   `Payout keys are encrypted at rest. TopBlast only signs transactions to pay eligible winners from your wallet. ` +
-  `A flat ${DEV_FEE_PCT}% protocol fee per cycle goes to the platform treasury: ` +
-  `${PLATFORM_BUYBACK_PCT_OF_POOL}% of the pool (${DEV_FEE_BUYBACK_SHARE_PCT}% of the fee) market-buys the platform token for burn, ` +
-  `${PLATFORM_OPS_PCT_OF_POOL}% funds ops and infra. The buy and burn run inside the payout cycle, after winners are paid.`
+  `A flat ${PROTOCOL_FEE_PCT}% protocol fee per cycle, leaving ${COMMUNITY_PCT}% of every pool for eligible losers: ` +
+  `${BUYBACK_BURN_PCT}% market-buys the platform token and burns it, ${DEV_FEE_PCT}% funds ops and infra. ` +
+  'The buy and burn run automatically inside the payout cycle, after winners are paid.'
 
 export { APP_URL, WHITEPAPER_URL, appHostname, PONS_URL, PONS_DOCS_URL, CHAIN_NAME } from '@/lib/marketing/urls'
 

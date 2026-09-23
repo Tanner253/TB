@@ -18,7 +18,7 @@ import mongoose from 'mongoose'
 import connectDB from '@/lib/db'
 import { getChainId } from '@/lib/pons/contracts'
 import { FLYWHEEL_BUYBACKS_COLLECTION } from '@/lib/platform/platformBuyback'
-import { DEV_FEE_BUYBACK_SHARE_PCT } from '@/lib/platform/flywheel'
+import { BUYBACK_SHARE_OF_PROTOCOL_PCT } from '@/lib/platform/flywheel'
 
 export interface FlywheelStats
 {
@@ -89,7 +89,7 @@ export async function getFlywheelStats(): Promise<FlywheelStats> {
       feesCollectedUsd: feesUsd,
       spentEth: round6(rounds.reduce((sum, r) => sum + (Number(r.spentEth) || 0), 0)),
       tokensBurned: chainBurned,
-      routedToBuybackUsd: round2((feesUsd * DEV_FEE_BUYBACK_SHARE_PCT) / 100),
+      routedToBuybackUsd: round2((feesUsd * BUYBACK_SHARE_OF_PROTOCOL_PCT) / 100),
       purchases: burned.length,
       pendingBurns: rounds.length - burned.length,
       lastPurchaseAt: lastPurchase ? lastPurchase.toISOString() : null,

@@ -18,11 +18,16 @@ export const DEFAULT_MIN_TOKEN_HOLDING = 1000
 export const DEFAULT_MIN_TOKEN_HOLDING_LABEL = DEFAULT_MIN_TOKEN_HOLDING.toLocaleString('en-US')
 
 export const PAYOUT = {
+  /** Ops / infra / growth. */
   dev: 12,
+  /** Market-buys the platform token and burns it. */
+  burn: 8,
+  /** Everything the protocol takes before winners are paid. */
+  protocol: 20,
   first: 60,
   second: 25,
   third: 15,
-  community: 88,
+  community: 80,
 } as const
 
 /** Winners per cycle — set at /launch (must match TopBlast lib/payout/winnerCount.ts). */
@@ -51,21 +56,23 @@ export function firstPlaceSharePercent(count: number = WINNER_COUNT.default): nu
 }
 
 export const FLYWHEEL = {
+  protocolFeePct: 20,
   devFeePct: 12,
-  devFeeBuybackShare: 50,
-  buybackPctOfPool: 6,
-  opsPctOfPool: 6,
-  opsShareOfDevFee: 50,
-  burnStatus: 'planned' as const,
+  buybackPctOfPool: 8,
+  opsPctOfPool: 12,
+  /** The burn's share of what the protocol takes. */
+  buybackShareOfProtocol: 40,
+  communityPct: 80,
+  burnStatus: 'automated' as const,
   intro:
-    'Every SaaS listing pays a flat 12% protocol fee in ETH on each payout cycle. Fees route to the TopBlast platform treasury — half funds platform-token buyback, half funds ops and growth.',
+    'Every SaaS listing pays a flat 20% protocol fee in ETH on each payout cycle, leaving 80% of every pool for eligible losers. 8% market-buys the TopBlast platform token and burns it; 12% funds ops and growth.',
   tree: {
-    root: 'Every tenant cycle → 12% ETH to the platform treasury',
-    buyback: '6% of original pool (50% of fee) → market-buy platform token',
-    ops: '6% of original pool (50% of fee) → ops / infra / growth',
-    burn: 'Purchased tokens → burn address / incinerator',
+    root: 'Every tenant cycle → 20% ETH to the protocol, 80% to eligible losers',
+    buyback: '8% of the pool → market-buys the platform token',
+    ops: '12% of the pool → ops / infra / growth',
+    burn: 'Purchased tokens → burn() → supply permanently reduced, unsellable',
     burnNote:
-      'Buy and burn run inside the payout cycle, after winners are paid. Dev fees accrue to the platform treasury today; market buys are executed manually until the bot ships.',
+      "Buy and burn run automatically inside every payout cycle, after winners are paid — no operator action. Tokens are destroyed with the token's own burn(uint256), so totalSupply actually drops and anyone can verify it on-chain. A failed buy returns the share to ops rather than stranding it, and only confirmed burns count in the public totals.",
   },
 } as const
 

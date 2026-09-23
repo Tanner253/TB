@@ -2,14 +2,13 @@
 
 import Link from 'next/link'
 import {
+  BUYBACK_BURN_PCT,
+  COMMUNITY_PCT,
   DEV_FEE_PCT,
-  DEV_FEE_BUYBACK_SHARE_PCT,
-  DEV_FEE_OPS_SHARE_PCT,
   FLYWHEEL_BURN_STATUS,
+  PROTOCOL_FEE_PCT,
   FLYWHEEL_INTRO,
   FLYWHEEL_TREE,
-  PLATFORM_BUYBACK_PCT_OF_POOL,
-  PLATFORM_OPS_PCT_OF_POOL,
 } from '@/lib/platform/flywheel'
 
 interface FlywheelTokenomicsProps {
@@ -31,9 +30,9 @@ function FlywheelTree({ compact = false }: { compact?: boolean }) {
           <div className="pl-5 mt-1 text-ink-2">
             <span className="text-sol-purple">└─ </span>
             {FLYWHEEL_TREE.burn}
-            {FLYWHEEL_BURN_STATUS === 'staged' ? (
-              <span className="ml-2 text-xs uppercase tracking-wider text-tb-amber">
-                (built — enable per deploy)
+            {FLYWHEEL_BURN_STATUS === 'automated' ? (
+              <span className="ml-2 text-xs uppercase tracking-wider text-sol-mint">
+                (automatic, every cycle)
               </span>
             ) : null}
           </div>
@@ -61,27 +60,27 @@ export function FlywheelTokenomics({ compact = false }: FlywheelTokenomicsProps)
 
         <div className={`grid gap-3 ${compact ? 'md:grid-cols-3 mt-4' : 'md:grid-cols-3 mt-6 mb-6'}`}>
           <div className="rounded-xl border border-rh-green/20 bg-card/70 p-4 text-center">
-            <div className="text-3xl font-bold text-rh-green">{DEV_FEE_PCT}%</div>
-            <div className="text-xs text-ink-3 mt-1 uppercase tracking-wide">Protocol fee / cycle</div>
+            <div className="text-3xl font-bold text-rh-green">{PROTOCOL_FEE_PCT}%</div>
+            <div className="text-xs text-ink-3 mt-1 uppercase tracking-wide">
+              Protocol fee / cycle ({COMMUNITY_PCT}% to losers)
+            </div>
           </div>
           <div className="rounded-xl border border-sol-purple/20 bg-card/70 p-4 text-center">
-            <div className="text-3xl font-bold text-sol-purple">{PLATFORM_BUYBACK_PCT_OF_POOL}%</div>
+            <div className="text-3xl font-bold text-sol-purple">{BUYBACK_BURN_PCT}%</div>
             <div className="text-xs text-ink-3 mt-1 uppercase tracking-wide">
-              → Buyback ({DEV_FEE_BUYBACK_SHARE_PCT}% of fee)
+              → Buyback &amp; burn
             </div>
           </div>
           <div className="rounded-xl border border-line bg-card/70 p-4 text-center">
-            <div className="text-3xl font-bold text-ink">{PLATFORM_OPS_PCT_OF_POOL}%</div>
-            <div className="text-xs text-ink-3 mt-1 uppercase tracking-wide">
-              → Ops ({DEV_FEE_OPS_SHARE_PCT}% of fee)
-            </div>
+            <div className="text-3xl font-bold text-ink">{DEV_FEE_PCT}%</div>
+            <div className="text-xs text-ink-3 mt-1 uppercase tracking-wide">→ Dev / ops</div>
           </div>
         </div>
 
         {!compact && (
           <p className="text-xs text-ink-3 text-center">
             Separate from each listing&apos;s session volume engine (on-chart buys + token airdrops to winners). This
-            flywheel routes the 12% platform fee to TopBlast treasury buyback and ops.{' '}
+            flywheel routes the {PROTOCOL_FEE_PCT}% platform fee to the buyback-and-burn and to ops.{' '}
             <Link href="/launch" className="text-rh-green hover:text-sol-purple-dark transition-colors">
               List your token →
             </Link>

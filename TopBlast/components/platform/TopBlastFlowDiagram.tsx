@@ -11,11 +11,10 @@ import {
   HOME_VS_CASHBACK,
 } from '@/lib/marketing/devValueProp'
 import {
+  COMMUNITY_PCT,
   DEV_FEE_PCT,
   FLYWHEEL_BURN_STATUS,
   FLYWHEEL_TREE,
-  PLATFORM_BUYBACK_PCT_OF_POOL,
-  PLATFORM_OPS_PCT_OF_POOL,
 } from '@/lib/platform/flywheel'
 import { HomeSection } from '@/components/platform/HomeSection'
 
@@ -215,7 +214,7 @@ function SessionTab() {
           },
           {
             title: 'Winner pool',
-            body: '88% swaps into your token on Pons, then airdrops to eligible losers (3–10 per listing).',
+            body: `${COMMUNITY_PCT}% swaps into your token on Pons, then airdrops to eligible losers (3–10 per listing).`,
           },
           {
             title: 'Split',
@@ -250,15 +249,15 @@ function PlatformTab() {
         <p className="text-ink-2">{FLYWHEEL_TREE.root}</p>
         <p>
           <span className="text-sol-purple/70">├─ </span>
-          {PLATFORM_BUYBACK_PCT_OF_POOL}% of pool — {FLYWHEEL_TREE.buyback}
+          {FLYWHEEL_TREE.buyback}
         </p>
         <p>
           <span className="text-sol-purple/60">└─ </span>
-          {PLATFORM_OPS_PCT_OF_POOL}% of pool — {FLYWHEEL_TREE.ops}
+          {FLYWHEEL_TREE.ops}
         </p>
         <p className="text-ink-3 pt-1">
           {FLYWHEEL_TREE.burn}
-          {FLYWHEEL_BURN_STATUS === 'staged' ? ' (enabled per deploy)' : ''}
+          {FLYWHEEL_BURN_STATUS === 'automated' ? ' — automatic, every cycle' : ''}
         </p>
       </div>
     </div>

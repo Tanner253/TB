@@ -1,18 +1,34 @@
 import { decorateCatalogTenants } from '@/lib/platform/catalog'
 import { testSolanaSecretKey } from './helpers/testKeypair'
 import {
-  DEV_FEE_BUYBACK_SHARE_PCT,
+  BUYBACK_BURN_PCT,
+  BUYBACK_SHARE_OF_PROTOCOL_PCT,
+  COMMUNITY_PCT,
   DEV_FEE_PCT,
   PLATFORM_BUYBACK_PCT_OF_POOL,
   PLATFORM_OPS_PCT_OF_POOL,
+  PROTOCOL_FEE_PCT,
 } from '@/lib/platform/flywheel'
 
 describe('platform flywheel', () => {
-  it('allocates 50% of dev fees to buyback and 50% to ops (6% of pool each)', () => {
+  it('takes 12% dev + 8% burn, leaving 80% for eligible losers', () => {
     expect(DEV_FEE_PCT).toBe(12)
-    expect(DEV_FEE_BUYBACK_SHARE_PCT).toBe(50)
-    expect(PLATFORM_BUYBACK_PCT_OF_POOL).toBe(6)
-    expect(PLATFORM_OPS_PCT_OF_POOL).toBe(6)
+    expect(BUYBACK_BURN_PCT).toBe(8)
+    expect(PROTOCOL_FEE_PCT).toBe(20)
+    expect(COMMUNITY_PCT).toBe(80)
+  })
+
+  it('reports each cut against the original pool', () => {
+    expect(PLATFORM_BUYBACK_PCT_OF_POOL).toBe(8)
+    expect(PLATFORM_OPS_PCT_OF_POOL).toBe(12)
+  })
+
+  it('makes the burn 40% of what the protocol takes', () => {
+    expect(BUYBACK_SHARE_OF_PROTOCOL_PCT).toBe(40)
+  })
+
+  it('never lets the cuts exceed the pool', () => {
+    expect(PROTOCOL_FEE_PCT + COMMUNITY_PCT).toBe(100)
   })
 })
 

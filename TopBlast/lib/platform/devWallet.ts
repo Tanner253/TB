@@ -1,7 +1,7 @@
 import { isEvmAddress } from '@/lib/pons/session'
 import { PublicKey } from '@solana/web3.js'
 
-/** Platform treasury — receives 12% dev fee from every SaaS tenant (env-only, not user-supplied). */
+/** Platform treasury — receives the 12% dev fee from every SaaS tenant (env-only, not user-supplied). The separate 8% burn share never lands here. */
 export function getPlatformDevWalletAddress(): string {
   return (process.env.DEV_WALLET_ADDRESS || '').trim()
 }

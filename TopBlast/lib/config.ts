@@ -1,3 +1,4 @@
+import { BUYBACK_BURN_PCT, DEV_FEE_PCT } from '@/lib/platform/flywheel'
 // Environment configuration — Solana (Helius)
 // When a tenant request is active (AsyncLocalStorage), values come from that tenant.
 
@@ -27,6 +28,8 @@ type ConfigShape = {
   payoutIntervalMinutes: number
   devWalletAddress: string
   devFeePct: number
+  /** Share of each pool that market-buys the platform token and burns it. */
+  buybackBurnPct: number
   winnerCount: number
   payoutSplit: { first: number; second: number; third: number }
   maxHoldersToProcess: number
@@ -68,7 +71,8 @@ function envConfig(): ConfigShape {
     minPoolForPayout: parseFloat(process.env.MIN_POOL_FOR_PAYOUT || String(minPoolForWinnerCount(winnerCount))),
     payoutIntervalMinutes: parseInt(process.env.PAYOUT_INTERVAL_MINUTES || '15'),
     devWalletAddress: process.env.DEV_WALLET_ADDRESS || '',
-    devFeePct: 0.12,
+    devFeePct: DEV_FEE_PCT / 100,
+    buybackBurnPct: BUYBACK_BURN_PCT / 100,
     winnerCount,
     payoutSplit: legacyPayoutSplit(winnerCount),
     maxHoldersToProcess: parseInt(process.env.MAX_HOLDERS_TO_PROCESS || '50000'),

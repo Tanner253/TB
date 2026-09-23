@@ -864,8 +864,12 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
       console.log(`[Payout]   #${i + 1}: ${w.wallet.slice(0, 8)}... (${w.drawdownPct.toFixed(1)}% loss, $${w.lossUsd.toFixed(2)})`)
     })
 
+    // Two separate protocol cuts, both taken off the top: the dev fee funds
+    // ops, the burn share market-buys the platform token and destroys it.
+    // Winners split whatever is left.
     const devFeeSol = poolSol * config.devFeePct
-    const winnersPoolSol = poolSol - devFeeSol
+    const buybackSol = poolSol * config.buybackBurnPct
+    const winnersPoolSol = poolSol - devFeeSol - buybackSol
     const shareFractions = getWinnerShareFractions(config.winnerCount)
     const payoutAmounts = shareFractions.map(fraction => winnersPoolSol * fraction)
 
@@ -1383,12 +1387,12 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
     // the share falls back into the ops transfer rather than being stranded —
     // see lib/platform/platformBuyback.ts.
     let flywheelSpent = 0
-    if (config.executePayouts && totalDevFeeSol >= MIN_TRANSFER_SOL && isPonsSession()) {
+    if (config.executePayouts && buybackSol >= MIN_TRANSFER_SOL && isPonsSession()) {
       try {
-        const { buybackAndBurnPlatformToken, buybackShareOfFee } = await import(
+        const { buybackAndBurnPlatformToken } = await import(
           '@/lib/platform/platformBuyback'
         )
-        const { buyback } = buybackShareOfFee(totalDevFeeSol)
+        const buyback = buybackSol
         if (buyback > 0) {
           const flywheel = await buybackAndBurnPlatformToken({
             quoteInWei: BigInt(Math.floor(buyback * 1e18)),
@@ -1412,7 +1416,10 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
       }
     }
 
-    const opsFeeSol = Math.max(0, totalDevFeeSol - flywheelSpent)
+    // The dev fee is whole either way. The burn share only lands here when the
+    // buyback could not run — better in ops than stranded in the wallet.
+    const unspentBuybackSol = Math.max(0, buybackSol - flywheelSpent)
+    const opsFeeSol = Math.max(0, totalDevFeeSol + unspentBuybackSol)
 
     // Dev fee only runs after at least one winner is paid — avoids dev-only partial cycles.
     if (devWalletValid && config.executePayouts && opsFeeSol >= MIN_TRANSFER_SOL) {
