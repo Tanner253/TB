@@ -2,9 +2,9 @@
 <meta charset="utf-8">
 <title>TopBlast brand assets</title>
 <style>
-  body { background:#0d0d0d; color:#f2f2f2; font:14px Inter,system-ui,sans-serif; padding:24px; }
-  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:#d4fc50; margin:24px 0 8px; }
-  canvas { background:#000; max-width:100%; border:1px solid #2a2a2a; border-radius:8px; }
+  body { background:#0a0612; color:#f2f2f2; font:14px Inter,system-ui,sans-serif; padding:24px; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:#b478ff; margin:24px 0 8px; }
+  canvas { background:#000; max-width:100%; border:1px solid #302642; border-radius:8px; }
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@700&display=swap">
 
@@ -22,7 +22,10 @@
  * the real asset at real pixel size. `window.assets()` returns them as data
  * URLs, which is how the checked-in PNGs under public/ are produced.
  */
-const ACCENT = '#d4fc50';
+// The violet fill is the brand colour; text on near-black gets the lifted
+// tint so it clears AA the way --tb-purple does in the app's dark theme.
+const ACCENT = '#9945FF';
+const ACCENT_TEXT = '#b478ff';
 
 function loadSvg(markup) {
   return new Promise((res, rej) => {
@@ -45,7 +48,7 @@ function candles(x, w, h, count, baseline) {
     const tall = h * (0.18 + rng(i, 3) * 0.42);
     const top = baseline - tall;
     const up = rng(i, 8) > 0.45;
-    x.fillStyle = up ? 'rgba(212,252,80,0.16)' : 'rgba(255,69,58,0.14)';
+    x.fillStyle = up ? 'rgba(153,69,255,0.16)' : 'rgba(255,69,58,0.14)';
     x.fillRect(cx, top, 18, tall);
     x.fillRect(cx + 7, top - tall * 0.16, 4, tall * 1.32);
   }
@@ -62,9 +65,9 @@ function stars(x, w, h, count) {
 /** Dark scrim over the text column — candles behind copy kill legibility. */
 function textScrim(x, w, h, coverage) {
   const g = x.createLinearGradient(0, 0, w * coverage, 0);
-  g.addColorStop(0, 'rgba(8,9,5,0.94)');
-  g.addColorStop(0.6, 'rgba(8,9,5,0.86)');
-  g.addColorStop(1, 'rgba(8,9,5,0)');
+  g.addColorStop(0, 'rgba(7,4,15,0.94)');
+  g.addColorStop(0.6, 'rgba(7,4,15,0.86)');
+  g.addColorStop(1, 'rgba(7,4,15,0)');
   x.fillStyle = g;
   x.fillRect(0, 0, w * coverage, h);
 }
@@ -79,12 +82,12 @@ function roundRect(x, a, b, w, h, r) {
   x.closePath();
 }
 
-/** TOP in lime + BLAST in white — the wordmark, drawn left-aligned at (px,py). */
+/** TOP in violet + BLAST in white — the wordmark, drawn left-aligned at (px,py). */
 function wordmark(x, px, py, size) {
   x.textAlign = 'left';
   x.textBaseline = 'alphabetic';
   x.font = '900 ' + size + 'px Inter, system-ui, sans-serif';
-  x.fillStyle = ACCENT;
+  x.fillStyle = ACCENT_TEXT;
   x.fillText('TOP', px, py);
   const w = x.measureText('TOP').width;
   x.fillStyle = '#f2f2f2';
@@ -95,18 +98,18 @@ function drawIcon(canvas, whale) {
   const x = canvas.getContext('2d');
   const S = canvas.width;
   const bg = x.createLinearGradient(0, 0, S, S);
-  bg.addColorStop(0, '#141a0c');
-  bg.addColorStop(0.55, '#0d0d0d');
-  bg.addColorStop(1, '#080a04');
+  bg.addColorStop(0, '#181030');
+  bg.addColorStop(0.55, '#0a0612');
+  bg.addColorStop(1, '#08040f');
   x.fillStyle = bg;
   x.fillRect(0, 0, S, S);
   stars(x, S, S, 40);
 
-  // lime halo behind the mascot
+  // violet halo behind the mascot
   const halo = x.createRadialGradient(S * 0.5, S * 0.52, S * 0.05, S * 0.5, S * 0.52, S * 0.46);
-  halo.addColorStop(0, 'rgba(212,252,80,0.22)');
-  halo.addColorStop(0.7, 'rgba(212,252,80,0.06)');
-  halo.addColorStop(1, 'rgba(212,252,80,0)');
+  halo.addColorStop(0, 'rgba(153,69,255,0.22)');
+  halo.addColorStop(0.7, 'rgba(153,69,255,0.06)');
+  halo.addColorStop(1, 'rgba(153,69,255,0)');
   x.fillStyle = halo;
   x.beginPath();
   x.arc(S / 2, S * 0.52, S * 0.46, 0, Math.PI * 2);
@@ -120,17 +123,17 @@ function drawBanner(canvas, whale) {
   const x = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   const bg = x.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, '#101408');
-  bg.addColorStop(0.5, '#0d0d0d');
-  bg.addColorStop(1, '#151a0a');
+  bg.addColorStop(0, '#150c28');
+  bg.addColorStop(0.5, '#0a0612');
+  bg.addColorStop(1, '#1a1035');
   x.fillStyle = bg;
   x.fillRect(0, 0, W, H);
   stars(x, W, H, 34);
   candles(x, W, H, 22, H);
 
   const glow = x.createRadialGradient(W * 0.78, H * 0.5, 10, W * 0.78, H * 0.5, H * 0.9);
-  glow.addColorStop(0, 'rgba(212,252,80,0.18)');
-  glow.addColorStop(1, 'rgba(212,252,80,0)');
+  glow.addColorStop(0, 'rgba(153,69,255,0.18)');
+  glow.addColorStop(1, 'rgba(153,69,255,0)');
   x.fillStyle = glow;
   x.fillRect(0, 0, W, H);
 
@@ -141,7 +144,7 @@ function drawBanner(canvas, whale) {
   x.font = '700 19px Inter, system-ui, sans-serif';
   x.fillStyle = '#f2f2f2';
   x.fillText('When you drawdown,', 30, 94);
-  x.fillStyle = ACCENT;
+  x.fillStyle = ACCENT_TEXT;
   x.fillText('we blast you up.', 30, 118);
 
   x.font = '500 12px Inter, system-ui, sans-serif';
@@ -150,17 +153,17 @@ function drawBanner(canvas, whale) {
 
   x.font = '700 13px "JetBrains Mono", monospace';
   const chip = x.measureText('topblast.family').width + 28;
-  x.fillStyle = '#11160a';
+  x.fillStyle = '#12082a';
   roundRect(x, 30, 152, chip, 28, 14);
   x.fill();
-  x.fillStyle = 'rgba(212,252,80,0.14)';
+  x.fillStyle = 'rgba(153,69,255,0.14)';
   roundRect(x, 30, 152, chip, 28, 14);
   x.fill();
-  x.strokeStyle = 'rgba(212,252,80,0.55)';
+  x.strokeStyle = 'rgba(153,69,255,0.55)';
   x.lineWidth = 1.5;
   roundRect(x, 30, 152, chip, 28, 14);
   x.stroke();
-  x.fillStyle = ACCENT;
+  x.fillStyle = ACCENT_TEXT;
   x.fillText('topblast.family', 44, 171);
 
   const ww = 214;
@@ -171,17 +174,17 @@ function drawOg(canvas, whale) {
   const x = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   const bg = x.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, '#121708');
-  bg.addColorStop(0.5, '#0d0d0d');
-  bg.addColorStop(1, '#171d0b');
+  bg.addColorStop(0, '#170e2e');
+  bg.addColorStop(0.5, '#0a0612');
+  bg.addColorStop(1, '#1d1240');
   x.fillStyle = bg;
   x.fillRect(0, 0, W, H);
   stars(x, W, H, 90);
   candles(x, W, H, 26, H);
 
   const glow = x.createRadialGradient(W * 0.74, H * 0.48, 20, W * 0.74, H * 0.48, H * 0.8);
-  glow.addColorStop(0, 'rgba(212,252,80,0.20)');
-  glow.addColorStop(1, 'rgba(212,252,80,0)');
+  glow.addColorStop(0, 'rgba(153,69,255,0.20)');
+  glow.addColorStop(1, 'rgba(153,69,255,0)');
   x.fillStyle = glow;
   x.fillRect(0, 0, W, H);
 
@@ -192,7 +195,7 @@ function drawOg(canvas, whale) {
   x.font = '700 42px Inter, system-ui, sans-serif';
   x.fillStyle = '#f2f2f2';
   x.fillText('When you drawdown,', 78, 276);
-  x.fillStyle = ACCENT;
+  x.fillStyle = ACCENT_TEXT;
   x.fillText('we blast you up.', 78, 330);
 
   x.font = '500 26px Inter, system-ui, sans-serif';
@@ -201,17 +204,17 @@ function drawOg(canvas, whale) {
 
   x.font = '700 24px "JetBrains Mono", monospace';
   const chip = x.measureText('topblast.family').width + 52;
-  x.fillStyle = '#11160a';
+  x.fillStyle = '#12082a';
   roundRect(x, 78, 430, chip, 56, 28);
   x.fill();
-  x.fillStyle = 'rgba(212,252,80,0.14)';
+  x.fillStyle = 'rgba(153,69,255,0.14)';
   roundRect(x, 78, 430, chip, 56, 28);
   x.fill();
-  x.strokeStyle = 'rgba(212,252,80,0.55)';
+  x.strokeStyle = 'rgba(153,69,255,0.55)';
   x.lineWidth = 2.5;
   roundRect(x, 78, 430, chip, 56, 28);
   x.stroke();
-  x.fillStyle = ACCENT;
+  x.fillStyle = ACCENT_TEXT;
   x.fillText('topblast.family', 104, 466);
 
   const ww = 470;

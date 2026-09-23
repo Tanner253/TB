@@ -5,7 +5,7 @@
  * the venue TopBlast buys and lists through.
  *
  * Drawn inline rather than loaded as an image so it picks up the theme accent
- * (lime in dark, deep lime in light) without shipping two files.
+ * (lifted violet in dark, deepened violet in light) without shipping two files.
  */
 type ChainBadgeProps = {
   compact?: boolean

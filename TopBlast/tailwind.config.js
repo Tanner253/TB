@@ -23,8 +23,8 @@ module.exports = {
         gold: 'rgb(var(--tb-gold) / <alpha-value>)',
         'tb-amber': 'rgb(var(--tb-amber) / <alpha-value>)',
         // Brand accent. Named `sol.*` for historical reasons — the values are
-        // now the Pons lime, theme-aware via CSS vars. Anything placed ON an
-        // accent fill must use `text-on-accent`, not white.
+        // Heritage Violet, theme-aware via CSS vars. Anything placed ON an
+        // accent fill uses `text-on-accent`, which resolves to white.
         accent: {
           DEFAULT: 'rgb(var(--tb-accent-fill) / <alpha-value>)',
           hover: 'rgb(var(--tb-accent-hover) / <alpha-value>)',
@@ -48,15 +48,16 @@ module.exports = {
         },
       },
       boxShadow: {
-        // Pons uses a soft lime bloom under its primary buttons.
+        // A soft violet bloom under the primary buttons.
         'rh-glow': '0 8px 24px rgb(var(--tb-accent-fill) / 0.28), 0 0 60px rgb(var(--tb-accent-fill) / 0.10)',
         'rh-glow-sm': '0 4px 14px rgb(var(--tb-accent-fill) / 0.28)',
         'sol-glow': '0 8px 24px rgb(var(--tb-accent-fill) / 0.28), 0 0 60px rgb(var(--tb-accent-fill) / 0.10)',
         card: '0 1px 2px rgb(var(--tb-ink) / 0.04), 0 8px 24px rgb(var(--tb-ink) / 0.05)',
       },
       backgroundImage: {
-        'sol-gradient': 'linear-gradient(135deg, rgb(var(--tb-accent-fill)) 0%, rgb(var(--tb-mint)) 100%)',
-        'accent-gradient': 'linear-gradient(135deg, rgb(var(--tb-accent-fill)) 0%, rgb(var(--tb-mint)) 100%)',
+        // Both stops clear AA against white — these carry `text-on-accent`.
+        'sol-gradient': 'linear-gradient(135deg, rgb(var(--tb-accent-fill)) 0%, rgb(var(--tb-accent-fill-2)) 100%)',
+        'accent-gradient': 'linear-gradient(135deg, rgb(var(--tb-accent-fill)) 0%, rgb(var(--tb-accent-fill-2)) 100%)',
       },
     },
   },

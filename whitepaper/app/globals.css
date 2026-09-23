@@ -5,24 +5,24 @@
 @tailwind utilities;
 
 :root {
-  /* Pons palette (ponsfamily.com): lime on near-black. */
-  --sol-purple: #d4fc50;
+  /* Heritage Violet: #9945FF on a violet-biased black. */
+  --sol-purple: #9945FF;
   --sol-mint: #30d158;
-  --sol-black: #0d0d0d;
+  --sol-black: #0a0612;
 }
 
 ::-webkit-scrollbar {
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #0d0d0d;
+  background: #0a0612;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(212, 252, 80, 0.35);
+  background: rgba(153, 69, 255, 0.35);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(212, 252, 80, 0.55);
+  background: rgba(153, 69, 255, 0.55);
 }
 
 html {
@@ -31,7 +31,7 @@ html {
 
 body {
   font-family: 'Space Grotesk', sans-serif;
-  background-color: #0d0d0d;
+  background-color: #0a0612;
   color: #ffffff;
   overflow-x: hidden;
 }
@@ -54,13 +54,13 @@ body {
 }
 .glitch::before {
   left: 2px;
-  text-shadow: -1px 0 #d4fc50;
+  text-shadow: -1px 0 #9945FF;
   clip: rect(44px, 450px, 56px, 0);
   animation: glitch-anim 5s infinite linear alternate-reverse;
 }
 .glitch::after {
   left: -2px;
-  text-shadow: -1px 0 #e2ff66;
+  text-shadow: -1px 0 #b478ff;
   clip: rect(44px, 450px, 56px, 0);
   animation: glitch-anim2 5s infinite linear alternate-reverse;
 }
@@ -86,8 +86,8 @@ body {
   background: rgba(0, 0, 0, 0.82);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-top: 1px solid rgba(212, 252, 80, 0.08);
-  border-bottom: 1px solid rgba(212, 252, 80, 0.08);
+  border-top: 1px solid rgba(153, 69, 255, 0.08);
+  border-bottom: 1px solid rgba(153, 69, 255, 0.08);
   padding: 3rem 0;
   margin: 0 -1rem;
   padding-left: 1rem;
@@ -98,19 +98,19 @@ body {
   background: rgba(10, 10, 10, 0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(212, 252, 80, 0.12);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 24px rgba(212, 252, 80, 0.06);
+  border: 1px solid rgba(153, 69, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 24px rgba(153, 69, 255, 0.06);
 }
 
 .glass-nav {
   background: rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(212, 252, 80, 0.15);
+  border-bottom: 1px solid rgba(153, 69, 255, 0.15);
 }
 
 .hero-text-gradient {
-  background: linear-gradient(135deg, #d4fc50 0%, #b5e63d 55%, #e2ff66 100%);
+  background: linear-gradient(135deg, #9945FF 0%, #7a2fd4 55%, #b478ff 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -118,7 +118,7 @@ body {
 
 .neon-green,
 .neon-sol {
-  text-shadow: 0 0 10px rgba(212, 252, 80, 0.6), 0 0 20px rgba(167, 139, 250, 0.35);
+  text-shadow: 0 0 10px rgba(153, 69, 255, 0.6), 0 0 20px rgba(167, 139, 250, 0.35);
 }
 
 .neon-red {
@@ -135,21 +135,21 @@ body {
 }
 
 ::selection {
-  background: rgba(212, 252, 80, 0.45);
+  background: rgba(153, 69, 255, 0.45);
   color: white;
 }
 
 .bg-grid-pattern {
   background-image:
-    linear-gradient(rgba(212, 252, 80, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(212, 252, 80, 0.04) 1px, transparent 1px);
+    linear-gradient(rgba(153, 69, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(153, 69, 255, 0.04) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
 /* ─── Documentation layout (below hero) ─── */
 .doc-main {
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.92) 0%, #050505 100%);
-  border-top: 1px solid rgba(212, 252, 80, 0.12);
+  border-top: 1px solid rgba(153, 69, 255, 0.12);
 }
 
 /* ─── Top bar (minimal) ─── */
@@ -272,7 +272,7 @@ body {
   right: 0;
   width: min(100%, 20rem);
   height: 100%;
-  background: #161616;
+  background: #140e1e;
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
@@ -422,7 +422,7 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #d4fc50;
+  color: #9945FF;
   margin-bottom: 0.75rem;
 }
 
@@ -509,8 +509,8 @@ body {
 }
 
 .doc-card--purple {
-  border-color: rgba(212, 252, 80, 0.2);
-  background: rgba(212, 252, 80, 0.04);
+  border-color: rgba(153, 69, 255, 0.2);
+  background: rgba(153, 69, 255, 0.04);
 }
 
 .doc-card--amber {
@@ -558,7 +558,7 @@ body {
   font-size: 0.8125rem;
   line-height: 1.6;
   color: #30d158;
-  background: #161616;
+  background: #140e1e;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 0.75rem;
   padding: 1rem 1.125rem;
@@ -585,7 +585,7 @@ body {
   content: '→';
   position: absolute;
   left: 0;
-  color: #d4fc50;
+  color: #9945FF;
 }
 
 .doc-table-wrap {
@@ -649,7 +649,7 @@ body {
 
 .doc-cta--primary {
   color: #000;
-  background: linear-gradient(135deg, #d4fc50, #30d158);
+  background: linear-gradient(135deg, #9945FF, #30d158);
 }
 
 .doc-cta--ghost {
@@ -684,7 +684,7 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
-  background: rgba(212, 252, 80, 0.15);
+  background: rgba(153, 69, 255, 0.15);
   color: #30d158;
   font-weight: 700;
   font-size: 0.875rem;
@@ -729,9 +729,9 @@ body {
 }
 
 .doc-fee-pill--dev {
-  background: rgba(212, 252, 80, 0.1);
+  background: rgba(153, 69, 255, 0.1);
   color: #c4b5fd;
-  border: 1px solid rgba(212, 252, 80, 0.2);
+  border: 1px solid rgba(153, 69, 255, 0.2);
 }
 
 .doc-flywheel-tree {
@@ -791,7 +791,7 @@ body {
 }
 
 .doc-bar--community {
-  background: linear-gradient(90deg, #d4fc50, #30d158);
+  background: linear-gradient(90deg, #9945FF, #30d158);
   color: #000;
 }
 
@@ -943,7 +943,7 @@ body {
   text-transform: uppercase;
   padding: 0.15rem 0.45rem;
   border-radius: 0.25rem;
-  background: rgba(212, 252, 80, 0.15);
+  background: rgba(153, 69, 255, 0.15);
   color: #c4b5fd;
 }
 

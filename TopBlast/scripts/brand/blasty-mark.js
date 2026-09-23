@@ -3,18 +3,18 @@
  *
  * This is the "portrait" Blasty used on the icon / banner / OG image — rounder
  * and chunkier than the in-app sprite in lib/game/whaleSprites.ts, which has to
- * animate. Colours are the Pons lime palette, literal so the markup can be
+ * animate. Colours are Heritage Violet, literal so the markup can be
  * rasterised without a document.
  */
-const LIME = '#d4fc50'
-const LIME_LIGHT = '#e8ff8a'
-const LIME_MID = '#aede33'
-const LIME_DEEP = '#7fa823'
-const OLIVE = '#5f7d18'
-const INK = '#1b2408'
-const BELLY_TOP = '#fbffee'
-const BELLY_BOT = '#e4f3bd'
-const FOAM = '#eaffb8'
+const LIME = '#9945FF'
+const LIME_LIGHT = '#b478ff'
+const LIME_MID = '#7A2FD4'
+const LIME_DEEP = '#5b21b6'
+const OLIVE = '#4c1d95'
+const INK = '#2b2140'
+const BELLY_TOP = '#fdf7ff'
+const BELLY_BOT = '#e4d9fb'
+const FOAM = '#cfe8ff'
 
 /** @param {{spout?: boolean}} [opts] */
 function blastyMark(opts = {}) {

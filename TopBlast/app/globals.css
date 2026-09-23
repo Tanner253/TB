@@ -6,49 +6,55 @@
 
 /* ═══════════════════════════════════════════════════════════════
    THEME TOKENS
-   Palette follows Pons (ponsfamily.com): lime #d4fc50 on near-black.
-   Dark (.dark on <html>, the default): the Pons look, near-verbatim.
-   Light: same accent deepened so it stays readable on white.
-   NOTE: the lime needs DARK text on top of it — use --tb-on-accent
-   for anything sitting on an accent fill, never white.
+   Heritage Violet — the house palette, #9945FF on a violet-biased black.
+   Dark (.dark on <html>, the default) is the primary design.
+   Light: the same accent deepened so it stays readable on white.
+   NOTE: the violet carries WHITE text on an accent fill — that is what
+   --tb-on-accent is for. Never hard-code a text colour on the accent.
    All tokens are RGB triplets so Tailwind can apply alpha:
    e.g. bg-paper, text-ink/60, border-line.
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
   /* Surfaces — light counterpart to the Pons dark theme */
-  --tb-paper: 250 250 248;      /* near-white page */
+  --tb-paper: 250 249 252;      /* near-white page, faint violet cast */
   --tb-card: 255 255 255;       /* raised card */
-  --tb-card-2: 245 246 240;     /* subtle inset panel */
+  --tb-card-2: 246 244 250;     /* subtle inset panel */
   /* Text */
   --tb-ink: 20 20 20;           /* primary text */
-  --tb-ink-2: 82 84 76;         /* secondary text */
-  --tb-ink-3: 110 112 103;      /* tertiary / hints (AA on the paper) */
+  --tb-ink-2: 82 78 92;         /* secondary text */
+  --tb-ink-3: 108 104 120;      /* tertiary / hints (AA on the paper) */
   /* Lines */
-  --tb-line: 226 228 216;       /* borders */
-  /* Brand accent — Pons lime. On light backgrounds the bright lime is
-     unreadable as text, so text/borders use a deepened lime while fills
-     keep the real thing (see --tb-accent-fill). */
-  --tb-purple: 92 122 10;       /* deep lime — readable on white */
-  --tb-purple-dark: 74 99 8;
-  --tb-purple-deep: 54 72 6;
-  --tb-accent-fill: 212 252 80; /* #d4fc50 — Pons signature lime */
-  --tb-accent-hover: 226 255 102; /* #e2ff66 — Pons --accent-hover */
-  --tb-on-accent: 17 17 17;     /* text/icons sitting on the lime fill */
-  --tb-mint: 17 122 55;         /* success green (AA on the paper) */
-  --tb-mint-bright: 24 150 68;
+  --tb-line: 228 224 238;       /* borders */
+  /* Brand accent — Heritage Violet. On white, #9945FF is too light to read
+     as body text, so text and borders use a deepened violet while fills keep
+     the signature colour (see --tb-accent-fill). */
+  --tb-purple: 109 40 217;      /* #6d28d9 — clears AA on white AND on a
+                                   15% tint of itself, which the selected
+                                   tab pills sit on */
+  --tb-purple-dark: 91 33 182;  /* #5b21b6 */
+  --tb-purple-deep: 59 7 100;   /* #3b0764 */
+  --tb-accent-fill: 153 69 255; /* #9945FF — the signature violet */
+  --tb-accent-hover: 180 120 255; /* #b478ff */
+  /* Second stop for the primary-button gradient. Theme-constant, and dark
+     enough that white clears AA at both ends of the ramp. */
+  --tb-accent-fill-2: 109 40 217; /* #6d28d9 */
+  --tb-on-accent: 255 255 255;  /* white reads on the violet fill */
+  --tb-mint: 16 112 50;         /* success green — AA on the paper and on the
+                                   tinted chips the badges sit in */
+  --tb-mint-bright: 22 140 63;
   /* Status */
   --tb-red: 214 45 32;
   --tb-amber: 166 88 10;
   --tb-gold: 143 105 6;
   /* Legacy vars used by a few raw CSS rules */
-  --color-bg-primary: #fafaf8;
+  --color-bg-primary: #faf9fc;
   --color-bg-secondary: #ffffff;
-  --color-bg-tertiary: #f5f6f0;
-  --color-accent-purple: #5c7a0a;
-  --color-accent-purple-dark: #4a6308;
-  --color-accent-mint: #117a37;
-  --color-accent-mint-bright: #189644;
+  --color-bg-tertiary: #f6f4fa;
+  --color-accent-purple: #6d28d9;
+  --color-accent-purple-dark: #5b21b6;
+  --color-accent-mint: #107032;
+  --color-accent-mint-bright: #168c3f;
   --color-accent-red: #d62d20;
   --color-accent-amber: #a6580a;
   --color-accent-gold: #8f6906;
@@ -56,34 +62,35 @@
 }
 
 .dark {
-  /* Surfaces — taken from ponsfamily.com */
-  --tb-paper: 13 13 13;         /* #0d0d0d page */
-  --tb-card: 22 22 22;          /* #161616 card */
-  --tb-card-2: 28 28 28;        /* #1c1c1c elevated */
+  /* Surfaces — violet-biased black, so the accent sits in its own family */
+  --tb-paper: 10 6 18;          /* #0a0612 page */
+  --tb-card: 20 14 30;          /* #140e1e card */
+  --tb-card-2: 28 20 41;        /* #1c1429 elevated */
   /* Text */
-  --tb-ink: 242 242 242;        /* #f2f2f2 */
-  --tb-ink-2: 158 158 158;
-  --tb-ink-3: 141 141 141; /* AA on both #0d0d0d and #161616 */
+  --tb-ink: 244 240 250;        /* #f4f0fa */
+  --tb-ink-2: 172 164 188;
+  --tb-ink-3: 148 142 164;      /* AA on both #0a0612 and #140e1e */
   /* Lines */
-  --tb-line: 42 42 42;          /* #2a2a2a */
-  /* Brand accent — Pons lime, used directly in dark */
-  --tb-purple: 212 252 80;      /* #d4fc50 */
-  --tb-purple-dark: 181 230 61; /* pressed/hover */
-  --tb-purple-deep: 42 58 20;   /* #2a3a14 — Pons --accent-mid */
-  --tb-accent-fill: 212 252 80;
-  --tb-accent-hover: 226 255 102;
-  --tb-on-accent: 17 17 17;     /* #111 — Pons uses dark text on lime */
+  --tb-line: 48 38 66;          /* #302642 */
+  /* Brand accent — Heritage Violet, used directly in dark */
+  --tb-purple: 180 120 255;     /* #b478ff — lifted so it reads as text */
+  --tb-purple-dark: 153 69 255; /* #9945FF pressed/hover */
+  --tb-purple-deep: 76 29 149;  /* #4c1d95 */
+  --tb-accent-fill: 153 69 255;
+  --tb-accent-hover: 180 120 255;
+  --tb-accent-fill-2: 109 40 217; /* #6d28d9 */
+  --tb-on-accent: 255 255 255;  /* white reads on the violet fill */
   --tb-mint: 48 209 88;         /* #30d158 */
   --tb-mint-bright: 74 222 112;
   /* Status */
   --tb-red: 255 69 58;          /* #ff453a */
   --tb-amber: 243 161 63;
   --tb-gold: 250 204 21;
-  --color-bg-primary: #0d0d0d;
-  --color-bg-secondary: #161616;
-  --color-bg-tertiary: #1c1c1c;
-  --color-accent-purple: #d4fc50;
-  --color-accent-purple-dark: #b5e63d;
+  --color-bg-primary: #0a0612;
+  --color-bg-secondary: #140e1e;
+  --color-bg-tertiary: #1c1429;
+  --color-accent-purple: #9945FF;
+  --color-accent-purple-dark: #7a2fd4;
   --color-accent-mint: #30d158;
   --color-accent-mint-bright: #4ade70;
   --color-accent-red: #ff453a;
@@ -373,7 +380,7 @@ body {
 }
 
 .gradient-text-accent {
-  background: linear-gradient(135deg, rgb(var(--tb-accent-fill)) 0%, rgb(var(--tb-purple)) 55%, rgb(var(--tb-mint)) 100%);
+  background: linear-gradient(135deg, rgb(var(--tb-accent-fill)) 0%, rgb(var(--tb-purple)) 55%, #d8b4fe 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

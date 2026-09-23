@@ -629,17 +629,17 @@ export default function BlastOffPage() {
       // sky
       const sky = ctx.createLinearGradient(0, 0, 0, H)
       if (dark) {
-        sky.addColorStop(0, '#0a0c05')
-        sky.addColorStop(1, '#1a2110')
+        sky.addColorStop(0, '#0b0518')
+        sky.addColorStop(1, '#1c0f38')
       } else {
-        sky.addColorStop(0, '#f7fbe9')
-        sky.addColorStop(1, '#e4f0c8')
+        sky.addColorStop(0, '#f7f3fd')
+        sky.addColorStop(1, '#e6dcf8')
       }
       ctx.fillStyle = sky
       ctx.fillRect(0, 0, W, H)
 
       // stars / sparkles (parallax, hash-scattered so they never form lines)
-      ctx.fillStyle = dark ? 'rgba(255,255,255,0.5)' : 'rgba(122,168,35,0.28)'
+      ctx.fillStyle = dark ? 'rgba(255,255,255,0.5)' : 'rgba(153,69,255,0.28)'
       const starSpan = W + 40
       for (let i = 0; i < 40; i++) {
         let sx = (rngFor(i, 11) * starSpan - camX * 0.15) % starSpan
@@ -713,8 +713,8 @@ export default function BlastOffPage() {
             ctx.translate(px, py)
             ctx.rotate(spin)
             ctx.lineWidth = 6
-            ctx.strokeStyle = gold ? '#fbbf24' : '#d4fc50'
-            ctx.shadowColor = gold ? '#fbbf24' : '#d4fc50'
+            ctx.strokeStyle = gold ? '#fbbf24' : '#b478ff'
+            ctx.shadowColor = gold ? '#fbbf24' : '#b478ff'
             ctx.shadowBlur = 14
             ctx.beginPath()
             ctx.ellipse(0, 0, r, r * 0.55, 0, 0, Math.PI * 2)
@@ -770,8 +770,8 @@ export default function BlastOffPage() {
       // water
       const wy = waterY - camY
       const water = ctx.createLinearGradient(0, wy, 0, H)
-      water.addColorStop(0, dark ? 'rgba(52,72,14,0.78)' : 'rgba(122,168,35,0.35)')
-      water.addColorStop(1, dark ? 'rgba(24,34,8,0.95)' : 'rgba(92,122,10,0.5)')
+      water.addColorStop(0, dark ? 'rgba(76,29,149,0.78)' : 'rgba(153,69,255,0.35)')
+      water.addColorStop(1, dark ? 'rgba(30,10,70,0.95)' : 'rgba(124,58,237,0.5)')
       ctx.fillStyle = water
       const waterBottom = H + exY + 80
       ctx.beginPath()
@@ -785,7 +785,7 @@ export default function BlastOffPage() {
       ctx.fill()
 
       // splashes
-      ctx.fillStyle = '#bfe4f5'
+      ctx.fillStyle = '#cfe8ff'
       for (const s of splashes) {
         ctx.globalAlpha = Math.max(0, s.life / 30)
         ctx.beginPath()
@@ -841,9 +841,9 @@ export default function BlastOffPage() {
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
         ctx.lineWidth = 6
-        ctx.strokeStyle = dark ? 'rgba(8,10,4,0.85)' : 'rgba(255,255,255,0.9)'
+        ctx.strokeStyle = dark ? 'rgba(11,5,24,0.85)' : 'rgba(255,255,255,0.9)'
         ctx.strokeText(flashText, 0, 0)
-        ctx.fillStyle = dark ? '#d4fc50' : '#5c7a0a'
+        ctx.fillStyle = dark ? '#b478ff' : '#7c3aed'
         ctx.fillText(flashText, 0, 0)
         ctx.restore()
         ctx.globalAlpha = 1

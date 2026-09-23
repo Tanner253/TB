@@ -18,7 +18,7 @@ export function PoweredByPons() {
   return (
     <section className="mb-14 md:mb-20" aria-labelledby="pons-heading">
       <div className="relative overflow-hidden rounded-2xl border border-sol-purple/25 bg-card/70 p-6 sm:p-8 backdrop-blur">
-        {/* lime bloom, the Pons signature */}
+        {/* accent bloom behind the Pons mark */}
         <div
           className="pointer-events-none absolute -top-24 -right-16 h-64 w-64 rounded-full bg-accent/10 blur-3xl"
           aria-hidden

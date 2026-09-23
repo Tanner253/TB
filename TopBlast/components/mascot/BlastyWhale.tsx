@@ -4,9 +4,9 @@
  * Blasty — the TopBlast whale. Pure inline SVG, animated with cheap CSS
  * keyframes (mobile-friendly, GPU transforms only).
  *
- * The body colours are literal Pons lime rather than theme vars: a mascot has
- * to look like itself in both themes, and lime reads on cream and on #0d0d0d
- * alike. Only the ground shadow and the zZz follow the theme.
+ * The body colours are literal violet rather than theme vars: a mascot has to
+ * look like itself in both themes, and this violet reads on white and on
+ * #0a0612 alike. Only the ground shadow and the zZz follow the theme.
  * Keep in sync with lib/game/whaleSprites.ts (the canvas copy).
  *
  * Built with layered shading clipped to the body silhouette so every theme
@@ -79,17 +79,17 @@ export function BlastyWhale({
     >
       <defs>
         <linearGradient id={bodyId} x1="0" y1="0" x2="0.25" y2="1">
-          <stop offset="0%" stopColor="#e2ff66" />
-          <stop offset="70%" stopColor="#d4fc50" />
-          <stop offset="100%" stopColor="#a9cf33" />
+          <stop offset="0%" stopColor="#b478ff" />
+          <stop offset="70%" stopColor="#9945FF" />
+          <stop offset="100%" stopColor="#7A2FD4" />
         </linearGradient>
         <linearGradient id={bellyId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#fcffee" />
-          <stop offset="100%" stopColor="#e9f6c6" />
+          <stop offset="0%" stopColor="#fdf7ff" />
+          <stop offset="100%" stopColor="#e4d9fb" />
         </linearGradient>
         <linearGradient id={finId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#a9cf33" />
-          <stop offset="100%" stopColor="#7a9a1f" />
+          <stop offset="0%" stopColor="#7A2FD4" />
+          <stop offset="100%" stopColor="#5b21b6" />
         </linearGradient>
         <linearGradient id={flameId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#ffee7a" />
@@ -133,13 +133,13 @@ export function BlastyWhale({
             <rect x="98" y="182" width="146" height="44" rx="22" fill={`url(#${flameId}-hull)`} />
             <rect x="98" y="182" width="146" height="15" rx="7.5" fill="#ffffff" opacity="0.6" />
             {/* nose cone (direction of travel) */}
-            <path d="M102 182 C76 189 62 197 55 204 C62 211 76 219 102 226 Z" fill="#d4fc50" />
+            <path d="M102 182 C76 189 62 197 55 204 C62 211 76 219 102 226 Z" fill="#9945FF" />
             {/* tail fins */}
-            <path d="M230 184 C244 171 257 165 268 164 C262 175 258 183 255 191 Z" fill="#d4fc50" />
-            <path d="M230 224 C244 237 257 243 268 244 C262 233 258 225 255 217 Z" fill="#d4fc50" />
+            <path d="M230 184 C244 171 257 165 268 164 C262 175 258 183 255 191 Z" fill="#9945FF" />
+            <path d="M230 224 C244 237 257 243 268 244 C262 233 258 225 255 217 Z" fill="#9945FF" />
             {/* stripe + porthole */}
             <rect x="198" y="183" width="6" height="42" fill="#3f3f46" opacity="0.7" />
-            <circle cx="150" cy="204" r="13" fill="#1b2408" stroke="#e2e8f0" strokeWidth="5" />
+            <circle cx="150" cy="204" r="13" fill="#2b2140" stroke="#e2e8f0" strokeWidth="5" />
             <circle cx="146" cy="200" r="4" fill="#ffffff" opacity="0.8" />
           </g>
         ) : null}
@@ -149,7 +149,7 @@ export function BlastyWhale({
           <path d={TAIL_PATH} fill={`url(#${bodyId})`} />
           <path
             d="M240 158 C258 150 270 136 276 118 C278 132 272 148 258 158 Z"
-            fill="#7a9a1f"
+            fill="#5b21b6"
             opacity="0.35"
           />
         </g>
@@ -166,7 +166,7 @@ export function BlastyWhale({
         {/* shading layers clipped to the silhouette */}
         <g clipPath={`url(#${clipId})`}>
           {/* bottom ambient shade */}
-          <ellipse cx="180" cy="196" rx="170" ry="62" fill="#4a6308" opacity="0.28" />
+          <ellipse cx="180" cy="196" rx="170" ry="62" fill="#3b0764" opacity="0.28" />
           {/* cream belly with wavy top edge */}
           <path
             d="M24 154 C70 166 130 172 190 166 C224 162 248 152 262 142 L268 250 L16 250 Z"
@@ -175,7 +175,7 @@ export function BlastyWhale({
           {/* belly pleats */}
           <path
             d="M40 168 C96 180 168 182 232 168"
-            stroke="#a9cf33"
+            stroke="#7A2FD4"
             strokeOpacity="0.55"
             strokeWidth="3"
             fill="none"
@@ -183,7 +183,7 @@ export function BlastyWhale({
           />
           <path
             d="M56 180 C110 190 172 190 224 180"
-            stroke="#a9cf33"
+            stroke="#7A2FD4"
             strokeOpacity="0.4"
             strokeWidth="3"
             fill="none"
@@ -215,7 +215,7 @@ export function BlastyWhale({
           <g className="whale-spout">
             <path
               d="M136 44 C134 32 126 28 126 16"
-              stroke="#bfe4f5"
+              stroke="#cfe8ff"
               strokeWidth="6"
               fill="none"
               strokeLinecap="round"
@@ -223,15 +223,15 @@ export function BlastyWhale({
             />
             <path
               d="M146 42 C148 32 154 28 154 18"
-              stroke="#bfe4f5"
+              stroke="#cfe8ff"
               strokeWidth="6"
               fill="none"
               strokeLinecap="round"
               opacity="0.9"
             />
-            <circle cx="123" cy="10" r="4.5" fill="#e6f6fd" />
-            <circle cx="157" cy="12" r="4" fill="#e6f6fd" />
-            <circle cx="140" cy="5" r="5" fill="#bfe4f5" />
+            <circle cx="123" cy="10" r="4.5" fill="#e7f3ff" />
+            <circle cx="157" cy="12" r="4" fill="#e7f3ff" />
+            <circle cx="140" cy="5" r="5" fill="#cfe8ff" />
           </g>
         ) : null}
 
@@ -240,7 +240,7 @@ export function BlastyWhale({
           <g>
             <path
               d="M70 116 q11 9 22 0"
-              stroke="#1b2408"
+              stroke="#2b2140"
               strokeWidth="5"
               fill="none"
               strokeLinecap="round"
@@ -253,7 +253,7 @@ export function BlastyWhale({
           <g>
             <path
               d="M66 114 q12 -13 24 0"
-              stroke="#1b2408"
+              stroke="#2b2140"
               strokeWidth="5.5"
               fill="none"
               strokeLinecap="round"
@@ -265,7 +265,7 @@ export function BlastyWhale({
           </g>
         ) : (
           <g className="whale-eye">
-            <ellipse cx="80" cy="114" rx="11" ry="13" fill="#1b2408" />
+            <ellipse cx="80" cy="114" rx="11" ry="13" fill="#2b2140" />
             <circle cx="84" cy="109" r="4" fill="#ffffff" />
             <circle cx="76" cy="119" r="1.8" fill="#ffffff" opacity="0.8" />
           </g>
@@ -278,12 +278,12 @@ export function BlastyWhale({
         {happy || rocket ? (
           <path
             d="M58 138 C66 152 84 154 94 144 C88 140 66 138 58 138 Z"
-            fill="#1b2408"
+            fill="#2b2140"
           />
         ) : sleeping ? (
-          <path d="M62 140 q8 5 16 1" stroke="#1b2408" strokeWidth="4" fill="none" strokeLinecap="round" />
+          <path d="M62 140 q8 5 16 1" stroke="#2b2140" strokeWidth="4" fill="none" strokeLinecap="round" />
         ) : (
-          <path d="M58 138 q12 10 26 3" stroke="#1b2408" strokeWidth="4" fill="none" strokeLinecap="round" />
+          <path d="M58 138 q12 10 26 3" stroke="#2b2140" strokeWidth="4" fill="none" strokeLinecap="round" />
         )}
       </g>
     </svg>

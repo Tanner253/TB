@@ -422,7 +422,7 @@ export default function LeaderboardPage() {
                     className="ticker-ca-inline"
                   />
                 ) : (
-                  <span className="text-xs text-ink/50 font-mono">Loading CA…</span>
+                  <span className="text-xs text-ink-3 font-mono">Loading CA…</span>
                 )}
               </motion.div>
 
@@ -448,7 +448,7 @@ export default function LeaderboardPage() {
                       <PriceTicker price={price || data?.token_price_raw} size="md" />
                     </div>
                   ) : (
-                    <span className="text-ink/50 font-mono text-sm">Loading...</span>
+                    <span className="text-ink-3 font-mono text-sm">Loading...</span>
                   )}
                 </div>
 
@@ -458,7 +458,7 @@ export default function LeaderboardPage() {
                     {marketCap ? (
                       <AnimatedNumber value={marketCap} format="currency" />
                     ) : (
-                      <span className="text-ink/50">--</span>
+                      <span className="text-ink-3">--</span>
                     )}
                   </span>
                 </div>
@@ -501,7 +501,7 @@ export default function LeaderboardPage() {
                   className="ticker-ca-inline"
                 />
               ) : (
-                <span className="text-xs text-ink/50 font-mono">Loading CA…</span>
+                <span className="text-xs text-ink-3 font-mono">Loading CA…</span>
               )}
             </div>
 
@@ -527,7 +527,7 @@ export default function LeaderboardPage() {
                     <PriceTicker price={price || data?.token_price_raw} size="sm" />
                   </div>
                 ) : (
-                  <span className="text-ink/50 font-mono text-xs">Loading...</span>
+                  <span className="text-ink-3 font-mono text-xs">Loading...</span>
                 )}
               </div>
 
@@ -537,7 +537,7 @@ export default function LeaderboardPage() {
                   {marketCap ? (
                     <AnimatedNumber value={marketCap} format="currency" />
                   ) : (
-                    <span className="text-ink/50">--</span>
+                    <span className="text-ink-3">--</span>
                   )}
                 </span>
               </div>
