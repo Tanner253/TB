@@ -1,6 +1,5 @@
 'use client'
 
-import { MAX_PAYOUT_PCT_OF_SUPPLY } from '@/lib/payout/supplyCap'
 import { useEffect, useState } from 'react'
 import { MIN_HOLD_DURATION_MINUTES, formatHoldDuration } from '@/lib/eligibility/holdDuration'
 import { formatPayoutInterval, DEFAULT_PAYOUT_INTERVAL_MINUTES } from '@/lib/platform/payoutIntervals'
@@ -127,15 +126,6 @@ export function EligibilityRequirements({
           </li>
         ))}
       </ol>
-
-      {/* Not an eligibility rule — a rule about the payout itself, which is
-          exactly the thing a winner would otherwise be surprised by. */}
-      <p className={`text-ink-3 ${compact ? 'mt-3 text-xs' : 'mt-4 text-sm'}`}>
-        <strong className="text-ink-2">Supply guard:</strong> a single payout never delivers more
-        than {MAX_PAYOUT_PCT_OF_SUPPLY}% of supply in tokens. Anything above that is paid to the
-        winner in ETH the same cycle, so no one payout dumps a chart-breaking position on one
-        wallet. You receive the full amount either way.
-      </p>
     </div>
   )
 }

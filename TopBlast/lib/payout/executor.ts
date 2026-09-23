@@ -8,7 +8,6 @@ import { isPonsSession, isEvmAddress } from '@/lib/pons/session'
 import connectDB from '@/lib/db'
 import { Payout, Disqualification, TimerState, PayoutVolumeSwap } from '@/lib/db/models'
 import { transferSol, MIN_TRANSFER_SOL } from '@/lib/solana/transfer'
-import { splitPayoutAtSupplyCap, MAX_PAYOUT_PCT_OF_SUPPLY, type CappedPayout } from '@/lib/payout/supplyCap'
 import { swapSolForToken } from '@/lib/solana/jupiterSwap'
 import {
   transferSessionToken,
@@ -442,21 +441,8 @@ async function syncPayoutTimerWithPoolMinimum(): Promise<void> {
 /** Live eligible winners that still hold the session token on-chain (same bar as payout). */
 export async function countVerifiedPayableWinners(limit?: number): Promise<number> {
   if (isPonsSession()) {
-    // Best-effort freshness. This throws on a rate-limited RPC or while the
-    // indexer holds its lock, and letting it escape cancelled the payout
-    // before eligibility was even computed. resolveLivePayableWinners
-    // re-evaluates every holder from balance, VWAP and live price rather than
-    // trusting stored flags, so a skipped refresh costs freshness, not
-    // correctness.
-    try {
-      const { refreshPonsRankings } = await import('@/lib/pons/rankings')
-      await refreshPonsRankings({ force: true })
-    } catch (err) {
-      console.warn(
-        '[Payout] Pre-payout ranking refresh failed, evaluating the existing snapshot:',
-        err instanceof Error ? err.message : err
-      )
-    }
+    const { refreshPonsRankings } = await import('@/lib/pons/rankings')
+    await refreshPonsRankings({ force: true })
   }
   const winnerLimit = limit ?? config.winnerCount
   const winners = await resolveLivePayableWinners(winnerLimit)
@@ -536,31 +522,14 @@ export async function resolveLivePayableWinners(limit?: number): Promise<Payable
   const rankingByWallet = new Map(
     dbRankings.rankings.map(h => [h.wallet, { ...h }] as const)
   )
-  // A freshness check, not the source of truth. On Pons this re-reads every
-  // holder's balance and bytecode from chain — two calls per holder — and
-  // throws outright while the indexer holds its lock. Letting that failure
-  // escape cancelled the whole payout with "No eligible winners" on a session
-  // that plainly had one, so it is best-effort: on failure fall back to the
-  // rankings the indexer wrote from chain moments earlier.
   const liveHolders: Array<{ wallet: string; balance: number; isContract: boolean }> =
-    await (async () => {
-      if (!isPonsSession() && workerOwnsIndexing()) {
-        return (getStaleTokenHolders(config.tokenMint) ?? []).map(h => ({
+    !isPonsSession() && workerOwnsIndexing()
+      ? (getStaleTokenHolders(config.tokenMint) ?? []).map(h => ({
           wallet: h.wallet,
           balance: h.balance,
           isContract: isLiquidityPoolWallet(h.wallet, config.tokenMint),
         }))
-      }
-      try {
-        return await getTokenHolders(config.tokenMint, Math.min(config.maxHoldersToProcess, 1000))
-      } catch (err) {
-        console.warn(
-          '[Payout] Live holder refresh unavailable, using the indexed snapshot:',
-          err instanceof Error ? err.message : err
-        )
-        return []
-      }
-    })()
+      : await getTokenHolders(config.tokenMint, Math.min(config.maxHoldersToProcess, 1000))
   if (liveHolders.length > 0) {
     mergeLiveHolderBalances(rankingByWallet, liveHolders, config.tokenMint)
   }
@@ -907,8 +876,7 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
     const buybackSol = poolSol * config.buybackBurnPct
     const winnersPoolSol = poolSol - devFeeSol - buybackSol
     const shareFractions = getWinnerShareFractions(config.winnerCount)
-    const fullPayoutAmounts = shareFractions.map(fraction => winnersPoolSol * fraction)
-
+    const payoutAmounts = shareFractions.map(fraction => winnersPoolSol * fraction)
 
     const accruedDevFee = await getAccruedDevFeeEth()
     const devWalletValid = (() => {
@@ -947,51 +915,6 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
         payWinnersInNativeToken = false
       }
     }
-
-    // A big pool against a small token can buy a chart-breaking share of
-    // supply. Cap the token leg and pay the rest of the same payout in ETH —
-    // the winner's value is unchanged, only what it arrives as. Deferring the
-    // remainder instead would strand it: the winner is on cooldown next cycle.
-    const capSplits: CappedPayout[] = await (async () => {
-      const noCap = fullPayoutAmounts.map(amountEth => ({
-        tokenEth: amountEth,
-        cashEth: 0,
-        tokens: 0,
-        capped: false,
-      }))
-      if (!payWinnersInNativeToken || !config.tokenMint) return noCap
-      try {
-        const { totalTokenSupply } = await import('@/lib/pons/supply')
-        const [supply, tokenUsd] = await Promise.all([
-          totalTokenSupply(config.tokenMint, config.tokenDecimals),
-          getTokenPrice(config.tokenMint),
-        ])
-        if (!supply || !tokenUsd || tokenUsd <= 0 || solPrice <= 0) return noCap
-        const tokensPerEth = solPrice / tokenUsd
-        return fullPayoutAmounts.map(amountEth =>
-          splitPayoutAtSupplyCap({ amountEth, tokensPerEth, totalSupply: supply })
-        )
-      } catch (err) {
-        // A cap we cannot compute must not change anyone's payout.
-        console.warn('[Payout] Supply cap unavailable, paying in tokens as normal:', err)
-        return noCap
-      }
-    })()
-
-    capSplits.forEach((split, i) => {
-      if (!split.capped) return
-      console.log(
-        `[Payout] #${i + 1} token leg capped at ${MAX_PAYOUT_PCT_OF_SUPPLY}% of supply — ` +
-          `${split.tokenEth.toFixed(6)} ETH of token, ${split.cashEth.toFixed(6)} ETH paid directly`
-      )
-    })
-
-    // The swap and the per-winner checks work from the token leg only; the ETH
-    // remainder is sent separately after the token transfer lands.
-    const payoutAmounts = capSplits.map(s => s.tokenEth)
-    const cashRemainderByRank = new Map<number, number>(
-      capSplits.map((s, i) => [i + 1, s.cashEth]).filter(([, cash]) => (cash as number) > 0) as [number, number][]
-    )
 
     console.log('[Payout] Creating pending winner payout records...')
 
@@ -1334,55 +1257,12 @@ export async function executePayout(knownWinners?: PayableWinner[]): Promise<Pay
           totalPaidSol += pending.amountSol
         }
 
-        // The rest of a capped payout, in ETH. Only after the token leg
-        // landed — a winner must never receive the remainder for tokens they
-        // did not get. A failure here leaves the ETH in the pool and is
-        // recorded against the payout rather than failing the whole cycle.
-        let cashTxHash: string | null = null
-        let cashEthPaid = 0
-        const cashEth = cashRemainderByRank.get(pending.rank) ?? 0
-        if (txResult.success && cashEth >= MIN_TRANSFER_SOL) {
-          const cashCheck = await assertPayoutTransferAllowed({
-            rank: pending.rank,
-            recipient: pending.wallet,
-            amountSol: cashEth,
-            walletSol: (await getLivePoolBalance()).walletSol,
-            allowedWinners: eligibleWinners,
-            expectedWinnerAmounts: capSplits.map(c => c.cashEth),
-          })
-          if (!cashCheck.ok) {
-            console.error(`[Payout] ${label} ETH remainder BLOCKED: ${cashCheck.reason}`)
-          } else {
-            console.log(
-              `[Payout] ${label}: Sending ${cashEth.toFixed(6)} ETH remainder (token leg hit the ${MAX_PAYOUT_PCT_OF_SUPPLY}% supply cap)`
-            )
-            const cashResult = config.executePayouts
-              ? await transferSol(pending.wallet, cashEth)
-              : { success: false, txHash: null, error: 'EXECUTE_PAYOUTS disabled' }
-            if (cashResult.success) {
-              cashTxHash = cashResult.txHash
-              cashEthPaid = cashEth
-              totalPaidSol += cashEth
-              await Payout.findByIdAndUpdate(pending.id, {
-                amount: tokenUsd + cashEth * solPrice,
-                cashRemainderEth: cashEth,
-                cashRemainderTxHash: cashResult.txHash,
-              })
-            } else {
-              console.warn(`[Payout] ${label} ETH remainder failed: ${cashResult.error}`)
-            }
-          }
-        }
-
         results.push({
           rank: pending.rank,
           type: 'winner',
           wallet: pending.wallet,
           amount_eth: pending.amountSol.toFixed(6),
           amount_tokens: tokenAmount.toFixed(4),
-          ...(cashEthPaid > 0
-            ? { cash_remainder_eth: cashEthPaid.toFixed(6), cash_remainder_tx_hash: cashTxHash }
-            : {}),
           status: txResult.success ? 'success' : 'failed',
           tx_hash: txResult.txHash,
           error: txResult.error,

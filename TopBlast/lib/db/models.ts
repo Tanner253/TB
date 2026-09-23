@@ -111,9 +111,6 @@ export interface IPayout extends Document {
   wallet: string
   amount: number
   amountTokens: number
-  /** ETH paid alongside the tokens when the token leg hit the supply cap. */
-  cashRemainderEth?: number | null
-  cashRemainderTxHash?: string | null
   drawdownPct: number
   lossUsd: number
   txHash: string | null
@@ -131,8 +128,6 @@ const PayoutSchema = new Schema<IPayout>({
   wallet: { type: String, required: true },
   amount: { type: Number, required: true },
   amountTokens: { type: Number, required: true },
-  cashRemainderEth: { type: Number, default: null },
-  cashRemainderTxHash: { type: String, default: null },
   drawdownPct: { type: Number, required: true },
   lossUsd: { type: Number, required: true },
   txHash: { type: String, default: null },

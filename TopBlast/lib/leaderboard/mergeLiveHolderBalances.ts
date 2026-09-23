@@ -3,7 +3,6 @@ import { isExcludedParticipantWallet } from '@/lib/eligibility/excludedWallets'
 import { isLiquidityPoolWallet } from '@/lib/eligibility/liquidityPools'
 import type { OnChainHolderStats } from '@/lib/solana/holderStats'
 import { meetsMinTokenHoldingFromChain, rawToHumanTokenAmount } from '@/lib/solana/tokenAmount'
-import { walletKey } from '@/lib/pons/session'
 
 export interface LeaderboardRankingRow {
   wallet: string
@@ -72,17 +71,14 @@ export function mergeLiveHolderBalances(
     }
 
     qualifying++
-    // Keyed case-insensitively. The chain feed and the stored rankings can
-    // disagree on the casing of the same EVM address, and a miss here does not
-    // degrade — it deletes the holder below.
     liveQualifying.set(
-      walletKey(h.wallet),
+      h.wallet,
       rawToHumanTokenAmount(h.balance, config.tokenDecimals)
     )
   }
 
   for (const wallet of [...rankingByWallet.keys()]) {
-    const liveBalance = liveQualifying.get(walletKey(wallet))
+    const liveBalance = liveQualifying.get(wallet)
     if (liveBalance == null) {
       rankingByWallet.delete(wallet)
       continue
@@ -90,9 +86,8 @@ export function mergeLiveHolderBalances(
     rankingByWallet.get(wallet)!.balance = liveBalance
   }
 
-  const rankedKeys = new Set([...rankingByWallet.keys()].map(walletKey))
   for (const [wallet, balance] of liveQualifying) {
-    if (rankedKeys.has(wallet)) continue
+    if (rankingByWallet.has(wallet)) continue
     rankingByWallet.set(wallet, newStubRanking(wallet, balance))
   }
 

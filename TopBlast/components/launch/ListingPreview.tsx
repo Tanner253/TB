@@ -4,7 +4,6 @@ import { ListingTerms } from '@/components/catalog/ListingTerms'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
 import { getWinnerShareDisplayPercents } from '@/lib/payout/winnerShares'
 import { COMMUNITY_PCT, DEV_FEE_PCT, BUYBACK_BURN_PCT } from '@/lib/platform/flywheel'
-import { MAX_PAYOUT_PCT_OF_SUPPLY } from '@/lib/payout/supplyCap'
 import { appHostname } from '@/lib/marketing/urls'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
 
@@ -111,15 +110,6 @@ export function ListingPreview({
           ? 'Winners are paid in your token, bought on its own curve — so each payout is buy volume on your chart.'
           : 'Winners are paid ETH directly, so payouts do not create buy volume on your chart.'}
       </p>
-
-      {payoutMode === 'token' ? (
-        <p className="mt-2 text-[0.7rem] leading-relaxed text-ink-3">
-          <strong className="text-ink-2">Supply guard:</strong> no single payout delivers more than{' '}
-          {MAX_PAYOUT_PCT_OF_SUPPLY}% of supply in tokens. If a winner&rsquo;s share is larger than
-          that, the rest is paid to them in ETH the same cycle — so one payout can never dump a
-          chart-breaking position on one wallet.
-        </p>
-      ) : null}
     </aside>
   )
 }
