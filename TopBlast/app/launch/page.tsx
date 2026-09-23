@@ -14,7 +14,7 @@ import { ChartVolumeExplainer } from '@/components/platform/ChartVolumeExplainer
 import { DynamicPotExplainer } from '@/components/platform/DynamicPotExplainer'
 import { EligibilityRequirements } from '@/components/tenant/EligibilityRequirements'
 import { AppHeader } from '@/components/platform/AppHeader'
-import { LaunchTabBar, LaunchTabPanel, useLaunchTabs } from '@/components/launch/LaunchTabs'
+import { LaunchStepNav, LaunchTabBar, LaunchTabPanel, useLaunchTabs } from '@/components/launch/LaunchTabs'
 import { DEV_HERO, TRUST_FOOTER } from '@/lib/marketing/devValueProp'
 import { appHostname } from '@/lib/marketing/urls'
 import {
@@ -29,7 +29,10 @@ import { ChainDepositNotice } from '@/components/ui/ChainDepositNotice'
 
 export default function LaunchPage() {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useLaunchTabs('create')
+  // Starts on the setup guide: listing hands over an encrypted key and locks
+  // rules that cannot be changed afterwards, so the form is the last step.
+  const wizard = useLaunchTabs('setup')
+  const { activeTab, setActiveTab } = wizard
   const [form, setForm] = useState({
     slug: '',
     symbol: '',
@@ -83,19 +86,24 @@ export default function LaunchPage() {
           </header>
 
           <div className="mb-8">
-            <LaunchTabBar activeTab={activeTab} onTabChange={setActiveTab} />
+            <LaunchTabBar
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              seen={wizard.seen}
+              canCreate={wizard.canCreate}
+            />
           </div>
 
           <LaunchTabPanel tabId="create" activeTab={activeTab}>
             <form onSubmit={handleSubmit} className="glass-panel rounded-2xl p-6 md:p-8 border-rh-green/20 space-y-5">
               <p className="text-sm text-ink-3">
-                Fill in your token details below. Need help first?{' '}
+                Fill in your token details below. Want to re-read anything?{' '}
                 <button
                   type="button"
                   onClick={() => setActiveTab('setup')}
                   className="text-sol-purple hover:text-sol-purple-dark underline underline-offset-2"
                 >
-                  Open the setup guide
+                  Back to the setup guide
                 </button>
                 .
               </p>
@@ -300,16 +308,7 @@ export default function LaunchPage() {
             <div className="space-y-6">
               <LaunchSetupChecklist />
               <LaunchAfterSubmitFlow />
-              <p className="text-sm text-ink-3 text-center">
-                Ready?{' '}
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('create')}
-                  className="text-sol-purple hover:text-sol-purple-dark underline underline-offset-2"
-                >
-                  Go to Create listing
-                </button>
-              </p>
+              <LaunchStepNav wizard={wizard} nextLabel="Next: payout rules →" />
             </div>
           </LaunchTabPanel>
 
@@ -322,6 +321,7 @@ export default function LaunchPage() {
                 <EligibilityRequirements variant="compact" />
               </section>
               <LaunchSkippedCyclesNote className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-6" />
+              <LaunchStepNav wizard={wizard} nextLabel="Next: fees & trust →" />
             </div>
           </LaunchTabPanel>
 
@@ -338,6 +338,7 @@ export default function LaunchPage() {
               <p className="text-xs text-ink-3 rounded-xl border border-line bg-ink/[0.02] p-4">
                 {TRUST_FOOTER}
               </p>
+              <LaunchStepNav wizard={wizard} nextLabel="I've read this — create my listing →" />
             </div>
           </LaunchTabPanel>
         </motion.div>
