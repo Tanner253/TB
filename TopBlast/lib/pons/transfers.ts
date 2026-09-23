@@ -13,10 +13,33 @@ export function signingAllowed(): boolean {
 export function getPayoutWalletAddress(): string | null {
   return accountForKey(getPayoutPrivateKey())?.address.toLowerCase() ?? null
 }
+/**
+ * Native balance, retried.
+ *
+ * The Robinhood RPC rate-limits hard and drops roughly one call in four under
+ * load. A single attempt meant a momentary refusal was reported as a balance,
+ * and a zero balance is indistinguishable from an empty pool: payouts were
+ * skipped on a wallet that plainly held funds. The Solana path has always
+ * retried across endpoints; this one had one shot.
+ *
+ * Failure still returns rpcError so callers can tell "unknown" from "empty" —
+ * that distinction is what stops a flaky read from pausing a payout.
+ */
 export async function getWalletBalance(address: string) {
   if (!isEvmAddress(address)) return null
-  try { return { sol: Number(formatEther(await publicClient().getBalance({ address: address as Address }))), address } }
-  catch { return { sol: 0, address, rpcError: 'Could not read Robinhood balance' } }
+  let lastError = 'Could not read Robinhood balance'
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const wei = await publicClient().getBalance({ address: address as Address })
+      return { sol: Number(formatEther(wei)), address }
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err)
+      // Brief, widening backoff — the failures are rate limits, not outages.
+      if (attempt < 2) await new Promise(r => setTimeout(r, 150 * (attempt + 1)))
+    }
+  }
+  console.warn(`[Pons] Balance read failed for ${address.slice(0, 10)}… after 3 attempts: ${lastError}`)
+  return { sol: 0, address, rpcError: lastError }
 }
 export async function tokenBalance(mint: string, wallet: string, decimals: number): Promise<number> {
   if (!isEvmAddress(mint) || !isEvmAddress(wallet)) throw new Error('Invalid EVM address')

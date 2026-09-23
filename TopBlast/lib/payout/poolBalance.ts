@@ -113,19 +113,21 @@ export async function getLivePoolBalance(options?: {
   const solPrice = (await getSolPrice()) ?? 0
   const walletBalance = await getPayoutWalletBalance()
 
+  // A failed read is never cached. The RPC drops roughly one call in four
+  // under load, and caching the failure for the full TTL turned a momentary
+  // blip into 45 seconds of an apparently empty pool — long enough to cover
+  // the worker tick that would have run the payout. Not caching it means the
+  // very next caller retries instead of inheriting the failure.
   if (!walletBalance) {
-    const result = buildLivePoolBalance(0, null, solPrice, { available: false })
-    writePoolBalanceCache(cacheKey, result)
-    return result
+    return buildLivePoolBalance(0, null, solPrice, { available: false })
   }
 
   if (walletBalance.rpcError) {
-    const result = buildLivePoolBalance(0, walletBalance.address, solPrice, {
+    console.warn(`[Pool] Balance read failed for ${walletBalance.address} — reporting unknown, not empty`)
+    return buildLivePoolBalance(0, walletBalance.address, solPrice, {
       available: false,
       balanceLookupFailed: true,
     })
-    writePoolBalanceCache(cacheKey, result)
-    return result
   }
 
   const result = buildLivePoolBalance(walletBalance.sol, walletBalance.address, solPrice)
