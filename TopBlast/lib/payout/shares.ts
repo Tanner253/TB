@@ -1,13 +1,16 @@
 import { DEFAULT_WINNER_COUNT } from '@/lib/payout/winnerCount'
 import {
+  BUYBACK_BURN_PCT,
+  COMMUNITY_PCT,
+  DEV_FEE_PCT as DEV_FEE_PERCENT,
+  PROTOCOL_FEE_PCT,
+} from '@/lib/platform/flywheel'
+import {
   formatWinnerSharePercents,
   getWinnerShareDisplayPercents,
   getWinnerShareFractions,
   getWinnerSharePercentsLegacy,
 } from '@/lib/payout/winnerShares'
-
-/** Protocol-wide dev fee (same for all tenants) */
-const DEV_FEE_PCT = 0.12
 
 /** Winner-pool share labels for default 3-winner listings */
 export function getWinnerSharePercents(winnerCount: number = DEFAULT_WINNER_COUNT) {
@@ -15,11 +18,20 @@ export function getWinnerSharePercents(winnerCount: number = DEFAULT_WINNER_COUN
 }
 
 export function getDevFeePercent() {
-  return Math.round(DEV_FEE_PCT * 100)
+  return DEV_FEE_PERCENT
+}
+
+/** The buyback-and-burn cut, which is not part of the dev fee. */
+export function getBurnPercent() {
+  return BUYBACK_BURN_PCT
+}
+
+export function getProtocolFeePercent() {
+  return PROTOCOL_FEE_PCT
 }
 
 export function getCommunityPercent() {
-  return Math.round((1 - DEV_FEE_PCT) * 100)
+  return COMMUNITY_PCT
 }
 
 /** USD payout for eligible rank (0 = 1st biggest loser). Unused ranks return 0. */
@@ -30,7 +42,10 @@ export function getPayoutForEligibleRank(
 ): number {
   const fractions = getWinnerShareFractions(winnerCount)
   if (eligibleRank < 0 || eligibleRank >= fractions.length) return 0
-  const winnersPool = poolUsd * (1 - DEV_FEE_PCT)
+  // Both protocol cuts come off before winners split anything, so this
+  // estimate has to net out the burn share too — otherwise the leaderboard
+  // quotes a prize 10% larger than the cycle will actually pay.
+  const winnersPool = poolUsd * (COMMUNITY_PCT / 100)
   return winnersPool * fractions[eligibleRank]
 }
 
@@ -38,6 +53,8 @@ export function getPayoutSplitLabels(winnerCount: number = DEFAULT_WINNER_COUNT)
   const shares = getWinnerSharePercents(winnerCount)
   return {
     dev: `${getDevFeePercent()}%`,
+    burn: `${getBurnPercent()}%`,
+    protocol: `${getProtocolFeePercent()}%`,
     first: `${shares.first}%`,
     second: `${shares.second}%`,
     third: `${shares.third}%`,

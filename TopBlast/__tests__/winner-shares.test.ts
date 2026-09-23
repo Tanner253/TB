@@ -1,3 +1,4 @@
+import { COMMUNITY_PCT } from '@/lib/platform/flywheel'
 import {
   getWinnerShareFractions,
   getWinnerShareDisplayPercents,
@@ -70,11 +71,25 @@ describe('getWinnerShareFractions', () => {
 })
 
 describe('getPayoutForEligibleRank', () => {
-  it('pays only configured ranks', () => {
+  it('pays only configured ranks, netting both protocol cuts', () => {
     const pool = 1000
-    expect(getPayoutForEligibleRank(pool, 0, 3)).toBeCloseTo(528, 0)
-    expect(getPayoutForEligibleRank(pool, 2, 3)).toBeCloseTo(132, 0)
+    // 20% comes off the top (12% dev + 8% burn) before winners split the rest,
+    // so first of three is 60% of $800, not of $1,000.
+    const winnersPool = pool * (COMMUNITY_PCT / 100)
+    expect(winnersPool).toBeCloseTo(800, 6)
+    expect(getPayoutForEligibleRank(pool, 0, 3)).toBeCloseTo(480, 0)
+    expect(getPayoutForEligibleRank(pool, 2, 3)).toBeCloseTo(120, 0)
     expect(getPayoutForEligibleRank(pool, 3, 3)).toBe(0)
+  })
+
+  it('never quotes more than the community pool', () => {
+    const pool = 1000
+    for (const count of [3, 5, 10]) {
+      const total = Array.from({ length: count }, (_, i) =>
+        getPayoutForEligibleRank(pool, i, count)
+      ).reduce((a, b) => a + b, 0)
+      expect(total).toBeCloseTo(pool * (COMMUNITY_PCT / 100), 6)
+    }
   })
 
   it('scales payout down for more winners at same rank', () => {
