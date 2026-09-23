@@ -442,8 +442,21 @@ async function syncPayoutTimerWithPoolMinimum(): Promise<void> {
 /** Live eligible winners that still hold the session token on-chain (same bar as payout). */
 export async function countVerifiedPayableWinners(limit?: number): Promise<number> {
   if (isPonsSession()) {
-    const { refreshPonsRankings } = await import('@/lib/pons/rankings')
-    await refreshPonsRankings({ force: true })
+    // Best-effort freshness. This throws on a rate-limited RPC or while the
+    // indexer holds its lock, and letting it escape cancelled the payout
+    // before eligibility was even computed. resolveLivePayableWinners
+    // re-evaluates every holder from balance, VWAP and live price rather than
+    // trusting stored flags, so a skipped refresh costs freshness, not
+    // correctness.
+    try {
+      const { refreshPonsRankings } = await import('@/lib/pons/rankings')
+      await refreshPonsRankings({ force: true })
+    } catch (err) {
+      console.warn(
+        '[Payout] Pre-payout ranking refresh failed, evaluating the existing snapshot:',
+        err instanceof Error ? err.message : err
+      )
+    }
   }
   const winnerLimit = limit ?? config.winnerCount
   const winners = await resolveLivePayableWinners(winnerLimit)
@@ -523,14 +536,31 @@ export async function resolveLivePayableWinners(limit?: number): Promise<Payable
   const rankingByWallet = new Map(
     dbRankings.rankings.map(h => [h.wallet, { ...h }] as const)
   )
+  // A freshness check, not the source of truth. On Pons this re-reads every
+  // holder's balance and bytecode from chain — two calls per holder — and
+  // throws outright while the indexer holds its lock. Letting that failure
+  // escape cancelled the whole payout with "No eligible winners" on a session
+  // that plainly had one, so it is best-effort: on failure fall back to the
+  // rankings the indexer wrote from chain moments earlier.
   const liveHolders: Array<{ wallet: string; balance: number; isContract: boolean }> =
-    !isPonsSession() && workerOwnsIndexing()
-      ? (getStaleTokenHolders(config.tokenMint) ?? []).map(h => ({
+    await (async () => {
+      if (!isPonsSession() && workerOwnsIndexing()) {
+        return (getStaleTokenHolders(config.tokenMint) ?? []).map(h => ({
           wallet: h.wallet,
           balance: h.balance,
           isContract: isLiquidityPoolWallet(h.wallet, config.tokenMint),
         }))
-      : await getTokenHolders(config.tokenMint, Math.min(config.maxHoldersToProcess, 1000))
+      }
+      try {
+        return await getTokenHolders(config.tokenMint, Math.min(config.maxHoldersToProcess, 1000))
+      } catch (err) {
+        console.warn(
+          '[Payout] Live holder refresh unavailable, using the indexed snapshot:',
+          err instanceof Error ? err.message : err
+        )
+        return []
+      }
+    })()
   if (liveHolders.length > 0) {
     mergeLiveHolderBalances(rankingByWallet, liveHolders, config.tokenMint)
   }
