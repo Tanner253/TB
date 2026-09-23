@@ -128,6 +128,12 @@ export default function LaunchPage() {
 
               <label className="block">
                 <span className="text-sm text-ink-2">Pons token contract address</span>
+                <span className="mt-1 block text-xs text-ink-3">
+                  Must be an <strong className="text-sol-purple">ETH-paired</strong> Pons launch on
+                  Robinhood Chain. Pons lets you pair with any token, but the reward pot, the loss
+                  rankings and the buyback are all priced in ETH — a launch paired with anything else
+                  can&rsquo;t be serviced here.
+                </span>
                 <input
                   required
                   value={form.mint}

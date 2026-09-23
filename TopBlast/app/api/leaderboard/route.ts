@@ -1,3 +1,4 @@
+import { nativeUnitForMint } from '@/lib/platform/chainShape'
 import { NextRequest, NextResponse } from 'next/server'
 import { formatPrice, formatUsd, getResolvedTokenPrice } from '@/lib/solana/price'
 import { formatWallet } from '@/lib/solana/holders'
@@ -192,7 +193,7 @@ export async function GET(request: NextRequest) {
       pool_balance_eth: poolEthFormatted,
       pool_balance_usd: poolUsdFormatted,
       pool_balance_usd_raw: poolUsd,
-      pool_balance_tokens: `${poolEthFormatted} SOL`,
+      pool_balance_tokens: `${poolEthFormatted} ${nativeUnitForMint(config.tokenMint)}`,
       payout_wallet_address: payoutWalletAddress,
       eth_price: ethPrice,
       min_loss_threshold_usd: minLossUsdFormatted,
@@ -210,6 +211,7 @@ export async function GET(request: NextRequest) {
       await ensureTimerStateSync()
       const timerAfterPayout = getPayoutTimerInfo()
       const diagnosticsInput = {
+        tokenMint: config.tokenMint,
         pool: livePool,
         timer: timerAfterPayout,
         trackedHolders: 0,
@@ -507,6 +509,7 @@ export async function GET(request: NextRequest) {
     }
 
     const diagnosticsInput = {
+      tokenMint: config.tokenMint,
       pool: livePool,
       timer: timerAfterPayout,
       trackedHolders: sourceRankings.length,

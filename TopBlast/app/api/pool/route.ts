@@ -1,3 +1,4 @@
+import { nativeUnitForMint } from '@/lib/platform/chainShape'
 import { NextResponse } from 'next/server'
 import { formatUsd } from '@/lib/solana/price'
 import { getPayoutSplitLabels } from '@/lib/payout/shares'
@@ -24,7 +25,7 @@ export async function GET() {
         balance_eth: livePool.poolEthFormatted,
         wallet_eth: livePool.walletEth,
         payout_wallet_address: livePool.payoutWalletAddress,
-        balance_tokens: `${livePool.poolEthFormatted} SOL`,
+        balance_tokens: `${livePool.poolEthFormatted} ${nativeUnitForMint(config.tokenMint)}`,
         total_distributed_usd: formatUsd(payoutStats.total_distributed_usd),
         total_distributed_sol: payoutStats.total_distributed_sol.toFixed(6),
         total_cycles: payoutStats.total_cycles,

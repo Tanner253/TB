@@ -159,7 +159,20 @@ export async function createTenant(input: CreateTenantInput) {
     const { publicClient, ERC20_ABI, isTestnet } = await import('@/lib/pons/contracts')
     if (isTestnet()) throw new Error('Pons testnet deployment is not configured')
     const launch = await getPonsLaunch(mint)
-    if (!launch || !launch.nativeQuote || !launch.onCurve) throw new Error('List an active native-ETH Pons v2 curve')
+    // Pons lets a launch be paired with any token. TopBlast only services
+    // ETH-paired ones: the reward pot, the loss ranking and the buyback are
+    // all denominated in ETH, so a launch quoted in some other asset would
+    // have its fees claimed into the payout wallet as an ERC-20 that the pool
+    // never sees. Refusing at listing time beats stranding a creator's fees.
+    if (!launch) throw new Error('That address is not a Pons v2 launch on Robinhood Chain')
+    if (!launch.nativeQuote) {
+      throw new Error(
+        'TopBlast only supports ETH-paired Pons launches. This token is paired with ' +
+          `${launch.pairToken}, and its reward pot, loss rankings and buybacks are all priced in ETH. ` +
+          'Relaunch on Pons paired with ETH to list it here.'
+      )
+    }
+    if (!launch.onCurve) throw new Error('This Pons launch is not on an active bonding curve')
     if (!accountForKey(input.payoutWalletPrivateKey)) throw new Error('Expected a 32-byte EVM private key')
     if (launch.creatorFeeRecipient.toLowerCase() !== payoutWalletAddress) throw new Error('Payout wallet must be the Pons creator fee recipient')
     decimals = Number(await publicClient().readContract({ address: launch.token, abi: ERC20_ABI, functionName: 'decimals' }))

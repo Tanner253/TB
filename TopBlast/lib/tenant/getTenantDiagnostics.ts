@@ -70,6 +70,7 @@ export async function getTenantDiagnostics(): Promise<TenantDiagnostics> {
   }
 
   return buildTenantDiagnostics({
+    tokenMint: config.tokenMint,
     pool,
     timer,
     trackedHolders: sourceRankings.length,

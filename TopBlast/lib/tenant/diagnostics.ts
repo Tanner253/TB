@@ -3,6 +3,7 @@ import type { PayoutTimerInfo } from '@/lib/payout/executor'
 import { config } from '@/lib/config'
 import { isPoolFundedForPayout, minPoolForPayoutLabel, payoutWalletUsd } from '@/lib/payout/poolMinimum'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
+import { nativeUnitForMint } from '@/lib/platform/chainShape'
 
 export type DiagnosticSeverity = 'success' | 'info' | 'warning' | 'error'
 
@@ -15,6 +16,10 @@ export interface TenantDiagnostic {
 }
 
 export interface TenantDiagnosticsInput {
+  /** The listing's token address. Decides which chain's vocabulary the
+      messages use — a Pons listing settles in ETH and is indexed from chain
+      logs, not from Helius. */
+  tokenMint?: string | null
   pool: LivePoolBalance
   timer: PayoutTimerInfo
   trackedHolders: number
@@ -43,6 +48,7 @@ function formatSol(amount: number): string {
 export function buildTenantDiagnostics(input: TenantDiagnosticsInput): TenantDiagnostics {
   const items: TenantDiagnostic[] = []
   const {
+    tokenMint = null,
     pool,
     timer,
     trackedHolders,
@@ -58,35 +64,42 @@ export function buildTenantDiagnostics(input: TenantDiagnosticsInput): TenantDia
     migrationStage = null,
   } = input
 
+  // Every native-asset figure below is labelled from the listing's own chain.
+  const unit = nativeUnitForMint(tokenMint)
+  const isLegacy = unit === 'SOL'
   const minBalance = config.minTokenHolding.toLocaleString()
   const holdMins = config.minHoldDurationMinutes
   const payoutIntervalLabel = formatPayoutInterval(config.payoutIntervalMinutes)
 
-  // --- Live price feed (DexScreener / Jupiter — not Helius RPC) ---
+  // --- Live price feed ---
   if (!priceAvailable) {
     items.push({
       id: 'price_unavailable',
       severity: 'warning',
       title: 'Live price not indexed yet',
-      message:
-        'DexScreener has not indexed this mint yet. Common for brand-new Pump.fun launches — wait a few minutes.',
-      action: 'Price updates automatically once DexScreener lists your token. Helius RPC is not used for price polling.',
+      message: isLegacy
+        ? 'DexScreener has not indexed this mint yet — wait a few minutes.'
+        : 'No price feed for this token yet. Normal for a fresh Pons launch still on its bonding curve.',
+      action: 'Price updates automatically once the token is indexed. Nothing to do.',
     })
   } else if (migrationStage === 'bonding_curve') {
     items.push({
       id: 'pump_bonding_curve',
       severity: 'info',
-      title: 'Pump.fun bonding curve (pre-migration)',
-      message: `Price is tracked from the Pump.fun pool via DexScreener (${priceSource || 'dexscreener'}).`,
-      action:
-        'When the token migrates to PumpSwap/Raydium, TopBlast automatically switches to the highest-liquidity pair — no action needed.',
+      title: isLegacy ? 'Bonding curve (pre-migration)' : 'Pons bonding curve (pre-graduation)',
+      message: `Price is tracked from the bonding-curve pool (${priceSource || 'dexscreener'}).`,
+      action: isLegacy
+        ? 'When the token migrates, TopBlast switches to the highest-liquidity pair automatically — no action needed.'
+        : 'When the launch graduates to Uniswap v4, TopBlast switches to the v4 pool automatically — no action needed.',
     })
   } else if (migrationStage === 'migrated') {
     items.push({
       id: 'pump_migrated',
       severity: 'success',
-      title: 'Token migrated off Pump.fun bonding curve',
-      message: 'Price now follows the migrated PumpSwap (or higher-liquidity) pool.',
+      title: isLegacy ? 'Token migrated off the bonding curve' : 'Launch graduated to Uniswap v4',
+      message: isLegacy
+        ? 'Price now follows the migrated (or higher-liquidity) pool.'
+        : 'Price now follows the Uniswap v4 pool. Buybacks route through the Universal Router.',
     })
   }
 
@@ -97,38 +110,42 @@ export function buildTenantDiagnostics(input: TenantDiagnosticsInput): TenantDia
       severity: 'error',
       title: 'Payout wallet not configured',
       message: 'TopBlast could not load a payout wallet from PAYOUT_WALLET_PRIVATE_KEY.',
-      action: 'Set a valid base58 Solana private key in Vercel env for this deployment.',
+      action: isLegacy
+        ? 'Set a valid base58 private key in Vercel env for this deployment.'
+        : 'Set PAYOUT_WALLET_PRIVATE_KEY in Vercel to a 32-byte hex EVM key.',
     })
   } else if (pool.balanceLookupFailed) {
     items.push({
       id: 'pool_rpc_error',
       severity: 'warning',
       title: 'Could not read payout wallet balance',
-      message: `Configured payout wallet is ${pool.payoutWalletAddress}. Helius RPC failed to return SOL balance — usually a missing HELIUS_API_KEY or bad HELIUS_RPC_URL.`,
-      action: `Verify HELIUS_API_KEY in Vercel and that SOL is in ${pool.payoutWalletAddress}.`,
+      message: isLegacy
+        ? `Configured payout wallet is ${pool.payoutWalletAddress}. The RPC failed to return a balance.`
+        : `Configured payout wallet is ${pool.payoutWalletAddress}. The Robinhood Chain RPC failed to return a balance — usually a rate limit or a bad ROBINHOOD_RPC_URL.`,
+      action: `Retry shortly, and confirm ${unit} is in ${pool.payoutWalletAddress}.`,
     })
   } else if (pool.walletSol <= 0) {
     items.push({
       id: 'pool_empty',
       severity: 'error',
-      title: 'Payout wallet has no SOL',
-      message: `Winner payouts and cycles cannot run until this wallet holds SOL.`,
-      action: `Send SOL to your payout wallet: ${pool.payoutWalletAddress}`,
+      title: `Payout wallet has no ${unit}`,
+      message: `Winner payouts and cycles cannot run until this wallet holds ${unit}.`,
+      action: `Send ${unit} to your payout wallet: ${pool.payoutWalletAddress}`,
     })
   } else if (!isPoolFundedForPayout(pool)) {
     items.push({
       id: 'pool_below_minimum',
       severity: 'warning',
       title: 'Payout pool below minimum',
-      message: `Payout wallet holds ${formatSol(pool.walletSol)} SOL (~${pool.poolUsdFormatted} at live SOL price). Minimum to start or run a cycle is ${minPoolForPayoutLabel()} USD in SOL.`,
-      action: `Send SOL to ${pool.payoutWalletAddress}. If the wallet is drained below ${minPoolForPayoutLabel()}, the session stays in limbo and cycles will not run.`,
+      message: `Payout wallet holds ${formatSol(pool.walletSol)} ${unit} (~${pool.poolUsdFormatted} at live ${unit} price). Minimum to start or run a cycle is ${minPoolForPayoutLabel()} USD in ${unit}.`,
+      action: `Send ${unit} to ${pool.payoutWalletAddress}. If the wallet is drained below ${minPoolForPayoutLabel()}, the session stays in limbo and cycles will not run.`,
     })
   } else {
     items.push({
       id: 'pool_funded',
       severity: 'success',
       title: 'Payout wallet funded',
-      message: `${formatSol(pool.poolSol)} SOL available for rewards (~${pool.poolUsdFormatted}).`,
+      message: `${formatSol(pool.poolSol)} ${unit} available for rewards (~${pool.poolUsdFormatted}).`,
       action: `Payout wallet: ${pool.payoutWalletAddress}`,
     })
   }
@@ -139,16 +156,19 @@ export function buildTenantDiagnostics(input: TenantDiagnosticsInput): TenantDia
       id: 'indexing',
       severity: 'info',
       title: 'Indexing holders from chain',
-      message:
-        'After listing, TopBlast pulls holders and buy history via Helius. This usually takes 1–5 minutes.',
-      action: 'No action needed — refresh the leaderboard shortly. Ensure HELIUS can see your mint.',
+      message: isLegacy
+        ? 'After listing, TopBlast pulls holders and buy history. This usually takes 1–5 minutes.'
+        : 'TopBlast is reading holders and buy history from Robinhood Chain logs. This usually takes 1–5 minutes.',
+      action: 'No action needed — refresh the leaderboard shortly.',
     })
   } else if (trackedHolders === 0) {
     items.push({
       id: 'no_holders',
       severity: 'warning',
       title: 'No token holders detected',
-      message: `No wallets holding your SPL mint were found on ${config.solanaNetwork || 'Solana'}.`,
+      message: isLegacy
+        ? 'No wallets holding this token were found on-chain.'
+        : 'No wallets holding this token were found on Robinhood Chain.',
       action:
         'Share your token so people buy and hold. Rankings appear once on-chain holders exist.',
     })
