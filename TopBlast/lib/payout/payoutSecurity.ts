@@ -15,6 +15,11 @@ export function getMinWalletReserveSol(): number {
   return Number.isFinite(raw) && raw >= 0 ? raw : 0.01
 }
 
+/**
+ * Valid payout recipient for the *current session's* chain: an 0x address on a
+ * Pons listing, base58 on a legacy one. Named for its Solana origin; prefer the
+ * `isValidPayoutAddress` alias below in new code.
+ */
 export function isValidSolanaAddress(address: string): boolean {
   if (isPonsSession()) return isEvmAddress(address)
   const trimmed = address?.trim()
@@ -38,8 +43,10 @@ export function assertProductionPayoutConfig(): string | null {
   }
 
   const dev = config.devWalletAddress?.trim()
-  if (dev && !isValidSolanaAddress(dev)) {
-    return 'DEV_WALLET_ADDRESS must be a valid Solana base58 address (not an EVM 0x address)'
+  if (dev && !isValidPayoutAddress(dev)) {
+    return isPonsSession()
+      ? 'DEV_WALLET_ADDRESS must be a 0x EVM address on Robinhood Chain'
+      : 'DEV_WALLET_ADDRESS must be a valid base58 address (not an EVM 0x address)'
   }
 
   return null
@@ -89,7 +96,7 @@ export async function assertPayoutTransferAllowed(input: {
   if (!Number.isFinite(amountSol) || amountSol <= 0 || !Number.isFinite(walletSol)) return { ok: false, reason: 'Invalid payout amount' }
 
   if (!isValidSolanaAddress(recipient)) {
-    return { ok: false, reason: 'Recipient is not a valid Solana address' }
+    return { ok: false, reason: isPonsSession() ? 'Recipient is not a valid EVM address' : 'Recipient is not a valid address' }
   }
 
   // Dev fee (rank 0) — allowed to DEV_WALLET_ADDRESS even though that wallet cannot win prizes.
@@ -175,7 +182,7 @@ export async function assertPayoutTokenTransferAllowed(input: {
   const { rank, recipient, amountTokens, allowedWinners } = input
 
   if (!isValidSolanaAddress(recipient)) {
-    return { ok: false, reason: 'Recipient is not a valid Solana address' }
+    return { ok: false, reason: isPonsSession() ? 'Recipient is not a valid EVM address' : 'Recipient is not a valid address' }
   }
 
   if (isExcludedParticipantWallet(recipient)) {
@@ -220,3 +227,6 @@ export async function assertPayoutTokenTransferAllowed(input: {
 
   return { ok: true }
 }
+
+/** Chain-neutral name for {@link isValidSolanaAddress}. */
+export const isValidPayoutAddress = isValidSolanaAddress

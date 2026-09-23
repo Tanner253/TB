@@ -1,4 +1,4 @@
-import { nativeUnitForMint } from '@/lib/platform/chainShape'
+import { isEvmAddressShape, nativeUnitForMint } from '@/lib/platform/chainShape'
 import { NextRequest, NextResponse } from 'next/server'
 import { formatPrice, formatUsd, getResolvedTokenPrice } from '@/lib/solana/price'
 import { formatWallet } from '@/lib/solana/holders'
@@ -80,20 +80,19 @@ export async function GET(request: NextRequest) {
       }, { status: 500 })
     }
 
-    if (config.tokenMint.startsWith('0x')) {
-      return NextResponse.json({
-        success: false,
-        error: 'Token mint must be a valid Solana SPL address (base58)',
-      }, { status: 500 })
-    }
-
     await ensureTimerStateSync()
 
     const { searchParams } = new URL(request.url)
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const forceRefresh = searchParams.get('refresh') === '1'
-    const readOnlyPoll = apiPollsAreReadOnly()
-    const runHelius = shouldRunHeliusOnLeaderboardPoll(forceRefresh)
+    // A Pons listing is indexed by the worker (lib/pons/holderIndex), never
+    // from this handler — the live-indexing path below is Solana-only, and
+    // pointing it at an 0x mint is what the old hard reject was really
+    // guarding against. Reading rankings from MongoDB is chain-agnostic, so
+    // EVM listings are served read-only whatever WORKER_OWNS_INDEXING says.
+    const isEvmListing = isEvmAddressShape(config.tokenMint)
+    const readOnlyPoll = apiPollsAreReadOnly() || isEvmListing
+    const runHelius = !isEvmListing && shouldRunHeliusOnLeaderboardPoll(forceRefresh)
     let holdersRefreshThrottled = false
     let holdersRefreshRetryAfterSec = 0
 
