@@ -1,3 +1,4 @@
+import { nativeUnitForMint } from '@/lib/platform/chainShape'
 import { config } from '@/lib/config'
 import { isPoolFundedForPayout, minPoolForPayoutLabel } from '@/lib/payout/poolMinimum'
 import { formatPayoutInterval } from '@/lib/platform/payoutIntervals'
@@ -68,6 +69,8 @@ export function buildSessionChecklist(
     upcomingCount,
     totalLosers,
     hasRankings,
+    reportedHolderCount = 0,
+    tokenMint = null,
     ineligibleReasons = {},
     priceAvailable = true,
   } = input
@@ -81,8 +84,13 @@ export function buildSessionChecklist(
   const minLossUsd = input.minLossUsdFormatted ?? '—'
 
   // DB-backed sessions on serverless may have rankings while in-memory tracker is cold
-  const indexed = hasRankings && trackedHolders > 0
-  const indexingInProgress = !indexed && (!hasRankings || holdersWithVwap === 0)
+  // A completed scan that ranked nobody still counts as indexed. Treating it
+  // as in-progress is what left the live listing on "Setting up session"
+  // indefinitely when its only holder was the excluded payout wallet.
+  const unit = nativeUnitForMint(tokenMint)
+  const scanned = reportedHolderCount > 0 || hasRankings || trackedHolders > 0
+  const indexed = scanned && (trackedHolders > 0 || reportedHolderCount > 0)
+  const indexingInProgress = !scanned
   const vwapReady = holdersWithVwap > 0
   const hasEligible = eligibleCount > 0
   const timerActive = timer.timer_status === 'active' && hasEligible && poolFunded
@@ -99,10 +107,10 @@ export function buildSessionChecklist(
       group: 'session',
       label: 'Payout pool funded',
       detail: poolFunded
-        ? `${pool.poolSol.toFixed(4)} SOL (~${pool.poolUsdFormatted}) distributable`
+        ? `${pool.poolSol.toFixed(4)} ${unit} (~${pool.poolUsdFormatted}) distributable`
         : pool.walletSol > 0
-          ? `${pool.poolUsdFormatted} in payout wallet — need at least ${minPoolLabel} USD in SOL`
-          : `Send at least ${minPoolLabel} USD worth of SOL to the payout wallet`,
+          ? `${pool.poolUsdFormatted} in payout wallet — need at least ${minPoolLabel} USD in ${unit}`
+          : `Send at least ${minPoolLabel} USD worth of ${unit} to the payout wallet`,
       status: !pool.available || !pool.payoutWalletAddress
         ? 'blocked'
         : pool.walletSol <= 0 || !poolFunded
@@ -240,7 +248,9 @@ export function buildSessionChecklist(
 
   if (overall === 'blocked') {
     headline = poolFunded ? 'Payout pool needs attention' : `Pool below ${minPoolLabel} minimum`
-    summary = poolFunded ? 'Fund the wallet or fix configuration' : 'Add SOL to the payout wallet before cycles can run'
+    summary = poolFunded
+      ? 'Fund the wallet or fix configuration'
+      : `Add ${unit} to the payout wallet before cycles can run`
   } else if (overall === 'loading') {
     headline = 'Setting up session'
     summary = 'Indexing chain data — usually 1–5 minutes'
@@ -249,7 +259,7 @@ export function buildSessionChecklist(
     summary = `Top ${config.winnerCount} eligible losers win on cycle end`
   } else if (hasEligible && !poolFunded) {
     headline = `${eligibleCount} eligible · waiting for volume`
-    summary = `Send at least ${minPoolLabel} USD in SOL to the payout wallet`
+    summary = `Send at least ${minPoolLabel} USD in ${unit} to the payout wallet`
   } else if (hasEligible) {
     headline = `${eligibleCount} eligible · timer starting`
     summary = 'First qualifying holders detected'
@@ -259,6 +269,9 @@ export function buildSessionChecklist(
   } else if (trackedHolders > 0) {
     headline = 'Live — no eligible winners yet'
     summary = `${trackedHolders} tracked · need drawdown + rules`
+  } else if (reportedHolderCount > 0) {
+    headline = 'Live — waiting for an outside holder'
+    summary = `${reportedHolderCount} on-chain · payout and dev wallets never compete`
   }
 
   return {
