@@ -300,7 +300,7 @@ export function RektModal() {
                 {/* actions */}
                 <div className="grid grid-cols-3 gap-2">
                   <a
-                    href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`}
+                    href={`https://x.com/intent/tweet?text=${encodeURIComponent(shareText)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="rounded-xl bg-accent px-3 py-2.5 text-center text-xs font-bold text-on-accent hover:bg-accent-hover transition-colors"

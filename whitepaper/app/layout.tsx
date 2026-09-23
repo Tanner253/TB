@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     title: 'TopBlast | Loss-Mining + Chart Volume on Robinhood Chain',
     description:
       'Creator fees become on-chart volume — real buys on your Pons curve, token airdrops, no cashback sell pressure.',
-    site: '@oSKNYo_dev',
+    site: '@TopblastPons',
     images: ['/og-image.png'],
   },
 }

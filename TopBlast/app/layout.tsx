@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: SITE_TITLE,
     description: `${SITE_DESCRIPTION} Robinhood Chain · ${PAYOUT_META}.`,
-    site: '@oSKNYo_dev',
+    site: '@TopblastPons',
     creator: '@oSKNYo_dev',
   },
 }

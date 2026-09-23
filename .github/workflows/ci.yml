@@ -97,9 +97,10 @@ jobs:
       - name: Build application
         run: npm run build
         env:
-          TOKEN_MINT_ADDRESS: So11111111111111111111111111111111111111112
+          # Shape matters: the app branches on EVM-vs-legacy address shape, so
+          # the build dummy has to look like a Robinhood Chain token.
+          TOKEN_MINT_ADDRESS: '0x0000000000000000000000000000000000000001'
           TOKEN_SYMBOL: TEST
-          HELIUS_API_KEY: test-helius-key
           MONGODB_URI: mongodb://127.0.0.1:27017/topblast-ci
           TENANT_ENCRYPTION_KEY: ci-test-encryption-key-not-for-production
           CRON_SECRET: ci-test-cron-secret
