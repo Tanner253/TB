@@ -25,7 +25,17 @@ export interface IndexResult {
   quoteIsNative: boolean
 }
 type Raw = { balance: string; bought: string; spent: string; firstBuyMs: number | null; sold: boolean; transferIn: boolean }
-type Checkpoint = { _id: string; version: number; launchBlock: string; cursor: string; blockHash: string; holders: Record<string, Raw>
+/**
+ * Bump when a change makes existing checkpoints wrong rather than merely
+ * incomplete. A mismatch throws the checkpoint away and re-scans from the
+ * launch block — without it, a fix to attribution only applies to blocks
+ * mined after the deploy and every wallet indexed before it stays broken.
+ *
+ * 2: router-forwarded CurveBuys are credited to the buyer, not the router.
+ */
+const INDEX_SCHEMA_VERSION = 2
+
+type Checkpoint = { _id: string; version: number; schema?: number; launchBlock: string; cursor: string; blockHash: string; holders: Record<string, Raw>
   /** Newest post-graduation trade already folded in (unix seconds). */
   v4Cursor?: number }
 
@@ -56,6 +66,10 @@ export async function indexLaunchHolders(input: { tokenAddress: string; launchBl
   const head = await client.getBlockNumber()
   const confirmed = head > 100n ? head - 100n : 0n
   let prior = saved
+  if (prior && (prior.schema ?? 1) !== INDEX_SCHEMA_VERSION) {
+    console.log(`[PonsIndex] Checkpoint schema ${prior.schema ?? 1} → ${INDEX_SCHEMA_VERSION}; re-scanning from launch`)
+    prior = null
+  }
   if (prior) {
     const block = await client.getBlock({ blockNumber: BigInt(prior.cursor) })
     if (block.hash !== prior.blockHash) prior = null // replay after a reorg
@@ -92,7 +106,19 @@ export async function indexLaunchHolders(input: { tokenAddress: string; launchBl
               if (from.toLowerCase() !== launch.curve.toLowerCase()) h.transferIn = true
             }
           } else if (name === 'CurveBuy' && log.address.toLowerCase() === launch.curve.toLowerCase()) {
-            const h = get(args.recipient)
+            // Pons' own UI buys through a router, so CurveBuy names the router
+            // as both buyer and recipient and the tokens are forwarded on in
+            // the same transaction. Crediting the router would leave every real
+            // buyer with no cost basis and therefore permanently unrankable, so
+            // follow the tokens to whoever actually keeps them.
+            const beneficiary = await resolveBuyBeneficiary({
+              recipient: String(args.recipient).toLowerCase(),
+              tokensOut: args.tokensOut as bigint,
+              txHash: log.transactionHash!,
+              token: launch.token,
+              excluded,
+            })
+            const h = get(beneficiary)
             h.bought = (BigInt(h.bought) + args.tokensOut).toString()
             h.spent = (BigInt(h.spent) + args.quoteIn).toString()
             if (h.firstBuyMs == null) {
@@ -139,7 +165,7 @@ export async function indexLaunchHolders(input: { tokenAddress: string; launchBl
       raw, get, excluded, prior: saved?.v4Cursor ?? 0,
     })
     const checkpoint: Checkpoint = {
-      _id: id, version: (saved?.version ?? 0) + 1, launchBlock: launchBlock.toString(),
+      _id: id, version: (saved?.version ?? 0) + 1, schema: INDEX_SCHEMA_VERSION, launchBlock: launchBlock.toString(),
       cursor: end.toString(), blockHash: (await client.getBlock({ blockNumber: end })).hash!,
       holders: raw, v4Cursor,
     }
@@ -160,6 +186,54 @@ export async function indexLaunchHolders(input: { tokenAddress: string; launchBl
   return { holders: holders.sort((a,b) => b.balance - a.balance), lastIndexedBlock: Number(end), incomplete: end < confirmed,
     quoteDecimals: Number(quoteDecimals), quoteIsNative: launch.nativeQuote }
 }
+/**
+ * Who actually ends up holding the tokens from a CurveBuy.
+ *
+ * Pons routes buys from its own UI through a helper contract: the curve emits
+ * CurveBuy with the router as `recipient`, the router receives the tokens and
+ * forwards them to the buyer in the same transaction. Taking `recipient` at
+ * face value credits the router with the purchase and leaves the real buyer
+ * looking like an airdrop recipient — no VWAP, no drawdown, never eligible.
+ *
+ * So: net every token Transfer in the transaction. A router nets zero (it
+ * receives and sends the same amount); the buyer nets exactly what was bought.
+ * Only an unambiguous match reassigns the buy — if the transaction moves tokens
+ * in a shape we cannot read (several buys batched, a split across wallets), the
+ * recorded recipient stands rather than inventing an entry price for someone.
+ */
+async function resolveBuyBeneficiary(input: {
+  recipient: string
+  tokensOut: bigint
+  txHash: `0x${string}`
+  token: Address
+  excluded: Set<string>
+}): Promise<string> {
+  const { recipient, tokensOut, txHash, token, excluded } = input
+  if (tokensOut <= 0n) return recipient
+  try {
+    const receipt = await publicClient().getTransactionReceipt({ hash: txHash })
+    const transfers = parseEventLogs({ abi: ERC20_ABI, logs: receipt.logs, eventName: 'Transfer' })
+      .filter(e => e.address.toLowerCase() === token.toLowerCase())
+    if (transfers.length < 2) return recipient
+
+    const net = new Map<string, bigint>()
+    for (const e of transfers) {
+      const from = e.args.from.toLowerCase()
+      const to = e.args.to.toLowerCase()
+      net.set(from, (net.get(from) ?? 0n) - e.args.value)
+      net.set(to, (net.get(to) ?? 0n) + e.args.value)
+    }
+
+    const gainers = [...net].filter(([address, amount]) => amount > 0n && !excluded.has(address))
+    const exact = gainers.filter(([, amount]) => amount === tokensOut)
+    if (exact.length === 1) return exact[0][0]
+    return recipient
+  } catch {
+    // A receipt we cannot read is not a reason to drop the buy entirely.
+    return recipient
+  }
+}
+
 export { CURVE_ABI }
 
 /**
