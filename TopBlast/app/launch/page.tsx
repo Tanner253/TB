@@ -26,6 +26,7 @@ import { LAUNCH_KEY_HELP, formatWinnerCountPreview } from '@/lib/tenant/launchHe
 import { DEFAULT_WINNER_COUNT, WINNER_COUNT_OPTIONS } from '@/lib/payout/winnerCount'
 import { RECOMMENDED_LISTING, RECOMMENDED_LISTING_WHY } from '@/lib/platform/recommendedListing'
 import { ChainDepositNotice } from '@/components/ui/ChainDepositNotice'
+import { isListingFormValid, validateListingForm } from '@/lib/platform/listingFormValidation'
 
 export default function LaunchPage() {
   const router = useRouter()
@@ -44,6 +45,15 @@ export default function LaunchPage() {
     payoutMode: 'token' as 'token' | 'sol',
   })
   const [submitting, setSubmitting] = useState(false)
+  // Show a field's problem once it has been left, not while it is being typed.
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const fieldErrors = validateListingForm(form)
+  const formValid = isListingFormValid(form)
+  const markTouched = (name: string) => setTouched(t => (t[name] ? t : { ...t, [name]: true }))
+  const FieldError = ({ name }: { name: keyof typeof fieldErrors }) =>
+    touched[name] && fieldErrors[name] ? (
+      <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors[name]}</p>
+    ) : null
   const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -130,12 +140,15 @@ export default function LaunchPage() {
                   onChange={e =>
                     setForm(f => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))
                   }
+                  onBlur={() => markTouched('slug')
+                  }
                   placeholder="my-token"
                   className="mt-1 w-full rounded-lg bg-card/70 border border-line px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
                 />
                 <p className="text-xs text-ink-3 mt-1">
                   Session URL: {appHostname()}/{form.slug || 'your-slug'}
                 </p>
+                <FieldError name="slug" />
               </label>
 
               <label className="block">
@@ -143,11 +156,14 @@ export default function LaunchPage() {
                 <input
                   required
                   value={form.symbol}
-                  onChange={e => setForm(f => ({ ...f, symbol: e.target.value.toUpperCase() }))}
+                  onChange={e => setForm(f => ({ ...f, symbol: e.target.value.toUpperCase() }))
+                  }
+                  onBlur={() => markTouched('symbol')}
                   placeholder="BLAST"
                   maxLength={12}
                   className="mt-1 w-full rounded-lg bg-card/70 border border-line px-4 py-3 focus:border-rh-green/50 outline-none"
                 />
+                <FieldError name="symbol" />
               </label>
 
               <label className="block">
@@ -158,10 +174,13 @@ export default function LaunchPage() {
                   rankings and the buyback are all priced in ETH — a launch paired with anything else
                   can&rsquo;t be serviced here.
                 </span>
+                <FieldError name="mint" />
                 <input
                   required
                   value={form.mint}
-                  onChange={e => setForm(f => ({ ...f, mint: e.target.value.trim() }))}
+                  onChange={e => setForm(f => ({ ...f, mint: e.target.value.trim() }))
+                  }
+                  onBlur={() => markTouched('mint')}
                   placeholder="0x…"
                   className="mt-1 w-full rounded-lg bg-card/70 border border-line px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
                 />
@@ -273,11 +292,14 @@ export default function LaunchPage() {
                   type="password"
                   autoComplete="off"
                   value={form.payoutWalletPrivateKey}
-                  onChange={e => setForm(f => ({ ...f, payoutWalletPrivateKey: e.target.value.trim() }))}
+                  onChange={e => setForm(f => ({ ...f, payoutWalletPrivateKey: e.target.value.trim() }))
+                  }
+                  onBlur={() => markTouched('payoutWalletPrivateKey')}
                   placeholder="EVM private key (0x…) — fund with ETH on Robinhood Chain"
                   className="mt-1 w-full rounded-lg bg-card/70 border border-line px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
                 />
                 <p className="text-xs text-ink-3 mt-2">{LAUNCH_KEY_HELP.payoutWalletPrivateKey.body}</p>
+                <FieldError name="payoutWalletPrivateKey" />
                 <ChainDepositNotice className="mt-2" />
               </label>
 
@@ -285,10 +307,15 @@ export default function LaunchPage() {
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || !formValid}
+                title={formValid ? undefined : 'Complete every field above first'}
                 className="w-full py-3 bg-sol-gradient text-on-accent rounded-xl font-bold disabled:opacity-50"
               >
-                {submitting ? 'Creating listing…' : 'Create listing & start TopBlast'}
+                {submitting
+                  ? 'Creating listing…'
+                  : formValid
+                    ? 'Create listing & start TopBlast'
+                    : 'Complete the form to continue'}
               </button>
 
               <p className="text-xs text-ink-3 text-center">
