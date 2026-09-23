@@ -71,7 +71,7 @@ export function CatalogBrowser() {
               type="search"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Search by name, slug, or mint…"
+              placeholder="Search by name, link, or contract…"
               className="w-full rounded-lg bg-ink/[0.04] border border-line pl-10 pr-4 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:border-sol-purple/40 outline-none"
             />
           </div>

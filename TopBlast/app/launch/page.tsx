@@ -159,15 +159,17 @@ export default function LaunchPage() {
                 <FormSection step={1} title="Your token" hint="Where the session lives and which token it tracks.">
                   <label className="block">
                     <FieldLabel
-                      helpTitle="URL slug"
+                      helpTitle="Your session link"
                       help={
                         <>
-                          This becomes your session&rsquo;s permanent address on TopBlast. Lowercase
-                          letters, numbers and hyphens. It cannot be changed after listing.
+                          Your token&rsquo;s permanent home on TopBlast — where holders watch the
+                          countdown, check the leaderboard and see who got paid. Share it anywhere.
+                          Lowercase letters, numbers and hyphens, and it cannot be changed after
+                          listing, so pick the one you want on your chart.
                         </>
                       }
                     >
-                      URL slug
+                      Your session link
                     </FieldLabel>
                     <input
                       required
@@ -180,7 +182,7 @@ export default function LaunchPage() {
                       className="mt-1.5 w-full rounded-lg bg-card/70 border border-line px-4 py-3 font-mono text-sm focus:border-sol-purple/60 outline-none transition-colors"
                     />
                     <p className="mt-1 font-mono text-xs text-ink-3">
-                      {appHostname()}/{form.slug || 'your-slug'}
+                      {appHostname()}/{form.slug || 'your-token'}
                     </p>
                     <FieldError name="slug" />
                   </label>

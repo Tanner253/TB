@@ -6,7 +6,7 @@ export const APP_URL = 'https://topblast.family'
 /** Docs / whitepaper site. */
 export const WHITEPAPER_URL = 'https://whitepaper.topblast.family'
 
-/** Host only, for inline hints e.g. "topblast.family/your-slug" */
+/** Host only, for inline hints e.g. "topblast.family/your-token" */
 export const APP_HOSTNAME = 'topblast.family'
 
 export function appHostname(): string {

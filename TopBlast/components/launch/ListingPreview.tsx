@@ -41,7 +41,7 @@ export function ListingPreview({
   payoutMode: 'token' | 'sol'
 }) {
   const shownSymbol = symbol.trim() || 'TOKEN'
-  const shownSlug = slug.trim() || 'your-slug'
+  const shownSlug = slug.trim() || 'your-token'
 
   const tenant = {
     slug: shownSlug,
@@ -68,9 +68,12 @@ export function ListingPreview({
 
       <div className="mt-4 rounded-xl border border-line bg-paper/60 p-4">
         <p className="font-bold text-ink">${shownSymbol}</p>
-        <p className="mt-0.5 font-mono text-xs text-ink-3">
+        {/* The link is the thing a creator shares, so it reads as the headline
+            rather than a technical field buried under the ticker. */}
+        <p className="mt-1 break-all font-mono text-xs text-sol-purple">
           {appHostname()}/{shownSlug}
         </p>
+        <p className="mt-0.5 text-[0.65rem] text-ink-3">Your session link — share this anywhere</p>
         <ListingTerms tenant={tenant} size="sm" className="mt-3" />
       </div>
 

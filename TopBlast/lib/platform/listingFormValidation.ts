@@ -38,9 +38,10 @@ export function validateListingForm(values: ListingFormValues): ListingFieldErro
   const errors: ListingFieldErrors = {}
 
   const slug = values.slug.trim()
-  if (!slug) errors.slug = 'Pick a URL slug'
+  if (!slug) errors.slug = 'Choose your session link'
   else if (!SLUG_RE.test(slug)) {
-    errors.slug = 'Use 3–32 lowercase letters, numbers or hyphens, starting and ending with a letter or number'
+    errors.slug =
+      'Use 3–32 lowercase letters, numbers or hyphens, starting and ending with a letter or number'
   }
 
   const symbol = values.symbol.trim()
