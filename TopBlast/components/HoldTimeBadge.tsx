@@ -28,15 +28,26 @@ export function HoldTimeBadge({
   useEffect(() => {
     if (holdEligibleAt) {
       setRemaining(secondsUntil(holdEligibleAt))
-      const id = setInterval(() => setRemaining(secondsUntil(holdEligibleAt)), 1000)
-      return () => clearInterval(id)
+      const sync = () => setRemaining(secondsUntil(holdEligibleAt))
+      const id = setInterval(sync, 250)
+      document.addEventListener('visibilitychange', sync)
+      return () => {
+        clearInterval(id)
+        document.removeEventListener('visibilitychange', sync)
+      }
     }
     if (holdSecondsRemaining != null && holdSecondsRemaining > 0) {
-      setRemaining(holdSecondsRemaining)
-      const id = setInterval(() => {
-        setRemaining((prev) => Math.max(0, prev - 1))
-      }, 1000)
-      return () => clearInterval(id)
+      // No absolute timestamp here, so anchor one now and subtract from it —
+      // decrementing loses whatever time the tab spends throttled.
+      const deadline = Date.now() + holdSecondsRemaining * 1000
+      const sync = () => setRemaining(Math.max(0, Math.round((deadline - Date.now()) / 1000)))
+      sync()
+      const id = setInterval(sync, 250)
+      document.addEventListener('visibilitychange', sync)
+      return () => {
+        clearInterval(id)
+        document.removeEventListener('visibilitychange', sync)
+      }
     }
   }, [holdEligibleAt, holdSecondsRemaining])
 

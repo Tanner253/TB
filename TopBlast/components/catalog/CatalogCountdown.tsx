@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useDeadlineCountdown } from '@/hooks/useDeadlineCountdown'
 import type { PublicTenantSummary } from '@/lib/tenant/types'
 import {
   catalogCountdownSubtitle,
@@ -19,40 +19,8 @@ interface CatalogCountdownProps {
 const COUNTDOWN_SLOT_CLASS = 'min-h-[2.875rem] flex flex-col justify-center'
 
 export function CatalogCountdown({ tenant, compact = false }: CatalogCountdownProps) {
-  const serverSeconds = tenant.payout_seconds_remaining
-  const [seconds, setSeconds] = useState<number | null>(serverSeconds ?? null)
-  const ref = useRef<number | null>(serverSeconds ?? null)
   const timerActive = isCatalogTimerActive(tenant)
-
-  useEffect(() => {
-    if (!timerActive) {
-      ref.current = null
-      setSeconds(null)
-      return
-    }
-    if (serverSeconds == null) {
-      ref.current = null
-      setSeconds(null)
-      return
-    }
-    if (ref.current === null || Math.abs(serverSeconds - ref.current) > 5) {
-      ref.current = serverSeconds
-      setSeconds(serverSeconds)
-    }
-  }, [serverSeconds, timerActive, tenant.slug])
-
-  useEffect(() => {
-    if (!timerActive) return
-    const tick = setInterval(() => {
-      setSeconds(prev => {
-        if (prev === null) return null
-        const next = Math.max(0, prev - 1)
-        ref.current = next
-        return next
-      })
-    }, 1000)
-    return () => clearInterval(tick)
-  }, [timerActive, tenant.slug])
+  const seconds = useDeadlineCountdown(tenant.payout_seconds_remaining ?? null, timerActive)
 
   const subtitle = catalogCountdownSubtitle(tenant)
   const display = deriveCatalogSessionDisplay(tenant)

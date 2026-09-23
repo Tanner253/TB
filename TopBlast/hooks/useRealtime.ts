@@ -62,6 +62,16 @@ export function useRealtimeLeaderboard(
   const [timerStatus, setTimerStatus] = useState<'waiting' | 'active'>('waiting')
   const [refreshCooldownSec, setRefreshCooldownSec] = useState(0)
   const countdownRef = useRef<number | null>(null)
+  /**
+   * Absolute moment the timer hits zero, not a number we decrement.
+   *
+   * Decrementing by one per tick loses time the moment the browser throttles
+   * the tab — background tabs get roughly one timer callback a minute — so the
+   * countdown froze and then jumped when the next poll corrected it. Deriving
+   * from a deadline is immune to throttling, drift and sleep: however long the
+   * page was ignored, the next frame shows the right number.
+   */
+  const deadlineRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (refreshCooldownSec <= 0) return
@@ -92,6 +102,7 @@ export function useRealtimeLeaderboard(
 
         if (json.data.timer_status === 'waiting') {
           countdownRef.current = null
+          deadlineRef.current = null
           setCountdown(null)
         } else if (
           json.data.seconds_remaining !== undefined &&
@@ -100,8 +111,12 @@ export function useRealtimeLeaderboard(
           const serverCountdown = json.data.seconds_remaining
           const localCountdown = countdownRef.current
 
+          // Only re-anchor on a real disagreement. Re-anchoring every poll
+          // would make the display twitch by a second each time the request
+          // latency changed.
           if (localCountdown === null || Math.abs(serverCountdown - localCountdown) > 5) {
             countdownRef.current = serverCountdown
+            deadlineRef.current = Date.now() + serverCountdown * 1000
             setCountdown(serverCountdown)
           }
         }
@@ -125,15 +140,27 @@ export function useRealtimeLeaderboard(
   }, [fetchLeaderboard, pollInterval, tenantSlug])
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev === null) return null
-        const newVal = Math.max(0, prev - 1)
-        countdownRef.current = newVal
-        return newVal
-      })
-    }, 1000)
-    return () => clearInterval(timer)
+    const sync = () => {
+      const deadline = deadlineRef.current
+      if (deadline === null) return
+      const next = Math.max(0, Math.round((deadline - Date.now()) / 1000))
+      countdownRef.current = next
+      setCountdown(prev => (prev === next ? prev : next))
+    }
+
+    // 250ms so the displayed second flips close to when it actually changes,
+    // rather than up to a second late. sync() is a subtraction and bails out
+    // when the value is unchanged, so this costs nothing.
+    const timer = setInterval(sync, 250)
+    // A tab coming back from the background has missed every tick it was
+    // throttled through; catch up immediately instead of on the next interval.
+    document.addEventListener('visibilitychange', sync)
+    window.addEventListener('focus', sync)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', sync)
+      window.removeEventListener('focus', sync)
+    }
   }, [])
 
   return {
