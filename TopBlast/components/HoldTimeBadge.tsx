@@ -13,6 +13,38 @@ function secondsUntil(iso: string): number {
   return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 1000))
 }
 
+/**
+ * Seconds until a hold deadline, recomputed on a tick.
+ *
+ * Computing this once per render looks right and is frozen in practice: the
+ * parent only re-renders on the 60s leaderboard poll, so "Eligible in 2:33"
+ * sat unchanged for a minute at a time and read as broken. Deriving from the
+ * timestamp on every tick also means a throttled or sleeping tab catches up
+ * the moment it comes back, rather than resuming where it left off.
+ */
+function useHoldCountdown(eligibleAt: string | null, fallbackSeconds?: number | null): number {
+  const [seconds, setSeconds] = useState(() =>
+    eligibleAt ? secondsUntil(eligibleAt) : fallbackSeconds ?? 0
+  )
+
+  useEffect(() => {
+    if (!eligibleAt) {
+      setSeconds(fallbackSeconds ?? 0)
+      return
+    }
+    const sync = () => setSeconds(secondsUntil(eligibleAt))
+    sync()
+    const id = setInterval(sync, 250)
+    document.addEventListener('visibilitychange', sync)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', sync)
+    }
+  }, [eligibleAt, fallbackSeconds])
+
+  return seconds
+}
+
 export function HoldTimeBadge({
   holdEligibleAt,
   holdSecondsRemaining,
@@ -100,8 +132,7 @@ export function HolderIneligibleCallout({
     firstBuyAt,
     minHoldMinutes
   )
-  const holdRemaining =
-    resolvedHoldEligibleAt != null ? secondsUntil(resolvedHoldEligibleAt) : holdSecondsRemaining ?? 0
+  const holdRemaining = useHoldCountdown(resolvedHoldEligibleAt, holdSecondsRemaining)
   const showHold = holdRemaining > 0
 
   const reason = ineligibleReason || 'Not eligible yet'
@@ -142,9 +173,10 @@ export function HolderStatus({
     firstBuyAt,
     minHoldMinutes
   )
-  const showHoldCountdown =
-    (holdSecondsRemaining ?? 0) > 0 ||
-    (resolvedHoldEligibleAt != null && secondsUntil(resolvedHoldEligibleAt) > 0)
+  // Ticks too, so the badge clears the moment the hold completes rather than
+  // lingering until the next poll.
+  const liveHoldRemaining = useHoldCountdown(resolvedHoldEligibleAt, holdSecondsRemaining)
+  const showHoldCountdown = liveHoldRemaining > 0
 
   if (isEligible) {
     return (
