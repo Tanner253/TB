@@ -24,7 +24,7 @@ import { workerOwnsIndexing } from '@/lib/platform/workerMode'
 import { getStaleTokenHolders } from '@/lib/solana/heliusCache'
 import { evaluateHolderEligibility } from '@/lib/eligibility/evaluateHolder'
 import { getTokenPrice } from '@/lib/solana/price'
-import { isPoolFundedForPayout, minPoolForPayoutLabel } from '@/lib/payout/poolMinimum'
+import { isPoolConfirmedBelowMinimum, isPoolFundedForPayout, minPoolForPayoutLabel, poolFundingIsKnown } from '@/lib/payout/poolMinimum'
 import { getTokenHolders } from '@/lib/solana/indexer'
 import { normalizeTokenBalance } from '@/lib/solana/tokenAmount'
 import { config } from '@/lib/config'
@@ -425,11 +425,16 @@ async function syncPayoutTimerWithPoolMinimum(): Promise<void> {
   if (isPayoutDue()) return
 
   const livePool = await getLivePoolBalance()
-  if (!isPoolFundedForPayout(livePool)) {
+  // Only pause on a pool we could actually price. A failed native-price lookup
+  // used to read as "unfunded" and reset the countdown, so a flaky price feed
+  // meant no cycle ever reached zero.
+  if (isPoolConfirmedBelowMinimum(livePool)) {
     console.log(
       `[Payout] Pool ~${livePool.poolUsdFormatted} below minimum ${minPoolForPayoutLabel()} — pausing timer until topped up`
     )
     await pausePayoutTimerToWaiting()
+  } else if (!poolFundingIsKnown(livePool)) {
+    console.warn('[Payout] Native price unavailable — leaving the timer alone rather than assuming an empty pool')
   }
 }
 

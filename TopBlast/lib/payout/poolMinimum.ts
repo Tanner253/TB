@@ -26,3 +26,23 @@ export function isPoolFundedForPayout(pool: LivePoolBalance): boolean {
   }
   return payoutWalletUsd(pool) >= minPoolForPayoutUsd()
 }
+
+/**
+ * True only when we could actually price the pool.
+ *
+ * `isPoolFundedForPayout` answers "may a cycle run", so it fails closed on a
+ * missing native price — the right call for spending money. But a failed price
+ * lookup is NOT evidence the wallet is empty, and treating it as such paused
+ * the countdown every time the price feed hiccuped, restarting it from the full
+ * interval so a cycle could never reach zero. Anything that *pauses* on
+ * underfunding must check this first.
+ */
+export function poolFundingIsKnown(pool: LivePoolBalance): boolean {
+  return Boolean(pool.available && pool.payoutWalletAddress && pool.solPrice && pool.solPrice > 0)
+}
+
+/** Priced, and genuinely below the bar — the only safe reason to pause a timer. */
+export function isPoolConfirmedBelowMinimum(pool: LivePoolBalance): boolean {
+  if (!poolFundingIsKnown(pool)) return false
+  return payoutWalletUsd(pool) < minPoolForPayoutUsd()
+}

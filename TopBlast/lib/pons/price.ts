@@ -7,14 +7,66 @@ import { ERC20_ABI, publicClient } from './contracts'
 import { getCurveState, getPonsLaunch } from './launch'
 import type { ResolvedTokenPrice } from '@/lib/solana/priceProviders/types'
 let nativeCache: { price: number; at: number } | null = null
+
+/** Serve a cached price without refetching for this long. */
+const NATIVE_FRESH_MS = 60_000
+/**
+ * How long a cached price may still be served once refreshes start failing.
+ * ETH does not move enough in an hour to matter for a pool-minimum check, and
+ * a stale price is enormously better than none: returning null here used to
+ * read as "pool is empty" and pause the payout countdown, so a rate-limited
+ * price feed meant no cycle ever reached zero.
+ */
+const NATIVE_STALE_MS = 60 * 60_000
+
 export function cachedEthPrice() { return nativeCache?.price ?? null }
+
+async function fetchNativeUsd(): Promise<number | null> {
+  // Two independent sources: CoinGecko's free tier rate-limits hard (429) and
+  // the worker calls this every cycle, which is exactly when it fails.
+  const sources: Array<() => Promise<number>> = [
+    async () => {
+      const { data } = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
+        params: { ids: 'ethereum', vs_currencies: 'usd' },
+        timeout: 10_000,
+      })
+      return Number(data?.ethereum?.usd)
+    },
+    async () => {
+      const { data } = await axios.get('https://api.binance.com/api/v3/ticker/price', {
+        params: { symbol: 'ETHUSDT' },
+        timeout: 10_000,
+      })
+      return Number(data?.price)
+    },
+  ]
+  for (const load of sources) {
+    try {
+      const price = await load()
+      if (price > 0 && Number.isFinite(price)) return price
+    } catch {
+      // try the next source
+    }
+  }
+  return null
+}
+
 export async function ethPrice(): Promise<number | null> {
-  if (nativeCache && Date.now() - nativeCache.at < 60_000) return nativeCache.price
-  try {
-    const { data } = await axios.get('https://api.coingecko.com/api/v3/simple/price', { params: { ids: 'ethereum', vs_currencies: 'usd' }, timeout: 10_000 })
-    const price = Number(data?.ethereum?.usd)
-    if (price > 0 && Number.isFinite(price)) { nativeCache = { price, at: Date.now() }; return price }
-  } catch {}
+  const age = nativeCache ? Date.now() - nativeCache.at : Infinity
+  if (nativeCache && age < NATIVE_FRESH_MS) return nativeCache.price
+
+  const price = await fetchNativeUsd()
+  if (price != null) {
+    nativeCache = { price, at: Date.now() }
+    return price
+  }
+
+  // Every source failed. Keep serving the last good price rather than
+  // reporting "no price", which downstream reads as an empty pool.
+  if (nativeCache && age < NATIVE_STALE_MS) {
+    console.warn(`[Price] Native price refresh failed; serving ${Math.round(age / 1000)}s-old cached price`)
+    return nativeCache.price
+  }
   return null
 }
 export async function resolvedPrice(mint = config.tokenMint): Promise<ResolvedTokenPrice | null> {
