@@ -18,6 +18,13 @@ export interface SessionDisplayInput {
   eligibleCount: number
   rankedHolderCount: number
   trackedHolders?: number
+  /**
+   * Holders the chain scan reported, before ranking filters. Non-zero proves a
+   * scan completed, which is what separates "still indexing" from "indexed and
+   * nobody qualifies" — a token whose only holder is the excluded creator
+   * wallet hits the second case and must not spin forever.
+   */
+  reportedHolderCount?: number
   isInitializing?: boolean
   /** When false, session stays in limbo until payout wallet SOL (USD) meets minimum. */
   poolFundedForPayout?: boolean
@@ -40,15 +47,16 @@ export function deriveSessionDisplayState(input: SessionDisplayInput): SessionDi
     eligibleCount,
     rankedHolderCount,
     trackedHolders = 0,
+    reportedHolderCount = 0,
     isInitializing = false,
     poolFundedForPayout = true,
   } = input
 
   const hasEligible = eligibleCount > 0
   const hasRankedHolders = rankedHolderCount > 0
+  const hasScanned = reportedHolderCount > 0 || hasRankedHolders || trackedHolders > 0
   const isSyncing =
-    isInitializing ||
-    (!hasEligible && !hasRankedHolders && trackedHolders === 0)
+    !hasScanned && (isInitializing || (!hasEligible && !hasRankedHolders && trackedHolders === 0))
 
   const poolBelowMinimum = poolFundedForPayout === false
 
@@ -78,7 +86,7 @@ export function deriveSessionDisplayState(input: SessionDisplayInput): SessionDi
     }
   }
 
-  if (!hasEligible && hasRankedHolders && effectiveTimerStatus === 'waiting') {
+  if (!hasEligible && (hasRankedHolders || hasScanned) && effectiveTimerStatus === 'waiting') {
     return {
       phase: 'limbo',
       effectiveTimerStatus,

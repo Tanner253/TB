@@ -211,6 +211,7 @@ export async function GET(request: NextRequest) {
       const timerAfterPayout = getPayoutTimerInfo()
       const diagnosticsInput = {
         tokenMint: config.tokenMint,
+        reportedHolderCount,
         pool: livePool,
         timer: timerAfterPayout,
         trackedHolders: 0,
@@ -509,6 +510,7 @@ export async function GET(request: NextRequest) {
 
     const diagnosticsInput = {
       tokenMint: config.tokenMint,
+      reportedHolderCount,
       pool: livePool,
       timer: timerAfterPayout,
       trackedHolders: sourceRankings.length,

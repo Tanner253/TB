@@ -246,6 +246,7 @@ export default function LeaderboardPage() {
     eligibleCount,
     rankedHolderCount: rankings.length,
     trackedHolders: data?.tracked_holders ?? 0,
+    reportedHolderCount: data?.reported_holder_count ?? data?.on_chain_holders ?? 0,
     isInitializing,
     poolFundedForPayout: data?.payout_enabled !== false,
   })

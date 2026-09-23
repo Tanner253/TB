@@ -16,6 +16,8 @@ export interface TenantDiagnostic {
 }
 
 export interface TenantDiagnosticsInput {
+  /** Holders the chain scan reported, before ranking filters. */
+  reportedHolderCount?: number
   /** The listing's token address. Decides which chain's vocabulary the
       messages use — a Pons listing settles in ETH and is indexed from chain
       logs, not from Helius. */
@@ -49,6 +51,7 @@ export function buildTenantDiagnostics(input: TenantDiagnosticsInput): TenantDia
   const items: TenantDiagnostic[] = []
   const {
     tokenMint = null,
+    reportedHolderCount = 0,
     pool,
     timer,
     trackedHolders,
@@ -151,7 +154,21 @@ export function buildTenantDiagnostics(input: TenantDiagnosticsInput): TenantDia
   }
 
   // --- Indexing ---
-  if (!hasRankings || !trackerInitialized) {
+  // A scan that completed and found nobody rankable is NOT "still indexing".
+  // The common case is a fresh listing whose only holder is the creator's own
+  // payout wallet, which is excluded from winning — saying "indexing" there
+  // spins forever and hides the real reason.
+  if (reportedHolderCount > 0 && trackedHolders === 0) {
+    items.push({
+      id: 'no_rankable_holders',
+      severity: 'info',
+      title: `${reportedHolderCount} holder(s) on-chain, none rankable yet`,
+      message:
+        'Every wallet found so far is either excluded from rewards (the payout ' +
+        'and dev wallets never compete) or below the minimum balance.',
+      action: `Rankings appear once an outside wallet holds at least ${minBalance} tokens.`,
+    })
+  } else if (!hasRankings || !trackerInitialized) {
     items.push({
       id: 'indexing',
       severity: 'info',
