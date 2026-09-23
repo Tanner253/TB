@@ -52,6 +52,9 @@ export function buildPlatformEnvCatalogEntry(): PublicTenantSummary {
     featured: true,
     isPlatformToken: true,
     runsFromEnv: true,
+    payout_mode: envDefaultPayoutMode(),
+    minTokenHolding: parseInt(process.env.MIN_TOKEN_HOLDING || '1000', 10),
+    minLossThresholdPct: parseFloat(process.env.MIN_LOSS_THRESHOLD_PCT || '10'),
   }
 }
 

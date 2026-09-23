@@ -97,6 +97,8 @@ export async function listPublicTenants(): Promise<PublicTenantSummary[]> {
     payoutIntervalMinutes: row.payoutIntervalMinutes,
     winnerCount: row.winnerCount ?? 3,
     payout_mode: row.payoutMode ?? ('token' as const),
+    minTokenHolding: row.minTokenHolding,
+    minLossThresholdPct: row.minLossThresholdPct,
   }))
 
   const decorated = decorateCatalogTenants(tenants)

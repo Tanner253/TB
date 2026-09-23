@@ -22,6 +22,7 @@ import type { SessionChecklist } from '@/lib/tenant/sessionChecklist'
 import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 import { CopyContractAddress } from '@/components/ui/CopyContractAddress'
 import { tokenExplorerUrl } from '@/lib/platform/explorer'
+import { ListingTerms } from '@/components/catalog/ListingTerms'
 import { isLegacyChainMint } from '@/lib/platform/chainShape'
 import { getAddressExplorerUrl } from '@/lib/solana/explorer'
 import { deriveSessionDisplayState } from '@/lib/session/displayState'
@@ -215,7 +216,7 @@ export default function LeaderboardPage() {
   const tokenIconUrl = tokenMedia?.iconUrl ?? null
   const tokenBannerUrl = tokenMedia?.bannerUrl ?? null
   const [showBannerOverlay, setShowBannerOverlay] = useState(true)
-  const tokenExplorerUrl =
+  const tokenExplorerHref =
     data?.token_mint_explorer_url ||
     (tokenMint ? tokenExplorerUrl(tokenMint) : null)
 
@@ -420,7 +421,7 @@ export default function LeaderboardPage() {
                     variant="inline"
                     address={tokenMint}
                     symbol={tokenSymbol}
-                    explorerUrl={tokenExplorerUrl}
+                    explorerUrl={tokenExplorerHref}
                     className="ticker-ca-inline"
                   />
                 ) : (
@@ -499,7 +500,7 @@ export default function LeaderboardPage() {
                   variant="inline"
                   address={tokenMint}
                   symbol={tokenSymbol}
-                  explorerUrl={tokenExplorerUrl}
+                  explorerUrl={tokenExplorerHref}
                   className="ticker-ca-inline"
                 />
               ) : (
@@ -560,6 +561,28 @@ export default function LeaderboardPage() {
             </div>
           </div>
         </motion.div>
+
+        {/* The terms for THIS listing. Every one of these is chosen per token
+            at /launch, so a holder arriving from the catalog needs them here
+            too — the loss threshold is left out because the session checklist
+            below states it in live dollars. */}
+        <ListingTerms
+          tenant={{
+            slug: slug ?? '',
+            symbol: data?.token_symbol ?? '',
+            mint: data?.token_mint ?? '',
+            status: 'active',
+            createdAt: '',
+            payoutWalletAddress: '',
+            winnerCount: data?.winner_count,
+            payoutIntervalMinutes: data?.payout_interval_minutes,
+            payout_mode: data?.payout_mode,
+            minTokenHolding: data?.min_token_holding,
+          }}
+          size="md"
+          omit={['loss']}
+          className="justify-center mb-8"
+        />
 
         {/* Main Stats */}
         <div className="grid md:grid-cols-2 gap-6 mb-10">

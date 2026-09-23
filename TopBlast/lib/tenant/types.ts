@@ -69,6 +69,10 @@ export interface PublicTenantSummary {
   winnerCount?: number
   /** Winner payout currency: 'token' (buyback + airdrop) or 'sol' (direct). */
   payout_mode?: PayoutMode
+  /** Tokens a wallet must hold to be ranked at all. Set per listing at /launch. */
+  minTokenHolding?: number
+  /** How far underwater a wallet must be, as a % of the pool. */
+  minLossThresholdPct?: number
   /**
    * Presentation-only flag: market cap fell below the catalog floor, so
    * browsing surfaces (catalog grid, featured cards) skip this listing.

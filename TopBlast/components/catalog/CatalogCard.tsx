@@ -6,6 +6,7 @@ import type { PublicTenantSummary } from '@/lib/tenant/types'
 import { formatCatalogStatus, tenantCatalogHref } from '@/lib/platform/catalogClient'
 import { CatalogMetrics } from '@/components/catalog/CatalogMetrics'
 import { CatalogTimerBadge } from '@/components/catalog/CatalogTimerBadge'
+import { ListingTerms } from '@/components/catalog/ListingTerms'
 import { CatalogCountdown } from '@/components/catalog/CatalogCountdown'
 import { TokenAvatar } from '@/components/ui/TokenAvatar'
 import { useTokenMedia } from '@/hooks/useTokenMedia'
@@ -67,16 +68,18 @@ export function CatalogCard({ tenant, compact = false }: CatalogCardProps) {
               Platform
             </span>
           ) : null}
-          {tenant.payout_mode === 'sol' ? (
-            <span
-              className="text-[0.65rem] uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/25 shrink-0"
-              title="Winners are paid ETH directly from the pool — no buyback, no airdrop"
-            >
-              Ξ ETH payouts
-            </span>
-          ) : null}
           <CatalogTimerBadge tenant={tenant} compact={compact} />
         </div>
+
+        {/* The terms that actually differ between listings. On a compact card
+            the entry bar and loss threshold are dropped — they are the least
+            urgent of the five and the card has to stay one scan tall. */}
+        <ListingTerms
+          tenant={tenant}
+          size="sm"
+          omit={compact ? ['entry', 'loss'] : ['loss']}
+          className="mt-1.5 shrink-0"
+        />
 
         <p
           className="mt-1 text-sm text-ink-3 font-mono truncate shrink-0"
