@@ -24,6 +24,8 @@ import {
 import { DEFAULT_MIN_TOKEN_HOLDING } from '@/lib/platform/minTokenHolding'
 import { LAUNCH_KEY_HELP, formatWinnerCountPreview } from '@/lib/tenant/launchHelp'
 import { DEFAULT_WINNER_COUNT, WINNER_COUNT_OPTIONS } from '@/lib/payout/winnerCount'
+import { RECOMMENDED_LISTING, RECOMMENDED_LISTING_WHY } from '@/lib/platform/recommendedListing'
+import { ChainDepositNotice } from '@/components/ui/ChainDepositNotice'
 
 export default function LaunchPage() {
   const router = useRouter()
@@ -97,6 +99,20 @@ export default function LaunchPage() {
                 </button>
                 .
               </p>
+
+              <div className="rounded-xl border border-sol-purple/25 bg-sol-purple/[0.06] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-sol-purple">Recommended setup</p>
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, ...RECOMMENDED_LISTING }))}
+                    className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-hover transition-colors"
+                  >
+                    Use recommended
+                  </button>
+                </div>
+                <p className="mt-1.5 text-xs leading-relaxed text-ink-2">{RECOMMENDED_LISTING_WHY}</p>
+              </div>
 
               <label className="block">
                 <span className="text-sm text-ink-2">URL slug</span>
@@ -250,10 +266,11 @@ export default function LaunchPage() {
                   autoComplete="off"
                   value={form.payoutWalletPrivateKey}
                   onChange={e => setForm(f => ({ ...f, payoutWalletPrivateKey: e.target.value.trim() }))}
-                  placeholder="EVM private key (0x…) — fund with ETH for winner payouts"
+                  placeholder="EVM private key (0x…) — fund with ETH on Robinhood Chain"
                   className="mt-1 w-full rounded-lg bg-card/70 border border-line px-4 py-3 font-mono text-sm focus:border-rh-green/50 outline-none"
                 />
                 <p className="text-xs text-ink-3 mt-2">{LAUNCH_KEY_HELP.payoutWalletPrivateKey.body}</p>
+                <ChainDepositNotice className="mt-2" />
               </label>
 
               {error ? <p className="text-red-600 dark:text-red-400 text-sm">{error}</p> : null}

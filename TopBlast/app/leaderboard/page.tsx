@@ -23,6 +23,7 @@ import { PAYOUT_INTERVAL_RANGE_COMPACT } from '@/lib/platform/payoutIntervals'
 import { CopyContractAddress } from '@/components/ui/CopyContractAddress'
 import { tokenExplorerUrl } from '@/lib/platform/explorer'
 import { ListingTerms } from '@/components/catalog/ListingTerms'
+import { ChainDepositNotice } from '@/components/ui/ChainDepositNotice'
 import { isLegacyChainMint } from '@/lib/platform/chainShape'
 import { getAddressExplorerUrl } from '@/lib/solana/explorer'
 import { deriveSessionDisplayState } from '@/lib/session/displayState'
@@ -644,6 +645,7 @@ export default function LeaderboardPage() {
                     Payout wallet needs at least ${minimumPoolUsd.toFixed(0)} USD in ETH before cycles can start.
                     If ETH is drained below that, the session stays in limbo — send ETH to the wallet below.
                   </p>
+                  <ChainDepositNotice variant="inline" className="mt-2" />
                 </div>
               ) : isListingLimbo ? (
                 <div className="py-4">
@@ -727,6 +729,9 @@ export default function LeaderboardPage() {
                   <p className="text-[0.65rem] text-ink-3 mt-1">
                     Send ETH to this public address to fund the pool — no account needed.
                   </p>
+                  {/* The address is a plain 0x that looks identical on every EVM
+                      chain, so the network has to be stated next to it. */}
+                  <ChainDepositNotice className="mt-2" />
                 </div>
               ) : null}
             </div>

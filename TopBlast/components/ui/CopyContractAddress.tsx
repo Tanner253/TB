@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import { explorerLabel, tokenExplorerUrl } from '@/lib/platform/explorer'
+import { CHAIN_ID, CHAIN_NAME } from '@/lib/marketing/urls'
 
 function formatAddress(address: string) {
   if (address.length <= 14) return address
@@ -100,7 +101,7 @@ export function CopyContractAddress({
           type="button"
           onClick={onCopy}
           className="group inline-flex items-center gap-1 font-mono text-ink-3 hover:text-sol-purple-dark transition-colors"
-          title={`${address}\nCopy public address to send ETH to the reward pool`}
+          title={`${address}\nCopy public address to send ETH to the reward pool.\n${CHAIN_NAME} only — chain ID ${CHAIN_ID}.`}
           aria-label="Copy payout pool wallet address"
         >
           <span>{formatWalletAddress(address)}</span>
@@ -120,7 +121,7 @@ export function CopyContractAddress({
             ↗
           </a>
         ) : null}
-        <span className="text-ink-3">· live on-chain</span>
+        <span className="text-ink-3">· {CHAIN_NAME} only</span>
       </span>
     )
   }
