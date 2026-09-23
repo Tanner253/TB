@@ -19,6 +19,7 @@ import connectDB from '@/lib/db'
 import { getChainId } from '@/lib/pons/contracts'
 import { FLYWHEEL_BUYBACKS_COLLECTION } from '@/lib/platform/platformBuyback'
 import { BUYBACK_SHARE_OF_PROTOCOL_PCT } from '@/lib/platform/flywheel'
+import { getPlatformTokenMint } from '@/lib/platform/config'
 
 export interface FlywheelStats
 {
@@ -69,10 +70,17 @@ export async function getFlywheelStats(): Promise<FlywheelStats> {
       { $group: { _id: null, eth: { $sum: '$amountTokens' }, usd: { $sum: '$amount' } } },
     ])
 
-    const rounds = await db
-      .collection(FLYWHEEL_BUYBACKS_COLLECTION)
-      .find({ chainId: getChainId() })
-      .toArray()
+    // Scoped to the token currently configured as the platform token. Burns
+    // are recorded per token, and after a platform-token change an unscoped
+    // total would present an earlier token's destroyed supply as this one's —
+    // the single number holders are most likely to check against totalSupply.
+    const platformToken = getPlatformTokenMint().trim().toLowerCase()
+    const rounds = platformToken
+      ? await db
+          .collection(FLYWHEEL_BUYBACKS_COLLECTION)
+          .find({ chainId: getChainId(), platformToken })
+          .toArray()
+      : []
 
 
     const burned = rounds.filter(r => r.burned === true)
