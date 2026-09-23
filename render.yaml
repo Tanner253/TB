@@ -6,7 +6,7 @@
 # Do NOT use */5 — 1-min keeps buy history fresh before 15-min payout cycles.
 #
 # After deploy, set in Render Dashboard → topblast-tenant-worker → Environment:
-#   TOPBLAST_APP_URL=https://www.topblasted.fun   (use www — apex 308 strips Authorization)
+#   TOPBLAST_APP_URL=https://www.topblast.family  (use www — apex 308 strips Authorization)
 #   CRON_SECRET      = same value as Vercel CRON_SECRET
 
 services:
