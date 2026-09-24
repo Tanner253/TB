@@ -57,16 +57,19 @@ export async function liveHolderBalances(mint: string, limit: number) {
   const indexed = await indexLaunchHolders({ tokenAddress: mint })
   if (!indexed || indexed.incomplete) throw new Error('Pons holder index incomplete')
   const token = mint as `0x${string}`
-  const decimals = await publicClient().readContract({ address: token, abi: ERC20_ABI, functionName: 'decimals' })
+  const { withRpcRetry } = await import('@/lib/evm/retry')
+  const decimals = await withRpcRetry(() => publicClient().readContract({ address: token, abi: ERC20_ABI, functionName: 'decimals' }))
   const rows = []
-  // Batch network work so a large holder list cannot overwhelm the RPC.
-  for (let offset = 0; offset < Math.min(limit, indexed.holders.length); offset += 20) {
-    rows.push(...await Promise.all(indexed.holders.slice(offset, Math.min(offset + 20, limit)).map(async h => ({
+  // Small batches with per-call retry: the RPC rate-limits bursts, and one
+  // refused call used to throw away the whole refresh.
+  const BATCH = 5
+  for (let offset = 0; offset < Math.min(limit, indexed.holders.length); offset += BATCH) {
+    rows.push(...await Promise.all(indexed.holders.slice(offset, Math.min(offset + BATCH, limit)).map(async h => ({
       wallet: h.wallet,
-      balance: Number(await publicClient().readContract({ address: token, abi: ERC20_ABI, functionName: 'balanceOf', args: [h.wallet as `0x${string}`] })),
+      balance: Number(await withRpcRetry(() => publicClient().readContract({ address: token, abi: ERC20_ABI, functionName: 'balanceOf', args: [h.wallet as `0x${string}`] }))),
       // isContractBytecode, not `!== '0x'`: an EIP-7702 delegated EOA has code
       // and is still a person. The bare check deleted real holders from payouts.
-      isContract: isContractBytecode(await publicClient().getBytecode({ address: h.wallet as `0x${string}` })),
+      isContract: isContractBytecode(await withRpcRetry(() => publicClient().getBytecode({ address: h.wallet as `0x${string}` }))),
     }))))
   }
   return rows

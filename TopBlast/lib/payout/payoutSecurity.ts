@@ -73,6 +73,22 @@ export async function filterWinnersHoldingSessionToken(
   const tokenMint = mint || config.tokenMint
   if (!tokenMint || winners.length === 0) return []
 
+  // On Pons, check just the winners. The generic path re-read every holder's
+  // balance and bytecode — ~70 calls for 35 holders to verify 1-3 wallets —
+  // and one rate-limited refusal among them failed the entire payout.
+  if (isPonsSession(tokenMint)) {
+    const { tokenBalance } = await import('@/lib/pons/transfers')
+    const { withRpcRetry } = await import('@/lib/evm/retry')
+    const verified: PayableWinner[] = []
+    for (const winner of winners) {
+      const balance = await withRpcRetry(() =>
+        tokenBalance(tokenMint, winner.wallet, config.tokenDecimals)
+      )
+      if (balance >= config.minTokenHolding) verified.push(winner)
+    }
+    return verified
+  }
+
   const holders = await getTokenHolders(tokenMint, 500)
   const balanceByWallet = new Map<string, number>()
   for (const row of holders) {
