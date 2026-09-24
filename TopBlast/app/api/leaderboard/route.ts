@@ -182,6 +182,14 @@ export async function GET(request: NextRequest) {
       resolvedPrice?.price ??
       dbRankings?.tokenPrice ??
       0
+    // Market cap for the header. Pons already prices it off live supply; the
+    // read-only EVM poll skips that resolver, so price the cached supply here.
+    let marketCapUsd: number | null = resolvedPrice?.marketCap ?? null
+    if (marketCapUsd == null && liveTokenPrice > 0 && isEvmAddressShape(config.tokenMint)) {
+      const { cachedTotalTokenSupply } = await import('@/lib/pons/supply')
+      const supply = await cachedTotalTokenSupply(config.tokenMint!, config.tokenDecimals)
+      marketCapUsd = supply != null ? supply * liveTokenPrice : null
+    }
     const priceMeta = {
       priceAvailable: liveTokenPrice > 0,
       priceSource: readOnlyPoll ? 'mongodb' : resolvedPrice?.source ?? null,
@@ -551,6 +559,7 @@ export async function GET(request: NextRequest) {
         ...poolFields,
         token_price: formatPrice(liveTokenPrice),
         token_price_raw: liveTokenPrice,
+        market_cap_usd: marketCapUsd,
         token_symbol: config.tokenSymbol,
         token_mint: config.tokenMint,
         token_mint_explorer_url: getTokenMintExplorerUrl(config.tokenMint),

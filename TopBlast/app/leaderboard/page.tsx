@@ -31,6 +31,7 @@ import { SessionBannerLayer } from '@/components/leaderboard/SessionBannerLayer'
 import { Blasty } from '@/components/mascot/Blasty'
 import { triggerCelebration } from '@/components/mascot/celebrate'
 import { RektShareButton } from '@/components/rekt/RektShareButton'
+import { PayoutHighlights } from '@/components/leaderboard/PayoutHighlights'
 
 const CandlestickBackground = dynamic(
   () => import('@/components/platform/CandlestickBackground').then(m => m.CandlestickBackground),
@@ -199,7 +200,10 @@ export default function LeaderboardPage() {
   const { slug, basePath } = useTenantRouting()
   const { data, loading, error, countdown, timerStatus, lastUpdate, refresh, refreshCooldownSec } =
     useRealtimeLeaderboard(DEFAULT_LEADERBOARD_POLL_MS, slug)
-  const { price, marketCap, loading: priceLoading, connection, isLive, mint: priceMint } = useRealtimePrice(undefined, slug)
+  const { price, marketCap: streamMarketCap, loading: priceLoading, connection, isLive, mint: priceMint } = useRealtimePrice(undefined, slug)
+  // The browser stream only knows Solana pairs, so on Robinhood Chain it has no
+  // market cap; the server prices live supply instead.
+  const marketCap = streamMarketCap || (data?.market_cap_usd as number | null | undefined) || null
   const { connectionState } = useRealtime({ autoReconnect: true })
   const [refreshing, setRefreshing] = useState(false)
 
@@ -561,6 +565,16 @@ export default function LeaderboardPage() {
             </div>
           </div>
         </motion.div>
+
+        {/* This token's payout record, pinned above everything else. */}
+        {!isRetiredSession ? (
+          <PayoutHighlights
+            mint={tokenMint}
+            symbol={tokenSymbol}
+            refreshKey={data?.cycle}
+            className="mb-6"
+          />
+        ) : null}
 
         {/* The terms for THIS listing. Every one of these is chosen per token
             at /launch, so a holder arriving from the catalog needs them here
