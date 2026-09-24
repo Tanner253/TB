@@ -56,42 +56,6 @@ export async function GET(request: NextRequest) {
         out.step2_error = e instanceof Error ? e.message : String(e)
       }
 
-      // Replay the eligibility evaluation itself, per holder, with the same
-      // inputs the payout uses — the only way to see which rule drops them.
-      try {
-        const { loadRankingsFromDb: load2 } = await import('@/lib/tracker/holderService')
-        const { evaluateHolderEligibility } = await import('@/lib/eligibility/evaluateHolder')
-        const { getLivePoolBalance } = await import('@/lib/payout/poolBalance')
-        const { getTokenPrice } = await import('@/lib/solana/price')
-        const { normalizeTokenBalance } = await import('@/lib/solana/tokenAmount')
-        const snap = await load2()
-        const pool = await getLivePoolBalance()
-        const price = (await getTokenPrice(config.tokenMint!)) ?? snap?.tokenPrice ?? 0
-        out.evalPoolUsd = pool.poolUsd
-        out.evalPoolAvailable = pool.available
-        out.evalTokenPrice = price
-        const verdicts = (snap?.rankings ?? []).slice(0, 6).map((h: Record<string, unknown>) => {
-          const r = evaluateHolderEligibility({
-            wallet: h.wallet as string,
-            balance: normalizeTokenBalance(h.balance as number, config.tokenDecimals, config.minTokenHolding),
-            vwap: (h.vwap as number) || null,
-            tokenPrice: price,
-            firstBuyTimestamp: h.firstBuyAt ? new Date(h.firstBuyAt as string).getTime() : null,
-            hasSold: (h.hasSold as boolean) ?? false,
-            hasTransferredOut: (h.hasTransferredOut as boolean) ?? false,
-            hasTransferIn: (h.hasTransferIn as boolean) ?? false,
-            lastWinCycle: (h.lastWinCycle as number) ?? null,
-            totalTokensBought: (h.totalTokensBought as number) ?? 0,
-            poolUsd: pool.poolUsd,
-            currentCycle: 0,
-          })
-          return { w: String(h.wallet).slice(0, 12), bal: h.balance, vwap: h.vwap, elig: r.isEligible, why: r.ineligibleReason, loss: r.lossUsd }
-        })
-        out.evalVerdicts = verdicts
-      } catch (e) {
-        out.evalError = e instanceof Error ? e.message : String(e)
-      }
-
       try {
         const { filterWinnersHoldingSessionToken } = await import('@/lib/payout/payoutSecurity')
         const verified = await filterWinnersHoldingSessionToken(winners as never)
