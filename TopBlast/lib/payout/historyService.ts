@@ -150,7 +150,10 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
     const tenantSlug = p.tenantSlug || '_legacy'
     const session = resolveSessionMeta(tenantSlug, labels)
     const tokenMeta = resolveCycleTokenMeta(p, labels)
-    const cycleKey = `${tenantSlug}:${p.cycle}`
+    // Token is part of the key: when a session's token changes, cycle numbers
+    // restart at 1, and without it the new token's cycle 1 was merged with the
+    // old token's into one mixed row.
+    const cycleKey = `${tenantSlug}:${(p.tokenMint || '').toLowerCase()}:${p.cycle}`
 
     if (!cycleMap.has(cycleKey)) {
       cycleMap.set(cycleKey, {
@@ -252,7 +255,9 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
   const paidOut = aggregateSuccessfulPayoutTotals(successfulPayouts)
   const totalDistributedUsd = paidOut.total_usd
   const totalDistributedSol = paidOut.total_sol
-  const uniqueCycles = new Set(allPayouts.map(p => `${p.tenantSlug || '_legacy'}:${p.cycle}`))
+  const uniqueCycles = new Set(
+    allPayouts.map(p => `${p.tenantSlug || '_legacy'}:${(p.tokenMint || '').toLowerCase()}:${p.cycle}`)
+  )
   const uniqueSessions = new Set(allPayouts.map(p => p.tenantSlug || '_legacy'))
 
   return {
