@@ -56,7 +56,15 @@ export async function transfer(recipient: string, amount: number, mint?: string,
   try {
     if (mint) {
       if (!isEvmAddress(mint)) throw new Error('Invalid token address')
-      const value = parseUnits(amount.toFixed(Math.min(decimals, 18)), decimals)
+      const requested = parseUnits(amount.toFixed(Math.min(decimals, 18)), decimals)
+      // Amounts arrive as JS floats, and float -> toFixed(18) -> wei can land a
+      // few hundred million wei ABOVE what the wallet holds — measured
+      // 232,069,109 over on a 32.3M-token airdrop, which reverted with
+      // insufficient balance and failed the whole payout. Never ask for more
+      // than the wallet has.
+      const held = (await publicClient().readContract({ address: mint as Address, abi: ERC20_ABI,
+        functionName: 'balanceOf', args: [wallet.account.address] })) as bigint
+      const value = requested > held ? held : requested
       if (value <= 0n) throw new Error('Amount rounds to zero')
       const { request, result } = await publicClient().simulateContract({ address: mint as Address, abi: ERC20_ABI,
         functionName: 'transfer', args: [recipient as Address, value], account: wallet.account })
@@ -70,7 +78,13 @@ export async function transfer(recipient: string, amount: number, mint?: string,
     }
     const receipt = await publicClient().waitForTransactionReceipt({ hash })
     return { success: receipt.status === 'success', txHash: hash, error: receipt.status === 'success' ? null : 'Transaction reverted' }
-  } catch {
-    return { ...base, txHash: hash ?? null, error: hash ? 'Transaction submitted; confirmation unknown. Reconcile before retrying.' : 'EVM transfer failed before submission' }
+  } catch (err) {
+    // Keep the cause. A bare "failed before submission" hid an
+    // insufficient-balance revert for hours.
+    const cause = (err as { shortMessage?: string })?.shortMessage ?? (err instanceof Error ? err.message : String(err))
+    console.error('[Pons] transfer failed:', cause)
+    return { ...base, txHash: hash ?? null, error: hash
+      ? 'Transaction submitted; confirmation unknown. Reconcile before retrying.'
+      : `EVM transfer failed before submission: ${cause.split(String.fromCharCode(10))[0].slice(0, 200)}` }
   }
 }
