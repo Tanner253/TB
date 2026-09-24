@@ -147,6 +147,9 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
   }>()
 
   for (const p of payouts) {
+    // Voided rows are attempts that sent nothing and were superseded; they
+    // are kept for the audit trail, not shown as unpaid payouts.
+    if (p.status === 'voided') continue
     const tenantSlug = p.tenantSlug || '_legacy'
     const session = resolveSessionMeta(tenantSlug, labels)
     const tokenMeta = resolveCycleTokenMeta(p, labels)
@@ -225,6 +228,15 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
   }
 
   const cycles: PayoutHistoryCycle[] = Array.from(cycleMap.entries())
+    .map(([id, c]) => {
+      // A failed attempt that a later retry paid for the same rank is not an
+      // unpaid payout, it is just the first try. Showing it made fully paid
+      // cycles read as "partial".
+      const paidRanks = new Set(c.payouts.filter(p => p.status === 'success').map(p => p.rank))
+      c.payouts = c.payouts.filter(p => p.status === 'success' || !paidRanks.has(p.rank))
+      c.failed_count = c.payouts.filter(p => p.status === 'failed').length
+      return [id, c] as const
+    })
     .map(([id, c]) => ({
       id,
       cycle: c.cycle,
@@ -244,13 +256,16 @@ export async function fetchAppPayoutHistory(limit = 50): Promise<AppPayoutHistor
       total_token_symbol: c.total_token_amount > 0 ? c.token_symbol : null,
       success_count: c.success_count,
       failed_count: c.failed_count,
-      status:
-        c.failed_count === 0 ? 'success' : c.success_count === 0 ? 'failed' : 'partial',
+      status: (c.failed_count === 0
+        ? 'success'
+        : c.success_count === 0
+          ? 'failed'
+          : 'partial') as PayoutHistoryCycle['status'],
     }))
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, limit)
 
-  const allPayouts = await Payout.find().lean()
+  const allPayouts = (await Payout.find().lean()).filter(p => p.status !== 'voided')
   const successfulPayouts = allPayouts.filter(p => p.status === 'success')
   const paidOut = aggregateSuccessfulPayoutTotals(successfulPayouts)
   const totalDistributedUsd = paidOut.total_usd

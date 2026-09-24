@@ -129,10 +129,29 @@ function payoutTokenFields() {
   }
 }
 
+/**
+ * Highest cycle number this tenant has payout rows for, optionally only rows
+ * written before `before`. Any token counts: payout rows, volume swaps and the
+ * cooldown are all keyed by tenant + cycle, so a cycle number must never be
+ * reused within a tenant, even across a token change.
+ */
+async function highestRecordedCycle(before: Date | null = null): Promise<number> {
+  const q: Record<string, unknown> = { ...tenantFields() }
+  if (before) q.createdAt = { $lt: before }
+  const top = await Payout.findOne(q).sort({ cycle: -1 }).select('cycle').lean()
+  return top?.cycle ?? 0
+}
+
 /** Env mint changed — retarget the timer only. Never delete payouts/holders/history. */
 async function retargetTimerForMint(tokenMint: string): Promise<void> {
+  // Continue the numbering rather than restart it. Restarting at 1 reused
+  // cycle numbers that already had payout and swap rows, and the executor's
+  // resume logic then "resumed" those old cycles: every attempt failed with
+  // "not included in the swap batch". A dev server with a stale mint in its
+  // env flip-flopped the platform timer into exactly that state.
+  const continueFrom = await highestRecordedCycle()
   console.log(
-    `[Payout] Token mint changed (${tokenMint.slice(0, 10)}...) — retargeting timer only (history preserved)`
+    `[Payout] Token mint changed (${tokenMint.slice(0, 10)}...) — retargeting timer only (history preserved, continuing after cycle ${continueFrom})`
   )
   await TimerState.findOneAndUpdate(
     { key: getTimerKey() },
@@ -141,7 +160,7 @@ async function retargetTimerForMint(tokenMint: string): Promise<void> {
         tokenMint,
         timerStatus: 'waiting',
         lastPayoutTime: null,
-        currentCycle: 0,
+        currentCycle: continueFrom,
         failedAttempts: 0,
         lastPayoutError: null,
         lastPayoutErrorAt: null,
@@ -154,7 +173,7 @@ async function retargetTimerForMint(tokenMint: string): Promise<void> {
   )
   const cache = getTimerCache()
   cache.lastPayoutTime = null
-  cache.currentCycle = 0
+  cache.currentCycle = continueFrom
   cache.timerStatus = 'waiting'
   cache.failedAttempts = 0
   cache.lastPayoutError = null
@@ -237,6 +256,27 @@ async function loadTimerState(): Promise<void> {
       })
       console.log('[Payout] Timer initialized in waiting state (starts when first holder is eligible)')
       return
+    }
+
+    // Self-heal a counter that went backwards. Rows for cycle N are only
+    // written once cycle N starts, which is after the last completed payout,
+    // so a higher cycle already on record from BEFORE that payout means the
+    // counter was reset and the next cycle would collide with it.
+    const recorded = await highestRecordedCycle(
+      state.lastPayoutTime ? new Date(state.lastPayoutTime) : null
+    )
+    if (recorded > (state.currentCycle || 0)) {
+      console.warn(
+        `[Payout] Timer cycle ${state.currentCycle} is behind recorded cycle ${recorded} — advancing so cycle numbers are not reused`
+      )
+      const healed = {
+        currentCycle: recorded,
+        failedAttempts: 0,
+        lastPayoutError: null,
+        lastPayoutErrorAt: null,
+      }
+      await TimerState.updateOne({ key: getTimerKey() }, { $set: healed })
+      state = { ...state, ...healed }
     }
 
     applyTimerDoc(state)
