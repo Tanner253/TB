@@ -1,3 +1,4 @@
+import { isContractBytecode } from '@/lib/evm/bytecode'
 import { getV1Launch } from './v1'
 import 'server-only'
 import mongoose from 'mongoose'
@@ -63,7 +64,9 @@ export async function liveHolderBalances(mint: string, limit: number) {
     rows.push(...await Promise.all(indexed.holders.slice(offset, Math.min(offset + 20, limit)).map(async h => ({
       wallet: h.wallet,
       balance: Number(await publicClient().readContract({ address: token, abi: ERC20_ABI, functionName: 'balanceOf', args: [h.wallet as `0x${string}`] })),
-      isContract: ((await publicClient().getBytecode({ address: h.wallet as `0x${string}` })) ?? '0x') !== '0x',
+      // isContractBytecode, not `!== '0x'`: an EIP-7702 delegated EOA has code
+      // and is still a person. The bare check deleted real holders from payouts.
+      isContract: isContractBytecode(await publicClient().getBytecode({ address: h.wallet as `0x${string}` })),
     }))))
   }
   return rows
