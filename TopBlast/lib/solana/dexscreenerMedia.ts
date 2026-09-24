@@ -7,6 +7,16 @@ import {
   selectBestSolanaPair,
   type DexScreenerPairLike,
 } from '@/lib/solana/dexscreenerShared'
+import { isEvmAddressShape } from '@/lib/platform/chainShape'
+
+/**
+ * DexScreener chain id for a token. Robinhood Chain pairs come back as
+ * 'robinhood'; filtering on 'solana' alone discarded every EVM token's art,
+ * so icons and banners never loaded for any Pons listing.
+ */
+function dexChainFor(mint: string): 'robinhood' | 'solana' {
+  return isEvmAddressShape(mint) ? 'robinhood' : 'solana'
+}
 
 export interface DexScreenerTokenMedia {
   iconUrl: string | null
@@ -72,6 +82,9 @@ function pickBestAmong(
   mint: string
 ): DexScreenerPairWithInfo | null {
   if (candidates.length === 0) return null
+  const byLiquidity = () =>
+    candidates.sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0))[0]
+  if (dexChainFor(mint) !== 'solana') return byLiquidity()
   return (
     selectBestSolanaPair(candidates, mint) ??
     candidates.sort((a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0))[0]
@@ -83,7 +96,8 @@ export function selectBestSolanaPairForMedia(
   pairs: DexScreenerPairWithInfo[],
   mint: string
 ): DexScreenerPairWithInfo | null {
-  const solana = pairs.filter(p => p.chainId === 'solana')
+  const chain = dexChainFor(mint)
+  const solana = pairs.filter(p => p.chainId === chain)
 
   const withHeader = solana.filter(p => Boolean(p.info?.header?.trim()))
   const withHeaderPick = pickBestAmong(withHeader, mint)
@@ -96,7 +110,7 @@ export function selectBestSolanaPairForMedia(
   const withArtPick = pickBestAmong(withArt, mint)
   if (withArtPick) return withArtPick
 
-  return selectBestSolanaPair(pairs, mint)
+  return chain === 'solana' ? selectBestSolanaPair(pairs, mint) : pickBestAmong(solana, mint)
 }
 
 /** Parse DexScreener `/tokens/{mint}` JSON into icon + banner (browser-safe). */
@@ -161,11 +175,17 @@ export async function fetchDexScreenerTokenMedia(
   if (hit && Date.now() < hit.expiresAt) return hit.media
 
   const dex = await fetchDexScreenerOnly(normalized)
+  const evm = isEvmAddressShape(normalized)
   let media: DexScreenerTokenMedia = dex
     ? { ...dex }
-    : { ...EMPTY_MEDIA, dexUrl: `https://pump.fun/coin/${normalized}` }
+    : {
+        ...EMPTY_MEDIA,
+        dexUrl: evm
+          ? `https://dexscreener.com/robinhood/${normalized}`
+          : `https://pump.fun/coin/${normalized}`,
+      }
 
-  if (!media.iconUrl) {
+  if (!media.iconUrl && !evm) {
     const pumpIcon = await fetchPumpFunTokenIcon(normalized)
     if (pumpIcon) {
       media = {
