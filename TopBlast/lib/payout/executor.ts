@@ -261,10 +261,12 @@ async function loadTimerState(): Promise<void> {
     // Self-heal a counter that went backwards. Rows for cycle N are only
     // written once cycle N starts, which is after the last completed payout,
     // so a higher cycle already on record from BEFORE that payout means the
-    // counter was reset and the next cycle would collide with it.
-    const recorded = await highestRecordedCycle(
-      state.lastPayoutTime ? new Date(state.lastPayoutTime) : null
-    )
+    // counter was reset and the next cycle would collide with it. Only with
+    // a last payout time to compare against: a paused timer has none, and a
+    // partially paid cycle awaiting retry must not be skipped past.
+    const recorded = state.lastPayoutTime
+      ? await highestRecordedCycle(new Date(state.lastPayoutTime))
+      : 0
     if (recorded > (state.currentCycle || 0)) {
       console.warn(
         `[Payout] Timer cycle ${state.currentCycle} is behind recorded cycle ${recorded} — advancing so cycle numbers are not reused`
